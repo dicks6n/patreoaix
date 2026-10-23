@@ -1,0 +1,797 @@
+{% extends 'base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Notification Settings - PATREOAIX{% endblock %}
+
+{% block content %}
+<!-- LOADING SPINNER -->
+<div id="loading-spinner" class="fixed inset-0 z-[9999] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center transition-opacity duration-500">
+    <div class="relative flex items-center justify-center">
+        <div class="w-20 h-20 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin"></div>
+        <div class="absolute w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center animate-pulse">
+            <div class="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
+        </div>
+    </div>
+    <div class="mt-5 text-center space-y-1">
+        <p class="text-xs font-mono tracking-widest text-indigo-300 uppercase animate-pulse">Loading Preferences</p>
+        <p class="text-[10px] font-mono text-slate-500">Syncing your notification channels...</p>
+    </div>
+</div>
+
+<style>
+    .spinner-hidden { opacity: 0; pointer-events: none; visibility: hidden; }
+
+    .settings-card {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 27, 75, 0.4) 100%);
+        border: 1px solid rgba(99, 102, 241, 0.15);
+        border-radius: 20px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+        transition: border-color 0.3s ease;
+    }
+
+    .settings-card:hover {
+        border-color: rgba(99, 102, 241, 0.35);
+    }
+
+    /* Custom toggle switch */
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 44px;
+        height: 24px;
+        cursor: pointer;
+    }
+
+    .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: #334155;
+        transition: 0.3s;
+        border-radius: 9999px;
+    }
+
+    .toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.3s;
+        border-radius: 50%;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .toggle-switch input:checked + .toggle-slider {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    }
+
+    .toggle-switch input:checked + .toggle-slider:before {
+        transform: translateX(20px);
+    }
+
+    .toggle-switch input:focus + .toggle-slider {
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+    }
+
+    /* Channel icon tile */
+    .channel-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        flex-shrink: 0;
+    }
+
+    .channel-email {
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(37, 99, 235, 0.1));
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        color: #60a5fa;
+    }
+
+    .channel-sms {
+        background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(16, 185, 129, 0.1));
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        color: #4ade80;
+    }
+
+    .channel-push {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(124, 58, 237, 0.1));
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        color: #a78bfa;
+    }
+
+    .channel-whatsapp {
+        background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(22, 163, 74, 0.1));
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        color: #34d399;
+    }
+
+    /* Category row */
+    .category-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 0;
+        border-bottom: 1px solid rgba(51, 65, 85, 0.4);
+        gap: 16px;
+    }
+
+    .category-row:last-child {
+        border-bottom: none;
+    }
+
+    /* Alert banner */
+    .alert-success {
+        background: linear-gradient(90deg, rgba(34, 197, 94, 0.15), rgba(16, 185, 129, 0.1));
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        color: #4ade80;
+    }
+
+    .alert-error {
+        background: linear-gradient(90deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.1));
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #f87171;
+    }
+
+    /* Save button pulse */
+    @keyframes savePulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+        50% { box-shadow: 0 0 0 12px rgba(99, 102, 241, 0); }
+    }
+
+    .save-btn-pulse {
+        animation: savePulse 2s infinite;
+    }
+</style>
+
+<div class="max-w-5xl mx-auto space-y-6 pb-6">
+
+    <!-- ========================================== -->
+    <!-- HEADER -->
+    <!-- ========================================== -->
+    <div class="settings-card p-5 sm:p-6 relative overflow-hidden">
+        <div class="absolute -top-20 -right-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
+                    <i class="fa-solid fa-bell text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-black text-white">Notification Settings</h1>
+                    <p class="text-xs text-slate-400 mt-1">Control how and when you receive alerts from PATREOAIX</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 shrink-0">
+                <span class="px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Live
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MESSAGES -->
+    <!-- ========================================== -->
+    {% if messages %}
+    <div class="space-y-2">
+        {% for message in messages %}
+        <div class="p-3.5 rounded-xl text-xs font-semibold flex items-center gap-3 
+            {% if message.tags == 'error' %}alert-error
+            {% else %}alert-success{% endif %}">
+            <i class="fa-solid {% if message.tags == 'error' %}fa-circle-exclamation{% else %}fa-circle-check{% endif %} text-sm"></i>
+            <span>{{ message }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- ========================================== -->
+    <!-- CURRENT STATUS SUMMARY -->
+    <!-- ========================================== -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="settings-card p-4">
+            <div class="flex items-center gap-2 mb-2">
+                <i class="fa-solid fa-envelope text-blue-400 text-xs"></i>
+                <span class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Email</span>
+            </div>
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-white">
+                    {% if user.email %}{{ user.email|truncatechars:20 }}{% else %}Not set{% endif %}
+                </span>
+                <span class="w-2 h-2 rounded-full {% if user.email %}bg-emerald-400{% else %}bg-slate-600{% endif %}"></span>
+            </div>
+        </div>
+
+        <div class="settings-card p-4">
+            <div class="flex items-center gap-2 mb-2">
+                <i class="fa-solid fa-comment-sms text-emerald-400 text-xs"></i>
+                <span class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">SMS</span>
+            </div>
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-white">
+                    {% if user_profile.phone_number %}{{ user_profile.phone_number|truncatechars:16 }}{% else %}Not set{% endif %}
+                </span>
+                <span class="w-2 h-2 rounded-full {% if user_profile.sms_ready %}bg-emerald-400{% else %}bg-slate-600{% endif %}"></span>
+            </div>
+        </div>
+
+        <div class="settings-card p-4">
+            <div class="flex items-center gap-2 mb-2">
+                <i class="fa-solid fa-mobile-screen text-purple-400 text-xs"></i>
+                <span class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Push</span>
+            </div>
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-white">
+                    {% if push_enabled %}Enabled{% else %}Disabled{% endif %}
+                </span>
+                <span class="w-2 h-2 rounded-full {% if push_enabled %}bg-emerald-400{% else %}bg-slate-600{% endif %}"></span>
+            </div>
+        </div>
+
+        <div class="settings-card p-4">
+            <div class="flex items-center gap-2 mb-2">
+                <i class="fa-solid fa-shield-halved text-amber-400 text-xs"></i>
+                <span class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Security</span>
+            </div>
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-white">
+                    {% if security_alerts %}Active{% else %}Silent{% endif %}
+                </span>
+                <span class="w-2 h-2 rounded-full {% if security_alerts %}bg-emerald-400{% else %}bg-amber-400{% endif %}"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MAIN FORM -->
+    <!-- ========================================== -->
+    <form method="POST" action="{% url 'notification_settings' %}" id="notifForm">
+        {% csrf_token %}
+
+        <!-- ==========================================
+             SECTION 1: DELIVERY CHANNELS
+             ========================================== -->
+        <div class="settings-card p-5 sm:p-6 mb-5">
+            <div class="flex items-center gap-3 mb-5 pb-4 border-b border-slate-800/60">
+                <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                    <i class="fa-solid fa-satellite-dish"></i>
+                </div>
+                <div>
+                    <h2 class="text-sm font-bold text-white">Delivery Channels</h2>
+                    <p class="text-[11px] text-slate-500">Choose where to receive notifications</p>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <!-- EMAIL CHANNEL -->
+                <div class="flex items-center justify-between p-4 rounded-xl bg-slate-950/40 border border-slate-800/60 hover:border-blue-500/40 transition">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="channel-icon channel-email">
+                            <i class="fa-solid fa-envelope"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h3 class="text-sm font-bold text-white">Email Notifications</h3>
+                            <p class="text-[11px] text-slate-500 truncate">
+                                {% if user.email %}Sent to {{ user.email }}{% else %}Add your email in profile settings{% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="email_notifications" {% if email_notifications %}checked{% endif %}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <!-- SMS CHANNEL -->
+                <div class="flex items-center justify-between p-4 rounded-xl bg-slate-950/40 border border-slate-800/60 hover:border-emerald-500/40 transition">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="channel-icon channel-sms">
+                            <i class="fa-solid fa-comment-sms"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h3 class="text-sm font-bold text-white">SMS Notifications</h3>
+                            <p class="text-[11px] text-slate-500 truncate">
+                                {% if user_profile.phone_number %}
+                                    Sent to {{ user_profile.phone_number }}
+                                {% else %}
+                                    <a href="{% url 'profile' %}" class="text-indigo-400 hover:text-indigo-300 underline">Add phone number →</a>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="sms_notifications" {% if user_profile.sms_opt_in %}checked{% endif %} {% if not user_profile.phone_number %}disabled{% endif %}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <!-- PUSH CHANNEL -->
+                <div class="flex items-center justify-between p-4 rounded-xl bg-slate-950/40 border border-slate-800/60 hover:border-purple-500/40 transition">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="channel-icon channel-push">
+                            <i class="fa-solid fa-mobile-screen"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h3 class="text-sm font-bold text-white">Push Notifications</h3>
+                            <p class="text-[11px] text-slate-500">Browser & mobile push alerts</p>
+                        </div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="push_notifications" {% if push_enabled %}checked{% endif %}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <!-- WHATSAPP (Coming Soon) -->
+                <div class="flex items-center justify-between p-4 rounded-xl bg-slate-950/40 border border-slate-800/60 opacity-60">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="channel-icon channel-whatsapp">
+                            <i class="fa-brands fa-whatsapp"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                WhatsApp
+                                <span class="text-[9px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold uppercase">Soon</span>
+                            </h3>
+                            <p class="text-[11px] text-slate-500">WhatsApp alerts coming soon</p>
+                        </div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" disabled>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================================
+             SECTION 2: NOTIFICATION CATEGORIES
+             ========================================== -->
+        <div class="settings-card p-5 sm:p-6 mb-5">
+            <div class="flex items-center gap-3 mb-5 pb-4 border-b border-slate-800/60">
+                <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                    <i class="fa-solid fa-sliders"></i>
+                </div>
+                <div>
+                    <h2 class="text-sm font-bold text-white">Notification Categories</h2>
+                    <p class="text-[11px] text-slate-500">Pick which events trigger alerts</p>
+                </div>
+            </div>
+
+            <div>
+                <!-- TRADE NOTIFICATIONS -->
+                <div class="category-row">
+                    <div class="flex items-center gap-3 min-w-0 flex-1">
+                        <div class="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+                            <i class="fa-solid fa-chart-line text-sm"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h4 class="text-xs font-bold text-white">Trade Events</h4>
+                            <p class="text-[10px] text-slate-500">Trade opened, closed, win/loss, P&L updates</p>
+                        </div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="trade_alerts" {% if trade_alerts %}checked{% endif %}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <!-- FUNDING NOTIFICATIONS -->
+                <div class="category-row">
+                    <div class="flex items-center gap-3 min-w-0 flex-1">
+                        <div class="w-9 h-9 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
+                            <i class="fa-solid fa-wallet text-sm"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h4 class="text-xs font-bold text-white">Deposits & Withdrawals</h4>
+                            <p class="text-[10px] text-slate-500">Funding submitted, approved, rejected</p>
+                        </div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="funding_alerts" {% if funding_alerts %}checked{% endif %}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <!-- SECURITY NOTIFICATIONS -->
+                <div class="category-row">
+                    <div class="flex items-center gap-3 min-w-0 flex-1">
+                        <div class="w-9 h-9 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 shrink-0">
+                            <i class="fa-solid fa-shield-halved text-sm"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h4 class="text-xs font-bold text-white">Security Alerts</h4>
+                            <p class="text-[10px] text-slate-500">New login, password change, KYC status</p>
+                        </div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="security_alerts" {% if security_alerts %}checked{% endif %}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <!-- KYC NOTIFICATIONS -->
+                <div class="category-row">
+                    <div class="flex items-center gap-3 min-w-0 flex-1">
+                        <div class="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+                            <i class="fa-solid fa-id-card text-sm"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h4 class="text-xs font-bold text-white">KYC & Compliance</h4>
+                            <p class="text-[10px] text-slate-500">Verification submitted, approved, rejected</p>
+                        </div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="kyc_alerts" {% if kyc_alerts %}checked{% endif %}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <!-- REFERRAL NOTIFICATIONS -->
+                <div class="category-row">
+                    <div class="flex items-center gap-3 min-w-0 flex-1">
+                        <div class="w-9 h-9 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 shrink-0">
+                            <i class="fa-solid fa-user-group text-sm"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h4 class="text-xs font-bold text-white">Referrals</h4>
+                            <p class="text-[10px] text-slate-500">New signup, reward earned, payout</p>
+                        </div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="referral_alerts" {% if referral_alerts %}checked{% endif %}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <!-- MARKETING -->
+                <div class="category-row">
+                    <div class="flex items-center gap-3 min-w-0 flex-1">
+                        <div class="w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
+                            <i class="fa-solid fa-bullhorn text-sm"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h4 class="text-xs font-bold text-white">Product Updates & Marketing</h4>
+                            <p class="text-[10px] text-slate-500">New features, promotions, newsletters</p>
+                        </div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="marketing_alerts" {% if marketing_alerts %}checked{% endif %}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================================
+             SECTION 3: DELIVERY PREFERENCES
+             ========================================== -->
+        <div class="settings-card p-5 sm:p-6 mb-5">
+            <div class="flex items-center gap-3 mb-5 pb-4 border-b border-slate-800/60">
+                <div class="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                    <i class="fa-solid fa-clock"></i>
+                </div>
+                <div>
+                    <h2 class="text-sm font-bold text-white">Delivery Preferences</h2>
+                    <p class="text-[11px] text-slate-500">Control when notifications are sent</p>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <!-- DIGEST MODE -->
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                        Notification Frequency
+                    </label>
+                    <select name="digest_frequency" 
+                            class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500">
+                        <option value="instant" {% if digest_frequency == 'instant' %}selected{% endif %}>
+                            ⚡ Instant — every event triggers a notification
+                        </option>
+                        <option value="hourly" {% if digest_frequency == 'hourly' %}selected{% endif %}>
+                            🕐 Hourly digest — batched every hour
+                        </option>
+                        <option value="daily" {% if digest_frequency == 'daily' %}selected{% endif %}>
+                            📅 Daily digest — one email per day at 9 AM
+                        </option>
+                        <option value="weekly" {% if digest_frequency == 'weekly' %}selected{% endif %}>
+                            📆 Weekly summary — every Monday
+                        </option>
+                    </select>
+                </div>
+
+                <!-- QUIET HOURS -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                            Quiet Hours — From
+                        </label>
+                        <input type="time" 
+                               name="quiet_hours_start"
+                               value="{{ quiet_hours_start|default:'22:00' }}"
+                               class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                            Quiet Hours — To
+                        </label>
+                        <input type="time" 
+                               name="quiet_hours_end"
+                               value="{{ quiet_hours_end|default:'07:00' }}"
+                               class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 font-mono">
+                    </div>
+                </div>
+
+                <!-- TIMEZONE -->
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                        Your Timezone
+                    </label>
+                    <select name="timezone" 
+                            class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500">
+                        <option value="Africa/Nairobi" {% if user_tz == 'Africa/Nairobi' %}selected{% endif %}>
+                            🌍 Africa/Nairobi (EAT, UTC+3)
+                        </option>
+                        <option value="Europe/London" {% if user_tz == 'Europe/London' %}selected{% endif %}>
+                            🌍 Europe/London (GMT/BST)
+                        </option>
+                        <option value="America/New_York" {% if user_tz == 'America/New_York' %}selected{% endif %}>
+                            🌍 America/New_York (EST/EDT)
+                        </option>
+                        <option value="Asia/Dubai" {% if user_tz == 'Asia/Dubai' %}selected{% endif %}>
+                            🌍 Asia/Dubai (GST, UTC+4)
+                        </option>
+                        <option value="Asia/Singapore" {% if user_tz == 'Asia/Singapore' %}selected{% endif %}>
+                            🌍 Asia/Singapore (SGT, UTC+8)
+                        </option>
+                        <option value="UTC" {% if user_tz == 'UTC' %}selected{% endif %}>
+                            🌍 UTC
+                        </option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================================
+             SECTION 4: SMS SPECIFIC (conditionally shown)
+             ========================================== -->
+        {% if user_profile.phone_number %}
+        <div class="settings-card p-5 sm:p-6 mb-5 border border-emerald-500/30">
+            <div class="flex items-center gap-3 mb-5 pb-4 border-b border-slate-800/60">
+                <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                    <i class="fa-solid fa-comment-sms"></i>
+                </div>
+                <div>
+                    <h2 class="text-sm font-bold text-white">SMS Preferences</h2>
+                    <p class="text-[11px] text-slate-500">Fine-tune your SMS alerts</p>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <div class="flex items-start gap-3 p-4 rounded-xl bg-emerald-950/30 border border-emerald-500/20">
+                    <i class="fa-solid fa-circle-info text-emerald-400 text-sm mt-0.5"></i>
+                    <div class="text-[11px] text-emerald-200 leading-relaxed">
+                        SMS is currently active on your account
+                        <strong class="font-mono">{{ user_profile.phone_number }}</strong>.
+                        To change your phone number, visit
+                        <a href="{% url 'profile' %}" class="underline hover:text-emerald-100 font-bold">Profile Settings</a>.
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <label class="flex items-center gap-3 p-3 rounded-lg bg-slate-950/40 border border-slate-800/60 hover:border-emerald-500/40 transition cursor-pointer">
+                        <input type="checkbox" name="sms_otp" value="1" {% if sms_otp %}checked{% endif %} 
+                               class="w-4 h-4 rounded accent-emerald-500">
+                        <span class="text-xs font-bold text-white">OTP / 2FA</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 p-3 rounded-lg bg-slate-950/40 border border-slate-800/60 hover:border-emerald-500/40 transition cursor-pointer">
+                        <input type="checkbox" name="sms_transactional" value="1" {% if sms_transactional %}checked{% endif %} 
+                               class="w-4 h-4 rounded accent-emerald-500">
+                        <span class="text-xs font-bold text-white">Transactions</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 p-3 rounded-lg bg-slate-950/40 border border-slate-800/60 hover:border-emerald-500/40 transition cursor-pointer">
+                        <input type="checkbox" name="sms_trades" value="1" {% if sms_trades %}checked{% endif %} 
+                               class="w-4 h-4 rounded accent-emerald-500">
+                        <span class="text-xs font-bold text-white">Trade Alerts</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 p-3 rounded-lg bg-slate-950/40 border border-slate-800/60 hover:border-emerald-500/40 transition cursor-pointer">
+                        <input type="checkbox" name="sms_security" value="1" {% if sms_security %}checked{% endif %} 
+                               class="w-4 h-4 rounded accent-emerald-500">
+                        <span class="text-xs font-bold text-white">Security</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- ==========================================
+             SAVE BUTTON
+             ========================================== -->
+        <div class="settings-card p-5 sm:p-6 border border-indigo-500/30">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+                        <i class="fa-solid fa-circle-info"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-white">Changes take effect immediately</h4>
+                        <p class="text-[11px] text-slate-500 mt-0.5">You can update these preferences anytime.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <button type="button" 
+                            onclick="resetDefaults()"
+                            class="flex-1 sm:flex-none px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-rotate-left text-[10px]"></i>
+                        Reset
+                    </button>
+
+                    <button type="submit" 
+                            class="flex-1 sm:flex-none px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-black transition shadow-lg shadow-indigo-500/30 flex items-center justify-center gap-2 save-btn-pulse">
+                        <i class="fa-solid fa-floppy-disk text-[10px]"></i>
+                        Save Preferences
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </form>
+
+    <!-- ==========================================
+         QUICK ACTIONS FOOTER
+         ========================================== -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <a href="{% url 'profile' %}" 
+           class="settings-card p-4 flex items-center gap-3 hover:border-indigo-500/40 transition group">
+            <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:scale-110 transition">
+                <i class="fa-solid fa-user-pen text-sm"></i>
+            </div>
+            <div class="min-w-0">
+                <h4 class="text-xs font-bold text-white">Update Profile</h4>
+                <p class="text-[10px] text-slate-500">Change email & phone</p>
+            </div>
+        </a>
+
+        <a href="{% url 'profile_security' %}" 
+           class="settings-card p-4 flex items-center gap-3 hover:border-rose-500/40 transition group">
+            <div class="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 group-hover:scale-110 transition">
+                <i class="fa-solid fa-shield-halved text-sm"></i>
+            </div>
+            <div class="min-w-0">
+                <h4 class="text-xs font-bold text-white">Security Center</h4>
+                <p class="text-[10px] text-slate-500">Password & sessions</p>
+            </div>
+        </a>
+
+        <a href="{% url 'ai_support' %}" 
+           class="settings-card p-4 flex items-center gap-3 hover:border-emerald-500/40 transition group">
+            <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition">
+                <i class="fa-solid fa-headset text-sm"></i>
+            </div>
+            <div class="min-w-0">
+                <h4 class="text-xs font-bold text-white">Need Help?</h4>
+                <p class="text-[10px] text-slate-500">Contact support</p>
+            </div>
+        </a>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // ==========================================
+    // HIDE SPINNER
+    // ==========================================
+    window.addEventListener('load', function() {
+        setTimeout(() => {
+            const spinner = document.getElementById('loading-spinner');
+            if (spinner) {
+                spinner.classList.add('spinner-hidden');
+                setTimeout(() => spinner.remove(), 500);
+            }
+        }, 400);
+    });
+
+    // ==========================================
+    // FORM SUBMIT — Show loading state
+    // ==========================================
+    const form = document.getElementById('notifForm');
+    if (form) {
+        form.addEventListener('submit', function() {
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin text-[10px]"></i> Saving...';
+            }
+        });
+    }
+
+    // ==========================================
+    // RESET DEFAULTS
+    // ==========================================
+    function resetDefaults() {
+        if (!confirm('Reset all notification preferences to default? This will not save until you click "Save Preferences".')) {
+            return;
+        }
+
+        // Reset checkboxes to sensible defaults
+        const defaults = {
+            'email_notifications': true,
+            'sms_notifications': true,
+            'push_notifications': false,
+            'trade_alerts': true,
+            'funding_alerts': true,
+            'security_alerts': true,
+            'kyc_alerts': true,
+            'referral_alerts': true,
+            'marketing_alerts': false,
+            'sms_otp': true,
+            'sms_transactional': true,
+            'sms_trades': true,
+            'sms_security': true,
+        };
+
+        Object.keys(defaults).forEach(name => {
+            const input = form.querySelector(`input[name="${name}"]`);
+            if (input && !input.disabled) {
+                input.checked = defaults[name];
+            }
+        });
+
+        // Reset select
+        const freq = form.querySelector('select[name="digest_frequency"]');
+        if (freq) freq.value = 'instant';
+    }
+
+    // ==========================================
+    // WARN BEFORE LEAVING WITH UNSAVED CHANGES
+    // ==========================================
+    let formDirty = false;
+    const inputs = form.querySelectorAll('input, select');
+
+    inputs.forEach(input => {
+        input.addEventListener('change', () => { formDirty = true; });
+    });
+
+    form.addEventListener('submit', () => { formDirty = false; });
+
+    window.addEventListener('beforeunload', (e) => {
+        if (formDirty) {
+            e.preventDefault();
+            e.returnValue = '';
+            return '';
+        }
+    });
+
+    // ==========================================
+    // ENABLE/DISABLE SMS TOGGLE BASED ON PHONE
+    // ==========================================
+    const smsToggle = form.querySelector('input[name="sms_notifications"]');
+    if (smsToggle && smsToggle.disabled) {
+        smsToggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            window.location.href = "{% url 'profile' %}";
+        });
+    }
+</script>
+{% endblock %}

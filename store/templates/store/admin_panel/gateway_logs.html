@@ -1,0 +1,101 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}Admin Gateway & Transaction Logs · PATREOAIX{% endblock %}
+{% block page_title %}Gateway Logs{% endblock %}
+
+{% block extra_head %}
+{% include 'partials/admin_styles.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-3">
+        <div>
+            <h2 class="text-xl sm:text-2xl font-semibold tracking-tight px-strong">Gateway &amp; transaction logs</h2>
+            <p class="text-[13px] mt-1 px-dim">Webhook receipts, blockchain confirmations and ledger discrepancies.</p>
+        </div>
+        <div class="flex gap-2">
+            <a href="{% url 'admin_dashboard_hub' %}?tab=system" class="btn-gh"><i class="fa-solid fa-arrow-left"></i>Admin Hub</a>
+            <button type="button" id="gl-csv" class="btn-gh"><i class="fa-solid fa-file-csv"></i>Export CSV</button>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="px-card p-4"><p class="text-[11px] px-muted">Entries shown</p><p class="px-num text-[19px] font-bold px-strong" id="gl-n">{{ logs|length }}</p></div>
+        <div class="px-card p-4"><p class="text-[11px] px-muted">Successful volume</p><p class="px-num text-[19px] font-bold px-up" id="gl-ok">—</p></div>
+        <div class="px-card p-4"><p class="text-[11px] px-muted">Pending</p><p class="px-num text-[19px] font-bold" style="color:var(--px-accent)" id="gl-pend">—</p></div>
+        <div class="px-card p-4"><p class="text-[11px] px-muted">Discrepancies</p><p class="px-num text-[19px] font-bold {% if discrepancies.count %}px-down{% else %}px-strong{% endif %}">{{ discrepancies.count }}</p></div>
+    </div>
+
+    <section class="px-card overflow-hidden">
+        <div class="px-card-h">
+            <span class="px-card-t"><i class="fa-solid fa-receipt px-muted"></i>Transaction ledger</span>
+            <div class="flex gap-2 flex-wrap">
+                <select id="gl-status" class="px-sel" style="width:auto"><option value="">All statuses</option><option value="SUCCESS">Success</option><option value="PENDING">Pending</option><option value="DISCREPANCY" {% if discrepancies.count %}selected{% endif %}>Discrepancy</option></select>
+                <select id="gl-gw" class="px-sel" style="width:auto"><option value="">All gateways</option></select>
+                <input id="gl-q" class="px-in" placeholder="Reference, user, type" style="width:190px">
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="ad-tbl" id="gl-tbl">
+                <thead><tr><th>TxID / Ref</th><th>User</th><th>Gateway</th><th>Type</th><th class="text-right">Amount</th><th>Status</th><th class="text-right">Time</th></tr></thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr data-status="{{ log.status }}" data-gw="{{ log.gateway_name }}" data-amt="{{ log.amount }}" data-text="{{ log.reference_id|lower }} {{ log.transaction_type|lower }} {% if log.user %}{{ log.user.username|lower }}{% endif %}">
+                        <td><div class="flex items-center gap-1"><code class="px-num text-[11px] font-semibold" style="color:var(--px-accent)" title="{{ log.reference_id }}">{{ log.reference_id|truncatechars:26 }}</code><button type="button" class="copy-btn" data-copy="{{ log.reference_id }}" title="Copy"><i class="fa-regular fa-copy text-[11px]"></i></button></div></td>
+                        <td>{% if log.user %}<a href="{% url 'admin_dashboard_hub' %}?tab=users&q={{ log.user.username|urlencode }}" class="px-strong hover:underline">@{{ log.user.username }}</a>{% else %}<span class="px-muted">—</span>{% endif %}</td>
+                        <td class="px-dim">{{ log.gateway_name }}</td>
+                        <td class="px-dim">{{ log.transaction_type }}</td>
+                        <td class="text-right px-num font-semibold px-strong">${{ log.amount|floatformat:2 }}</td>
+                        <td>{% if log.status == 'SUCCESS' %}<span class="pill ok">SUCCESS</span>{% elif log.status == 'DISCREPANCY' %}<span class="pill bad"><i class="fa-solid fa-triangle-exclamation"></i>DISCREPANCY</span>{% else %}<span class="pill warn">PENDING</span>{% endif %}</td>
+                        <td class="text-right px-num text-[11px] px-dim whitespace-nowrap" data-iso="{{ log.created_at|date:'c' }}">{{ log.created_at|date:"Y-m-d H:i:s" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7"><div class="ad-empty"><i class="fa-solid fa-receipt"></i>No transaction logs recorded.</div></td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div id="gl-none" class="ad-empty hidden"><i class="fa-solid fa-filter"></i>No entries match.</div>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const $ = id => document.getElementById(id);
+    const rows = [...document.querySelectorAll('#gl-tbl tbody tr[data-status]')];
+    [...new Set(rows.map(r => r.dataset.gw))].sort().forEach(g => { const o = document.createElement('option'); o.value = o.textContent = g; $('gl-gw').appendChild(o); });
+    const money = v => '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    function apply() {
+        const st = $('gl-status').value, gw = $('gl-gw').value, q = $('gl-q').value.trim().toLowerCase();
+        let n = 0, ok = 0, pend = 0;
+        rows.forEach(r => {
+            const show = (!st || r.dataset.status === st) && (!gw || r.dataset.gw === gw) && (!q || r.dataset.text.includes(q));
+            r.style.display = show ? '' : 'none';
+            if (!show) return;
+            n++;
+            const a = parseFloat(r.dataset.amt) || 0;
+            if (r.dataset.status === 'SUCCESS') ok += a; else if (r.dataset.status === 'PENDING') pend += a;
+        });
+        $('gl-n').textContent = n; $('gl-ok').textContent = money(ok); $('gl-pend').textContent = money(pend);
+        $('gl-none').classList.toggle('hidden', !!n || !rows.length);
+    }
+    ['gl-status', 'gl-gw'].forEach(id => $(id).addEventListener('change', apply)); $('gl-q').addEventListener('input', apply);
+    if (!rows.some(r => r.dataset.status === 'DISCREPANCY')) $('gl-status').value = '';
+    apply();
+    $('gl-csv').addEventListener('click', () => {
+        const q = v => `"${String(v).replace(/"/g, '""')}"`;
+        const lines = [['Reference', 'User', 'Gateway', 'Type', 'Amount', 'Status', 'Time'].map(q).join(',')];
+        rows.filter(r => r.style.display !== 'none').forEach(r => {
+            const c = r.querySelectorAll('td');
+            lines.push([c[0].querySelector('code').title, c[1].innerText.trim(), r.dataset.gw, c[3].innerText.trim(), r.dataset.amt, r.dataset.status, c[6].dataset.iso].map(q).join(','));
+        });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' }));
+        a.download = `gateway-logs-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+    });
+    document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', () => navigator.clipboard.writeText(b.dataset.copy).catch(() => {})));
+})();
+</script>
+{% endblock %}

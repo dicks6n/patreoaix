@@ -1,0 +1,2202 @@
+{% extends 'base_dashboard.html' %}
+
+{% block title %}AI Signal Generator - PATREOAIX{% endblock %}
+
+{% block content %}
+<!-- LOADING SPINNER -->
+<div id="loading-spinner" class="fixed inset-0 z-[9999] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center transition-opacity duration-500">
+    <div class="relative flex items-center justify-center">
+        <div class="w-20 h-20 rounded-full border-4 border-amber-500/20 border-t-amber-500 animate-spin"></div>
+        <div class="absolute w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center animate-pulse">
+            <div class="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
+        </div>
+    </div>
+    <div class="mt-5 text-center space-y-1">
+        <p class="text-xs font-mono tracking-widest text-amber-300 uppercase animate-pulse">Connecting Web3 Vault</p>
+        <p class="text-[10px] font-mono text-slate-500">Synchronizing live oracles & AI signals...</p>
+    </div>
+</div>
+
+<style>
+    .spinner-hidden { opacity: 0; pointer-events: none; visibility: hidden; }
+    .digits-card {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 27, 75, 0.4) 100%);
+        border: 1px solid rgba(217, 119, 6, 0.25);
+        border-radius: 20px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+    }
+
+    .digits-card-amber {
+        background: linear-gradient(135deg, rgba(69, 26, 3, 0.4) 0%, rgba(15, 23, 42, 0.95) 50%, rgba(66, 32, 6, 0.4) 100%);
+        border: 1px solid rgba(217, 119, 6, 0.35);
+        border-radius: 20px;
+        box-shadow: 0 4px 30px rgba(217, 119, 6, 0.15);
+        position: relative;
+        overflow: hidden;
+    }
+    .digits-card-amber::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.8), transparent);
+        animation: amberScan 3s linear infinite;
+    }
+    @keyframes amberScan {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
+
+    .digits-card-blue {
+        background: linear-gradient(135deg, rgba(30, 58, 138, 0.4) 0%, rgba(15, 23, 42, 0.95) 50%, rgba(49, 46, 129, 0.4) 100%);
+        border: 1px solid rgba(217, 119, 6, 0.35);
+        border-radius: 20px;
+        box-shadow: 0 4px 30px rgba(217, 119, 6, 0.15);
+    }
+
+    .trade-log-entry { animation: slideIn 0.3s ease-out; }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+    .btn-touch { transition: transform 0.1s ease; }
+    .btn-touch:active { transform: scale(0.97); }
+    .log-container { max-height: 200px; overflow-y: auto; }
+    .log-container::-webkit-scrollbar { width: 4px; }
+    .log-container::-webkit-scrollbar-thumb { background: rgba(217, 119, 6, 0.4); border-radius: 8px; }
+
+    .price-flash-up { animation: flashUp 0.4s ease; }
+    .price-flash-down { animation: flashDown 0.4s ease; }
+    @keyframes flashUp {
+        0%,100% { color: #22c55e; }
+        50% { color: #86efac; transform: scale(1.05); }
+    }
+    @keyframes flashDown {
+        0%,100% { color: #ef4444; }
+        50% { color: #fca5a5; transform: scale(1.05); }
+    }
+
+    @keyframes scannerPulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+        50% { box-shadow: 0 0 0 12px rgba(245, 158, 11, 0); }
+    }
+    .scanner-pulse { animation: scannerPulse 2.2s infinite; }
+
+    .contract-section { animation: fadeSwap 0.2s ease-out; }
+    @keyframes fadeSwap {
+        from { opacity: 0; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .digit-hot { animation: hotPulse 1.5s ease-in-out infinite; }
+    @keyframes hotPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.08); }
+    }
+
+    @keyframes goldShine {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+    }
+    .gold-shine {
+        background: linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.3), transparent);
+        background-size: 200% 100%;
+        animation: goldShine 2s linear infinite;
+    }
+
+    @keyframes slideDownBanner {
+        from { opacity: 0; transform: translate(-50%, -30px); }
+        to { opacity: 1; transform: translate(-50%, 0); }
+    }
+
+    .glow-amber-sm { box-shadow: 0 4px 14px rgba(217, 119, 6, 0.35); }
+    .glow-amber {
+        box-shadow:
+            0 4px 20px rgba(217, 119, 6, 0.4),
+            0 0 40px rgba(217, 119, 6, 0.15);
+    }
+
+    .digit-selected {
+        background: linear-gradient(135deg, #d97706, #ea580c) !important;
+        border-color: #f59e0b !important;
+        color: #ffffff !important;
+        box-shadow:
+            0 0 0 1px rgba(245, 158, 11, 0.5),
+            0 8px 25px rgba(217, 119, 6, 0.45),
+            0 0 40px rgba(217, 119, 6, 0.25);
+        transform: translateY(-1px);
+    }
+
+    .digit-btn { transition: all 0.2s ease; }
+    .digit-btn:hover:not(.digit-selected) {
+        border-color: rgba(245, 158, 11, 0.5) !important;
+        background: rgba(217, 119, 6, 0.08) !important;
+        box-shadow: 0 0 20px rgba(217, 119, 6, 0.15);
+    }
+
+    /* ═══════════════════════════════════════════════════════════ */
+    /* SOURCE BADGE COLORS                                          */
+    /* ═══════════════════════════════════════════════════════════ */
+    .source-badge {
+        display: inline-block;
+        font-size: 8px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-weight: 800;
+        font-family: 'JetBrains Mono', monospace;
+        letter-spacing: 0.04em;
+        transition: all 0.3s ease;
+    }
+    .source-badge.src-twelvedata {
+        background: rgba(59, 130, 246, 0.2);
+        color: #60a5fa;
+        border: 1px solid rgba(59, 130, 246, 0.4);
+    }
+    .source-badge.src-binance {
+        background: rgba(234, 179, 8, 0.2);
+        color: #facc15;
+        border: 1px solid rgba(234, 179, 8, 0.4);
+    }
+    .source-badge.src-oanda {
+        background: rgba(168, 85, 247, 0.2);
+        color: #c084fc;
+        border: 1px solid rgba(168, 85, 247, 0.4);
+    }
+    .source-badge.src-yahoo {
+        background: rgba(249, 115, 22, 0.2);
+        color: #fb923c;
+        border: 1px solid rgba(249, 115, 22, 0.4);
+    }
+    .source-badge.src-deriv {
+        background: rgba(16, 185, 129, 0.2);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+    .source-badge.src-loading {
+        background: rgba(148, 163, 184, 0.2);
+        color: #94a3b8;
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    .xau-pulse {
+        animation: xauPulse 2s ease-in-out infinite;
+    }
+    @keyframes xauPulse {
+        0%, 100% { opacity: 0.7; }
+        50% { opacity: 1; }
+    }
+</style>
+
+<style>
+    /* ── Site skin: maps this page's colours and cards onto the shared design tokens. Visual only. ── */
+    #loading-spinner { background: color-mix(in srgb, var(--px-bg) 92%, transparent) !important; }
+    main .digits-card, main .digits-card-amber, main .digits-card-blue {
+        background: var(--px-panel) !important; border: 1px solid var(--px-line) !important;
+        border-radius: 12px !important; box-shadow: var(--px-shadow) !important;
+    }
+    main .digits-card-amber::before { display: none; }
+    main .digits-card-amber .bg-slate-950, main .digits-card-amber [class*="bg-slate-950\/"], main .digits-card-amber [class*="bg-slate-900"],
+    main .digits-card .bg-slate-950, main .digits-card [class*="bg-slate-950\/"], main .digits-card [class*="bg-slate-900"],
+    main .digits-card-blue .bg-slate-950, main .digits-card-blue [class*="bg-slate-950\/"], main .digits-card-blue [class*="bg-slate-900"] { background-color: var(--px-panel-2) !important; }
+    main [class*="digits-card"] [class*="border-slate-8"], main [class*="digits-card"] [class*="border-amber-8"], main [class*="digits-card"] [class*="border-amber-7"] { border-color: var(--px-line) !important; }
+    main [class*="digits-card"] .rounded-2xl { border-radius: 12px; }
+    main [class*="digits-card"] .rounded-xl { border-radius: 9px; }
+    main [class*="digits-card"] .font-black { font-weight: 700; }
+    main [class*="digits-card"] .text-amber-300, main [class*="digits-card"] .text-amber-400 { color: var(--px-accent) !important; }
+    main [class*="digits-card"] .text-slate-400 { color: var(--px-dim); }
+    main [class*="digits-card"] .text-slate-500 { color: var(--px-mute); }
+    main [class*="digits-card"] input:not([type=checkbox]):not([type=range]), main [class*="digits-card"] select {
+        background-color: var(--px-panel-2) !important; border-color: var(--px-line) !important; color: var(--px-text) !important;
+    }
+    main .bg-gradient-to-r.from-amber-600, main .bg-gradient-to-r.from-amber-500 { background: var(--px-accent) !important; color: var(--px-accent-ink) !important; box-shadow: none !important; }
+    /* AI Gold open-trade box (added) */
+    #aiGoldOpenTrade { background: var(--px-panel-2); border: 1px solid var(--px-line); border-radius: 9px; }
+</style>
+
+<div class="space-y-4 pb-4">
+
+    <!-- Hidden CSRF Token -->
+    <form id="csrf-form" class="hidden">{% csrf_token %}</form>
+
+    <!-- HEADER -->
+    <div class="digits-card-amber p-4 sm:p-5 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10">
+            <div class="min-w-0">
+                <h1 class="text-lg sm:text-xl font-black tracking-tight text-white flex items-center gap-2">
+                    <span class="text-xl">🪙</span>
+                    PatreoAiX Synthetic Engine
+                </h1>
+                <p class="text-[11px] text-amber-200/70 mt-1 leading-relaxed">
+                    Multi-Strategy Rotation · Live Tick Feed · 88% Profit Retention
+                </p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <span id="connectionStatus" class="inline-flex items-center text-[10px] px-3 py-1.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400 mr-2 animate-pulse"></span>
+                    <span id="ws-status-text">Connecting...</span>
+                </span>
+            </div>
+        </div>
+
+        <!-- Asset + Live Tick -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 relative z-10">
+            <div>
+                <label for="assetSelect" class="text-[10px] font-bold text-amber-200/80 uppercase tracking-wider block mb-1.5">Select Asset</label>
+                <select id="assetSelect" onchange="changeAsset()" class="w-full bg-slate-950/90 border border-amber-800/40 rounded-xl px-3 py-3 text-xs font-bold text-slate-100 focus:outline-none focus:border-amber-500 focus:shadow-[0_0_20px_rgba(245,158,11,0.25)] cursor-pointer transition">
+                    <optgroup label="Commodities">
+                        <option value="frxXAUUSD" selected>🥇 Gold Spot (XAU/USD)</option>
+                        <option value="frxXAGUSD">🥈 Silver Spot (XAG/USD)</option>
+                    </optgroup>
+                    <optgroup label="Volatility Indices">
+                        <option value="R_10">Volatility 10 Index</option>
+                        <option value="R_25">Volatility 25 Index</option>
+                        <option value="R_50">Volatility 50 Index</option>
+                        <option value="R_75">Volatility 75 Index</option>
+                        <option value="R_100">Volatility 100 Index</option>
+                    </optgroup>
+                    <optgroup label="1s Volatility">
+                        <option value="1HZ10V">Volatility 10 (1s)</option>
+                        <option value="1HZ25V">Volatility 25 (1s)</option>
+                        <option value="1HZ50V">Volatility 50 (1s)</option>
+                        <option value="1HZ75V">Volatility 75 (1s)</option>
+                        <option value="1HZ100V">Volatility 100 (1s)</option>
+                    </optgroup>
+                    <optgroup label="Forex">
+                        <option value="frxEURUSD">EUR/USD</option>
+                        <option value="frxGBPUSD">GBP/USD</option>
+                        <option value="frxUSDJPY">USD/JPY</option>
+                    </optgroup>
+                    <optgroup label="Crypto">
+                        <option value="cryBTCUSD">Bitcoin (BTC/USD)</option>
+                        <option value="cryETHUSD">Ethereum (ETH/USD)</option>
+                    </optgroup>
+                </select>
+            </div>
+
+            <div class="bg-slate-950/80 border border-amber-800/30 rounded-xl p-3 flex items-center justify-between relative overflow-hidden">
+                <div class="absolute inset-0 gold-shine pointer-events-none opacity-30"></div>
+                <div class="min-w-0 relative z-10">
+                    <span class="text-[9px] uppercase font-bold text-amber-200/70 tracking-wider block flex items-center gap-1">
+                        Live Tick
+                        <span id="tick-source-badge" class="source-badge src-loading">LOADING</span>
+                    </span>
+                    <span id="stream-asset" class="text-[11px] font-mono font-bold text-amber-300 block truncate">Gold Spot</span>
+                    <h3 id="stream-price" class="text-lg sm:text-xl font-black text-emerald-400 font-mono mt-0.5 truncate">$----</h3>
+                </div>
+                <div class="text-right pl-3 border-l border-amber-800/40 shrink-0 relative z-10">
+                    <span class="text-[9px] uppercase font-bold text-amber-200/70 tracking-wider block">Last Digit</span>
+                    <h3 id="stream-digit" class="text-3xl sm:text-4xl font-black text-amber-400 font-mono leading-none mt-0.5 digit-hot">-</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN GRID -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+        <!-- LEFT COLUMN -->
+        <div class="lg:col-span-2 space-y-4">
+
+            <!-- AI GOLD AUTO-TRADER -->
+            <div class="digits-card-amber p-4 sm:p-5 relative">
+                <div class="flex items-center justify-between gap-3 mb-4 relative z-10">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span class="text-xl sm:text-2xl">🪙</span>
+                        <div class="min-w-0">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-amber-300">AI Gold Auto-Trader</h3>
+                            <p class="text-[10px] text-slate-400 truncate">Funded Account · 88% Profit Retention</p>
+                        </div>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input type="checkbox" id="aiGoldToggle" class="sr-only peer" onchange="toggleAIGold(this)" {% if ai_gold_active and can_auto_trade %}checked{% endif %}{% if not can_auto_trade %} disabled{% endif %}>
+                        <div class="w-11 h-6 bg-slate-800 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500 peer-checked:shadow-[0_0_20px_rgba(245,158,11,0.5)]"></div>
+                    </label>
+                </div>
+                {% if not can_auto_trade %}
+                <!-- Starter: manual trading only (store/membership.py) -->
+                <a href="{% url 'subscription_billing' %}" class="relative z-10 flex items-center gap-2.5 mb-3 px-3 py-2.5 rounded-xl text-[11px] border border-amber-500/30 bg-amber-500/10 text-amber-300">
+                    <i class="fa-solid fa-lock"></i>
+                    <span class="flex-1">The AI Gold auto-trader is for <b>Pro &amp; VIP</b> members. Starter accounts trade manually below.</span>
+                    <span class="font-bold whitespace-nowrap">Upgrade <i class="fa-solid fa-arrow-right text-[9px]"></i></span>
+                </a>
+                {% endif %}
+
+                <div class="bg-slate-950/80 rounded-xl p-3 border border-amber-800/40 space-y-3 mb-3 relative z-10">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <span class="text-[9px] uppercase font-bold text-slate-400 block">Funded Balance</span>
+                            <h4 id="fundedBalanceDisplay" class="text-lg sm:text-xl font-black text-emerald-400 font-mono">${{ funded_balance|default:"0.00" }}</h4>
+                            <div id="xauLivePriceHint" class="text-[9px] font-mono text-amber-400/80 mt-0.5 xau-pulse">
+                                <i class="fa-solid fa-satellite-dish text-[8px] mr-1"></i>
+                                <span id="xauLivePriceValue">Fetching…</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-[9px] uppercase font-bold text-slate-400 block">Status</span>
+                            <h4 id="aiGoldStatusBadge" class="text-xs font-bold {% if ai_gold_active %}text-emerald-400{% else %}text-amber-400{% endif %}">
+                                {% if ai_gold_active %}● Active{% else %}● Inactive{% endif %}
+                            </h4>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-2 border-t border-slate-800/60">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-gauge-high text-amber-400 text-[10px]"></i>
+                            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Daily Trades</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span id="dailyTradesDisplay" class="text-xs font-black text-white font-mono">0</span>
+                            <span class="text-[10px] text-slate-500 font-mono">/ 10</span>
+                        </div>
+                    </div>
+
+                    <div class="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden border border-slate-800/60">
+                        <div id="dailyTradesBar" class="h-full bg-gradient-to-r from-emerald-500 to-amber-500 transition-all duration-300" style="width: 0%;"></div>
+                    </div>
+
+                    <div id="dailyTradesHint" class="text-[9px] text-slate-500 font-mono text-center">
+                        10 trades remaining today
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 text-[10px] mb-3 relative z-10">
+                    <div class="bg-slate-950/60 rounded-lg p-2.5 text-center border border-slate-800/40">
+                        <span class="text-slate-500 block text-[9px] uppercase">Initial Capital</span>
+                        <span class="font-bold text-white font-mono text-xs">${{ funded_account.initial_balance|default:"0.00" }}</span>
+                    </div>
+                    <div class="bg-slate-950/60 rounded-lg p-2.5 text-center border border-slate-800/40">
+                        <span class="text-slate-500 block text-[9px] uppercase">Subscription</span>
+                        <span class="font-bold text-amber-400 uppercase text-xs">{{ subscription_tier|default:"Free" }}</span>
+                    </div>
+                </div>
+
+                <div id="aiGoldOpenTrade" class="hidden p-3 mb-3 relative z-10 text-[11px]">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="font-bold uppercase tracking-wider text-[10px] text-slate-400">Open AI trade</span>
+                        <span id="aiGoldOpenSide" class="font-bold text-[11px]">—</span>
+                    </div>
+                    <div class="grid grid-cols-4 gap-2 font-mono">
+                        <div><span class="block text-[9px] text-slate-500 uppercase">Entry</span><span id="aiGoldOpenEntry" class="text-white">—</span></div>
+                        <div><span class="block text-[9px] text-slate-500 uppercase">Stop</span><span id="aiGoldOpenSL" class="text-rose-400">—</span></div>
+                        <div><span class="block text-[9px] text-slate-500 uppercase">Target</span><span id="aiGoldOpenTP" class="text-emerald-400">—</span></div>
+                        <div class="text-right"><span class="block text-[9px] text-slate-500 uppercase">P/L now</span><span id="aiGoldOpenPL" class="font-bold">—</span></div>
+                    </div>
+                    <p id="aiGoldOpenNote" class="text-[10px] text-slate-500 mt-2 truncate"></p>
+                </div>
+
+                <div id="aiGoldTradingLog" class="log-container bg-slate-950/70 rounded-xl p-3 border border-slate-800/60 space-y-1 font-mono text-[10px] mb-3 relative z-10">
+                    <div class="text-slate-500 text-center py-3 text-[11px]">Toggle the switch above to start</div>
+                </div>
+
+                <div class="grid grid-cols-4 gap-2 text-center relative z-10">
+                    <div class="bg-slate-950/70 rounded-lg p-2 border border-slate-800/40">
+                        <span class="text-[8px] uppercase text-slate-500 block">Trades</span>
+                        <span id="aiGoldTradeCount" class="text-sm font-bold text-white font-mono">0</span>
+                    </div>
+                    <div class="bg-slate-950/70 rounded-lg p-2 border border-slate-800/40">
+                        <span class="text-[8px] uppercase text-slate-500 block">Wins</span>
+                        <span id="aiGoldWins" class="text-sm font-bold text-emerald-400 font-mono">0</span>
+                    </div>
+                    <div class="bg-slate-950/70 rounded-lg p-2 border border-slate-800/40">
+                        <span class="text-[8px] uppercase text-slate-500 block">Win %</span>
+                        <span id="aiGoldWinRate" class="text-sm font-bold text-emerald-400 font-mono">0%</span>
+                    </div>
+                    <div class="bg-slate-950/70 rounded-lg p-2 border border-slate-800/40">
+                        <span class="text-[8px] uppercase text-slate-500 block">P&L</span>
+                        <span id="aiGoldProfit" class="text-sm font-bold text-amber-400 font-mono">$0.00</span>
+                    </div>
+                </div>
+                <a href="{% url 'funded' %}#ai-gold-record" class="relative z-10 mt-2 flex items-center justify-center gap-1.5 text-[10px] text-slate-400 hover:text-amber-300">
+                    <i class="fa-solid fa-book"></i> All AI Gold trades on your funded account <i class="fa-solid fa-arrow-right text-[8px]"></i>
+                </a>
+            </div>
+
+            <!-- MANUAL TRADE (AMBER) -->
+            <div class="digits-card-amber p-4 sm:p-5 space-y-4 relative">
+                <div class="flex items-center justify-between gap-3 mb-1 relative z-10">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span class="text-xl">⚡</span>
+                        <div class="min-w-0">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-amber-300">Manual Trade</h3>
+                            <p class="text-[10px] text-slate-400 truncate">Synthetic Digit Contracts · Instant Settlement</p>
+                        </div>
+                    </div>
+                    <span id="tradeStatusBadge" class="text-[9px] bg-amber-500/20 border border-amber-400/40 px-2.5 py-1 rounded-full text-amber-300 font-bold shrink-0">Ready</span>
+                </div>
+
+                <div class="grid grid-cols-3 gap-1 bg-slate-950/80 p-1.5 rounded-xl border border-amber-800/40 relative z-10">
+                    <button id="mainTabMatches" onclick="switchMainTab('matches')"
+                        class="py-2 text-[10px] font-bold rounded-lg bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-[0_4px_15px_rgba(217,119,6,0.35)] transition">
+                        Match/Diff
+                    </button>
+                    <button id="mainTabEvenOdd" onclick="switchMainTab('evenodd')"
+                        class="py-2 text-[10px] font-medium text-slate-400 rounded-lg hover:bg-amber-950/30 hover:text-amber-300 transition">
+                        Even/Odd
+                    </button>
+                    <button id="mainTabOverUnder" onclick="switchMainTab('overunder')"
+                        class="py-2 text-[10px] font-medium text-slate-400 rounded-lg hover:bg-amber-950/30 hover:text-amber-300 transition">
+                        Over/Under
+                    </button>
+                </div>
+
+                <div class="relative min-h-[220px] z-10">
+
+                    <div id="sectionMatches" class="contract-section absolute inset-0 space-y-3">
+                        <div class="flex bg-slate-950/60 p-1 rounded-xl border border-slate-800/60">
+                            <button onclick="setSubContractType('MATCH')" id="btnMatch" class="btn-touch flex-1 py-2 text-[10px] font-semibold text-slate-400 rounded-lg transition">Matches</button>
+                            <button onclick="setSubContractType('DIFF')" id="btnDiff" class="btn-touch flex-1 py-2 text-[10px] font-bold rounded-lg bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-[0_4px_15px_rgba(217,119,6,0.35)] transition">Differs</button>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-amber-200/80 uppercase tracking-wider block mb-2">Prediction Digit</label>
+                            <div class="grid grid-cols-5 gap-2" id="digitGrid"></div>
+                        </div>
+                    </div>
+
+                    <div id="sectionEvenOdd" class="contract-section absolute inset-0 space-y-3 hidden">
+                        <label class="text-[10px] font-bold text-amber-200/80 uppercase tracking-wider block">Select Prediction</label>
+                        <div class="grid grid-cols-2 gap-2 h-[140px]">
+                            <button onclick="setEvenOdd('EVEN')" id="btnEven"
+                                class="btn-touch rounded-xl font-bold text-[11px] border bg-gradient-to-br from-amber-600 to-orange-600 border-amber-500 text-white shadow-[0_8px_25px_rgba(217,119,6,0.4)] transition flex flex-col items-center justify-center">
+                                EVEN<br><span class="text-[9px] font-normal opacity-80">0,2,4,6,8</span>
+                            </button>
+                            <button onclick="setEvenOdd('ODD')" id="btnOdd"
+                                class="btn-touch rounded-xl font-bold text-[11px] border bg-slate-900 border-slate-800 text-slate-300 hover:border-amber-500/50 hover:shadow-[0_0_20px_rgba(217,119,6,0.2)] transition flex flex-col items-center justify-center">
+                                ODD<br><span class="text-[9px] font-normal opacity-80">1,3,5,7,9</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="sectionOverUnder" class="contract-section absolute inset-0 space-y-3 hidden">
+                        <div class="flex bg-slate-950/60 p-1 rounded-xl border border-slate-800/60">
+                            <button onclick="setOverUnderType('OVER')" id="btnOver" class="btn-touch flex-1 py-2 text-[10px] font-semibold text-slate-400 rounded-lg transition">Over</button>
+                            <button onclick="setOverUnderType('UNDER')" id="btnUnder" class="btn-touch flex-1 py-2 text-[10px] font-bold rounded-lg bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-[0_4px_15px_rgba(217,119,6,0.35)] transition">Under</button>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-amber-200/80 uppercase tracking-wider block mb-2">Barrier Prediction</label>
+                            <div class="grid grid-cols-5 gap-2" id="barrierGrid"></div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800/60 relative z-10">
+                    <div>
+                        <label class="block text-[10px] font-bold text-amber-200/80 uppercase tracking-wider mb-1.5">Stake (USD)</label>
+                        <input type="number" id="stakeInput" value="5" min="0.35" step="0.5"
+                            class="w-full bg-slate-950 border border-amber-800/40 rounded-xl px-3 py-3 font-mono font-bold text-white text-sm focus:outline-none focus:border-amber-500 focus:shadow-[0_0_20px_rgba(245,158,11,0.25)] transition">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-amber-200/80 uppercase tracking-wider mb-1.5">
+                            Duration (Ticks)
+                            <span class="text-slate-500 font-normal lowercase">(1-20)</span>
+                        </label>
+                        <input type="number" id="durationInput" value="1" min="1" max="20" step="1"
+                            class="w-full bg-slate-950 border border-amber-800/40 rounded-xl px-3 py-3 font-mono font-bold text-white text-sm focus:outline-none focus:border-amber-500 focus:shadow-[0_0_20px_rgba(245,158,11,0.25)] transition">
+
+                        <div class="grid grid-cols-5 gap-1.5 mt-2">
+                            <button type="button" onclick="setDuration(1)"  class="dur-btn py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/50 hover:shadow-[0_0_15px_rgba(217,119,6,0.2)] text-[10px] font-bold text-slate-300 transition">1</button>
+                            <button type="button" onclick="setDuration(2)"  class="dur-btn py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/50 hover:shadow-[0_0_15px_rgba(217,119,6,0.2)] text-[10px] font-bold text-slate-300 transition">2</button>
+                            <button type="button" onclick="setDuration(5)"  class="dur-btn py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/50 hover:shadow-[0_0_15px_rgba(217,119,6,0.2)] text-[10px] font-bold text-slate-300 transition">5</button>
+                            <button type="button" onclick="setDuration(10)" class="dur-btn py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/50 hover:shadow-[0_0_15px_rgba(217,119,6,0.2)] text-[10px] font-bold text-slate-300 transition">10</button>
+                            <button type="button" onclick="setDuration(20)" class="dur-btn py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/50 hover:shadow-[0_0_15px_rgba(217,119,6,0.2)] text-[10px] font-bold text-slate-300 transition">20</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-950/70 border border-amber-800/40 rounded-xl p-3 space-y-3 relative z-10">
+                    <span class="text-[10px] font-bold text-amber-200/80 uppercase tracking-wider block flex items-center gap-1.5">
+                        <i class="fa-solid fa-shield-halved text-amber-400 text-[10px]"></i>
+                        Session Risk Limits (Auto-stops the bot)
+                    </span>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[9px] font-medium text-slate-500 mb-1 uppercase">Stop Loss ($)</label>
+                            <input type="number" id="sessionStopLoss" value="30" min="1" step="5"
+                                class="w-full bg-slate-900 border border-red-500/30 rounded-lg px-3 py-2 font-mono font-bold text-red-400 text-xs focus:outline-none focus:border-red-500 focus:shadow-[0_0_15px_rgba(239,68,68,0.25)] transition">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-medium text-slate-500 mb-1 uppercase">Take Profit ($)</label>
+                            <input type="number" id="sessionTakeProfit" value="50" min="1" step="5"
+                                class="w-full bg-slate-900 border border-emerald-500/30 rounded-lg px-3 py-2 font-mono font-bold text-emerald-400 text-xs focus:outline-none focus:border-emerald-500 focus:shadow-[0_0_15px_rgba(34,197,94,0.25)] transition">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center bg-slate-950/70 rounded-xl px-3 py-2.5 border border-amber-800/40 relative z-10">
+                    <span class="text-[10px] text-amber-200/80 uppercase font-bold">Estimated Payout</span>
+                    <span id="payoutDisplay" class="font-bold text-emerald-400 font-mono text-sm">5.60 USD</span>
+                </div>
+
+                <div class="space-y-2.5 relative z-10">
+                    <button id="buyButton" onclick="executeTrade()"
+                        class="btn-touch w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-black py-3.5 px-4 rounded-xl shadow-lg shadow-amber-500/35 hover:shadow-[0_8px_30px_rgba(217,119,6,0.55)] transition text-sm">
+                        Purchase Contract @ 5.00 USD
+                    </button>
+
+                    <button id="toggleBotBtn" onclick="toggleAutoBot()"
+                        class="btn-touch w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-[0_8px_30px_rgba(34,197,94,0.5)] transition text-xs flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-play text-[10px]"></i>
+                        <span>Start Automated Bot</span>
+                    </button>
+                </div>
+
+                <div id="tradeStatusMessage" class="relative z-10 min-h-[180px]"></div>
+
+            </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div class="space-y-4">
+
+            <!-- AI MARKET INTELLIGENCE SCANNER -->
+            <div class="digits-card-blue p-4 sm:p-5 scanner-pulse relative">
+                <div class="flex items-center justify-between gap-3 mb-4 relative z-10">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300 text-lg shrink-0">
+                            <i class="fa-solid fa-radar"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-amber-300">AI Market Intelligence</h3>
+                            <p class="text-[10px] text-slate-400 truncate">Rotational high-win scanner</p>
+                        </div>
+                    </div>
+                    <span id="aiStatusBadge" class="text-[9px] bg-amber-500/20 border border-amber-400/30 px-2.5 py-1 rounded-full text-amber-300 font-bold shrink-0">Ready</span>
+                </div>
+
+                <button onclick="runAIMarketScanner()" id="aiScanBtn"
+                    class="btn-touch w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-black text-sm py-4 px-4 rounded-xl shadow-lg shadow-amber-500/30 hover:shadow-[0_8px_30px_rgba(217,119,6,0.55)] transition flex items-center justify-center gap-2 mb-3 relative z-10">
+                    <i class="fa-solid fa-radar text-base"></i>
+                    <span>Scan & Calibrate Engine</span>
+                </button>
+
+                <div id="aiRecommendationBox" class="hidden text-xs bg-slate-900/90 rounded-xl p-3 border border-amber-500/40 space-y-1 relative z-10">
+                    <div class="flex justify-between font-semibold">
+                        <span id="recAsset" class="text-amber-400">Gold Spot</span>
+                        <span id="recConfidence" class="text-emerald-400">Confidence: 96.2%</span>
+                    </div>
+                    <div id="recReason" class="text-[10px] text-slate-300 leading-relaxed">Multi-strategy rotational sequence optimized for maximum stability.</div>
+                </div>
+            </div>
+
+            <!-- Live Digit Distribution -->
+            <div class="digits-card p-4 sm:p-5 space-y-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-simple text-amber-400 text-[10px]"></i>
+                        Live Digit Distribution
+                    </h3>
+                    <span class="text-[9px] font-mono text-slate-500">
+                        <i class="fa-solid fa-circle text-[5px] text-amber-400 animate-pulse mr-1"></i>
+                        STREAMING
+                    </span>
+                </div>
+
+                <div id="digitDistributionList" class="space-y-1.5"></div>
+
+                <div class="pt-3 border-t border-slate-800/60 grid grid-cols-2 gap-2 text-[10px]">
+                    <div class="bg-slate-950/60 rounded-lg p-2 border border-slate-800/60">
+                        <span class="text-slate-500 block text-[9px] uppercase">Total Ticks</span>
+                        <span id="totalTicksCounter" class="text-sm font-black text-white font-mono">0</span>
+                    </div>
+                    <div class="bg-slate-950/60 rounded-lg p-2 border border-slate-800/60">
+                        <span class="text-slate-500 block text-[9px] uppercase">Hottest Digit</span>
+                        <span id="hottestDigit" class="text-sm font-black text-amber-400 font-mono">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Session Stats -->
+            <div class="digits-card p-4 sm:p-5 space-y-3">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                    <i class="fa-solid fa-bolt text-amber-400 text-[10px]"></i>
+                    Session Summary
+                </h3>
+
+                <div class="space-y-2 text-[11px]">
+                    <div class="flex justify-between items-center py-1.5 border-b border-slate-800/50">
+                        <span class="text-slate-400">Session P&L</span>
+                        <span id="sessionPnL" class="font-black font-mono text-emerald-400">$0.00</span>
+                    </div>
+                    <div class="flex justify-between items-center py-1.5 border-b border-slate-800/50">
+                        <span class="text-slate-400">Trades Placed</span>
+                        <span id="sessionTradesCount" class="font-black font-mono text-white">0</span>
+                    </div>
+                    <div class="flex justify-between items-center py-1.5">
+                        <span class="text-slate-400">Win Rate</span>
+                        <span id="sessionWinRate" class="font-black font-mono text-white">0%</span>
+                    </div>
+                </div>
+
+                <button onclick="resetSessionStats()"
+                    class="w-full py-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/40 hover:shadow-[0_0_15px_rgba(217,119,6,0.2)] text-[10px] font-bold text-slate-400 hover:text-amber-300 transition">
+                    <i class="fa-solid fa-rotate-left text-[9px] mr-1"></i>
+                    Reset Session
+                </button>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // ==========================================
+    // CONFIG
+    // ==========================================
+    const FUNDED_BALANCE = {{ funded_balance|default:"0" }};
+    const IS_FUNDED = {{ is_funded|yesno:"true,false" }};
+    const SUBSCRIPTION_TIER = "{{ subscription_tier|default:'Free' }}";
+    const IS_ACTIVE_SUBSCRIPTION = {{ is_active_subscription|yesno:"true,false" }};
+
+    const MAX_DAILY_TRADES = 10;
+    let dailyTradesCount = 0;
+
+    // Session stats
+    let sessionTradesCount = 0;
+    let sessionWins = 0;
+    let sessionPnL = 0;
+
+    let selectedSymbol = "frxXAUUSD";
+    let activeTab = "matches";
+    let subType = "DIFF";
+    let selectedDigit = 5;
+    let selectedBarrier = 4;
+    let digitCounts = Array(10).fill(0);
+    let totalTicksCount = 0;
+    let cumulativeSessionProfit = 0;
+    let isBotActive = true;
+    let isAutoTrading = false;
+    let lastTVPrice = 0;
+
+    let aiGoldInterval = null;
+    let isAIGoldActive = document.getElementById('aiGoldToggle')?.checked || false;
+    let aiGoldTradeCount = 0;
+    let aiGoldTotalProfit = 0;
+    let aiGoldWins = 0;
+    let aiGoldLosses = 0;
+
+    // ✅ Live XAUUSD price streaming for AI Gold card
+    let aiGoldLivePrice = 0;
+    let aiGoldPriceInterval = null;
+
+    const contractTypeSequence = ['DIFF', 'EVEN', 'ODD', 'UNDER', 'OVER'];
+    let contractTypeIndex = 0;
+
+    const DERIV_SYMBOL_MAP = {
+        'R_10': 'R_10', 'R_25': 'R_25', 'R_50': 'R_50', 'R_75': 'R_75', 'R_100': 'R_100',
+        '1HZ10V': '1HZ10V', '1HZ25V': '1HZ25V', '1HZ50V': '1HZ50V', '1HZ75V': '1HZ75V', '1HZ100V': '1HZ100V',
+        'frxXAUUSD': 'frxXAUUSD', 'frxXAGUSD': 'frxXAGUSD',
+        'frxEURUSD': 'frxEURUSD', 'frxGBPUSD': 'frxGBPUSD', 'frxUSDJPY': 'frxUSDJPY',
+        'cryBTCUSD': 'cryBTCUSD', 'cryETHUSD': 'cryETHUSD',
+    };
+
+    const SERVER_PRICE_MAP = {
+        'frxXAUUSD': 'XAUUSD', 'frxXAGUSD': 'XAGUSD',
+        'R_10': 'R_10', 'R_25': 'R_25', 'R_50': 'R_50', 'R_75': 'R_75', 'R_100': 'R_100',
+        '1HZ10V': null, '1HZ25V': null, '1HZ50V': null, '1HZ75V': null, '1HZ100V': null,
+        'frxEURUSD': 'EURUSD', 'frxGBPUSD': 'GBPUSD', 'frxUSDJPY': 'USDJPY',
+        'cryBTCUSD': 'BTCUSD', 'cryETHUSD': 'ETHUSD',
+    };
+
+    // ═══════════════════════════════════════════════════════════
+    // WEBSOCKET — same pattern as trade.html
+    // ═══════════════════════════════════════════════════════════
+    let lwWS = null;
+    let lwReconnectTimer = null;
+    let wsTickCount = 0;
+    let wsLastTickAt = 0;
+    let wsHasTicked = false;
+
+    // Map: dropdown value → internal WS symbol (must match backend consumer)
+    const WS_SYMBOL_MAP = {
+        'frxXAUUSD': 'XAUUSD',
+        'frxXAGUSD': 'XAGUSD',
+        'frxEURUSD': 'EURUSD',
+        'frxGBPUSD': 'GBPUSD',
+        'frxUSDJPY': 'USDJPY',
+        'cryBTCUSD': 'BTCUSD',
+        'cryETHUSD': 'ETHUSD',
+        'R_10':  'R_10',
+        'R_25':  'R_25',
+        'R_50':  'R_50',
+        'R_75':  'R_75',
+        'R_100': 'R_100',
+        '1HZ10V':  '1HZ10V',
+        '1HZ25V':  '1HZ25V',
+        '1HZ50V':  '1HZ50V',
+        '1HZ75V':  '1HZ75V',
+        '1HZ100V': '1HZ100V',
+    };
+
+    // Symbols the Django consumer knows how to stream
+    const WS_SUPPORTED = new Set([
+        'XAUUSD', 'XAGUSD', 'USOIL', 'UKOIL',
+        'EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'USDCAD', 'NZDUSD', 'USDCHF',
+        'EURGBP', 'EURJPY', 'GBPJPY', 'EURCHF', 'GBPCHF',
+        'BTCUSD', 'ETHUSD',
+        'R_10', 'R_25', 'R_50', 'R_75', 'R_100',
+        '1HZ10V', '1HZ25V', '1HZ50V', '1HZ75V', '1HZ100V',
+    ]);
+
+    // Symbols that come from TwelveData/Binance — no direct Deriv WS needed
+    const NON_DERIV_SYMBOLS = new Set([
+        'frxXAUUSD', 'frxXAGUSD', 'frxEURUSD', 'frxGBPUSD', 'frxUSDJPY',
+        'cryBTCUSD', 'cryETHUSD',
+    ]);
+
+    function getWsSymbol(dropdownValue) {
+        return WS_SYMBOL_MAP[dropdownValue] || null;
+    }
+
+    function connectWSForSymbol(dropdownValue) {
+        const wsSymbol = getWsSymbol(dropdownValue);
+        if (!wsSymbol) {
+            console.warn(`[WS] No mapping for ${dropdownValue}`);
+            return;
+        }
+        if (!WS_SUPPORTED.has(wsSymbol)) {
+            console.warn(`[WS] ${wsSymbol} not supported by backend consumer`);
+            return;
+        }
+
+        // Close existing
+        if (lwWS) {
+            try { lwWS.close(); } catch (e) {}
+            lwWS = null;
+        }
+        clearTimeout(lwReconnectTimer);
+
+        const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        lwWS = new WebSocket(`${proto}://${window.location.host}/ws/live-chart/`);
+
+        lwWS.onopen = () => {
+            console.log(`[WS] Connected — subscribing to ${wsSymbol}`);
+            lwWS.send(JSON.stringify({ action: 'subscribe', symbol: wsSymbol }));
+            updateWSStatusBadge('connected');
+        };
+
+        lwWS.onmessage = (ev) => {
+            try {
+                const msg = JSON.parse(ev.data);
+
+                if (msg.type === 'tick' && msg.symbol === wsSymbol) {
+                    wsTickCount++;
+                    wsLastTickAt = Date.now();
+                    wsHasTicked = true;
+
+                    const price = parseFloat(msg.price);
+                    if (isNaN(price) || price <= 0) return;
+
+                    setSourceBadge(msg.source || 'LIVE');
+                    updateLivePriceFromAnySource(price);
+
+                    const text = document.getElementById('ws-status-text');
+                    if (text) text.textContent = `Live · ${wsTickCount}`;
+                }
+
+                if (msg.type === 'status') {
+                    console.log('[WS] Status:', msg.message);
+                }
+
+                if (msg.type === 'error') {
+                    console.warn('[WS] Error:', msg.message);
+                }
+            } catch (e) {
+                console.warn('[WS] Parse error:', e);
+            }
+        };
+
+        lwWS.onclose = () => {
+            console.log('[WS] Closed — will reconnect in 3s');
+            updateWSStatusBadge('reconnecting');
+
+            clearTimeout(lwReconnectTimer);
+            lwReconnectTimer = setTimeout(() => {
+                if (selectedSymbol === dropdownValue) {
+                    connectWSForSymbol(dropdownValue);
+                }
+            }, 3000);
+        };
+
+        lwWS.onerror = (e) => {
+            console.warn('[WS] Error event:', e);
+        };
+    }
+
+    function updateWSStatusBadge(status) {
+        const badge = document.getElementById('connectionStatus');
+        const text = document.getElementById('ws-status-text');
+        if (!badge || !text) return;
+
+        if (status === 'connected') {
+            badge.className = 'inline-flex items-center text-[10px] px-3 py-1.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold';
+            text.textContent = 'Live';
+        } else if (status === 'reconnecting') {
+            badge.className = 'inline-flex items-center text-[10px] px-3 py-1.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold';
+            text.textContent = 'Reconnecting';
+        } else {
+            badge.className = 'inline-flex items-center text-[10px] px-3 py-1.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold';
+            text.textContent = 'Offline';
+        }
+    }
+
+    // ==========================================
+    // SPINNER
+    // ==========================================
+    function hideSpinner() {
+        const spinner = document.getElementById('loading-spinner');
+        if (spinner && !spinner.classList.contains('spinner-hidden')) {
+            spinner.classList.add('spinner-hidden');
+            setTimeout(() => spinner.remove(), 500);
+        }
+    }
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        setTimeout(hideSpinner, 300);
+    } else {
+        window.addEventListener('load', hideSpinner);
+    }
+    setTimeout(hideSpinner, 1500);
+
+    // ==========================================
+    // CSRF
+    // ==========================================
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function getCsrfToken() {
+        const formInput = document.querySelector('#csrf-form input[name=csrfmiddlewaretoken]');
+        if (formInput && formInput.value) return formInput.value;
+        const anyInput = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (anyInput && anyInput.value) return anyInput.value;
+        return getCookie('csrftoken');
+    }
+
+    function formatDerivSymbol(symbol) {
+        const map = {
+            'R_10': 'Volatility 10', 'R_25': 'Volatility 25', 'R_50': 'Volatility 50',
+            'R_75': 'Volatility 75', 'R_100': 'Volatility 100',
+            '1HZ10V': 'Vol 10 (1s)', '1HZ25V': 'Vol 25 (1s)', '1HZ50V': 'Vol 50 (1s)',
+            '1HZ75V': 'Vol 75 (1s)', '1HZ100V': 'Vol 100 (1s)',
+            'frxXAUUSD': 'Gold Spot', 'frxXAGUSD': 'Silver Spot',
+            'frxEURUSD': 'EUR/USD', 'frxGBPUSD': 'GBP/USD', 'frxUSDJPY': 'USD/JPY',
+            'cryBTCUSD': 'Bitcoin', 'cryETHUSD': 'Ethereum',
+        };
+        return map[symbol] || symbol;
+    }
+
+    // ==========================================
+    // SOURCE BADGE
+    // ==========================================
+    function setSourceBadge(source) {
+        const badge = document.getElementById('tick-source-badge');
+        if (!badge) return;
+
+        const sourceUpper = (source || '').toUpperCase();
+        const classMap = {
+            'TWELVEDATA': 'source-badge src-twelvedata',
+            'BINANCE':    'source-badge src-binance',
+            'OANDA':      'source-badge src-oanda',
+            'YAHOO':      'source-badge src-yahoo',
+            'DERIV':      'source-badge src-deriv',
+        };
+
+        badge.className = classMap[sourceUpper] || 'source-badge src-loading';
+        badge.textContent = sourceUpper || 'LIVE';
+    }
+
+    // ==========================================
+    // DURATION
+    // ==========================================
+    function setDuration(value) {
+        const input = document.getElementById('durationInput');
+        input.value = value;
+
+        document.querySelectorAll('.dur-btn').forEach(btn => {
+            btn.classList.remove('bg-amber-600', 'text-white', 'border-amber-500');
+            btn.classList.add('bg-slate-900', 'text-slate-300', 'border-slate-800');
+        });
+        if (event && event.target) {
+            event.target.classList.remove('bg-slate-900', 'text-slate-300', 'border-slate-800');
+            event.target.classList.add('bg-amber-600', 'text-white', 'border-amber-500');
+        }
+
+        updateBuyButtonLabel();
+    }
+
+    // ==========================================
+    // SERVER POLL — REST fallback when WS is silent
+    // ==========================================
+    async function pollServerPrices() {
+        // Skip REST poll if WS delivered a tick in the last 2 seconds
+        const sinceLastWsTick = Date.now() - wsLastTickAt;
+        if (wsLastTickAt > 0 && sinceLastWsTick < 2000) {
+            return;
+        }
+
+        try {
+            const resp = await fetch('{% url "get_live_prices" %}', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const data = await resp.json();
+
+            if (!data.success || !Array.isArray(data.prices)) return;
+
+            const serverSymbol = SERVER_PRICE_MAP[selectedSymbol];
+            if (!serverSymbol) return;
+
+            const match = data.prices.find(p => p.symbol === serverSymbol);
+            if (!match || !match.price) return;
+
+            const price = parseFloat(match.price);
+            if (isNaN(price) || price <= 0) return;
+
+            // Only override badge if WS hasn't claimed it
+            if (!wsHasTicked && match.source) {
+                setSourceBadge(match.source);
+            }
+
+            updateLivePriceFromAnySource(price);
+        } catch (e) {}
+    }
+
+    function updateLivePriceFromAnySource(price) {
+        if (!price || price <= 0) return;
+        if (Math.abs(price - lastTVPrice) < 0.0000001) return;
+        updateLivePriceFromTV(price);
+    }
+
+    function updateLivePriceFromTV(price) {
+        if (!price || price <= 0) return;
+        if (price === lastTVPrice) return;
+
+        const oldPrice = lastTVPrice;
+        lastTVPrice = price;
+
+        let formatted;
+        const decimals = getDecimals(selectedSymbol);
+
+        if (price >= 1000) {
+            formatted = price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        } else if (price >= 1) {
+            formatted = price.toFixed(Math.min(decimals, 4));
+        } else {
+            formatted = price.toFixed(decimals);
+        }
+
+        const priceEl = document.getElementById('stream-price');
+        if (priceEl) {
+            priceEl.innerText = `$${formatted}`;
+            priceEl.classList.remove('price-flash-up', 'price-flash-down');
+            if (oldPrice > 0 && price > oldPrice) priceEl.classList.add('price-flash-up');
+            else if (oldPrice > 0 && price < oldPrice) priceEl.classList.add('price-flash-down');
+            setTimeout(() => priceEl.classList.remove('price-flash-up', 'price-flash-down'), 400);
+        }
+
+        const noDecimal = formatted.replace(/[.,]/g, '').replace(/[^\d]/g, '');
+        const lastDigit = parseInt(noDecimal.slice(-1), 10);
+
+        const digitEl = document.getElementById('stream-digit');
+        if (digitEl && !isNaN(lastDigit)) digitEl.innerText = lastDigit;
+
+        if (!isNaN(lastDigit)) {
+            totalTicksCount++;
+            digitCounts[lastDigit]++;
+            if (totalTicksCount > 100) totalTicksCount = 100;
+            updateDigitDistributionList();
+        }
+    }
+
+    function getDecimals(symbol) {
+        if (symbol === 'frxXAUUSD' || symbol === 'frxXAGUSD') return 2;
+        if (symbol === 'frxUSDJPY') return 3;
+        if (symbol === 'cryBTCUSD' || symbol === 'cryETHUSD') return 2;
+        if (symbol === 'frxEURUSD' || symbol === 'frxGBPUSD') return 5;
+        return 2;
+    }
+
+    // ==========================================
+    // DIGIT DISTRIBUTION
+    // ==========================================
+    function updateDigitDistributionList() {
+        const list = document.getElementById('digitDistributionList');
+        if (!list) return;
+
+        const total = Math.min(totalTicksCount, 100);
+        const maxCount = Math.max(...digitCounts, 1);
+
+        let html = '';
+        for (let i = 0; i <= 9; i++) {
+            const count = digitCounts[i];
+            const pct = total > 0 ? ((count / total) * 100) : 0;
+            const widthPct = maxCount > 0 ? (count / maxCount) * 100 : 0;
+            const isHot = count === Math.max(...digitCounts) && count > 0;
+            const isLast = i === parseInt(document.getElementById('stream-digit')?.innerText || -1, 10);
+
+            html += `
+                <div class="flex items-center gap-2">
+                    <span class="w-6 text-center text-[11px] font-black font-mono ${isLast ? 'text-amber-400' : 'text-slate-300'} ${isHot ? 'scale-110' : ''}">${i}</span>
+                    <div class="flex-1 bg-slate-950/60 h-4 rounded-full overflow-hidden border border-slate-800/60 relative">
+                        <div class="h-full ${isHot ? 'bg-gradient-to-r from-amber-500 to-orange-500 shadow-[0_0_15px_rgba(245,158,11,0.5)]' : 'bg-gradient-to-r from-amber-700 to-amber-500'} transition-all duration-300" style="width: ${widthPct}%;"></div>
+                    </div>
+                    <span class="w-12 text-right text-[10px] font-mono ${isHot ? 'text-amber-400 font-bold' : 'text-slate-400'}">${pct.toFixed(1)}%</span>
+                </div>
+            `;
+        }
+        list.innerHTML = html;
+
+        const totalEl = document.getElementById('totalTicksCounter');
+        if (totalEl) totalEl.textContent = total;
+
+        const hottestIdx = digitCounts.indexOf(Math.max(...digitCounts));
+        const hottestEl = document.getElementById('hottestDigit');
+        if (hottestEl && totalTicksCount > 0) {
+            hottestEl.textContent = `${hottestIdx} (${digitCounts[hottestIdx]})`;
+        }
+    }
+
+    // ==========================================
+    // ASSET CHANGE
+    // ==========================================
+    function changeAsset() {
+        selectedSymbol = document.getElementById('assetSelect').value;
+        document.getElementById("stream-asset").innerText = formatDerivSymbol(selectedSymbol);
+        document.getElementById("stream-price").innerText = '$----';
+        document.getElementById("stream-digit").innerText = '-';
+        lastTVPrice = 0;
+        wsHasTicked = false;
+        wsTickCount = 0;
+        wsLastTickAt = 0;
+        digitCounts.fill(0);
+        totalTicksCount = 0;
+        updateDigitDistributionList();
+
+        setSourceBadge('LOADING');
+
+        // Parallel kickoff — WebSocket + REST
+        connectWSForSymbol(selectedSymbol);
+        pollServerPrices();
+
+        // Fast-poll for 6 seconds to prevent LOADING stare
+        let fastPollCount = 0;
+        const fastPoll = setInterval(() => {
+            fastPollCount++;
+            pollServerPrices();
+            if (fastPollCount >= 6) clearInterval(fastPoll);
+        }, 500);
+    }
+
+    // ==========================================
+    // GRIDS
+    // ==========================================
+    function initGrids() {
+        const digitGrid = document.getElementById('digitGrid');
+        if (digitGrid) {
+            digitGrid.innerHTML = '';
+            for (let i = 0; i <= 9; i++) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.onclick = () => { selectedDigit = i; initGrids(); updateBuyButtonLabel(); };
+                btn.className = `digit-btn btn-touch flex flex-col items-center justify-center py-2.5 rounded-xl border transition ${
+                    i === selectedDigit ? 'digit-selected' : 'bg-slate-950 border-slate-800 hover:border-amber-500/50 text-slate-200'
+                }`;
+                btn.innerHTML = `<span class="text-sm font-bold">${i}</span><span id="digit-pct-${i}" class="text-[9px] ${i === selectedDigit ? 'text-amber-100' : 'text-slate-500'}">10%</span>`;
+                digitGrid.appendChild(btn);
+            }
+        }
+
+        const barrierGrid = document.getElementById('barrierGrid');
+        if (barrierGrid) {
+            barrierGrid.innerHTML = '';
+            for (let i = 0; i <= 8; i++) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.onclick = () => { selectedBarrier = i; initGrids(); updateBuyButtonLabel(); };
+                btn.className = `digit-btn btn-touch flex items-center justify-center py-2.5 rounded-xl border transition ${
+                    i === selectedBarrier ? 'digit-selected' : 'bg-slate-950 border-slate-800 hover:border-amber-500/50 text-slate-200'
+                }`;
+                btn.innerHTML = `<span class="text-sm font-bold">${i}</span>`;
+                barrierGrid.appendChild(btn);
+            }
+        }
+    }
+
+    // ==========================================
+    // TABS
+    // ==========================================
+    function switchMainTab(tab) {
+        activeTab = tab;
+        const activeClass = "py-2 text-[10px] font-bold rounded-lg bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-[0_4px_15px_rgba(217,119,6,0.35)] transition";
+        const inactiveClass = "py-2 text-[10px] font-medium text-slate-400 rounded-lg hover:bg-amber-950/30 hover:text-amber-300 transition";
+
+        document.getElementById('mainTabMatches').className = tab === 'matches' ? activeClass : inactiveClass;
+        document.getElementById('mainTabEvenOdd').className = tab === 'evenodd' ? activeClass : inactiveClass;
+        document.getElementById('mainTabOverUnder').className = tab === 'overunder' ? activeClass : inactiveClass;
+
+        document.getElementById('sectionMatches').classList.toggle('hidden', tab !== 'matches');
+        document.getElementById('sectionEvenOdd').classList.toggle('hidden', tab !== 'evenodd');
+        document.getElementById('sectionOverUnder').classList.toggle('hidden', tab !== 'overunder');
+
+        if (tab === 'matches') subType = 'DIFF';
+        if (tab === 'evenodd') subType = 'EVEN';
+        if (tab === 'overunder') subType = 'UNDER';
+
+        updateBuyButtonLabel();
+    }
+
+    function applyContractTypeProgrammatically(type) {
+        subType = type;
+        if (type === 'DIFF' || type === 'MATCH') {
+            switchMainTab('matches');
+            setSubContractType(type);
+        } else if (type === 'EVEN' || type === 'ODD') {
+            switchMainTab('evenodd');
+            setEvenOdd(type);
+        } else if (type === 'OVER' || type === 'UNDER') {
+            switchMainTab('overunder');
+            setOverUnderType(type);
+        }
+        updateBuyButtonLabel();
+    }
+
+    function setSubContractType(type) {
+        subType = type;
+        const active = "btn-touch flex-1 py-2 text-[10px] font-bold rounded-lg bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-[0_4px_15px_rgba(217,119,6,0.35)] transition";
+        const inactive = "btn-touch flex-1 py-2 text-[10px] font-semibold text-slate-400 rounded-lg transition";
+        document.getElementById('btnMatch').className = type === 'MATCH' ? active : inactive;
+        document.getElementById('btnDiff').className = type === 'DIFF' ? active : inactive;
+        updateBuyButtonLabel();
+    }
+
+    function setEvenOdd(type) {
+        subType = type;
+        const active = "btn-touch rounded-xl font-bold text-[11px] border bg-gradient-to-br from-amber-600 to-orange-600 border-amber-500 text-white shadow-[0_8px_25px_rgba(217,119,6,0.4)] transition flex flex-col items-center justify-center";
+        const inactive = "btn-touch rounded-xl font-bold text-[11px] border bg-slate-900 border-slate-800 text-slate-300 hover:border-amber-500/50 hover:shadow-[0_0_20px_rgba(217,119,6,0.2)] transition flex flex-col items-center justify-center";
+        document.getElementById('btnEven').className = type === 'EVEN' ? active : inactive;
+        document.getElementById('btnOdd').className = type === 'ODD' ? active : inactive;
+        updateBuyButtonLabel();
+    }
+
+    function setOverUnderType(type) {
+        subType = type;
+        const active = "btn-touch flex-1 py-2 text-[10px] font-bold rounded-lg bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-[0_4px_15px_rgba(217,119,6,0.35)] transition";
+        const inactive = "btn-touch flex-1 py-2 text-[10px] font-semibold text-slate-400 rounded-lg transition";
+        document.getElementById('btnOver').className = type === 'OVER' ? active : inactive;
+        document.getElementById('btnUnder').className = type === 'UNDER' ? active : inactive;
+        updateBuyButtonLabel();
+    }
+
+    function updateBuyButtonLabel() {
+        const stakeInput = document.getElementById('stakeInput');
+        const buyButton = document.getElementById('buyButton');
+        const payoutDisplay = document.getElementById('payoutDisplay');
+        if (!stakeInput || !buyButton || !payoutDisplay) return;
+
+        const stake = stakeInput.value || 5;
+        buyButton.textContent = `Purchase Contract @ ${parseFloat(stake).toFixed(2)} USD`;
+
+        let multiplier = 1.12;
+        if (subType === 'MATCH') multiplier = 9.5;
+        if (subType === 'EVEN' || subType === 'ODD') multiplier = 1.98;
+        if (subType === 'OVER' || subType === 'UNDER') multiplier = 1.95;
+
+        payoutDisplay.textContent = `${(parseFloat(stake) * multiplier).toFixed(2)} USD`;
+    }
+
+    document.getElementById('stakeInput')?.addEventListener('input', updateBuyButtonLabel);
+
+    // ==========================================
+    // SESSION STATS
+    // ==========================================
+    function updateSessionStats() {
+        const pnlEl = document.getElementById('sessionPnL');
+        const tradeEl = document.getElementById('sessionTradesCount');
+        const wrEl = document.getElementById('sessionWinRate');
+
+        if (pnlEl) {
+            pnlEl.textContent = `${sessionPnL >= 0 ? '+' : ''}$${Math.abs(sessionPnL).toFixed(2)}`;
+            pnlEl.className = `font-black font-mono ${sessionPnL >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+        }
+        if (tradeEl) tradeEl.textContent = sessionTradesCount;
+        if (wrEl) {
+            const rate = sessionTradesCount > 0 ? Math.round((sessionWins / sessionTradesCount) * 100) : 0;
+            wrEl.textContent = `${rate}%`;
+        }
+
+        const autoBtn = document.getElementById('toggleBotBtn');
+        if (autoBtn && isAutoTrading) {
+            const sessionStopLoss = parseFloat(document.getElementById('sessionStopLoss').value) || 0;
+            const sessionTakeProfit = parseFloat(document.getElementById('sessionTakeProfit').value) || 0;
+            const pnlText = `${sessionPnL >= 0 ? '+' : ''}$${Math.abs(sessionPnL).toFixed(2)}`;
+            const limitText = sessionPnL >= 0
+                ? `TP $${sessionTakeProfit.toFixed(0)}`
+                : `SL $${sessionStopLoss.toFixed(0)}`;
+
+            autoBtn.innerHTML = `
+                <i class="fa-solid fa-stop text-[10px]"></i>
+                <span>Stop Bot · <span class="${sessionPnL >= 0 ? 'text-emerald-300' : 'text-rose-300'} font-mono">${pnlText}</span> <span class="text-slate-400 text-[9px]">/ ${limitText}</span></span>
+            `;
+        }
+    }
+
+    function resetSessionStats() {
+        sessionTradesCount = 0;
+        sessionWins = 0;
+        sessionPnL = 0;
+        updateSessionStats();
+    }
+
+    function showBotStopToast(title, subtitle) {
+        const toast = document.createElement('div');
+        toast.className = 'fixed top-6 left-1/2 -translate-x-1/2 z-[99999] px-5 py-3 rounded-xl border border-amber-500/40 bg-amber-950/95 text-amber-200 shadow-2xl backdrop-blur-md flex items-center gap-3 max-w-md';
+        toast.style.animation = 'slideDownBanner 0.3s ease-out';
+        toast.innerHTML = `
+            <div class="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-shield-halved text-amber-400 text-xs"></i>
+            </div>
+            <div class="min-w-0">
+                <div class="text-[11px] font-black uppercase tracking-wider text-amber-300">${title}</div>
+                <div class="text-white font-mono text-[11px] mt-0.5">${subtitle}</div>
+            </div>
+            <button onclick="this.parentElement.remove()" class="ml-2 text-amber-400 hover:text-white shrink-0">
+                <i class="fa-solid fa-xmark text-xs"></i>
+            </button>
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transition = 'opacity 0.3s';
+            setTimeout(() => toast.remove(), 300);
+        }, 6000);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // AI GOLD — Live XAUUSD Price Streaming
+    // ═══════════════════════════════════════════════════════════
+    async function fetchAIGoldLivePrice() {
+        try {
+            const resp = await fetch('{% url "get_live_prices" %}', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const data = await resp.json();
+            if (!data.success || !Array.isArray(data.prices)) return;
+
+            const match = data.prices.find(p => p.symbol === 'XAUUSD');
+            if (match && match.price) {
+                aiGoldLivePrice = parseFloat(match.price);
+                updateAIGoldPriceUI();
+            }
+        } catch (e) {}
+    }
+
+    function updateAIGoldPriceUI() {
+        const valEl = document.getElementById('xauLivePriceValue');
+        if (valEl && aiGoldLivePrice > 0) {
+            valEl.textContent = `XAUUSD $${aiGoldLivePrice.toFixed(2)}`;
+        }
+    }
+
+    // ==========================================
+    // AI GOLD AUTO-TRADER
+    // ==========================================
+    async function toggleAIGold(checkbox) {
+        const badge = document.getElementById('aiGoldStatusBadge');
+        const log = document.getElementById('aiGoldTradingLog');
+
+        if (checkbox.checked) {
+            if (FUNDED_BALANCE <= 0) {
+                checkbox.checked = false;
+                log.innerHTML = '<div class="text-rose-400 text-center py-2 text-[11px]">❌ Funded balance is $0.</div>';
+                return;
+            }
+            if (!IS_ACTIVE_SUBSCRIPTION) {
+                checkbox.checked = false;
+                log.innerHTML = '<div class="text-rose-400 text-center py-2 text-[11px]">❌ Active subscription required.</div>';
+                return;
+            }
+            if (dailyTradesCount >= MAX_DAILY_TRADES) {
+                checkbox.checked = false;
+                log.innerHTML = `<div class="text-rose-400 text-center py-2 text-[11px]">⛔ Daily limit (${MAX_DAILY_TRADES}) reached. Resets tomorrow.</div>`;
+                return;
+            }
+
+            badge.textContent = '● Starting...';
+            badge.className = 'text-xs font-bold text-amber-400 animate-pulse';
+            log.innerHTML = '<div class="text-amber-400 text-center py-2 text-[11px]">🔄 Initializing AI Gold...</div>';
+
+            try {
+                const response = await fetch('{% url "execute_funded_ai_gold" %}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+                    body: JSON.stringify({ action: 'toggle' })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    isAIGoldActive = true;
+                    badge.textContent = '● Active';
+                    badge.className = 'text-xs font-bold text-emerald-400';
+
+                    if (data.daily_trades_count !== undefined) {
+                        dailyTradesCount = data.daily_trades_count;
+                        updateDailyTradesUI();
+                    }
+
+                    log.innerHTML = '';
+                    if (data.trades && data.trades.length > 0) {
+                        data.trades.forEach((trade, index) => {
+                            const profitColor = trade.profit >= 0 ? 'text-emerald-400' : 'text-rose-400';
+                            log.innerHTML += `
+                                <div class="trade-log-entry flex justify-between items-center py-1 border-b border-slate-800/30 text-[10px]">
+                                    <span class="text-slate-400">#${index + 1}</span>
+                                    <span class="font-bold ${trade.direction === 'BUY' ? 'text-emerald-400' : 'text-red-400'}">${trade.direction}</span>
+                                    <span class="font-mono text-slate-400">${trade.entry} → ${trade.exit}</span>
+                                    <span class="font-bold ${profitColor}">${trade.profit >= 0 ? '+' : ''}$${trade.profit.toFixed(2)}</span>
+                                    <span class="text-[9px] ${trade.status === 'WON' ? 'text-emerald-400' : 'text-rose-400'}">${trade.status}</span>
+                                </div>
+                            `;
+                            aiGoldTradeCount++;
+                            aiGoldTotalProfit += trade.profit;
+                            if (trade.profit > 0) aiGoldWins++;
+                            else aiGoldLosses++;
+                        });
+                        updateAIGoldStats();
+                        if (data.new_balance !== undefined) {
+                            document.getElementById('fundedBalanceDisplay').textContent = `$${data.new_balance.toFixed(2)}`;
+                        }
+                    }
+
+                    renderAIGoldCycle(data);
+
+                    if (data.remaining_trades_today === 0) {
+                        log.innerHTML += `<div class="text-amber-400 text-center py-2 text-[11px] font-bold mt-2 border-t border-amber-500/20">
+                            <i class="fa-solid fa-ban mr-1"></i> Daily limit reached — resets at midnight
+                        </div>`;
+                        checkbox.checked = false;
+                        checkbox.disabled = true;
+                        isAIGoldActive = false;
+                        badge.textContent = '● Daily Limit';
+                        badge.className = 'text-xs font-bold text-amber-400';
+                        return;
+                    }
+
+                    startAIGoldLoop();
+                } else {
+                    checkbox.checked = false;
+                    badge.textContent = '● Inactive';
+                    badge.className = 'text-xs font-bold text-amber-400';
+                    log.innerHTML = `<div class="text-rose-400 text-center py-2 text-[11px]">❌ ${data.error || 'Failed'}</div>`;
+
+                    if (data.daily_trades_count !== undefined) {
+                        dailyTradesCount = data.daily_trades_count;
+                        updateDailyTradesUI();
+                    }
+                }
+            } catch (err) {
+                checkbox.checked = false;
+                badge.textContent = '● Inactive';
+                badge.className = 'text-xs font-bold text-amber-400';
+                log.innerHTML = `<div class="text-rose-400 text-center py-2 text-[11px]">❌ Network Error</div>`;
+            }
+        } else {
+            isAIGoldActive = false;
+            if (aiGoldInterval) { clearInterval(aiGoldInterval); aiGoldInterval = null; }
+            badge.textContent = '● Inactive';
+            badge.className = 'text-xs font-bold text-amber-400';
+            try {
+                await fetch('{% url "execute_funded_ai_gold" %}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+                    body: JSON.stringify({ action: 'toggle' })
+                });
+            } catch (err) {}
+            log.innerHTML = `<div class="text-slate-500 text-center py-4 text-[11px]">⏹ AI Gold stopped</div>`;
+        }
+    }
+
+    function startAIGoldLoop() {
+        if (aiGoldInterval) clearInterval(aiGoldInterval);
+        aiGoldInterval = setInterval(() => { if (isAIGoldActive) autoExecuteAIGold(); }, 60000);
+    }
+
+    async function autoExecuteAIGold() {
+        if (!isAIGoldActive) return;
+
+        if (dailyTradesCount >= MAX_DAILY_TRADES) {
+            isAIGoldActive = false;
+            if (aiGoldInterval) { clearInterval(aiGoldInterval); aiGoldInterval = null; }
+
+            const toggle = document.getElementById('aiGoldToggle');
+            if (toggle) { toggle.checked = false; toggle.disabled = true; }
+
+            const badge = document.getElementById('aiGoldStatusBadge');
+            if (badge) {
+                badge.textContent = '● Daily Limit';
+                badge.className = 'text-xs font-bold text-amber-400';
+            }
+
+            const log = document.getElementById('aiGoldTradingLog');
+            if (log) {
+                log.innerHTML += `<div class="text-amber-400 text-center py-2 text-[11px] font-bold mt-2 border-t border-amber-500/20">
+                    <i class="fa-solid fa-ban mr-1"></i> Daily limit (${MAX_DAILY_TRADES}) reached — resets at midnight
+                </div>`;
+            }
+            return;
+        }
+
+        try {
+            const response = await fetch('{% url "execute_funded_ai_gold" %}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+                body: JSON.stringify({ action: 'auto_run' })
+            });
+
+            const data = await response.json();
+
+            if (data.daily_trades_count !== undefined) {
+                dailyTradesCount = data.daily_trades_count;
+                updateDailyTradesUI();
+            }
+
+            if (data.success && data.trades) {
+                const log = document.getElementById('aiGoldTradingLog');
+                const livePrice = data.summary?.live_price_used || aiGoldLivePrice;
+
+                if (livePrice && log) {
+                    log.innerHTML += `<div class="text-[9px] text-amber-400/60 text-center py-0.5 font-mono">
+                        ⟳ Live XAUUSD: $${parseFloat(livePrice).toFixed(2)}
+                    </div>`;
+                }
+
+                data.trades.forEach((trade) => {
+                    const profitColor = trade.profit >= 0 ? 'text-emerald-400' : 'text-rose-400';
+                    log.innerHTML += `
+                        <div class="trade-log-entry flex justify-between items-center py-1 border-b border-slate-800/30 text-[10px]">
+                            <span class="text-slate-400">${trade.direction === 'BUY' ? '📈' : '📉'}</span>
+                            <span class="font-bold ${trade.direction === 'BUY' ? 'text-emerald-400' : 'text-red-400'}">${trade.direction}</span>
+                            <span class="font-mono text-slate-400">${trade.entry} → ${trade.exit}</span>
+                            <span class="font-bold ${profitColor}">${trade.profit >= 0 ? '+' : ''}$${trade.profit.toFixed(2)}</span>
+                            <span class="text-[9px] ${trade.status === 'WON' ? 'text-emerald-400' : 'text-rose-400'}">${trade.status}</span>
+                        </div>
+                    `;
+                    aiGoldTradeCount++;
+                    aiGoldTotalProfit += trade.profit;
+                    if (trade.profit > 0) aiGoldWins++;
+                    else aiGoldLosses++;
+                });
+                updateAIGoldStats();
+
+                if (data.new_balance !== undefined) {
+                    document.getElementById('fundedBalanceDisplay').textContent = `$${data.new_balance.toFixed(2)}`;
+                }
+
+                renderAIGoldCycle(data);
+                while (log.children.length > 50) log.removeChild(log.firstChild);
+                log.scrollTop = log.scrollHeight;
+
+                if (data.auto_stopped || data.remaining_trades_today === 0) {
+                    isAIGoldActive = false;
+                    if (aiGoldInterval) { clearInterval(aiGoldInterval); aiGoldInterval = null; }
+
+                    const toggle = document.getElementById('aiGoldToggle');
+                    if (toggle) { toggle.checked = false; toggle.disabled = true; }
+
+                    const badge = document.getElementById('aiGoldStatusBadge');
+                    if (badge) {
+                        badge.textContent = '● Daily Limit';
+                        badge.className = 'text-xs font-bold text-amber-400';
+                    }
+
+                    log.innerHTML += `<div class="text-amber-400 text-center py-2 text-[11px] font-bold mt-2 border-t border-amber-500/20">
+                        <i class="fa-solid fa-ban mr-1"></i> Daily limit reached — resets at midnight
+                    </div>`;
+                    log.scrollTop = log.scrollHeight;
+                }
+            } else if (!data.success) {
+                if (data.error && data.error.includes('limit')) {
+                    isAIGoldActive = false;
+                    if (aiGoldInterval) { clearInterval(aiGoldInterval); aiGoldInterval = null; }
+
+                    const toggle = document.getElementById('aiGoldToggle');
+                    if (toggle) { toggle.checked = false; toggle.disabled = true; }
+
+                    const badge = document.getElementById('aiGoldStatusBadge');
+                    if (badge) {
+                        badge.textContent = '● Daily Limit';
+                        badge.className = 'text-xs font-bold text-amber-400';
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('Auto-execute error:', err);
+        }
+    }
+
+    function updateAIGoldStats() {
+        document.getElementById('aiGoldTradeCount').textContent = aiGoldTradeCount;
+        document.getElementById('aiGoldWins').textContent = aiGoldWins;
+        const winRate = aiGoldTradeCount > 0 ? Math.round((aiGoldWins / aiGoldTradeCount) * 100) : 0;
+        document.getElementById('aiGoldWinRate').textContent = `${winRate}%`;
+        document.getElementById('aiGoldProfit').textContent = `${aiGoldTotalProfit < 0 ? '-' : ''}$${Math.abs(aiGoldTotalProfit).toFixed(2)}`;
+    }
+
+    function updateDailyTradesUI() {
+        const display = document.getElementById('dailyTradesDisplay');
+        const bar = document.getElementById('dailyTradesBar');
+        const hint = document.getElementById('dailyTradesHint');
+
+        if (!display || !bar || !hint) return;
+
+        display.textContent = dailyTradesCount;
+        const pct = Math.min(100, (dailyTradesCount / MAX_DAILY_TRADES) * 100);
+        bar.style.width = pct + '%';
+
+        if (dailyTradesCount >= MAX_DAILY_TRADES) {
+            bar.className = 'h-full bg-gradient-to-r from-rose-500 to-red-600 transition-all duration-300';
+            hint.className = 'text-[9px] text-rose-400 font-mono text-center font-bold uppercase tracking-wider';
+            hint.innerHTML = '<i class="fa-solid fa-ban text-[8px] mr-1"></i> Daily limit reached — resets at midnight';
+
+            const toggle = document.getElementById('aiGoldToggle');
+            if (toggle) {
+                toggle.checked = false;
+                toggle.disabled = true;
+                toggle.parentElement.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+
+            const badge = document.getElementById('aiGoldStatusBadge');
+            if (badge) {
+                badge.textContent = '● Daily Limit';
+                badge.className = 'text-xs font-bold text-amber-400';
+            }
+        } else if (dailyTradesCount >= MAX_DAILY_TRADES - 2) {
+            bar.className = 'h-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all duration-300';
+            const remaining = MAX_DAILY_TRADES - dailyTradesCount;
+            hint.className = 'text-[9px] text-amber-400 font-mono text-center font-bold';
+            hint.textContent = `⚠️ Only ${remaining} trade${remaining > 1 ? 's' : ''} left today`;
+
+            const toggle = document.getElementById('aiGoldToggle');
+            if (toggle) toggle.disabled = false;
+        } else {
+            bar.className = 'h-full bg-gradient-to-r from-emerald-500 to-amber-500 transition-all duration-300';
+            const remaining = MAX_DAILY_TRADES - dailyTradesCount;
+            hint.className = 'text-[9px] text-slate-500 font-mono text-center';
+            hint.textContent = `${remaining} trade${remaining > 1 ? 's' : ''} remaining today`;
+
+            const toggle = document.getElementById('aiGoldToggle');
+            if (toggle) toggle.disabled = false;
+        }
+    }
+
+    // ==========================================
+    // AI SCANNER
+    // ==========================================
+    async function runAIMarketScanner() {
+        if (!isBotActive) return alert("Bot is halted due to Session Risk Limits.");
+
+        const scanBtn = document.getElementById('aiScanBtn');
+        const originalContent = scanBtn.innerHTML;
+
+        scanBtn.disabled = true;
+        scanBtn.innerHTML = '<i class="fa-solid fa-radar text-[11px] animate-spin"></i><span>Scanning ticks...</span>';
+
+        await new Promise(resolve => setTimeout(resolve, 1800));
+
+        const totalTicks = Math.min(totalTicksCount, 100);
+        let bestStrategy = 'DIFF';
+        let bestBarrier = 5;
+        let confidence = 85;
+        let reason = '';
+
+        let minCount = Infinity, minDigit = 0;
+        let evenCount = 0, oddCount = 0;
+        let under5Count = 0, over4Count = 0;
+
+        for (let i = 0; i <= 9; i++) {
+            if (digitCounts[i] < minCount) { minCount = digitCounts[i]; minDigit = i; }
+            if (i % 2 === 0) evenCount += digitCounts[i];
+            else oddCount += digitCounts[i];
+            if (i < 5) under5Count += digitCounts[i];
+            else over4Count += digitCounts[i];
+        }
+
+        const evenPct = (evenCount / totalTicks) * 100;
+        const oddPct = (oddCount / totalTicks) * 100;
+        const overPct = (over4Count / totalTicks) * 100;
+        const underPct = (under5Count / totalTicks) * 100;
+
+        if (evenPct > 58) {
+            applyContractTypeProgrammatically('ODD');
+            bestStrategy = 'ODD';
+            confidence = Math.min(96, 60 + evenPct);
+            reason = `Even digits overrepresented (${evenPct.toFixed(1)}%) — AI picks ODD for mean reversion`;
+        } else if (oddPct > 58) {
+            applyContractTypeProgrammatically('EVEN');
+            bestStrategy = 'EVEN';
+            confidence = Math.min(96, 60 + oddPct);
+            reason = `Odd digits overrepresented (${oddPct.toFixed(1)}%) — AI picks EVEN for mean reversion`;
+        } else if (overPct > 58) {
+            applyContractTypeProgrammatically('UNDER');
+            bestBarrier = 5;
+            selectedBarrier = 5;
+            bestStrategy = 'UNDER';
+            confidence = Math.min(96, 60 + overPct);
+            reason = `High digits (5-9) overrepresented (${overPct.toFixed(1)}%) — AI picks UNDER 5`;
+        } else if (underPct > 58) {
+            applyContractTypeProgrammatically('OVER');
+            bestBarrier = 4;
+            selectedBarrier = 4;
+            bestStrategy = 'OVER';
+            confidence = Math.min(96, 60 + underPct);
+            reason = `Low digits (0-4) overrepresented (${underPct.toFixed(1)}%) — AI picks OVER 4`;
+        } else {
+            applyContractTypeProgrammatically('DIFF');
+            bestStrategy = 'DIFF';
+            bestBarrier = minDigit;
+            confidence = Math.min(95, 78 + (100 - minCount / totalTicks * 100) / 4);
+            reason = `Digit ${minDigit} is least frequent (${((minCount/totalTicks)*100).toFixed(1)}%) — AI picks DIFF ${minDigit}`;
+        }
+
+        if (bestStrategy === 'DIFF' || bestStrategy === 'MATCH') {
+            selectedDigit = bestBarrier;
+        }
+
+        initGrids();
+        updateBuyButtonLabel();
+
+        const recAsset = document.getElementById('recAsset');
+        const recConfidence = document.getElementById('recConfidence');
+        const recReason = document.getElementById('recReason');
+
+        if (recAsset) recAsset.textContent = formatDerivSymbol(selectedSymbol);
+        if (recConfidence) recConfidence.textContent = `Confidence: ${confidence.toFixed(1)}%`;
+        if (recReason) recReason.textContent = reason + ` (based on ${totalTicks} ticks)`;
+
+        const aiStatusBadge = document.getElementById('aiStatusBadge');
+        if (aiStatusBadge) {
+            aiStatusBadge.textContent = 'Selected';
+            aiStatusBadge.className = 'text-[9px] bg-emerald-500/20 border border-emerald-400/30 px-2.5 py-1 rounded-full text-emerald-300 font-bold shrink-0';
+        }
+
+        document.getElementById('aiRecommendationBox').classList.remove('hidden');
+
+        scanBtn.disabled = false;
+        scanBtn.innerHTML = originalContent;
+
+        setTimeout(() => {
+            const grid = (bestStrategy === 'DIFF' || bestStrategy === 'MATCH')
+                ? document.getElementById('digitGrid')
+                : document.getElementById('barrierGrid');
+
+            if (grid) {
+                const selectedValue = (bestStrategy === 'DIFF' || bestStrategy === 'MATCH') ? selectedDigit : selectedBarrier;
+                const buttons = grid.querySelectorAll('button');
+                if (buttons[selectedValue]) {
+                    buttons[selectedValue].style.boxShadow = '0 0 20px rgba(245, 158, 11, 0.8)';
+                    setTimeout(() => {
+                        buttons[selectedValue].style.boxShadow = '';
+                    }, 2000);
+                }
+            }
+        }, 100);
+    }
+
+    // ==========================================
+    // TRADE EXECUTION
+    // ==========================================
+    async function executeTrade() {
+        if (!isBotActive) return false;
+
+        const stake = parseFloat(document.getElementById('stakeInput').value);
+        const duration = parseInt(document.getElementById('durationInput').value) || 1;
+        const statusMsg = document.getElementById('tradeStatusMessage');
+        const statusBadge = document.getElementById('tradeStatusBadge');
+
+        if (!stake || stake < 0.35) {
+            statusMsg.classList.remove('hidden');
+            statusMsg.innerHTML = `
+                <div class="p-3 h-[180px] rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs font-bold text-center flex items-center justify-center">
+                    ❌ Minimum stake is $0.35
+                </div>`;
+            return false;
+        }
+
+        if (duration < 1 || duration > 20) {
+            statusMsg.classList.remove('hidden');
+            statusMsg.innerHTML = `
+                <div class="p-3 h-[180px] rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs font-bold text-center flex items-center justify-center">
+                    ❌ Duration must be between 1 and 20 ticks
+                </div>`;
+            return false;
+        }
+
+        statusBadge.textContent = 'Executing';
+        statusBadge.className = 'text-[9px] bg-amber-500/20 border border-amber-400/40 px-2.5 py-1 rounded-full text-amber-300 font-bold shrink-0 animate-pulse';
+
+        statusMsg.classList.remove('hidden');
+        statusMsg.innerHTML = `
+            <div class="h-[180px] rounded-xl bg-amber-950/40 border border-amber-500/40 flex items-center gap-3 px-4">
+                <div class="w-8 h-8 rounded-full border-2 border-amber-500/30 border-t-amber-400 animate-spin shrink-0"></div>
+                <div class="text-left">
+                    <p class="text-[11px] font-bold text-amber-300 uppercase tracking-wider">Executing Contract</p>
+                    <p class="text-xs text-slate-400 mt-0.5">Waiting for <strong class="text-white">${duration}</strong> tick${duration > 1 ? 's' : ''}...</p>
+                </div>
+            </div>`;
+
+        let barrierValue = null;
+        if (subType === 'MATCH' || subType === 'DIFF') barrierValue = selectedDigit;
+        else if (subType === 'OVER' || subType === 'UNDER') barrierValue = selectedBarrier;
+
+        const contractType = `DIGIT${subType}`;
+        const derivSymbol = DERIV_SYMBOL_MAP[selectedSymbol] || selectedSymbol;
+
+        const payload = {
+            symbol: derivSymbol,
+            contract_type: contractType,
+            amount: stake,
+            barrier: barrierValue,
+            duration: duration
+        };
+
+        try {
+            const response = await fetch("{% url 'execute_trade' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                const profit = parseFloat(result.payout) - stake;
+                const isWin = result.won;
+                const pnl = isWin ? profit : -stake;
+
+                cumulativeSessionProfit += pnl;
+                sessionPnL += pnl;
+                sessionTradesCount++;
+                if (isWin) sessionWins++;
+                updateSessionStats();
+
+                const theme = isWin
+                    ? {
+                        bg: 'bg-gradient-to-br from-emerald-950/70 to-emerald-900/40',
+                        border: 'border-emerald-500/50',
+                        accent: 'text-emerald-400',
+                        pill: 'bg-emerald-500/20 border-emerald-500/50',
+                        icon: 'fa-circle-check',
+                        label: 'CONTRACT WON',
+                        sign: '+',
+                      }
+                    : {
+                        bg: 'bg-gradient-to-br from-rose-950/70 to-rose-900/40',
+                        border: 'border-rose-500/50',
+                        accent: 'text-rose-400',
+                        pill: 'bg-rose-500/20 border-rose-500/50',
+                        icon: 'fa-circle-xmark',
+                        label: 'CONTRACT LOST',
+                        sign: '-',
+                      };
+
+                let tickPreviewHTML = '';
+                if (result.tick_digits && result.tick_digits.length > 0) {
+                    const digits = result.tick_digits;
+                    const showAll = digits.length <= 10;
+                    const displayDigits = showAll
+                        ? digits
+                        : [...digits.slice(0, 5), '…', ...digits.slice(-3)];
+
+                    tickPreviewHTML = `
+                        <div class="mt-3 pt-3 border-t border-amber-800/30">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-[9px] uppercase font-bold text-amber-200/70 tracking-wider">
+                                    <i class="fa-solid fa-chart-simple text-[8px] mr-1"></i>
+                                    Tick Sequence (${digits.length})
+                                </span>
+                                <span class="text-[9px] font-mono text-slate-500">Last: <span class="${theme.accent} font-bold">${result.final_digit}</span></span>
+                            </div>
+                            <div class="flex items-center gap-1 flex-wrap">
+                                ${displayDigits.map((d, i) => {
+                                    const isFinal = showAll && i === displayDigits.length - 1;
+                                    return `<span class="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-black font-mono
+                                        ${isFinal
+                                            ? `${theme.pill} ${theme.accent} border`
+                                            : 'bg-slate-950 border border-slate-800 text-slate-300'
+                                        }">${d}</span>`;
+                                }).join('')}
+                            </div>
+                        </div>`;
+                }
+
+                statusMsg.innerHTML = `
+                    <div class="rounded-2xl border ${theme.border} ${theme.bg} overflow-hidden shadow-lg h-[180px] flex flex-col">
+                        <div class="px-4 py-3 flex items-center justify-between border-b border-amber-800/30">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-9 h-9 rounded-lg ${theme.pill} border flex items-center justify-center">
+                                    <i class="fa-solid ${theme.icon} ${theme.accent} text-base"></i>
+                                </div>
+                                <div>
+                                    <p class="text-[10px] font-black uppercase tracking-widest ${theme.accent}">${theme.label}</p>
+                                    <p class="text-[10px] text-slate-500 mt-0.5 font-mono">
+                                        ${contractType.replace('DIGIT','')} · Barrier ${barrierValue !== null ? barrierValue : '—'}
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-xl font-black font-mono ${theme.accent} leading-none">
+                                    ${theme.sign}$${Math.abs(pnl).toFixed(2)}
+                                </p>
+                                <p class="text-[9px] text-slate-500 mt-1 font-mono">Stake $${stake.toFixed(2)}</p>
+                            </div>
+                        </div>
+
+                        <div class="px-4 py-3 flex-1 overflow-y-auto">
+                            <div class="grid grid-cols-3 gap-2">
+                                <div class="bg-slate-950/60 rounded-lg p-2 text-center border border-slate-800/60">
+                                    <span class="text-[8px] uppercase font-bold text-slate-500 block">Final Digit</span>
+                                    <span class="text-base font-black font-mono ${theme.accent}">${result.final_digit}</span>
+                                </div>
+                                <div class="bg-slate-950/60 rounded-lg p-2 text-center border border-slate-800/60">
+                                    <span class="text-[8px] uppercase font-bold text-slate-500 block">Duration</span>
+                                    <span class="text-base font-black font-mono text-white">${result.duration_used}<span class="text-[10px] text-slate-500 ml-0.5">t</span></span>
+                                </div>
+                                <div class="bg-slate-950/60 rounded-lg p-2 text-center border border-slate-800/60">
+                                    <span class="text-[8px] uppercase font-bold text-slate-500 block">Payout</span>
+                                    <span class="text-base font-black font-mono ${isWin ? 'text-emerald-400' : 'text-slate-500'}">$${parseFloat(result.payout).toFixed(2)}</span>
+                                </div>
+                            </div>
+
+                            ${tickPreviewHTML}
+                        </div>
+                    </div>`;
+
+                statusBadge.textContent = isWin ? 'Won' : 'Lost';
+                statusBadge.className = `text-[9px] ${isWin ? 'bg-emerald-500/20 border-emerald-400/40 text-emerald-300' : 'bg-rose-500/20 border-rose-400/40 text-rose-300'} border px-2.5 py-1 rounded-full font-bold shrink-0`;
+
+                const balanceEl = document.getElementById('header-balance')
+                                || document.getElementById('tradingBalanceDisplay');
+                if (balanceEl && result.new_balance !== undefined) {
+                    balanceEl.textContent = `$${result.new_balance.toFixed(2)}`;
+                }
+
+                return true;
+            }
+
+            statusBadge.textContent = 'Failed';
+            statusBadge.className = 'text-[9px] bg-rose-500/20 border border-rose-400/40 px-2.5 py-1 rounded-full text-rose-300 font-bold shrink-0';
+
+            statusMsg.innerHTML = `
+                <div class="p-4 h-[180px] rounded-xl bg-rose-950/50 border border-rose-500/40 flex items-start gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-rose-500/20 border border-rose-500/40 flex items-center justify-center shrink-0">
+                        <i class="fa-solid fa-triangle-exclamation text-rose-400 text-sm"></i>
+                    </div>
+                    <div class="text-left">
+                        <p class="text-[10px] font-black uppercase tracking-widest text-rose-400">Execution Failed</p>
+                        <p class="text-xs text-slate-300 mt-1">${result.error || 'Trade failed'}</p>
+                    </div>
+                </div>`;
+            return false;
+
+        } catch (err) {
+            console.error('Trade error:', err);
+            statusBadge.textContent = 'Error';
+            statusBadge.className = 'text-[9px] bg-rose-500/20 border border-rose-400/40 px-2.5 py-1 rounded-full text-rose-300 font-bold shrink-0';
+
+            statusMsg.innerHTML = `
+                <div class="p-4 h-[180px] rounded-xl bg-rose-950/50 border border-rose-500/40 flex items-start gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-rose-500/20 border border-rose-500/40 flex items-center justify-center shrink-0">
+                        <i class="fa-solid fa-wifi text-rose-400 text-sm"></i>
+                    </div>
+                    <div class="text-left">
+                        <p class="text-[10px] font-black uppercase tracking-widest text-rose-400">Network Error</p>
+                        <p class="text-xs text-slate-300 mt-1">Could not reach server. Please try again.</p>
+                    </div>
+                </div>`;
+            return false;
+        }
+    }
+
+    // ==========================================
+    // AUTO BOT
+    // ==========================================
+    function toggleAutoBot() {
+        isAutoTrading = !isAutoTrading;
+        const autoBtn = document.getElementById('toggleBotBtn');
+        if (isAutoTrading) {
+            sessionPnL = 0;
+            sessionTradesCount = 0;
+            sessionWins = 0;
+            updateSessionStats();
+
+            autoBtn.innerHTML = '<i class="fa-solid fa-stop text-[10px]"></i><span>Stop Automated Bot</span>';
+            autoBtn.className = 'btn-touch w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-red-500/30 hover:shadow-[0_8px_30px_rgba(239,68,68,0.5)] transition text-xs flex items-center justify-center gap-2';
+            runBotLoop();
+        } else {
+            stopAutoBot();
+        }
+    }
+
+    function stopAutoBot() {
+        isAutoTrading = false;
+        const autoBtn = document.getElementById('toggleBotBtn');
+        if (autoBtn) {
+            autoBtn.innerHTML = '<i class="fa-solid fa-play text-[10px]"></i><span>Start Automated Bot</span>';
+            autoBtn.className = 'btn-touch w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-[0_8px_30px_rgba(34,197,94,0.5)] transition text-xs flex items-center justify-center gap-2';
+        }
+    }
+
+    async function runBotLoop() {
+        while (isAutoTrading && isBotActive) {
+            const sessionStopLoss = parseFloat(document.getElementById('sessionStopLoss')?.value) || 0;
+            const sessionTakeProfit = parseFloat(document.getElementById('sessionTakeProfit')?.value) || 0;
+
+            if (sessionStopLoss > 0 && sessionPnL <= -Math.abs(sessionStopLoss)) {
+                showBotStopToast('Session Stop Loss Hit', `P&L: $${sessionPnL.toFixed(2)} | Limit: -$${sessionStopLoss.toFixed(2)}`);
+                stopAutoBot();
+                break;
+            }
+            if (sessionTakeProfit > 0 && sessionPnL >= Math.abs(sessionTakeProfit)) {
+                showBotStopToast('Session Take Profit Hit', `P&L: +$${sessionPnL.toFixed(2)} | Target: +$${sessionTakeProfit.toFixed(2)}`);
+                stopAutoBot();
+                break;
+            }
+
+            const nextType = contractTypeSequence[contractTypeIndex % contractTypeSequence.length];
+            applyContractTypeProgrammatically(nextType);
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            await executeTrade();
+
+            if (!isAutoTrading || !isBotActive) break;
+            contractTypeIndex++;
+
+            await new Promise(resolve => setTimeout(resolve, 2500));
+        }
+        stopAutoBot();
+    }
+
+    // ==========================================
+    // AI GOLD — real-price trades: open trade box, AI messages, results closed by the market
+    // ==========================================
+    let aiGoldHasOpen = false;
+    let aiGoldLastMsg = '';
+    function aiGoldAppend(html) {
+        const log = document.getElementById('aiGoldTradingLog');
+        if (!log) return;
+        log.insertAdjacentHTML('beforeend', html);
+        while (log.children.length > 50) log.removeChild(log.firstChild);
+        log.scrollTop = log.scrollHeight;
+    }
+    function aiGoldTradeRow(trade, label) {
+        const profitColor = trade.profit >= 0 ? 'text-emerald-400' : 'text-rose-400';
+        const why = { SL: 'stop', TP: 'target', TIME: 'time' }[trade.reason] || '';
+        return `<div class="trade-log-entry flex justify-between items-center py-1 border-b border-slate-800/30 text-[10px]">
+            <span class="text-slate-400">${label || (trade.direction === 'BUY' ? '📈' : '📉')}</span>
+            <span class="font-bold ${trade.direction === 'BUY' ? 'text-emerald-400' : 'text-red-400'}">${trade.direction}</span>
+            <span class="font-mono text-slate-400">${trade.entry} → ${trade.exit}</span>
+            <span class="font-bold ${profitColor}">${trade.profit >= 0 ? '+' : ''}$${trade.profit.toFixed(2)}</span>
+            <span class="text-[9px] ${trade.status === 'WON' ? 'text-emerald-400' : 'text-rose-400'}">${trade.status}${why ? ' · ' + why : ''}</span>
+        </div>`;
+    }
+    function renderAIGoldCycle(data, opts = {}) {
+        const log = document.getElementById('aiGoldTradingLog');
+        // On page load: show the last real results instead of an empty log
+        if (opts.fromStatus && log && Array.isArray(data.recent) && data.recent.length && /Toggle the switch above/.test(log.textContent)) {
+            log.innerHTML = '<div class="text-[9px] text-slate-500 text-center py-1 uppercase tracking-wider">Recent AI Gold trades</div>' +
+                data.recent.slice().reverse().map(t => aiGoldTradeRow(t, '🕘')).join('');
+        }
+        // Trades the market closed between auto-runs (the auto-run / toggle handlers log their own)
+        if (opts.fromStatus && Array.isArray(data.trades) && data.trades.length) {
+            data.trades.forEach(trade => {
+                aiGoldAppend(aiGoldTradeRow(trade));
+                aiGoldTradeCount++;
+                aiGoldTotalProfit += trade.profit;
+                if (trade.profit > 0) aiGoldWins++; else aiGoldLosses++;
+                if (typeof showMarketToast === 'function') showMarketToast(`AI Gold ${trade.direction} closed at ${trade.exit} (${trade.reason}) · ${trade.profit >= 0 ? '+' : ''}$${trade.profit.toFixed(2)}`, trade.profit >= 0 ? 'success' : 'error');
+            });
+            updateAIGoldStats();
+        }
+        // Lifetime record on the funded account (from the database) — survives reloads
+        if (data.stats) {
+            aiGoldTradeCount = data.stats.trades;
+            aiGoldWins = data.stats.wins;
+            aiGoldLosses = data.stats.losses;
+            aiGoldTotalProfit = data.stats.pnl;
+            updateAIGoldStats();
+            const pl = document.getElementById('aiGoldProfit');
+            if (pl) pl.className = 'text-sm font-bold font-mono ' + (data.stats.pnl >= 0 ? 'text-emerald-400' : 'text-rose-400');
+        }
+        // What the AI decided this cycle (repeated messages are not re-logged)
+        if (data.message && !opts.fromStatus) {
+            if (data.message !== aiGoldLastMsg) {
+                aiGoldAppend(`<div class="text-[10px] ${data.opened ? 'text-amber-400 font-bold' : 'text-slate-500'} py-1">› ${escapeHtml(data.message)}</div>`);
+                aiGoldLastMsg = data.message;
+            }
+        }
+        if (data.balance !== undefined || data.new_balance !== undefined) {
+            const el = document.getElementById('fundedBalanceDisplay');
+            const b = data.new_balance !== undefined ? data.new_balance : data.balance;
+            if (el && typeof b === 'number') el.textContent = `$${b.toFixed(2)}`;
+        }
+        // Open trade box
+        if ('open_trade' in data) {
+            const t = data.open_trade, box = document.getElementById('aiGoldOpenTrade');
+            aiGoldHasOpen = !!t;
+            if (box) box.classList.toggle('hidden', !t);
+            if (t) {
+                const side = document.getElementById('aiGoldOpenSide');
+                side.textContent = `${t.direction} ${t.lot_size.toFixed(2)} lots`;
+                side.className = 'font-bold text-[11px] ' + (t.direction === 'BUY' ? 'text-emerald-400' : 'text-rose-400');
+                document.getElementById('aiGoldOpenEntry').textContent = t.entry.toFixed(2);
+                document.getElementById('aiGoldOpenSL').textContent = t.sl != null ? t.sl.toFixed(2) : '—';
+                document.getElementById('aiGoldOpenTP').textContent = t.tp != null ? t.tp.toFixed(2) : '—';
+                const pl = document.getElementById('aiGoldOpenPL');
+                pl.textContent = t.floating != null ? `${t.floating >= 0 ? '+' : ''}$${t.floating.toFixed(2)}` : '—';
+                pl.className = 'font-bold ' + (t.floating >= 0 ? 'text-emerald-400' : 'text-rose-400');
+                document.getElementById('aiGoldOpenNote').textContent = t.note || '';
+            }
+        }
+    }
+    // Light status poll: live P/L of the open trade and results closed by the market.
+    // (Separate from checkAIGoldStatus so it does not restart the 60 s auto-run timer.)
+    async function pollAIGoldOpen() {
+        try {
+            const r = await fetch('{% url "execute_funded_ai_gold" %}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+                body: JSON.stringify({ action: 'status' })
+            });
+            const data = await r.json();
+            if (data.success) renderAIGoldCycle(data, { fromStatus: true });
+        } catch (e) {}
+    }
+
+    // ==========================================
+    // CHECK AI GOLD STATUS
+    // ==========================================
+    async function checkAIGoldStatus() {
+        try {
+            const response = await fetch('{% url "execute_funded_ai_gold" %}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+                body: JSON.stringify({ action: 'status' })
+            });
+            const data = await response.json();
+
+            if (!data.success) return;
+            renderAIGoldCycle(data, { fromStatus: true });
+
+            if (data.daily_trades_count !== undefined) {
+                dailyTradesCount = data.daily_trades_count;
+                updateDailyTradesUI();
+            }
+
+            if (data.balance !== undefined) {
+                const el = document.getElementById('fundedBalanceDisplay');
+                if (el) el.textContent = `$${data.balance.toFixed(2)}`;
+            }
+
+            if (data.active !== undefined) {
+                const toggle = document.getElementById('aiGoldToggle');
+                const badge = document.getElementById('aiGoldStatusBadge');
+                const log = document.getElementById('aiGoldTradingLog');
+
+                if (data.can_auto_trade === false) {           // Starter: manual trading only
+                    if (toggle) { toggle.checked = false; toggle.disabled = true; }
+                    if (badge) { badge.textContent = '● Pro / VIP'; badge.className = 'text-xs font-bold text-amber-400'; }
+                    isAIGoldActive = false;
+                } else if (data.remaining_trades_today === 0) {
+                    if (toggle) {
+                        toggle.checked = false;
+                        toggle.disabled = true;
+                    }
+                    if (badge) {
+                        badge.textContent = '● Daily Limit';
+                        badge.className = 'text-xs font-bold text-amber-400';
+                    }
+                    if (log && (!log.innerHTML || log.innerHTML.includes('Toggle'))) {
+                        log.innerHTML = `
+                            <div class="text-amber-400 text-center py-3 text-[11px] font-bold">
+                                <i class="fa-solid fa-ban text-[10px] mr-1"></i>
+                                Daily limit reached (${data.daily_trades_count}/${data.max_daily_trades})
+                                <div class="text-[10px] text-slate-500 font-normal mt-1">Resets at midnight</div>
+                            </div>`;
+                    }
+                    isAIGoldActive = false;
+                } else if (data.active) {
+                    if (toggle) {
+                        toggle.checked = true;
+                        toggle.disabled = false;
+                    }
+                    if (badge) {
+                        badge.textContent = '● Active';
+                        badge.className = 'text-xs font-bold text-emerald-400';
+                    }
+                    isAIGoldActive = true;
+                    startAIGoldLoop();
+                } else {
+                    if (toggle) {
+                        toggle.checked = false;
+                        toggle.disabled = false;
+                    }
+                    if (badge) {
+                        badge.textContent = '● Inactive';
+                        badge.className = 'text-xs font-bold text-amber-400';
+                    }
+                    isAIGoldActive = false;
+                }
+            }
+        } catch (err) {
+            console.warn('Could not check AI Gold status:', err);
+        }
+    }
+
+    // ==========================================
+    // INIT
+    // ==========================================
+    document.addEventListener('DOMContentLoaded', () => {
+        initGrids();
+        updateDigitDistributionList();
+        updateSessionStats();
+        checkAIGoldStatus();
+
+        // ✅ Start WebSocket for the initially selected symbol (Gold)
+        connectWSForSymbol(selectedSymbol);
+
+        // ✅ REST fallback poll every 4s
+        serverPollInterval = setInterval(pollServerPrices, 4000);
+        pollServerPrices();
+
+        // ✅ AI Gold card live XAUUSD price
+        fetchAIGoldLivePrice();
+        aiGoldPriceInterval = setInterval(() => {
+            if (!document.hidden) fetchAIGoldLivePrice();
+        }, 3000);
+
+        // ✅ AI Gold open trade: live P/L and market-closed results every 10s
+        setInterval(() => { if (!document.hidden && (aiGoldHasOpen || isAIGoldActive)) pollAIGoldOpen(); }, 10000);
+
+        // ✅ Monitor WS health
+        setInterval(() => {
+            const sinceLastTick = Date.now() - wsLastTickAt;
+            if (wsLastTickAt > 0 && sinceLastTick > 8000) {
+                console.warn('[WS] No ticks in 8s — REST polling is carrying the load');
+            }
+        }, 5000);
+    });
+</script>
+{% endblock %}

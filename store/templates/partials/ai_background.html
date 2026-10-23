@@ -1,0 +1,222 @@
+{% comment %}
+Full-page animated "AI trading brain" background, shared by the landing, login and signup pages.
+Decorative only: neural net, candle streams from real XAUUSD candles, live-price data rain (from /api/public/ticker/),
+perspective grid, scan line, small HUD. ~30 fps, pauses when the tab is hidden, static with reduced motion.
+Include once, right after <body>. Needs the --px-* colour tokens (auth_skin.html provides them).
+{% endcomment %}
+<style>
+/* ── full-page "AI trading brain" background ── */
+    #px-ai-bg { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 0; pointer-events: none; display: block; }
+    .px-ai-vignette { position: fixed; inset: 0; z-index: 0; pointer-events: none;
+        background: radial-gradient(ellipse at 50% 35%, transparent 0%, color-mix(in srgb, var(--px-bg) 30%, transparent) 75%, var(--px-bg) 100%); }
+    body > section, body > footer, body > main { position: relative; z-index: 1; }
+    body > header { z-index: 50; }
+    .px-ai-hud { position: fixed; left: 14px; bottom: 12px; z-index: 0; pointer-events: none; font: 600 10px/1.5 'JetBrains Mono', monospace;
+        color: var(--px-accent); opacity: .55; letter-spacing: .04em; text-transform: uppercase; }
+    .px-ai-hud > span { display: block; }
+    .px-ai-hud .blink { animation: pxBlink2 1s steps(2) infinite; }
+    @keyframes pxBlink2 { 50% { opacity: 0; } }
+    @media (max-width: 640px) { .px-ai-hud { display: none; } }
+    @media (prefers-reduced-motion: reduce) { .px-ai-hud .blink { animation: none; } }
+</style>
+<canvas id="px-ai-bg" aria-hidden="true"></canvas>
+<div class="px-ai-vignette" aria-hidden="true"></div>
+<div class="px-ai-hud" aria-hidden="true">
+    <span>PATREOAIX // AI ENGINE</span>
+    <span id="px-hud-feed">feeds: connecting<span class="blink">_</span></span>
+    <span id="px-hud-scan">scanning markets<span class="blink">_</span></span>
+</div>
+<script>
+    // ── Added: full-page AI trading background — neural net, candle streams from the real candles,
+    //    data rain of live prices, perspective grid, scan line, order-flow arcs. Decorative only. ──
+    (function () {
+        const cv = document.getElementById('px-ai-bg');
+        if (!cv) return;
+        const ctx = cv.getContext('2d');
+        const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+        let W = 0, H = 0, dpr = 1, small = false, colors = {};
+        const mouse = { x: -9999, y: -9999 };
+        let nodes = [], edges = [], pulses = [], rain = [], arcs = [], candles = [], quotes = {}, last = 0, t0 = performance.now();
+
+        function palette() {
+            colors = { acc: css('--px-accent') || '#f0b90b', up: css('--px-up') || '#16c784', down: css('--px-down') || '#ea3943', line: css('--px-line') || '#232836', text: css('--px-dim') || '#8b93a7' };
+        }
+        function rgba(hex, a) {
+            const h = hex.replace('#', ''); if (h.length < 6) return hex;
+            return `rgba(${parseInt(h.slice(0, 2), 16)},${parseInt(h.slice(2, 4), 16)},${parseInt(h.slice(4, 6), 16)},${a})`;
+        }
+        function resize() {
+            dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+            W = window.innerWidth; H = window.innerHeight; small = W < 700;
+            cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            build();
+        }
+        function build() {
+            // neural network: layered columns of nodes like a model graph
+            nodes = []; edges = [];
+            const layers = small ? 4 : 6, perLayer = small ? 4 : 6;
+            for (let l = 0; l < layers; l++) {
+                for (let k = 0; k < perLayer; k++) {
+                    const x = W * (0.08 + 0.84 * l / (layers - 1)) + (Math.random() - .5) * 40;
+                    const y = H * (0.12 + 0.62 * (k + .5) / perLayer) + (Math.random() - .5) * 30;
+                    nodes.push({ x, y, bx: x, by: y, l, ph: Math.random() * 6.28, act: 0 });
+                }
+            }
+            nodes.forEach((a, i) => nodes.forEach((b, j) => {
+                if (b.l === a.l + 1 && Math.random() < (small ? .45 : .38)) edges.push([i, j]);
+            }));
+            pulses = [];
+            // data rain columns
+            rain = [];
+            const cols = Math.floor(W / (small ? 70 : 54));
+            for (let c = 0; c < cols; c++) rain.push({ x: c * (W / cols) + 8, y: Math.random() * H, v: 30 + Math.random() * 60, txt: tokens(), a: .25 + Math.random() * .5 });
+            arcs = [];
+        }
+        const HEX = '0123456789ABCDEF';
+        function tokens() {
+            const q = Object.keys(quotes);
+            if (q.length && Math.random() < .55) {
+                const s = q[Math.floor(Math.random() * q.length)], p = quotes[s];
+                return `${s.replace('USD', '')} ${p >= 1000 ? p.toFixed(2) : p >= 10 ? p.toFixed(3) : p.toFixed(5)}`;
+            }
+            let h = '0x'; for (let i = 0; i < 6; i++) h += HEX[Math.floor(Math.random() * 16)];
+            return h;
+        }
+
+        function drawGrid(t) {
+            // perspective "floor" grid at the bottom, rolling toward the viewer
+            const horizon = H * .62, vpx = W / 2;
+            ctx.strokeStyle = rgba(colors.acc, .16); ctx.lineWidth = 1;
+            for (let i = -14; i <= 14; i++) { ctx.beginPath(); ctx.moveTo(vpx, horizon); ctx.lineTo(vpx + i * W / 7, H); ctx.stroke(); }
+            const off = (t / 2200) % 1;
+            for (let k = 0; k < 12; k++) {
+                const z = (k + off) / 12, y = horizon + (H - horizon) * z * z;
+                ctx.strokeStyle = rgba(colors.acc, .07 + .2 * z);
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+            }
+        }
+        function drawCandles(t) {
+            // three bands of candles scrolling left, made from the real candles the hero chart loaded
+            if (candles.length < 10) return;
+            const lo = Math.min(...candles.map(c => c.low)), hi = Math.max(...candles.map(c => c.high)), rng = hi - lo || 1;
+            [[H * .2, 60, 34, .26], [H * .48, 90, 24, .2], [H * .8, 70, 44, .32]].forEach(([cy, bandH, speed, alpha], b) => {
+                const cw = b === 1 ? 7 : 9, gap = 4, step = cw + gap, total = candles.length * step;
+                const shift = (t / 1000 * speed) % total;
+                for (let x = -shift, i = 0; x < W + step; x += step, i++) {
+                    const c = candles[i % candles.length], y = v => cy + bandH / 2 - (v - lo) / rng * bandH;
+                    const col = c.close >= c.open ? colors.up : colors.down;
+                    ctx.strokeStyle = rgba(col, alpha); ctx.fillStyle = rgba(col, alpha);
+                    ctx.beginPath(); ctx.moveTo(x + cw / 2, y(c.high)); ctx.lineTo(x + cw / 2, y(c.low)); ctx.stroke();
+                    const top = y(Math.max(c.open, c.close)); ctx.fillRect(x, top, cw, Math.max(1, Math.abs(y(c.open) - y(c.close))));
+                }
+            });
+        }
+        function drawNet(t, dt) {
+            nodes.forEach(n => {
+                n.x = n.bx + Math.sin(t / 2600 + n.ph) * 10; n.y = n.by + Math.cos(t / 3100 + n.ph) * 8;
+                const dx = n.x - mouse.x, dy = n.y - mouse.y, d = Math.hypot(dx, dy);
+                if (d < 140) { n.x += dx / d * (140 - d) * .25; n.y += dy / d * (140 - d) * .25; n.act = Math.max(n.act, .6); }
+                n.act *= .96;
+            });
+            ctx.lineWidth = 1;
+            edges.forEach(([i, j]) => {
+                const a = nodes[i], b = nodes[j];
+                ctx.strokeStyle = rgba(colors.acc, .12 + .3 * Math.max(a.act, b.act));
+                ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+            });
+            // signals travelling forward through the layers
+            if (!reduced && Math.random() < (small ? .25 : .5) && edges.length) {
+                const e = edges[Math.floor(Math.random() * edges.length)];
+                if (nodes[e[0]].l === 0 || Math.random() < .3) pulses.push({ e, p: 0, v: .6 + Math.random() * .8, up: Math.random() < .55 });
+            }
+            pulses = pulses.filter(pu => {
+                pu.p += pu.v * dt / 1000;
+                const a = nodes[pu.e[0]], b = nodes[pu.e[1]];
+                if (pu.p >= 1) {
+                    b.act = 1;
+                    const next = edges.filter(e => e[0] === pu.e[1]);
+                    if (next.length && Math.random() < .7) { pu.e = next[Math.floor(Math.random() * next.length)]; pu.p = 0; return true; }
+                    if (b.l === Math.max(...nodes.map(n => n.l))) arcs.push({ x: b.x, y: b.y, r: 4, a: .7, up: pu.up });
+                    return false;
+                }
+                const x = a.x + (b.x - a.x) * pu.p, y = a.y + (b.y - a.y) * pu.p, col = pu.up ? colors.up : colors.down;
+                ctx.fillStyle = rgba(col, .9); ctx.beginPath(); ctx.arc(x, y, 2.2, 0, 6.28); ctx.fill();
+                ctx.fillStyle = rgba(col, .2); ctx.beginPath(); ctx.arc(x, y, 6, 0, 6.28); ctx.fill();
+                return true;
+            });
+            nodes.forEach(n => {
+                ctx.fillStyle = rgba(colors.acc, .45 + .55 * n.act);
+                ctx.beginPath(); ctx.arc(n.x, n.y, 2.4 + 2.4 * n.act, 0, 6.28); ctx.fill();
+                if (n.act > .3) { ctx.strokeStyle = rgba(colors.acc, .4 * n.act); ctx.beginPath(); ctx.arc(n.x, n.y, 9 * n.act + 4, 0, 6.28); ctx.stroke(); }
+            });
+            // output layer firing → expanding rings (the "decision")
+            arcs = arcs.filter(r => {
+                r.r += dt * .06; r.a -= dt * .0012;
+                ctx.strokeStyle = rgba(r.up ? colors.up : colors.down, Math.max(0, r.a));
+                ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, 6.28); ctx.stroke();
+                return r.a > 0;
+            });
+            // cursor link: the net "notices" the pointer
+            if (mouse.x > 0) nodes.forEach(n => {
+                const d = Math.hypot(n.x - mouse.x, n.y - mouse.y);
+                if (d < 180) { ctx.strokeStyle = rgba(colors.acc, .25 * (1 - d / 180)); ctx.beginPath(); ctx.moveTo(n.x, n.y); ctx.lineTo(mouse.x, mouse.y); ctx.stroke(); }
+            });
+        }
+        function drawRain(dt) {
+            ctx.font = `600 ${small ? 9 : 10}px JetBrains Mono, monospace`;
+            rain.forEach(r => {
+                r.y += r.v * dt / 1000;
+                if (r.y > H + 40) { r.y = -20; r.txt = tokens(); }
+                const isPrice = !r.txt.startsWith('0x');
+                ctx.fillStyle = rgba(isPrice ? colors.acc : colors.text, (isPrice ? .6 : .3) * r.a);
+                ctx.save(); ctx.translate(r.x, r.y); ctx.rotate(Math.PI / 2); ctx.fillText(r.txt, 0, 0); ctx.restore();
+            });
+        }
+        function drawScan(t) {
+            const y = (t / 18) % (H + 200) - 100;
+            const g = ctx.createLinearGradient(0, y - 60, 0, y);
+            g.addColorStop(0, rgba(colors.acc, 0)); g.addColorStop(1, rgba(colors.acc, .13));
+            ctx.fillStyle = g; ctx.fillRect(0, y - 60, W, 60);
+            ctx.fillStyle = rgba(colors.acc, .35); ctx.fillRect(0, y, W, 1);
+        }
+        function frame(now) {
+            const dt = Math.min(64, now - last || 16);
+            if (!reduced && now - last < 30) { requestAnimationFrame(frame); return; }   // ~30 fps is plenty for a background
+            last = now;
+            const t = now - t0;
+            ctx.clearRect(0, 0, W, H);
+            drawGrid(reduced ? 0 : t);
+            drawCandles(reduced ? 0 : t);
+            drawRain(reduced ? 0 : dt);
+            drawNet(reduced ? 0 : t, reduced ? 0 : dt);
+            if (!reduced) drawScan(t);
+            window.__pxBgFrames = (window.__pxBgFrames || 0) + 1;
+            if (!reduced && !document.hidden) requestAnimationFrame(frame);
+        }
+        document.addEventListener('visibilitychange', () => { if (!document.hidden && !reduced) { last = 0; requestAnimationFrame(frame); } });
+        window.addEventListener('resize', () => { resize(); if (reduced) frame(performance.now()); });
+        window.addEventListener('pointermove', e => { mouse.x = e.clientX; mouse.y = e.clientY; }, { passive: true });
+        window.addEventListener('pointerleave', () => { mouse.x = mouse.y = -9999; });
+        new MutationObserver(palette).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+        // real data: live prices for the rain + HUD, real candles for the streams
+        function feed() {
+            fetch('/api/public/ticker/').then(r => r.json()).then(d => {
+                if (!d.success) return;
+                d.quotes.forEach(q => { quotes[q.symbol] = q.price; });
+                const n = Object.keys(quotes).length, f = document.getElementById('px-hud-feed');
+                if (f) f.firstChild.textContent = `feeds: ${n} markets live · ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+            }).catch(() => {});
+        }
+        feed();
+        setInterval(() => { if (!document.hidden) feed(); }, 20000);
+        const syms = ['XAUUSD', 'EURUSD', 'BTCUSD', 'GBPUSD', 'USDJPY', 'ETHUSD', 'USOIL']; let si = 0;
+        setInterval(() => { const el = document.getElementById('px-hud-scan'); if (el) el.firstChild.textContent = `scanning ${syms[si++ % syms.length]} · 3 timeframes`; }, 1600);
+        fetch('/api/public/ticker/?candles=XAUUSD').then(r => r.json()).then(d => { if (d.success) candles = d.candles; if (reduced) frame(performance.now()); }).catch(() => {});
+
+        palette(); resize();
+        requestAnimationFrame(frame);
+    })();
+</script>

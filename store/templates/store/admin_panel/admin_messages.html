@@ -1,0 +1,111 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}Admin Message Center · PATREOAIX{% endblock %}
+{% block page_title %}Support Tickets{% endblock %}
+{% block message_toasts %}{% endblock %}
+
+{% block extra_head %}
+{% include 'partials/admin_styles.html' %}
+<style>
+    .tk { border-top: 1px solid var(--px-line-soft); }
+    .tk-h { display: grid; grid-template-columns: 64px 1fr auto; gap: 12px; align-items: center; padding: 12px 16px; cursor: pointer; }
+    .tk-h:hover { background: var(--px-hover); }
+    .tk-b { display: none; padding: 0 16px 16px 92px; }
+    .tk.open .tk-b { display: block; }
+    .tk.open .tk-h { background: var(--px-hover); }
+    @media (max-width: 640px) { .tk-h { grid-template-columns: 1fr auto; } .tk-h .tk-id { display: none; } .tk-b { padding-left: 16px; } }
+    .seg { display: inline-flex; padding: 3px; border-radius: 8px; background: var(--px-panel-2); border: 1px solid var(--px-line); gap: 2px; }
+    .seg button { height: 28px; padding: 0 11px; border-radius: 6px; font-size: 12px; font-weight: 600; color: var(--px-dim); }
+    .seg button.on { background: var(--px-panel); color: var(--px-text); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-3">
+        <div>
+            <h2 class="text-xl sm:text-2xl font-semibold tracking-tight px-strong">Support tickets</h2>
+            <p class="text-[13px] mt-1 px-dim"><span id="mc-open" class="px-num"></span> open · <span id="mc-total" class="px-num">{{ tickets|length }}</span> total. Click a ticket to read it and reply.</p>
+        </div>
+        <a href="{% url 'admin_dashboard_hub' %}" class="btn-gh"><i class="fa-solid fa-arrow-left"></i>Admin Hub</a>
+    </div>
+
+    {% if messages %}<div class="space-y-2">{% for m in messages %}<div class="ad-flash {{ m.tags }}"><i class="fa-solid fa-circle-check"></i><span>{{ m }}</span></div>{% endfor %}</div>{% endif %}
+
+    <section class="px-card overflow-hidden">
+        <div class="px-card-h">
+            <div class="seg" id="mc-status"><button data-s="Open" class="on">Open</button><button data-s="Resolved">Resolved</button><button data-s="">All</button></div>
+            <div class="flex gap-2 flex-1 md:flex-none">
+                <select id="mc-cat" class="px-sel" style="width:auto"><option value="">All categories</option></select>
+                <input id="mc-q" class="px-in" placeholder="Search subject, user, text" style="min-width:200px">
+            </div>
+        </div>
+        <div id="mc-list">
+            {% for ticket in tickets %}
+            <div class="tk" data-status="{{ ticket.status }}" data-cat="{{ ticket.category }}" data-text="{{ ticket.subject|lower }} {{ ticket.description|lower|truncatechars:400 }} {% if ticket.user %}{{ ticket.user.username|lower }}{% endif %}">
+                <div class="tk-h" tabindex="0" role="button">
+                    <span class="tk-id px-num font-semibold" style="color:var(--px-accent)">#{{ ticket.id }}</span>
+                    <div class="min-w-0">
+                        <p class="text-[13px] font-semibold px-strong truncate">{{ ticket.subject }}</p>
+                        <p class="text-[11px] px-muted truncate">{% if ticket.user %}@{{ ticket.user.username }}{% else %}Anonymous{% endif %} · {{ ticket.category }} · {{ ticket.created_at|date:"M d, Y H:i" }} ({{ ticket.created_at|timesince }} ago)</p>
+                    </div>
+                    <span class="pill {% if ticket.status == 'Resolved' %}ok{% else %}warn{% endif %}">{{ ticket.status }}</span>
+                </div>
+                <div class="tk-b">
+                    <p class="text-[13px] px-dim whitespace-pre-line leading-relaxed">{{ ticket.description }}</p>
+                    <div class="flex flex-col lg:flex-row gap-2 mt-4">
+                        {% if ticket.user %}
+                        <form method="POST" action="{% url 'admin_dashboard_hub' %}" class="flex flex-col sm:flex-row gap-2 flex-1">{% csrf_token %}
+                            <input type="hidden" name="action_type" value="ticket"><input type="hidden" name="item_id" value="{{ ticket.id }}"><input type="hidden" name="next" value="{{ request.path }}">
+                            <input name="reply" class="px-in flex-1" placeholder="Reply to @{{ ticket.user.username }} (sent to their notifications)">
+                            <select name="status" class="px-sel sm:w-36"><option value="Resolved" selected>&amp; resolve</option><option value="Open">&amp; keep open</option></select>
+                            <button class="px-btn px-btn-primary">Send reply</button>
+                        </form>
+                        <a href="{% url 'admin_dashboard_hub' %}?tab=users&q={{ ticket.user.username|urlencode }}" class="btn-gh justify-center" style="height:36px">View user</a>
+                        {% endif %}
+                        <form method="POST" class="inline-flex items-center gap-2">{% csrf_token %}
+                            <input type="hidden" name="ticket_id" value="{{ ticket.id }}">
+                            <select name="status" class="px-sel" style="width:auto">
+                                <option value="Open" {% if ticket.status == 'Open' %}selected{% endif %}>Open</option>
+                                <option value="Resolved" {% if ticket.status == 'Resolved' %}selected{% endif %}>Resolved</option>
+                            </select>
+                            <button type="submit" class="btn-gh" style="height:36px">Update status</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="ad-empty"><i class="fa-regular fa-envelope-open"></i>No support tickets or complaints have been submitted yet.</div>
+            {% endfor %}
+            <div id="mc-none" class="ad-empty hidden"><i class="fa-solid fa-filter"></i>No tickets match these filters.</div>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const $ = id => document.getElementById(id);
+    const rows = [...document.querySelectorAll('#mc-list .tk')];
+    $('mc-open').textContent = rows.filter(r => r.dataset.status !== 'Resolved').length;
+    [...new Set(rows.map(r => r.dataset.cat))].sort().forEach(c => { const o = document.createElement('option'); o.value = o.textContent = c; $('mc-cat').appendChild(o); });
+    let status = 'Open';
+    function apply() {
+        const q = $('mc-q').value.trim().toLowerCase(), cat = $('mc-cat').value;
+        let n = 0;
+        rows.forEach(r => {
+            const okS = !status || (status === 'Resolved' ? r.dataset.status === 'Resolved' : r.dataset.status !== 'Resolved');
+            const show = okS && (!cat || r.dataset.cat === cat) && (!q || r.dataset.text.includes(q));
+            r.style.display = show ? '' : 'none'; if (show) n++;
+        });
+        $('mc-none').classList.toggle('hidden', !!n || !rows.length);
+    }
+    document.querySelectorAll('#mc-status button').forEach(b => b.addEventListener('click', () => {
+        status = b.dataset.s; document.querySelectorAll('#mc-status button').forEach(x => x.classList.toggle('on', x === b)); apply();
+    }));
+    $('mc-q').addEventListener('input', apply); $('mc-cat').addEventListener('change', apply);
+    rows.forEach(r => { const h = r.querySelector('.tk-h'); const t = () => r.classList.toggle('open'); h.addEventListener('click', t); h.addEventListener('keydown', e => { if (e.key === 'Enter') t(); }); });
+    apply();
+})();
+</script>
+{% endblock %}

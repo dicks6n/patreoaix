@@ -1,0 +1,54 @@
+{% extends 'base_dashboard.html' %}
+
+{% block title %}Platform Downloads - PATREOAIX{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-6 px-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+        <div class="mb-6 pb-4 border-b border-slate-800">
+            <h2 class="text-xl font-bold text-white tracking-wide">Trading Platforms</h2>
+            <p class="text-xs text-slate-400 mt-0.5">Download our professional desktop and mobile trading applications</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
+            <!-- Desktop Terminal -->
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 flex flex-col justify-between">
+                <div>
+                    <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 font-bold mb-4">
+                        <i class="fa-solid fa-desktop text-base"></i>
+                    </div>
+                    <h3 class="font-sans font-bold text-white text-sm mb-1">Desktop Terminal (MT4/MT5)</h3>
+                    <p class="font-sans text-slate-400 text-xs mb-4">Advanced charting, automated trading with EAs, and high-speed execution for Windows and macOS.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <a href="#" class="flex-1 py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-center transition shadow cursor-pointer">
+                        Windows
+                    </a>
+                    <a href="#" class="flex-1 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-center transition border border-slate-700 cursor-pointer">
+                        macOS
+                    </a>
+                </div>
+            </div>
+
+            <!-- Mobile Applications -->
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 flex flex-col justify-between">
+                <div>
+                    <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold mb-4">
+                        <i class="fa-solid fa-mobile-screen text-base"></i>
+                    </div>
+                    <h3 class="font-sans font-bold text-white text-sm mb-1">Mobile Trading Apps</h3>
+                    <p class="font-sans text-slate-400 text-xs mb-4">Manage your trades, monitor live charts, and execute orders on the go with our iOS and Android apps.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <a href="#" class="flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-center transition shadow cursor-pointer">
+                        App Store
+                    </a>
+                    <a href="#" class="flex-1 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-center transition border border-slate-700 cursor-pointer">
+                        Google Play
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

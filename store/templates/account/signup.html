@@ -1,0 +1,397 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - PATREOAIX</title>
+    <!-- Tailwind CSS & FontAwesome -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {% include 'partials/auth_skin.html' %}
+</head>
+
+<body class="bg-[#090d16] text-slate-100 font-sans min-h-screen flex flex-col justify-between">
+    {% include 'partials/ai_background.html' %}
+<!-- ========================================== -->
+<!-- CUSTOM WEB3 LOADING SPINNER OVERLAY -->
+<!-- ========================================== -->
+<div id="loading-spinner" class="fixed inset-0 z-[9999] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center transition-opacity duration-500">
+    <div class="relative flex items-center justify-center">
+        <!-- Outer Glowing Ring -->
+        <div class="w-20 h-20 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin"></div>
+        <!-- Inner Pulsing Node -->
+        <div class="absolute w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center animate-pulse">
+            <div class="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
+        </div>
+    </div>
+    <div class="mt-5 text-center space-y-1">
+        <p class="text-xs font-mono tracking-widest text-indigo-300 uppercase animate-pulse">Connecting Web3 Vault</p>
+        <p class="text-[10px] font-mono text-slate-500">Synchronizing live oracles & AI signals...</p>
+    </div>
+</div>
+
+<style>
+    .spinner-hidden {
+        opacity: 0;
+        pointer-events: none;
+        visibility: hidden;
+    }
+</style>
+
+    <!-- Top Header Navigation -->
+    <header class="border-b border-slate-800/80 bg-[#0d1322] px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+        <a href="/" class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold text-lg">
+                <i class="fa-solid fa-brain"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg leading-tight tracking-wide text-white">PATREOAIX</h1>
+                <p class="text-xs text-slate-400">AI Prediction Engine</p>
+            </div>
+        </a>
+
+        <div class="flex items-center gap-3 text-xs">
+            <span class="text-slate-400 hidden sm:inline">Already have an account?</span>
+            <a href="{% url 'login' %}" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold transition border border-slate-700 flex items-center gap-1.5">
+                <i class="fa-solid fa-right-to-bracket text-slate-400"></i> Log In
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 flex items-center justify-center p-6 my-4">
+        <div class="w-full max-w-lg">
+
+            <!-- Ambient Background Glow -->
+            <div class="relative">
+                <div class="absolute -top-10 -left-10 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="absolute -bottom-10 -right-10 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                <!-- PATREOAIX Styled Signup Card -->
+                <div class="bg-[#0d1322] border border-slate-800 rounded-2xl p-8 shadow-2xl relative z-10">
+                    
+                    <div class="text-center mb-6">
+                        <div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-2xl mb-3">
+                            <i class="fa-solid fa-user-plus"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-white tracking-wide">Create Your Account</h2>
+                        <p class="text-xs text-slate-400 mt-1">Join PATREOAIX to access automated AI trading predictions</p>
+                    </div>
+
+                    {% if ref_code %}
+                    <div class="mb-4 p-3 rounded-xl text-xs flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-medium">
+                        <i class="fa-solid fa-gift"></i> Invited with code <span class="font-mono font-bold">{{ ref_code }}</span>
+                    </div>
+                    {% endif %}
+                    <!-- Django Messages -->
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert-box mb-4 p-3.5 rounded-xl text-xs flex items-center gap-2.5 font-medium {% if message.tags == 'error' %}bg-rose-500/10 border border-rose-500/20 text-rose-400{% else %}bg-indigo-500/10 border border-indigo-500/20 text-indigo-300{% endif %}">
+                                <i class="fa-solid {% if message.tags == 'error' %}fa-circle-exclamation{% else %}fa-circle-info{% endif %} text-sm"></i>
+                                <span>{{ message }}</span>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <!-- Django Error Message Alert -->
+                    {% if form.errors %}
+                    <div class="mb-4 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs space-y-1 font-medium">
+                        {% for field in form %}{% for err in field.errors %}<p><i class="fa-solid fa-circle-exclamation mr-1.5"></i>{% if field.label %}{{ field.label }}: {% endif %}{{ err }}</p>{% endfor %}{% endfor %}
+                        {% for err in form.non_field_errors %}<p><i class="fa-solid fa-circle-exclamation mr-1.5"></i>{{ err }}</p>{% endfor %}
+                    </div>
+                    {% endif %}
+                    {% if error %}
+                    <div class="mb-4 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2.5 font-medium">
+                        <i class="fa-solid fa-circle-exclamation text-sm"></i>
+                        <span>{{ error }}</span>
+                    </div>
+                    {% endif %}
+
+                    <!-- Signup Form -->
+                    <form method="POST" class="space-y-4">
+                        {% csrf_token %}
+                        {% if ref_code %}<input type="hidden" name="ref" value="{{ ref_code }}">{% endif %}
+
+                        <!-- Username Field -->
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                                Username <span class="text-rose-400">*</span>
+                            </label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500">
+                                    <i class="fa-solid fa-user text-xs"></i>
+                                </span>
+                                <input type="text" 
+                                       name="username" 
+                                       value="{{ form_username|default:form.username.value|default:'' }}"
+                                       autocomplete="username"
+                                       class="w-full bg-[#090d16] border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition font-mono" 
+                                       placeholder="Choose a username" 
+                                       required>
+                            </div>
+                        </div>
+
+                        <!-- Email Field -->
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                                Email Address <span class="text-slate-500">(Optional)</span>
+                            </label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500">
+                                    <i class="fa-solid fa-envelope text-xs"></i>
+                                </span>
+                                <input type="email" 
+                                       name="email" 
+                                       value="{{ form_email|default:form.email.value|default:'' }}"
+                                       autocomplete="email"
+                                       class="w-full bg-[#090d16] border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition font-mono" 
+                                       placeholder="your@email.com">
+                            </div>
+                        </div>
+
+                        <!-- Password Field -->
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                                Password <span class="text-rose-400">*</span>
+                            </label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500">
+                                    <i class="fa-solid fa-lock text-xs"></i>
+                                </span>
+                                <input type="password" 
+                                       name="password1" 
+                                       id="password"
+                                       class="w-full bg-[#090d16] border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition font-mono" 
+                                       placeholder="Create a password (min. 8 chars)" 
+                                       required>
+                            </div>
+                            <div id="password-strength-container" class="mt-1.5"></div>
+                        </div>
+
+                        <!-- Confirm Password Field -->
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                                Confirm Password <span class="text-rose-400">*</span>
+                            </label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500">
+                                    <i class="fa-solid fa-shield-check text-xs"></i>
+                                </span>
+                                <input type="password" 
+                                       name="password2" 
+                                       id="confirm_password"
+                                       class="w-full bg-[#090d16] border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition font-mono" 
+                                       placeholder="Re-enter your password" 
+                                       required>
+                            </div>
+                            <div id="password-match" class="mt-1.5 text-[11px] font-mono"></div>
+                        </div>
+
+                        <!-- Terms & Conditions Checkbox -->
+                        <div class="pt-1">
+                            <label class="flex items-start gap-2.5 cursor-pointer text-xs text-slate-400">
+                                <input type="checkbox" 
+                                       id="terms" 
+                                       name="terms" 
+                                       required 
+                                       class="mt-0.5 rounded border-slate-800 bg-[#090d16] text-indigo-600 focus:ring-0 focus:ring-offset-0">
+                                <span>I agree to the <a href="#" class="text-indigo-400 hover:underline">Terms of Service</a> and <a href="#" class="text-indigo-400 hover:underline">Privacy Policy</a></span>
+                            </label>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button type="submit" 
+                                class="w-full py-3 px-4 mt-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-user-plus"></i> Create Account
+                        </button>
+                    </form>
+
+                    <!-- Divider -->
+                    <div class="relative my-6 text-center">
+                        <span class="bg-[#0d1322] px-3 text-[10px] text-slate-500 uppercase font-bold relative z-10">or sign up with</span>
+                        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-800"></div></div>
+                    </div>
+
+                    <!-- Social Signup Options -->
+                    <div class="flex items-center justify-center gap-3">
+                        <a href="{% url 'google_login' %}" class="w-10 h-10 rounded-xl bg-[#090d16] border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white transition flex items-center justify-center text-sm">
+                            <i class="fa-brands fa-google"></i>
+                        </a>
+                        <a href="{% url 'apple_login' %}" class="w-10 h-10 rounded-xl bg-[#090d16] border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white transition flex items-center justify-center text-sm">
+                            <i class="fa-brands fa-apple"></i>
+                        </a>
+                    </div>
+
+                    <!-- Card Footer Link -->
+                    <div class="mt-6 pt-5 border-t border-slate-800/80 text-center">
+                        <p class="text-xs text-slate-400">
+                            Already registered? 
+                            <a href="{% url 'login' %}" class="font-bold text-indigo-400 hover:text-indigo-300 transition">Sign in here</a>
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Page Footer -->
+    <footer class="border-t border-slate-800/80 bg-[#0d1322] px-6 py-4 text-center text-xs text-slate-500">
+        &copy; PATREOAIX AI Prediction Engine. All rights reserved.
+    </footer>
+
+    <!-- JavaScript Validations & Spinner Logic -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const password = document.getElementById('password');
+            const confirmPassword = document.getElementById('confirm_password');
+            const matchDiv = document.getElementById('password-match');
+            const strengthContainer = document.getElementById('password-strength-container');
+            
+            // Password match validation
+            function checkPasswordMatch() {
+                if (password.value.length > 0 && confirmPassword.value.length > 0) {
+                    if (password.value === confirmPassword.value) {
+                        matchDiv.innerHTML = '<span class="text-emerald-400"><i class="fa-solid fa-circle-check"></i> Passwords match!</span>';
+                        confirmPassword.className = confirmPassword.className.replace('border-slate-800', 'border-emerald-500').replace('border-rose-500', 'border-emerald-500');
+                    } else {
+                        matchDiv.innerHTML = '<span class="text-rose-400"><i class="fa-solid fa-circle-xmark"></i> Passwords do not match</span>';
+                        confirmPassword.className = confirmPassword.className.replace('border-slate-800', 'border-rose-500').replace('border-emerald-500', 'border-rose-500');
+                    }
+                } else {
+                    matchDiv.innerHTML = '';
+                }
+            }
+            
+            password.addEventListener('keyup', checkPasswordMatch);
+            confirmPassword.addEventListener('keyup', checkPasswordMatch);
+
+            // Password strength indicator
+            password.addEventListener('input', function() {
+                const val = this.value;
+                if (val.length > 0) {
+                    let strength = 'Weak';
+                    let color = 'text-rose-400';
+                    let barColor = 'bg-rose-500';
+                    let width = '33%';
+                    
+                    if (val.length >= 8) {
+                        strength = 'Medium';
+                        color = 'text-amber-400';
+                        barColor = 'bg-amber-500';
+                        width = '66%';
+                    }
+                    if (val.length >= 12 && /[A-Z]/.test(val) && /[0-9]/.test(val)) {
+                        strength = 'Strong';
+                        color = 'text-emerald-400';
+                        barColor = 'bg-emerald-500';
+                        width = '100%';
+                    }
+                    
+                    strengthContainer.innerHTML = `
+                        <div class="text-[10px] font-mono ${color} flex items-center justify-between">
+                            <span><i class="fa-solid fa-shield text-[9px] mr-1"></i> Strength: ${strength}</span>
+                        </div>
+                        <div class="w-full bg-slate-900 h-1 rounded-full mt-1 overflow-hidden">
+                            <div class="${barColor} h-full transition-all duration-300" style="width: ${width};"></div>
+                        </div>
+                    `;
+                } else {
+                    strengthContainer.innerHTML = '';
+                }
+            });
+
+            // Auto-close alerts after 5 seconds
+            const alerts = document.querySelectorAll('.alert-box');
+            alerts.forEach(function(alert) {
+                setTimeout(function() {
+                    alert.style.transition = 'opacity 0.5s';
+                    alert.style.opacity = '0';
+                    setTimeout(function() { alert.remove(); }, 500);
+                }, 5000);
+            });
+        });
+
+        // Hide spinner once full page assets load, and show it again when submitting the form
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                const spinner = document.getElementById('loading-spinner');
+                if (spinner) {
+                    spinner.classList.add('spinner-hidden');
+                }
+            }, 300);
+        });
+
+        window.addEventListener('pageshow', function (e) {
+            if (!e.persisted) return;
+            document.getElementById('loading-spinner')?.classList.add('spinner-hidden');
+            const btn = document.querySelector('form button[type=submit]');
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-user-plus"></i> Create Account'; }
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.querySelector('form');
+            const spinner = document.getElementById('loading-spinner');
+            if (form && spinner) {
+                form.addEventListener('submit', function() {
+                    spinner.classList.remove('spinner-hidden');
+                });
+            }
+        });
+
+        // ── Added: mismatched passwords or < 8 characters can't be submitted (the server checks too) ──
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.querySelector('form');
+            const pw = document.getElementById('password'), cf = document.getElementById('confirm_password');
+            form.addEventListener('submit', function (e) {
+                let msg = '';
+                if (pw.value.length < 8) msg = 'Password must be at least 8 characters.';
+                else if (pw.value !== cf.value) msg = 'Passwords do not match.';
+                if (msg) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    document.getElementById('loading-spinner')?.classList.add('spinner-hidden');
+                    let box = document.getElementById('px-signup-err');
+                    if (!box) {
+                        box = document.createElement('div'); box.id = 'px-signup-err';
+                        box.className = 'mb-4 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2.5 font-medium';
+                        form.before(box);
+                    }
+                    box.innerHTML = '<i class="fa-solid fa-circle-exclamation text-sm"></i><span></span>';
+                    box.querySelector('span').textContent = msg;
+                    (pw.value.length < 8 ? pw : cf).focus();
+                    return;
+                }
+                const btn = form.querySelector('button[type=submit]');
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating account…';
+            }, true);
+
+        // ── Added: show/hide password, Caps Lock warning ──
+        document.querySelectorAll('input[type=password]').forEach(inp => {
+            const wrap = inp.parentElement;
+            wrap.style.position = 'relative';
+            inp.style.paddingRight = '36px';
+            const b = document.createElement('button');
+            b.type = 'button'; b.className = 'px-eye'; b.setAttribute('aria-label', 'Show password');
+            b.innerHTML = '<i class="fa-solid fa-eye"></i>';
+            b.addEventListener('click', () => {
+                const show = inp.type === 'password';
+                inp.type = show ? 'text' : 'password';
+                b.innerHTML = `<i class="fa-solid ${show ? 'fa-eye-slash' : 'fa-eye'}"></i>`;
+                b.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+            });
+            wrap.appendChild(b);
+            const caps = document.createElement('p');
+            caps.className = 'px-note hidden'; caps.style.color = 'var(--px-accent)';
+            caps.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Caps Lock is on';
+            wrap.after(caps);
+            const check = e => { if (e.getModifierState) caps.classList.toggle('hidden', !e.getModifierState('CapsLock')); };
+            inp.addEventListener('keyup', check); inp.addEventListener('keydown', check);
+        });
+        });
+    </script>
+</body>
+</html>

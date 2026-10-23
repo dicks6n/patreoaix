@@ -1,0 +1,97 @@
+{% extends 'base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Rewards - PATREOAIX{% endblock %}
+
+{% block content %}
+{% include 'partials/legacy_skin.html' %}
+<style>
+    /* this page was written for a light theme — map it onto the site tokens */
+    .px-rewards .bg-white, .px-rewards .bg-gradient-to-br.from-slate-900 { background: var(--px-panel) !important; box-shadow: var(--px-shadow) !important; }
+    .px-rewards .border-slate-200 { border-color: var(--px-line) !important; }
+    .px-rewards .text-slate-950, .px-rewards .text-slate-900, .px-rewards .text-emerald-950 { color: var(--px-text) !important; }
+    .px-rewards .bg-emerald-50 { background: var(--px-up-soft) !important; border-color: transparent !important; }
+    .px-rewards .text-emerald-700, .px-rewards .text-emerald-500 { color: var(--px-up) !important; }
+    .px-rewards .bg-blue-50, .px-rewards .bg-amber-500\/10 { background: var(--px-accent-soft) !important; }
+    .px-rewards .text-blue-700 { color: var(--px-accent) !important; }
+    .px-rewards .bg-slate-100 { background: var(--px-panel-2) !important; color: var(--px-mute) !important; }
+    .px-rewards .bg-blue-600, .px-rewards .bg-amber-500 { background: var(--px-accent) !important; color: var(--px-accent-ink) !important; }
+    .px-rewards .bg-blue-600:hover, .px-rewards .bg-amber-500:hover { filter: brightness(1.06); }
+    .px-rewards button[disabled] { opacity: .6; cursor: wait; }
+</style>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 px-rewards">
+    <!-- Header Section -->
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-950">Survey Rewards Center</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Exclusive paid survey payouts for Pro and VIP tier members.</p>
+        </div>
+        <div class="text-sm bg-emerald-50 border border-emerald-100 text-emerald-700 px-5 py-3 rounded-2xl font-semibold text-center sm:text-left shadow-sm">
+            <span class="block text-xs uppercase tracking-wider text-emerald-500">Claimable Reward Balance</span>
+            <span class="text-xl font-extrabold text-emerald-950">${{ claimable_reward_balance|default:"0.00" }}</span>
+        </div>
+    </div>
+
+    <!-- Tier Access Gate -->
+    {% if is_eligible %}
+    <!-- Available Rewards List -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {% for reward in available_rewards %}
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between space-y-4">
+            <div class="flex items-start justify-between">
+                <div>
+                    <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 uppercase tracking-wider">
+                        {{ reward.tier_required|default:"VIP / Pro" }} Survey
+                    </span>
+                    <h3 class="text-lg font-bold text-slate-900 mt-2">{{ reward.title }}</h3>
+                    <p class="text-xs text-slate-500 mt-1">{{ reward.description|default:"Completed market research survey payout approved by Admin." }}</p>
+                </div>
+                <div class="text-right">
+                    <span class="text-xs text-slate-400 block">Reward</span>
+                    <span class="text-xl font-extrabold text-slate-950">${{ reward.amount }}</span>
+                </div>
+            </div>
+
+            <form method="POST" action="{% url 'claim_survey_reward' reward.id %}">
+                {% csrf_token %}
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl transition text-sm flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-gift"></i> Claim Reward (${{ reward.amount }})
+                </button>
+            </form>
+        </div>
+        {% empty %}
+        <div class="col-span-full bg-white border border-slate-200 rounded-2xl p-8 text-center space-y-2 shadow-sm">
+            <div class="w-12 h-12 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto text-lg">
+                <i class="fa-solid fa-box-open"></i>
+            </div>
+            <h4 class="font-bold text-slate-900 text-base">No active reward claims assigned</h4>
+            <p class="text-xs text-slate-500 max-w-sm mx-auto">Admin hasn't assigned any survey rewards to your account yet. Check back soon or complete surveys to qualify.</p>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <!-- Locked State for Free/Standard Users -->
+    <div class="bg-gradient-to-br from-slate-900 to-slate-950 text-white rounded-2xl p-8 sm:p-10 text-center space-y-4 shadow-lg">
+        <div class="w-14 h-14 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-2xl flex items-center justify-center mx-auto text-xl">
+            <i class="fa-solid fa-lock"></i>
+        </div>
+        <div class="max-w-md mx-auto space-y-1">
+            <h3 class="text-xl font-bold">Pro & VIP Tier Exclusive</h3>
+            <p class="text-xs text-slate-400">Paid survey rewards and instant click-to-claim payouts are restricted to Pro and VIP members. Upgrade your account tier to start claiming cash rewards.</p>
+        </div>
+        <div class="pt-2">
+            <a href="{% url 'subscription_billing' %}" class="inline-block bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-6 py-3 rounded-xl transition text-sm shadow-sm">
+                Upgrade to Pro / VIP
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+<script>
+    // ── Added: one click = one claim (stops a double-tap posting twice) ──
+    document.querySelectorAll('.px-rewards form').forEach(f => f.addEventListener('submit', () => {
+        const b = f.querySelector('button[type=submit]');
+        if (b) { b.disabled = true; b.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Claiming…'; }
+    }));
+</script>
+{% endblock %}

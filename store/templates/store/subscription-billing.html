@@ -1,0 +1,662 @@
+{% extends 'base_dashboard.html' %}
+
+{% block message_toasts %}{% endblock %}{# this page prints messages itself #}
+
+{% block title %}Subscription & Billing - PATREOAIX{% endblock %}
+
+{% block content %}
+{% include 'partials/legacy_skin.html' %}
+<!-- ========================================== -->
+<!-- LOADING SPINNER (matches digits_trading) -->
+<!-- ========================================== -->
+<div id="loading-spinner" class="fixed inset-0 z-[9999] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center transition-opacity duration-500">
+    <div class="relative flex items-center justify-center">
+        <div class="w-20 h-20 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin"></div>
+        <div class="absolute w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center animate-pulse">
+            <div class="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
+        </div>
+    </div>
+    <div class="mt-5 text-center space-y-1">
+        <p class="text-xs font-mono tracking-widest text-indigo-300 uppercase animate-pulse">Connecting Billing Engine</p>
+        <p class="text-[10px] font-mono text-slate-500">Synchronizing subscription state...</p>
+    </div>
+</div>
+
+<style>
+    .spinner-hidden { opacity: 0; pointer-events: none; visibility: hidden; }
+
+    /* ─── Cards (identical classes to digits_trading.html) ─── */
+    .digits-card {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 27, 75, 0.4) 100%);
+        border: 1px solid rgba(99, 102, 241, 0.15);
+        border-radius: 20px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+    }
+
+    .digits-card-amber {
+        background: linear-gradient(135deg, rgba(69, 26, 3, 0.4) 0%, rgba(15, 23, 42, 0.95) 50%, rgba(66, 32, 6, 0.4) 100%);
+        border: 1px solid rgba(217, 119, 6, 0.35);
+        border-radius: 20px;
+        box-shadow: 0 4px 30px rgba(217, 119, 6, 0.15);
+        position: relative;
+        overflow: hidden;
+    }
+    .digits-card-amber::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.8), transparent);
+        animation: amberScan 3s linear infinite;
+    }
+    @keyframes amberScan {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
+
+    .digits-card-blue {
+        background: linear-gradient(135deg, rgba(30, 58, 138, 0.4) 0%, rgba(15, 23, 42, 0.95) 50%, rgba(49, 46, 129, 0.4) 100%);
+        border: 1px solid rgba(59, 130, 246, 0.4);
+        border-radius: 20px;
+        box-shadow: 0 4px 30px rgba(59, 130, 246, 0.15);
+    }
+
+    /* ─── Active tier ring ─── */
+    .tier-ring-pro {
+        border-color: rgba(99, 102, 241, 0.65) !important;
+        box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.35), 0 4px 30px rgba(99, 102, 241, 0.25) !important;
+    }
+    .tier-ring-vip {
+        border-color: rgba(245, 158, 11, 0.65) !important;
+        box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.35), 0 4px 30px rgba(245, 158, 11, 0.25) !important;
+    }
+
+    /* ─── Touch feedback (matches btn-touch) ─── */
+    .btn-touch { transition: transform 0.1s ease; }
+    .btn-touch:active { transform: scale(0.97); }
+
+    /* ─── Log container (matches digits) ─── */
+    .log-container { max-height: 260px; overflow-y: auto; }
+    .log-container::-webkit-scrollbar { width: 4px; }
+    .log-container::-webkit-scrollbar-thumb { background: #334155; border-radius: 8px; }
+
+    /* ─── Entry animation (matches trade-log-entry) ─── */
+    .trade-log-entry { animation: slideIn 0.3s ease-out; }
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateX(-10px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+
+    /* ─── Metric tile ─── */
+    .metric-tile {
+        background: rgba(2, 6, 23, 0.6);
+        border: 1px solid rgba(51, 65, 85, 0.4);
+        border-radius: 10px;
+        padding: 10px;
+    }
+
+    /* ─── Progress bar ─── */
+    .progress-track {
+        height: 6px;
+        background: rgba(2, 6, 23, 0.8);
+        border-radius: 999px;
+        overflow: hidden;
+        border: 1px solid rgba(51, 65, 85, 0.6);
+    }
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #6366f1, #8b5cf6);
+        border-radius: 999px;
+        transition: width 0.3s ease;
+    }
+    .progress-fill-vip {
+        background: linear-gradient(90deg, #f59e0b, #fbbf24);
+    }
+
+    /* ─── Modal ─── */
+    @keyframes modalIn {
+        from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .modal-panel { animation: modalIn 0.2s ease-out; }
+</style>
+
+<div class="space-y-4 pb-4">
+
+    <!-- Hidden CSRF Token -->
+    <form id="csrf-form" class="hidden">{% csrf_token %}</form>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- HEADER (matches digits-card-amber)                          -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div class="digits-card-amber p-4 sm:p-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10">
+            <div class="min-w-0">
+                <h1 class="text-lg sm:text-xl font-black tracking-tight text-white flex items-center gap-2">
+                    <span class="text-xl">💳</span>
+                    Subscription &amp; Billing
+                </h1>
+                <p class="text-[11px] text-amber-200/70 mt-1 leading-relaxed">
+                    Manage Plans · Pro-Rated Refunds · Transaction Ledger
+                </p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <span class="inline-flex items-center text-[10px] px-3 py-1.5 rounded-full font-bold
+                    {% if current_plan == 'vip' %}bg-amber-500/20 text-amber-300 border border-amber-500/40
+                    {% elif current_plan == 'pro' %}bg-indigo-500/20 text-indigo-300 border border-indigo-500/40
+                    {% else %}bg-slate-500/20 text-slate-300 border border-slate-500/40{% endif %}">
+                    <span class="w-1.5 h-1.5 rounded-full mr-2 animate-pulse
+                        {% if current_plan == 'vip' %}bg-amber-400
+                        {% elif current_plan == 'pro' %}bg-indigo-400
+                        {% else %}bg-slate-400{% endif %}"></span>
+                    {{ current_plan|default:"STARTER"|upper }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- MESSAGES                                                    -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    {% if messages %}
+    <div class="space-y-2">
+        {% for message in messages %}
+        <div class="rounded-xl p-3 border text-[11px] font-bold flex items-start gap-2
+            {% if message.tags == 'error' %}bg-rose-950/60 border-rose-500/40 text-rose-300
+            {% elif message.tags == 'warning' %}bg-amber-950/60 border-amber-500/40 text-amber-300
+            {% else %}bg-emerald-950/60 border-emerald-500/40 text-emerald-300{% endif %}">
+            <i class="fa-solid text-[10px] mt-0.5
+                {% if message.tags == 'error' %}fa-circle-xmark
+                {% elif message.tags == 'warning' %}fa-triangle-exclamation
+                {% else %}fa-circle-check{% endif %}"></i>
+            <span class="flex-1">{{ message }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- MAIN GRID                                                   -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- LEFT COLUMN — Active Plan + Available Plans           -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <div class="lg:col-span-2 space-y-4">
+
+            <!-- ───────── CURRENT SUBSCRIPTION (amber card) ───────── -->
+            <div class="digits-card-amber p-4 sm:p-5 relative">
+                <div class="flex items-center justify-between gap-3 mb-4 relative z-10">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span class="text-xl sm:text-2xl">📋</span>
+                        <div class="min-w-0">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-amber-300">Current Subscription</h3>
+                            <p class="text-[10px] text-slate-400 truncate">
+                                {% if current_plan == 'vip' %}VIP Corporate Trading Suite
+                                {% elif current_plan == 'pro' %}Pro Algorithmic Trading Suite
+                                {% else %}Starter Plan{% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    {% if current_plan != 'starter' %}
+                    <button type="button" onclick="openCancelModal()"
+                            class="btn-touch text-[10px] font-bold px-3 py-1.5 rounded-lg border border-rose-500/40 text-rose-300 hover:bg-rose-500/10 transition shrink-0">
+                        <i class="fa-solid fa-xmark text-[9px] mr-1"></i> Cancel
+                    </button>
+                    {% endif %}
+                </div>
+
+                {% if current_plan != 'starter' and user_profile.subscription_expires_at %}
+                <!-- Metric tiles -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3 relative z-10">
+                    <div class="metric-tile text-center">
+                        <span class="text-[9px] uppercase font-bold text-slate-500 block">Renewal</span>
+                        <span class="text-sm font-black text-white font-mono block mt-0.5">
+                            {{ user_profile.subscription_expires_at|date:"M d" }}
+                        </span>
+                        <span class="text-[9px] text-slate-500 font-mono">{{ user_profile.subscription_expires_at|date:"Y" }}</span>
+                    </div>
+                    <div class="metric-tile text-center">
+                        <span class="text-[9px] uppercase font-bold text-slate-500 block">Days Used</span>
+                        <span class="text-sm font-black text-amber-400 font-mono block mt-0.5">
+                            {{ user_profile.days_used }}<span class="text-[10px] text-slate-500">/{{ user_profile.total_billing_days }}</span>
+                        </span>
+                    </div>
+                    <div class="metric-tile text-center">
+                        <span class="text-[9px] uppercase font-bold text-slate-500 block">Days Left</span>
+                        <span class="text-sm font-black text-emerald-400 font-mono block mt-0.5">
+                            {{ user_profile.days_remaining }}
+                        </span>
+                    </div>
+                    <div class="metric-tile text-center">
+                        <span class="text-[9px] uppercase font-bold text-slate-500 block">Refund</span>
+                        <span class="text-sm font-black text-emerald-400 font-mono block mt-0.5">
+                            ${{ user_profile.calculate_refund|floatformat:2 }}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Progress bar -->
+                <div class="relative z-10">
+                    <div class="flex justify-between items-center mb-1.5">
+                        <span class="text-[9px] uppercase font-bold tracking-wider text-amber-200/70 font-mono">
+                            Billing Cycle Progress
+                        </span>
+                        <span class="text-[9px] font-mono text-slate-500">
+                            {{ user_profile.days_used }} / {{ user_profile.total_billing_days }} days
+                        </span>
+                    </div>
+                    <div class="progress-track">
+                        <div class="progress-fill {% if current_plan == 'vip' %}progress-fill-vip{% endif %}"
+                             style="width: {% widthratio user_profile.days_used user_profile.total_billing_days 100 %}%"></div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="bg-slate-950/70 rounded-xl p-4 border border-slate-800/60 relative z-10">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0">
+                            <i class="fa-solid fa-circle-info text-slate-500 text-sm"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-[11px] text-slate-300 font-bold">You're on the Starter plan</p>
+                            <p class="text-[10px] text-slate-500 mt-0.5">Upgrade to unlock AI bots, funded accounts, and survey rewards.</p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- ───────── AVAILABLE PLANS ───────── -->
+            <div class="digits-card p-4 sm:p-5 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-layer-group text-indigo-400 text-[10px]"></i>
+                        Available Plans
+                    </h3>
+                    <span class="text-[9px] font-mono text-slate-500">3 TIERS</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+
+                    <!-- STARTER -->
+                    <div class="bg-slate-950/70 border border-slate-800/60 rounded-xl p-4 flex flex-col">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Starter</span>
+                            <span class="text-[9px] font-bold font-mono px-2 py-0.5 rounded-md bg-slate-800/80 text-slate-400 border border-slate-700">FREE</span>
+                        </div>
+                        <div class="mb-3">
+                            <span class="text-2xl font-black text-white font-mono tracking-tight">$0</span>
+                            <span class="text-[10px] text-slate-500 font-mono">/forever</span>
+                        </div>
+                        <ul class="space-y-1.5 text-[10px] flex-1 mb-3">
+                            <li class="flex items-center gap-1.5 text-slate-300">
+                                <i class="fa-solid fa-check text-emerald-400 text-[9px]"></i> Signal analytics
+                            </li>
+                            <li class="flex items-center gap-1.5 text-slate-300">
+                                <i class="fa-solid fa-check text-emerald-400 text-[9px]"></i> Manual trading
+                            </li>
+                            <li class="flex items-center gap-1.5 text-slate-600">
+                                <i class="fa-solid fa-xmark text-slate-600 text-[9px]"></i> Automated bots
+                            </li>
+                        </ul>
+                        <button type="button" disabled
+                                class="w-full py-2 rounded-lg bg-slate-900 border border-slate-800 text-[10px] font-bold text-slate-500 cursor-default">
+                            {% if current_plan == 'starter' %}Current Plan{% else %}Basic{% endif %}
+                        </button>
+                    </div>
+
+                    <!-- PRO -->
+                    <div class="bg-slate-950/70 border border-slate-800/60 rounded-xl p-4 flex flex-col {% if current_plan == 'pro' %}tier-ring-pro{% endif %}">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-[10px] font-black uppercase tracking-widest text-indigo-300">Pro</span>
+                            <span class="text-[9px] font-bold font-mono px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
+                                {% if current_plan == 'pro' %}ACTIVE{% else %}POPULAR{% endif %}
+                            </span>
+                        </div>
+                        <div class="mb-3">
+                            <span class="text-2xl font-black text-white font-mono tracking-tight">$49</span>
+                            <span class="text-[10px] text-slate-500 font-mono">/month</span>
+                        </div>
+                        <ul class="space-y-1.5 text-[10px] flex-1 mb-3">
+                            <li class="flex items-center gap-1.5 text-slate-300">
+                                <i class="fa-solid fa-check text-emerald-400 text-[9px]"></i> AI trading bots
+                            </li>
+                            <li class="flex items-center gap-1.5 text-slate-300">
+                                <i class="fa-solid fa-check text-emerald-400 text-[9px]"></i> Priority execution
+                            </li>
+                            <li class="flex items-center gap-1.5 text-slate-300">
+                                <i class="fa-solid fa-check text-emerald-400 text-[9px]"></i> Funded account
+                            </li>
+                        </ul>
+
+                        {% if current_plan == 'pro' %}
+                        <button type="button" disabled
+                                class="w-full py-2 rounded-lg bg-indigo-600/40 border border-indigo-500/50 text-[10px] font-bold text-indigo-200 cursor-default">
+                            <i class="fa-solid fa-check text-[9px] mr-1"></i> Current Plan
+                        </button>
+                        {% else %}
+                        <form method="POST" action="{% url 'subscription_billing' %}" class="space-y-2">
+                            {% csrf_token %}
+                            <input type="hidden" name="tier" value="pro">
+                            <select name="payment_method"
+                                    class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-[10px] font-bold text-slate-200 focus:outline-none focus:border-indigo-500 cursor-pointer">
+                                <option value="mpesa">M-Pesa STK</option>
+                                <option value="balance">Balance (${{ account.balance|default:0|floatformat:2 }})</option>
+                            </select>
+                            <input type="text" name="phone_number" placeholder="2547XXXXXXXX"
+                                   value="{{ request.user.userprofile.phone_number|default:'' }}"
+                                   class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-[10px] font-mono text-white focus:outline-none focus:border-indigo-500">
+                            <button type="submit"
+                                    class="btn-touch w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-[10px] font-black text-white shadow-lg shadow-indigo-500/25 transition">
+                                Upgrade $49
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+
+                    <!-- VIP -->
+                    <div class="bg-slate-950/70 border border-slate-800/60 rounded-xl p-4 flex flex-col {% if current_plan == 'vip' %}tier-ring-vip{% endif %}">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-[10px] font-black uppercase tracking-widest text-amber-300">VIP</span>
+                            <span class="text-[9px] font-bold font-mono px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                {% if current_plan == 'vip' %}ACTIVE{% else %}ELITE{% endif %}
+                            </span>
+                        </div>
+                        <div class="mb-3">
+                            <span class="text-2xl font-black text-white font-mono tracking-tight">$199</span>
+                            <span class="text-[10px] text-slate-500 font-mono">/month</span>
+                        </div>
+                        <ul class="space-y-1.5 text-[10px] flex-1 mb-3">
+                            <li class="flex items-center gap-1.5 text-slate-300">
+                                <i class="fa-solid fa-check text-emerald-400 text-[9px]"></i> Multi-thread servers
+                            </li>
+                            <li class="flex items-center gap-1.5 text-slate-300">
+                                <i class="fa-solid fa-check text-emerald-400 text-[9px]"></i> Custom AI training
+                            </li>
+                            <li class="flex items-center gap-1.5 text-slate-300">
+                                <i class="fa-solid fa-check text-emerald-400 text-[9px]"></i> 24/7 VIP lounge
+                            </li>
+                        </ul>
+
+                        {% if current_plan == 'vip' %}
+                        <button type="button" disabled
+                                class="w-full py-2 rounded-lg bg-amber-600/40 border border-amber-500/50 text-[10px] font-bold text-amber-200 cursor-default">
+                            <i class="fa-solid fa-check text-[9px] mr-1"></i> Current Plan
+                        </button>
+                        {% else %}
+                        <form method="POST" action="{% url 'subscription_billing' %}" class="space-y-2">
+                            {% csrf_token %}
+                            <input type="hidden" name="tier" value="vip">
+                            <select name="payment_method"
+                                    class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-[10px] font-bold text-slate-200 focus:outline-none focus:border-amber-500 cursor-pointer">
+                                <option value="mpesa">M-Pesa STK</option>
+                                <option value="balance">Balance (${{ account.balance|default:0|floatformat:2 }})</option>
+                            </select>
+                            <input type="text" name="phone_number" placeholder="2547XXXXXXXX"
+                                   value="{{ request.user.userprofile.phone_number|default:'' }}"
+                                   class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-[10px] font-mono text-white focus:outline-none focus:border-amber-500">
+                            <button type="submit"
+                                    class="btn-touch w-full py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-[10px] font-black text-white shadow-lg shadow-amber-500/25 transition">
+                                Upgrade $199
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- RIGHT COLUMN — Wallet + Ledger + Actions               -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <div class="space-y-4">
+
+            <!-- ACCOUNT BALANCE (blue card) -->
+            <div class="digits-card-blue p-4 sm:p-5">
+                <div class="flex items-center justify-between gap-3 mb-4">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <div class="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-400/40 flex items-center justify-center text-blue-300 text-lg shrink-0">
+                            <i class="fa-solid fa-wallet"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-blue-300">Account Balance</h3>
+                            <p class="text-[10px] text-slate-400 truncate">Available for upgrades</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-950/70 rounded-xl p-3 border border-blue-800/30 mb-3">
+                    <span class="text-[9px] uppercase font-bold text-slate-500 block">Exchange Wallet</span>
+                    <h4 class="text-2xl font-black text-emerald-400 font-mono leading-none mt-1">
+                        ${{ account.balance|default:0|floatformat:2 }}
+                    </h4>
+                </div>
+
+                {% if current_plan != 'starter' and user_profile.last_renewal_amount %}
+                <div class="bg-slate-950/60 rounded-lg p-2.5 border border-slate-800/60 flex items-center justify-between">
+                    <span class="text-[9px] uppercase font-bold text-slate-500">Last Payment</span>
+                    <span class="text-[11px] font-black text-white font-mono">${{ user_profile.last_renewal_amount|floatformat:2 }}</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- LEDGER (base card + log-container) -->
+            <div class="digits-card p-4 sm:p-5 space-y-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-receipt text-indigo-400 text-[10px]"></i>
+                        Transaction Ledger
+                    </h3>
+                    <span class="text-[9px] font-mono text-slate-500">
+                        <i class="fa-solid fa-circle text-[5px] text-emerald-400 animate-pulse mr-1"></i>
+                        LIVE
+                    </span>
+                </div>
+
+                <div class="log-container space-y-1.5">
+                    {% for txn in transactions %}
+                    <div class="trade-log-entry flex items-center justify-between gap-2 py-2 border-b border-slate-800/40 text-[10px]">
+                        <div class="flex items-center gap-2 min-w-0 flex-1">
+                            <i class="fa-solid fa-circle-notch text-indigo-400 text-[8px] shrink-0"></i>
+                            <span class="font-bold text-slate-300 truncate">{{ txn.transaction_type }}</span>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <div class="font-black text-white font-mono">${{ txn.amount }}</div>
+                            <div class="text-[9px] font-mono
+                                {% if txn.status == 'COMPLETED' or txn.status == 'APPROVED' %}text-emerald-400
+                                {% elif txn.status == 'PROCESSING' or txn.status == 'PENDING' %}text-amber-400
+                                {% else %}text-rose-400{% endif %}">
+                                {{ txn.status }}
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-slate-500 text-center py-6 text-[11px] font-mono">
+                        <i class="fa-solid fa-inbox text-slate-700 text-lg block mb-2"></i>
+                        No transactions yet
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- QUICK ACTIONS -->
+            <div class="digits-card p-4 sm:p-5 space-y-2">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 mb-1">
+                    <i class="fa-solid fa-bolt text-amber-400 text-[10px]"></i>
+                    Quick Actions
+                </h3>
+
+                <a href="{% url 'funding_deposit' %}"
+                   class="flex items-center justify-between p-2.5 rounded-lg bg-slate-950/70 border border-slate-800/60 hover:border-emerald-500/40 transition group">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-arrow-down text-emerald-400 text-[10px]"></i>
+                        <span class="text-[10px] font-bold text-slate-200">Deposit Funds</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-slate-600 group-hover:text-emerald-400 text-[9px] transition"></i>
+                </a>
+
+                <a href="{% url 'funded' %}"
+                   class="flex items-center justify-between p-2.5 rounded-lg bg-slate-950/70 border border-slate-800/60 hover:border-amber-500/40 transition group">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-hand-holding-dollar text-amber-400 text-[10px]"></i>
+                        <span class="text-[10px] font-bold text-slate-200">Funded Account</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-slate-600 group-hover:text-amber-400 text-[9px] transition"></i>
+                </a>
+
+                <a href="{% url 'referral_dashboard' %}"
+                   class="flex items-center justify-between p-2.5 rounded-lg bg-slate-950/70 border border-slate-800/60 hover:border-indigo-500/40 transition group">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-users text-indigo-400 text-[10px]"></i>
+                        <span class="text-[10px] font-bold text-slate-200">Referrals</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-slate-600 group-hover:text-indigo-400 text-[9px] transition"></i>
+                </a>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- CANCEL CONFIRMATION MODAL                                       -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div id="cancelModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/90 backdrop-blur-md p-4">
+    <div class="modal-panel max-w-md w-full rounded-2xl border border-rose-500/40 bg-gradient-to-br from-slate-950 via-slate-900 to-rose-950/30 overflow-hidden shadow-2xl shadow-rose-500/10">
+
+        <div class="h-1 bg-gradient-to-r from-transparent via-rose-500 to-transparent"></div>
+
+        <div class="p-4 flex items-start gap-3 border-b border-rose-500/20">
+            <div class="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 shrink-0">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div class="flex-1">
+                <p class="text-[9px] uppercase font-bold tracking-widest text-rose-400/70 font-mono mb-0.5">Terminate Protocol</p>
+                <h3 class="text-sm font-black text-white uppercase tracking-wider">Cancel Subscription?</h3>
+            </div>
+        </div>
+
+        <div class="p-4 space-y-4">
+            <p class="text-[11px] text-slate-300 leading-relaxed">
+                Your subscription will be cancelled immediately. A
+                <span class="text-emerald-400 font-bold">pro-rated refund</span>
+                will be credited to your Exchange balance based on unused days.
+            </p>
+
+            <div class="bg-slate-950/70 rounded-xl p-3 border border-rose-500/20 space-y-2">
+                <div class="flex justify-between text-[10px]">
+                    <span class="text-slate-500">Billing Cycle</span>
+                    <span class="text-white font-bold font-mono">{{ user_profile.total_billing_days }} days</span>
+                </div>
+                <div class="flex justify-between text-[10px]">
+                    <span class="text-slate-500">Days Used</span>
+                    <span class="text-amber-400 font-bold font-mono">{{ user_profile.days_used }} days</span>
+                </div>
+                <div class="flex justify-between text-[10px]">
+                    <span class="text-slate-500">Days Remaining</span>
+                    <span class="text-emerald-400 font-bold font-mono">{{ user_profile.days_remaining }} days</span>
+                </div>
+                <div class="flex justify-between text-[10px]">
+                    <span class="text-slate-500">Amount Paid</span>
+                    <span class="text-white font-bold font-mono">${{ user_profile.last_renewal_amount|floatformat:2 }}</span>
+                </div>
+                <div class="flex justify-between text-[11px] pt-2 border-t border-slate-800">
+                    <span class="text-emerald-400 font-bold uppercase tracking-wider">Refund</span>
+                    <span class="text-emerald-400 font-black font-mono">${{ user_profile.calculate_refund|floatformat:2 }}</span>
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <button type="button" onclick="closeCancelModal()"
+                        class="btn-touch flex-1 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-[11px] font-bold text-slate-300 transition">
+                    Keep Plan
+                </button>
+                <form method="POST" action="{% url 'cancel_subscription' %}" class="flex-1">
+                    {% csrf_token %}
+                    <button type="submit"
+                            class="btn-touch w-full py-2.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-[11px] font-black text-white shadow-lg shadow-rose-500/25 transition uppercase tracking-wider">
+                        Confirm Cancel
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // ─── Spinner (same pattern as digits_trading) ───
+    function hideSpinner() {
+        const spinner = document.getElementById('loading-spinner');
+        if (spinner && !spinner.classList.contains('spinner-hidden')) {
+            spinner.classList.add('spinner-hidden');
+            setTimeout(() => spinner.remove(), 500);
+        }
+    }
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        setTimeout(hideSpinner, 300);
+    } else {
+        window.addEventListener('load', hideSpinner);
+    }
+    setTimeout(hideSpinner, 1500);
+
+    // ─── Added: upgrade forms — phone only for M-Pesa, balance check, confirmation ───
+    (function () {
+        const BALANCE = parseFloat("{{ account.balance|default:0|stringformat:'s' }}") || 0;
+        const PRICES = { pro: 49, vip: 199 };
+        document.querySelectorAll('form[action="{% url 'subscription_billing' %}"]').forEach(form => {
+            const tier = (form.querySelector('[name=tier]') || {}).value, price = PRICES[tier];
+            const method = form.querySelector('[name=payment_method]'), phone = form.querySelector('[name=phone_number]');
+            const btn = form.querySelector('button[type=submit]');
+            if (!method || !price) return;
+            const note = document.createElement('p'); note.className = 'text-[10px] font-bold hidden'; btn.before(note);
+            function sync() {
+                const mpesa = method.value === 'mpesa';
+                phone.classList.toggle('hidden', !mpesa);
+                const short = !mpesa && BALANCE < price;
+                note.classList.toggle('hidden', !short);
+                note.style.color = 'var(--px-down)';
+                note.textContent = short ? `Balance $${BALANCE.toFixed(2)} is below $${price}. Deposit first or pay with M-Pesa.` : '';
+                btn.disabled = short; btn.style.opacity = short ? '.5' : '';
+            }
+            method.addEventListener('change', sync); sync();
+            form.addEventListener('submit', e => {
+                if (method.value === 'mpesa' && !/^254\d{9}$/.test((phone.value || '').trim())) {
+                    e.preventDefault();
+                    note.classList.remove('hidden'); note.style.color = 'var(--px-down)';
+                    note.textContent = 'Enter the M-Pesa number as 2547XXXXXXXX (12 digits).';
+                    phone.focus(); return;
+                }
+                const how = method.value === 'mpesa' ? `an M-Pesa prompt to ${phone.value.trim()}` : `$${price} from your balance`;
+                if (!confirm(`Upgrade to ${tier.toUpperCase()} for $${price}/month?\n\nThis will charge ${how}.`)) e.preventDefault();
+            });
+        });
+    })();
+
+    // ─── Cancel Modal ───
+    function openCancelModal() {
+        const modal = document.getElementById('cancelModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeCancelModal() {
+        const modal = document.getElementById('cancelModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        document.body.style.overflow = '';
+    }
+    document.getElementById('cancelModal').addEventListener('click', function (e) {
+        if (e.target === this) closeCancelModal();
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeCancelModal();
+    });
+</script>
+{% endblock %}

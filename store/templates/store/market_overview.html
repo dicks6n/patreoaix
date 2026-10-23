@@ -1,0 +1,1345 @@
+{% extends 'base_dashboard.html' %}
+{% load static %}
+
+{% block title %}AI Market Analyst · PATREOAIX{% endblock %}
+{% block page_title %}Market Overview{% endblock %}
+
+{% block extra_head %}
+<style>
+    .px-card { background: var(--px-panel); border: 1px solid var(--px-line); border-radius: 12px; box-shadow: var(--px-shadow); }
+    .px-card-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--px-line); }
+    .px-card-t { font-size: 13px; font-weight: 600; color: var(--px-text); display: flex; align-items: center; gap: 8px; }
+    .px-num { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+    .px-muted { color: var(--px-mute); } .px-dim { color: var(--px-dim); } .px-strong { color: var(--px-text); }
+    .px-seg { display: inline-flex; padding: 3px; border-radius: 8px; background: var(--px-panel-2); border: 1px solid var(--px-line); gap: 2px; }
+    .px-seg button { height: 28px; padding: 0 11px; border-radius: 6px; font-size: 12px; font-weight: 600; color: var(--px-dim); white-space: nowrap; }
+    .px-seg button:hover { color: var(--px-text); }
+    .px-seg button.on { background: var(--px-panel); color: var(--px-text); box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+    html.light .px-seg button.on { box-shadow: 0 1px 2px rgba(16,24,40,.08); }
+    .px-select, .px-input { height: 36px; padding: 0 10px; border-radius: 8px; background: var(--px-panel-2) !important; border: 1px solid var(--px-line) !important; color: var(--px-text) !important; font-size: 13px; outline: none; }
+    .px-select:focus, .px-input:focus { border-color: var(--px-accent) !important; }
+    .px-stat { padding: 14px 16px; }
+    .px-stat .k { font-size: 11px; color: var(--px-mute); }
+    .px-stat .v { font-size: 20px; font-weight: 600; color: var(--px-text); margin-top: 2px; }
+
+    .sym-ic { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; flex-shrink: 0; }
+    .k-forex  { background: rgba(59,130,246,.12);  color: #60a5fa; }
+    .k-metal  { background: rgba(240,185,11,.12);  color: var(--px-accent); }
+    .k-energy { background: rgba(249,115,22,.12);  color: #fb923c; }
+    .k-crypto { background: rgba(139,92,246,.13);  color: #a78bfa; }
+    html.light .k-forex { color: #2563eb; } html.light .k-energy { color: #ea580c; } html.light .k-crypto { color: #7c3aed; }
+
+    .sig { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px; border-radius: 6px; font-size: 11px; font-weight: 700; letter-spacing: .03em; }
+    .sig.BUY  { background: var(--px-up-soft); color: var(--px-up); }
+    .sig.SELL { background: var(--px-down-soft); color: var(--px-down); }
+    .sig.WAIT { background: var(--px-panel-2); color: var(--px-dim); border: 1px solid var(--px-line); }
+
+    .row { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--px-line-soft); cursor: pointer; position: relative; transition: background-color .1s ease; }
+    .row:hover { background: var(--px-hover); }
+    .row.sel { background: var(--px-accent-soft); }
+    .row.sel::before { content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: var(--px-accent); }
+    .meter { height: 4px; border-radius: 4px; background: var(--px-line); overflow: hidden; width: 64px; }
+    .meter > span { display: block; height: 100%; border-radius: 4px; }
+    .tfchip { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: var(--px-panel-2); color: var(--px-dim); }
+
+    .plan { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+    @media (min-width: 640px) { .plan { grid-template-columns: repeat(4, minmax(0,1fr)); } }
+    .plan > div { padding: 10px 12px; border-radius: 9px; background: var(--px-panel-2); border: 1px solid var(--px-line-soft); }
+    .plan .k { font-size: 11px; color: var(--px-mute); }
+    .plan .v { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 600; color: var(--px-text); margin-top: 2px; }
+
+    .why { display: grid; grid-template-columns: 1fr 70px; gap: 10px; align-items: center; padding: 7px 0; font-size: 12px; border-bottom: 1px dashed var(--px-line-soft); }
+    .why:last-child { border-bottom: 0; }
+    .why .bar { height: 6px; border-radius: 6px; background: var(--px-line-soft); position: relative; }
+    .why .bar > span { position: absolute; top: 0; bottom: 0; border-radius: 6px; }
+
+    #ai-chart-wrap { height: 380px; }
+    @media (max-width: 640px) { #ai-chart-wrap { height: 300px; } }
+
+    /* detail panel: side column on desktop, full-screen sheet on phones/tablets */
+    @media (max-width: 1023px) {
+        #ai-detail { position: fixed; inset: 0; z-index: 70; border-radius: 0; overflow-y: auto; transform: translateY(100%); transition: transform .25s ease; padding-bottom: env(safe-area-inset-bottom); }
+        #ai-detail.open { transform: translateY(0); }
+        #ai-detail-close { display: inline-flex !important; }
+    }
+    @media (min-width: 1024px) { #ai-detail { position: sticky; top: 104px; max-height: calc(100vh - 120px); overflow-y: auto; } }
+
+    .px-modal { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0,0,0,.6); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+    .px-modal.hidden { display: none; }
+    .risk-btn { height: 32px; border-radius: 7px; font-size: 12px; font-weight: 600; background: var(--px-panel-2); border: 1px solid var(--px-line); color: var(--px-dim); }
+    .risk-btn.on { border-color: var(--px-accent); color: var(--px-accent); background: var(--px-accent-soft); }
+
+    .px-skel { background: linear-gradient(90deg, var(--px-panel-2), var(--px-hover), var(--px-panel-2)); background-size: 200% 100%; animation: skel 1.2s ease-in-out infinite; border-radius: 6px; }
+    @keyframes skel { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+    .px-empty { padding: 40px 16px; text-align: center; color: var(--px-mute); font-size: 12px; }
+    .px-empty i { display: block; font-size: 22px; margin-bottom: 10px; opacity: .7; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* AI confluence (signal_engine) */
+    .grade { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 20px; padding: 0 6px; border-radius: 6px; font-size: 10px; font-weight: 800; letter-spacing: .02em; }
+    .grade.g-Ap { background: var(--px-accent); color: #0b0e14; box-shadow: 0 0 0 3px var(--px-accent-soft); }
+    .grade.g-A { background: var(--px-accent-soft); color: var(--px-accent); border: 1px solid var(--px-accent); }
+    .grade.g-B { background: var(--px-panel-2); color: var(--px-dim); border: 1px solid var(--px-line); }
+    .cf-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 6px; }
+    @media (min-width: 640px) { .cf-grid { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+    .cf-chip { padding: 8px 10px; border-radius: 9px; background: var(--px-panel-2); border: 1px solid var(--px-line-soft); min-width: 0; cursor: default; position: relative; }
+    .cf-chip .h { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: var(--px-text); }
+    .cf-chip .h i.ic { width: 14px; text-align: center; font-size: 10px; color: var(--px-mute); }
+    .cf-chip .h .st { margin-left: auto; font-size: 10px; font-weight: 700; }
+    .cf-chip p { font-size: 10.5px; line-height: 1.35; color: var(--px-mute); margin-top: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .cf-chip.up { border-color: color-mix(in srgb, var(--px-up) 45%, transparent); background: var(--px-up-soft); }
+    .cf-chip.up .st, .cf-chip.up .h i.ic { color: var(--px-up); }
+    .cf-chip.down { border-color: color-mix(in srgb, var(--px-down) 45%, transparent); background: var(--px-down-soft); }
+    .cf-chip.down .st, .cf-chip.down .h i.ic { color: var(--px-down); }
+    .cf-chip.nodata { border-style: dashed; opacity: .75; }
+    .cf-chip.gate .st { color: var(--px-accent); }
+    .cf-chip.agree::after { content: '\f00c'; font-family: 'Font Awesome 6 Free'; font-weight: 900; position: absolute; top: -6px; right: -6px; width: 16px; height: 16px; border-radius: 50%; background: var(--px-accent); color: #0b0e14; font-size: 8px; display: flex; align-items: center; justify-content: center; }
+    .cf-bar { height: 8px; border-radius: 8px; background: var(--px-line-soft); position: relative; overflow: hidden; }
+    .cf-bar > span { position: absolute; top: 0; bottom: 0; border-radius: 8px; }
+    .cf-pop { position: absolute; right: 0; top: calc(100% + 8px); width: 290px; z-index: 60; padding: 14px; }
+    .cf-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .cf-dot.live { background: var(--px-up); box-shadow: 0 0 0 0 var(--px-up); animation: cfpulse 1.8s infinite; }
+    @keyframes cfpulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--px-up) 60%, transparent); } 70% { box-shadow: 0 0 0 7px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+    .oc { display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 5px; font-size: 10px; font-weight: 700; }
+    .oc.TP { background: var(--px-up-soft); color: var(--px-up); } .oc.SL { background: var(--px-down-soft); color: var(--px-down); }
+    .oc.OPEN { background: var(--px-accent-soft); color: var(--px-accent); } .oc.EXPIRED { background: var(--px-panel-2); color: var(--px-dim); }
+    .spin { animation: spin 1s linear infinite; }
+
+    /* Entry coach */
+    .cs { display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 7px; border-radius: 5px; font-size: 10px; font-weight: 700; white-space: nowrap; letter-spacing: .02em; }
+    .cs-READY { background: var(--px-up); color: #fff; }
+    .cs-IN_ZONE { background: var(--px-accent-soft); color: var(--px-accent); border: 1px solid var(--px-accent); }
+    .cs-WAIT_PULLBACK { background: var(--px-panel-2); color: var(--px-text); border: 1px solid var(--px-line); }
+    .cs-EXTENDED { background: var(--px-panel-2); color: var(--px-dim); border: 1px dashed var(--px-line); }
+    .cs-MISSED, .cs-NO_TREND { background: var(--px-panel-2); color: var(--px-mute); }
+    .cs-INVALID { background: var(--px-down-soft); color: var(--px-down); }
+    .coach { border: 1px solid var(--px-line); border-radius: 12px; background: var(--px-panel); overflow: hidden; }
+    .coach-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px 14px 10px; }
+    .coach .lbl { font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--px-mute); }
+    .coach-top h4 { font-size: 17px; font-weight: 700; color: var(--px-text); margin-top: 3px; line-height: 1.25; }
+    .coach-q { text-align: center; min-width: 64px; padding: 6px 8px; border-radius: 10px; background: var(--px-panel-2); }
+    .coach-q b { display: block; font-family: 'JetBrains Mono', monospace; font-size: 20px; line-height: 1.1; }
+    .coach-q small { font-size: 9.5px; color: var(--px-mute); }
+    .coach-instr { margin: 0 14px; padding: 10px 12px; border-radius: 9px; font-size: 13px; font-weight: 600; line-height: 1.45; background: var(--px-panel-2); color: var(--px-text); border-left: 3px solid var(--px-mute); }
+    .coach-instr.READY { border-left-color: var(--px-up); background: var(--px-up-soft); }
+    .coach-instr.IN_ZONE, .coach-instr.WAIT_PULLBACK { border-left-color: var(--px-accent); }
+    .coach-instr.INVALID { border-left-color: var(--px-down); background: var(--px-down-soft); }
+    .coach-sec { padding: 12px 14px; border-top: 1px solid var(--px-line-soft); }
+    .gauge { position: relative; display: flex; height: 12px; border-radius: 6px; overflow: hidden; }
+    .gauge > span { height: 100%; }
+    .g-wrap { position: relative; padding-top: 22px; }
+    .g-mark { position: absolute; top: 15px; width: 3px; height: 26px; border-radius: 2px; background: var(--px-text); transform: translateX(-50%); transition: left .4s ease; box-shadow: 0 0 0 2px var(--px-panel); }
+    .g-mark.deep { background: var(--px-mute); width: 2px; height: 18px; top: 19px; box-shadow: none; }
+    .g-tag { position: absolute; top: 0; transform: translateX(-50%); font-size: 10px; font-weight: 700; white-space: nowrap; color: var(--px-text); transition: left .4s ease; }
+    .g-lbls { position: relative; height: 30px; margin-top: 4px; font-size: 9.5px; color: var(--px-mute); }
+    .g-lbls span { position: absolute; transform: translateX(-50%); text-align: center; white-space: nowrap; line-height: 1.25; }
+    .g-lbls span:first-child { transform: none; text-align: left; } .g-lbls span:last-child { transform: translateX(-100%); text-align: right; }
+    .chk { display: grid; grid-template-columns: 18px 1fr; gap: 8px; padding: 7px 0; border-bottom: 1px dashed var(--px-line-soft); font-size: 12px; }
+    .chk:last-child { border-bottom: 0; }
+    .chk i { margin-top: 2px; font-size: 12px; text-align: center; }
+    .chk .t { font-weight: 600; color: var(--px-text); }
+    .chk p { color: var(--px-dim); line-height: 1.4; margin-top: 1px; }
+    .chk.pass i { color: var(--px-up); } .chk.warn i { color: var(--px-accent); } .chk.fail i { color: var(--px-down); } .chk.info i { color: var(--px-mute); }
+    .co-story p { font-size: 12.5px; line-height: 1.55; color: var(--px-dim); }
+    .co-story p + p { margin-top: 6px; }
+    .co-learn summary { cursor: pointer; font-size: 12px; font-weight: 600; color: var(--px-text); list-style: none; display: flex; align-items: center; gap: 6px; }
+    .co-learn summary::-webkit-details-marker { display: none; }
+    .co-learn[open] summary i { transform: rotate(90deg); }
+    .co-learn summary i { transition: transform .15s ease; font-size: 10px; color: var(--px-mute); }
+    .co-learn p, .co-learn li { font-size: 12px; line-height: 1.5; color: var(--px-dim); }
+    .rd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+    .rd { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--px-line-soft); background: var(--px-panel-2); cursor: pointer; text-align: left; min-width: 0; transition: border-color .1s ease; }
+    .rd:hover, .rd:focus-visible { border-color: var(--px-accent); outline: none; }
+    .rd.READY { border-color: var(--px-up); }
+    .rd .mini { position: relative; display: flex; height: 6px; border-radius: 6px; overflow: hidden; margin-top: 9px; }
+    .rd .mini > span { height: 100%; }
+    .rd .mini-wrap { position: relative; }
+    .rd .mini-mark { position: absolute; top: 6px; width: 2px; height: 12px; background: var(--px-text); transform: translateX(-50%); border-radius: 1px; }
+    .coach-watch.on { border-color: var(--px-accent) !important; color: var(--px-accent) !important; background: var(--px-accent-soft) !important; }
+    .chart-tog { height: 24px; padding: 0 9px; border-radius: 6px; font-size: 11px; font-weight: 600; border: 1px solid var(--px-line); color: var(--px-dim); background: var(--px-panel-2); }
+    .chart-tog.on { border-color: var(--px-accent); color: var(--px-accent); background: var(--px-accent-soft); }
+    .co-scr { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--px-accent); background: var(--px-accent-soft); color: var(--px-text); text-decoration: none; transition: filter .12s ease; }
+    .co-scr:hover { filter: brightness(1.08); }
+    .co-scr .ic { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: var(--px-accent); color: #0b0e14; flex-shrink: 0; font-size: 12px; }
+    .co-scr b { display: block; font-size: 13px; } .co-scr small { display: block; font-size: 11px; color: var(--px-dim); line-height: 1.35; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-4 lg:space-y-5">
+
+    <!-- Header -->
+    <div class="flex flex-col xl:flex-row xl:items-end justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2.5">
+                <h2 class="text-xl sm:text-2xl font-semibold tracking-tight px-strong">AI Market Analyst</h2>
+                <span class="sig WAIT" style="height:22px;font-size:10px"><i class="fa-solid fa-microchip"></i>12 models + entry coach</span>
+            </div>
+            <p class="text-[13px] mt-1 px-dim max-w-2xl">Reads live candles on three timeframes like a trader would: trend and structure, how deep the pullback is, where the best entry zone is, whether price has confirmed the turn, the news, the session and the spread. Then it tells you to wait, get ready, or enter, and explains why.</p>
+            <p class="text-[11px] mt-2 px-muted flex items-center gap-2" id="cf-worker"><span class="cf-dot" style="background:var(--px-mute)"></span>Checking the background scanner…</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+            <div class="px-seg" id="ai-style" role="tablist" aria-label="Trading style">
+                <button data-style="scalp" title="15m chart · 5m entry · 1H trend">Scalp</button>
+                <button data-style="intraday" class="on" title="1H chart · 15m entry · 4H trend">Intraday</button>
+                <button data-style="swing" title="4H chart · 1H entry · Daily trend">Swing</button>
+            </div>
+            <div class="relative">
+                <button id="cf-alerts" type="button" class="px-btn px-btn-ghost" aria-haspopup="true" aria-expanded="false" title="Get notified when the background scanner finds a strong setup"><i class="fa-regular fa-bell text-[11px]"></i><span>Alerts: off</span></button>
+                <div id="cf-pop" class="px-card cf-pop hidden" role="dialog" aria-label="Signal alerts">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-[13px] font-semibold px-strong">Strong-signal alerts</p>
+                        <label class="inline-flex items-center gap-2 text-[12px] px-dim cursor-pointer"><input id="cf-on" type="checkbox" class="accent-[#f0b90b]"> On</label>
+                    </div>
+                    <p class="text-[11px] px-muted mb-3">The background scanner checks every market all the time. When most scanners and the AI model agree, you get a notification with entry, stop and target — even when this page is closed.</p>
+                    <label class="block text-[11px] px-dim mb-1">Trading style</label>
+                    <select id="cf-style" class="px-select w-full mb-2"><option value="scalp">Scalp (15m chart)</option><option value="intraday">Intraday (1H chart)</option><option value="swing">Swing (4H chart)</option></select>
+                    <label class="block text-[11px] px-dim mb-1">Notify me for</label>
+                    <select id="cf-grade" class="px-select w-full mb-3"><option value="A">Grade A and A+</option><option value="A+">Grade A+ only (fewer, stronger)</option></select>
+                    <button id="cf-save" type="button" class="px-btn px-btn-primary w-full">Save</button>
+                    <p id="cf-pop-note" class="text-[11px] px-muted mt-2"></p>
+                </div>
+            </div>
+            <button id="ai-auto" type="button" class="px-btn px-btn-ghost" title="Rescan automatically"><i class="fa-solid fa-clock-rotate-left text-[11px]"></i><span>Auto: off</span></button>
+            <button id="ai-scan" type="button" class="px-btn px-btn-primary"><i class="fa-solid fa-wand-magic-sparkles text-[11px]"></i><span>Scan markets</span></button>
+        </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div class="px-card px-stat"><div class="k">Markets scanned</div><div class="v px-num" id="st-count">—</div></div>
+        <div class="px-card px-stat"><div class="k">Buy setups</div><div class="v px-num px-up" id="st-buy">—</div></div>
+        <div class="px-card px-stat"><div class="k">Sell setups</div><div class="v px-num px-down" id="st-sell">—</div></div>
+        <div class="px-card px-stat"><div class="k">Strongest setup</div><div class="v text-[15px] sm:text-[17px]" id="st-best" style="margin-top:5px">—</div></div>
+        <div class="px-card px-stat col-span-2 md:col-span-1"><div class="k">Last scan</div><div class="v text-[15px] sm:text-[17px] px-num" id="st-time" style="margin-top:5px">—</div></div>
+    </div>
+
+    <!-- ═══ ENTRY RADAR ═══ -->
+    <section class="px-card overflow-hidden" id="radar">
+        <div class="px-card-h flex-wrap">
+            <div class="px-card-t"><i class="fa-solid fa-crosshairs" style="color:var(--px-accent)"></i>Entry radar <span class="text-[11px] px-muted font-normal hidden sm:inline">where every trend is in its pullback</span></div>
+            <div class="flex items-center gap-2 text-[11px] px-muted flex-wrap" id="radar-sum"></div>
+        </div>
+        <div id="radar-body" class="p-3"><div class="rd-grid"><div class="px-skel h-20"></div><div class="px-skel h-20"></div><div class="px-skel h-20"></div><div class="px-skel h-20"></div></div></div>
+    </section>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 items-start">
+
+        <!-- ═══ RESULTS ═══ -->
+        <section class="px-card lg:col-span-5 overflow-hidden">
+            <div class="p-3 space-y-2.5" style="border-bottom:1px solid var(--px-line)">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <div class="px-seg overflow-x-auto no-scrollbar max-w-full" id="ai-kind">
+                        <button data-k="all" class="on">All</button><button data-k="forex">Forex</button><button data-k="metal">Metals &amp; Oil</button><button data-k="crypto">Crypto</button>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="relative flex-1 min-w-0">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-[11px] px-muted"></i>
+                        <input id="ai-search" type="text" placeholder="Search" class="px-input w-full" style="padding-left:30px">
+                    </div>
+                    <select id="ai-show" class="px-select" aria-label="Show">
+                        <option value="entry">Ready / in zone</option>
+                        <option value="signals">Signals only</option>
+                        <option value="strong">Strong (A / A+)</option>
+                        <option value="all">All markets</option>
+                    </select>
+                    <select id="ai-min" class="px-select" aria-label="Minimum strength">
+                        <option value="0">Any strength</option>
+                        <option value="60">60+</option>
+                        <option value="70">70+</option>
+                        <option value="80">80+</option>
+                    </select>
+                </div>
+            </div>
+            <div id="ai-list">
+                <div class="p-4 space-y-3"><div class="px-skel h-12"></div><div class="px-skel h-12"></div><div class="px-skel h-12"></div><div class="px-skel h-12"></div></div>
+            </div>
+        </section>
+
+        <!-- ═══ DETAIL ═══ -->
+        <section id="ai-detail" class="px-card lg:col-span-7">
+            <div class="px-empty" id="ai-detail-empty"><i class="fa-solid fa-chart-simple"></i>Pick a market to see its chart, the trade plan and why.</div>
+            <div id="ai-detail-body" class="hidden">
+                <div class="px-card-h flex-wrap sticky top-0 z-10" style="background:var(--px-panel)">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <button id="ai-detail-close" type="button" class="header-icon-btn" style="display:none" aria-label="Back"><i class="fa-solid fa-arrow-left"></i></button>
+                        <span id="d-ic" class="sym-ic k-metal">XAU</span>
+                        <div class="min-w-0 leading-tight">
+                            <div class="flex items-center gap-2"><span id="d-sym" class="font-semibold text-[15px] px-strong">—</span><span id="d-sig" class="sig WAIT">—</span></div>
+                            <p id="d-name" class="text-[11px] px-muted truncate">—</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p id="d-price" class="px-num text-[17px] font-semibold px-strong">—</p>
+                        <p class="text-[11px] px-muted">Strength <span id="d-conf" class="px-num font-semibold px-strong">—</span></p>
+                    </div>
+                </div>
+
+                <div class="px-4 pt-3 flex items-center justify-between gap-2 flex-wrap">
+                    <div class="px-seg" id="d-tfs"></div>
+                    <div class="flex items-center gap-3 text-[11px] px-muted">
+                        <button type="button" id="d-coachview" class="chart-tog on" title="Show the coach's Fibonacci levels, swings and plan on the chart"><i class="fa-solid fa-ruler-combined mr-1"></i>Coach view</button>
+                        <span><span class="inline-block w-3 h-[2px] align-middle mr-1" style="background:#f0b90b"></span>EMA 20</span>
+                        <span><span class="inline-block w-3 h-[2px] align-middle mr-1" style="background:#60a5fa"></span>EMA 50</span>
+                    </div>
+                </div>
+                <div id="ai-chart-wrap" class="relative mt-2"><div id="ai-chart" class="absolute inset-0"></div></div>
+
+                <div class="p-4 space-y-4">
+                    <div id="coach" class="coach">
+                        <div class="coach-top">
+                            <div class="min-w-0">
+                                <p class="lbl"><i class="fa-solid fa-user-graduate mr-1"></i>AI entry coach <span id="co-tf"></span></p>
+                                <h4 id="co-head">Analysing…</h4>
+                            </div>
+                            <div class="coach-q"><b id="co-q" class="px-strong">—</b><small>setup quality</small></div>
+                        </div>
+                        <p id="co-instr" class="coach-instr">Reading the chart…</p>
+                        {% if scrutiny_url %}<a id="co-scrutiny" href="{{ scrutiny_url }}" class="co-scr" data-base="{{ scrutiny_url }}">
+                            <span class="ic"><i class="fa-solid fa-microscope"></i></span>
+                            <span class="min-w-0 flex-1"><b>Full scrutiny</b><small id="co-scr-sub">Liquidity, order blocks, FVGs, fundamentals, momentum and 13 more strategies vote on this market</small></span>
+                            <i class="fa-solid fa-arrow-right text-[11px]"></i></a>{% endif %}
+                        <div class="coach-sec" id="co-gauge-sec">
+                            <div class="flex items-center justify-between"><p class="lbl">Retracement of the last leg</p><span class="text-[11px] px-muted" id="co-leg"></span></div>
+                            <div id="co-gauge"></div>
+                        </div>
+                        <div class="coach-sec">
+                            <div class="flex items-center justify-between mb-2"><p class="lbl" id="co-plan-title">Coach plan</p><span class="text-[11px] px-muted" id="co-size"></span></div>
+                            <div class="plan" id="co-plan"></div>
+                            <div class="flex gap-2 mt-3 flex-wrap" id="co-actions"></div>
+                        </div>
+                        <div class="coach-sec co-story" id="co-story"></div>
+                        <div class="coach-sec">
+                            <div class="flex items-center justify-between mb-1"><p class="lbl">Trader's checklist · chart</p><span class="text-[11px] px-muted" id="co-chk-n"></span></div>
+                            <div id="co-checks"></div>
+                        </div>
+                        <div class="coach-sec">
+                            <div class="flex items-center justify-between mb-1"><p class="lbl">Live checks · right now</p><span class="text-[11px] px-muted" id="co-live-at"></span></div>
+                            <div id="co-live"></div>
+                        </div>
+                        <div class="coach-sec">
+                            <details class="co-learn">
+                                <summary><i class="fa-solid fa-chevron-right"></i>How the coach decides</summary>
+                                <div class="mt-2 space-y-2">
+                                    <p>Trends move in waves: a strong push (the <b>impulse</b>), then a <b>pullback</b> (retracement) before the next push. Buying at the top of an impulse means a wide stop and little reward. Buying after a pullback gives a tight stop and the old high as a target.</p>
+                                    <ul class="list-disc pl-5 space-y-1">
+                                        <li><b>Trend:</b> the main chart must make higher highs and higher lows (or lower highs and lower lows). Swings must be at least 2 ATR to count, so noise is ignored. The higher timeframe should agree.</li>
+                                        <li><b>Where:</b> the pullback is measured with Fibonacci on the last leg. 0–23.6% = still at the extreme, don't chase. 38.2–78.6% = entry zone, 50–61.8% = golden zone. Beyond 100% = the trend is broken.</li>
+                                        <li><b>Why there:</b> the zone is stronger when support/resistance, an old swing level or an EMA sits inside it.</li>
+                                        <li><b>When:</b> price must show it is turning: a close beyond the pullback's last lower high (higher low for sells), a rejection candle in the zone, or a close back over the 20 EMA. Only closed candles count.</li>
+                                        <li><b>Risk:</b> stop beyond the pullback extreme plus 0.25 ATR, target the old high/low then the 127% and 161.8% extensions. Below 1.5R the coach says no.</li>
+                                        <li><b>Right now:</b> no trade into high-impact news, in a dead session, with a wide spread, or when you already hold the market.</li>
+                                    </ul>
+                                </div>
+                            </details>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <h4 class="text-[13px] font-semibold px-strong"><span class="px-muted font-normal">Scanner signal · </span><span id="d-plan-title">Trade plan</span></h4>
+                            <span class="text-[11px] px-muted" id="d-plan-note"></span>
+                        </div>
+                        <div class="plan" id="d-plan"></div>
+                        <p class="text-[11px] px-muted mt-2" id="d-plan-extra"></p>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button id="d-trade" type="button" class="px-btn px-btn-primary flex-1" style="height:42px"><i class="fa-solid fa-bolt text-[11px]"></i><span>Trade this setup</span></button>
+                        <button id="d-refresh" type="button" class="px-btn px-btn-ghost" style="height:42px" title="Re-analyse now"><i class="fa-solid fa-rotate"></i></button>
+                    </div>
+
+                    <div id="cf-box" class="rounded-xl p-3" style="border:1px solid var(--px-line);background:var(--px-panel)">
+                        <div class="flex items-center justify-between gap-2 flex-wrap mb-2.5">
+                            <div class="flex items-center gap-2">
+                                <h4 class="text-[13px] font-semibold px-strong">Scanner confluence</h4>
+                                <span id="cf-grade-badge"></span>
+                            </div>
+                            <span class="text-[11px] px-muted" id="cf-summary">Analysing…</span>
+                        </div>
+                        <div class="cf-bar mb-1"><span id="cf-bar-fill" style="left:50%;width:0"></span><span style="left:50%;width:1px;background:var(--px-line)"></span></div>
+                        <div class="flex justify-between text-[10px] px-muted mb-3"><span>Sell</span><span id="cf-score" class="px-num">—</span><span>Buy</span></div>
+                        <div class="cf-grid" id="cf-grid"><div class="px-skel h-14"></div><div class="px-skel h-14"></div><div class="px-skel h-14"></div><div class="px-skel h-14"></div></div>
+                        <p class="text-[11px] px-muted mt-2.5" id="cf-note"></p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <h4 class="text-[13px] font-semibold px-strong mb-1.5">Why</h4>
+                            <div id="d-why"></div>
+                        </div>
+                        <div>
+                            <h4 class="text-[13px] font-semibold px-strong mb-1.5">How reliable is this?</h4>
+                            <div id="d-stats" class="space-y-2 text-[12px]"></div>
+                        </div>
+                    </div>
+                    <p class="text-[11px] leading-relaxed px-muted" style="border-top:1px solid var(--px-line-soft);padding-top:12px">
+                        Signals are statistical estimates from past prices on the analysed timeframes, not financial advice. Markets can move against any setup; always use a stop loss and size positions to risk only what you can afford to lose.
+                    </p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- ═══ STRONG SIGNALS (background scanner log) ═══ -->
+    <section class="px-card overflow-hidden" id="cf-log">
+        <div class="px-card-h flex-wrap">
+            <div class="px-card-t"><i class="fa-solid fa-satellite-dish" style="color:var(--px-accent)"></i>Strong signals found in the background</div>
+            <div class="flex items-center gap-4 text-[12px] flex-wrap" id="cf-stats"></div>
+        </div>
+        <div id="cf-hist"><div class="p-4 space-y-2"><div class="px-skel h-9"></div><div class="px-skel h-9"></div></div></div>
+        <p class="text-[11px] px-muted px-4 pb-3 pt-1">Every A / A+ setup is recorded when it appears and then checked against the candles that follow: target first = TP, stop first = SL (stop counted first if both touch in one candle), neither within 40 candles = expired.</p>
+    </section>
+</div>
+
+<!-- ═══ ORDER MODAL ═══ -->
+<div id="order-modal" class="px-modal hidden" role="dialog" aria-modal="true" aria-labelledby="om-title">
+    <div class="px-card w-full max-w-md relative max-h-[92vh] overflow-y-auto">
+        <div class="px-card-h">
+            <div>
+                <h3 id="om-title" class="text-[15px] font-semibold px-strong">Place order</h3>
+                <p class="text-[11px] px-muted" id="om-sub">Market execution with stop loss and take profit</p>
+            </div>
+            <button type="button" onclick="closeOrder()" class="header-icon-btn" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-4 space-y-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2"><span id="om-sym" class="font-semibold px-strong">—</span><span id="om-sig" class="sig">—</span></div>
+                <span class="text-[12px] px-muted">Price <span id="om-price" class="px-num px-strong font-semibold">—</span></span>
+            </div>
+            <label class="block hidden" id="om-pprice-row"><span class="block text-[12px] px-dim mb-1.5" id="om-pprice-lbl">Order price</span><input id="om-pprice" type="number" step="any" class="px-input w-full px-num"></label>
+            <div class="grid grid-cols-2 gap-3">
+                <label class="block"><span class="block text-[12px] px-dim mb-1.5">Stop loss</span><input id="om-sl" type="number" step="any" class="px-input w-full px-num"></label>
+                <label class="block"><span class="block text-[12px] px-dim mb-1.5">Take profit</span><input id="om-tp" type="number" step="any" class="px-input w-full px-num"></label>
+            </div>
+            <div>
+                <span class="block text-[12px] px-dim mb-1.5">Risk per trade <span class="px-muted">(of equity <span id="om-equity" class="px-num">—</span>)</span></span>
+                <div class="grid grid-cols-4 gap-2" id="om-risk">
+                    <button type="button" class="risk-btn" data-r="0.5">0.5%</button><button type="button" class="risk-btn on" data-r="1">1%</button><button type="button" class="risk-btn" data-r="2">2%</button><button type="button" class="risk-btn" data-r="3">3%</button>
+                </div>
+            </div>
+            <div>
+                <span class="block text-[12px] px-dim mb-1.5">Volume (lots)</span>
+                <div class="flex items-center gap-2">
+                    <button type="button" class="header-icon-btn" onclick="stepLots(-1)" aria-label="Less"><i class="fa-solid fa-minus"></i></button>
+                    <input id="om-lots" type="number" min="0.01" step="0.01" value="0.01" class="px-input flex-1 text-center px-num font-semibold" style="font-size:16px">
+                    <button type="button" class="header-icon-btn" onclick="stepLots(1)" aria-label="More"><i class="fa-solid fa-plus"></i></button>
+                </div>
+            </div>
+            <div class="rounded-lg p-3 space-y-1.5 text-[12px]" style="background:var(--px-panel-2);border:1px solid var(--px-line-soft)">
+                <div class="flex justify-between"><span class="px-dim">Margin required</span><span id="om-margin" class="px-num px-strong font-semibold">—</span></div>
+                <div class="flex justify-between"><span class="px-dim">Loss if stop loss hits</span><span id="om-loss" class="px-num px-down font-semibold">—</span></div>
+                <div class="flex justify-between"><span class="px-dim">Profit if take profit hits</span><span id="om-profit" class="px-num px-up font-semibold">—</span></div>
+                <div class="flex justify-between"><span class="px-dim">Reward : risk</span><span id="om-rr" class="px-num px-strong font-semibold">—</span></div>
+            </div>
+            <p id="om-warn" class="hidden text-[12px] rounded-lg p-2.5" style="background:var(--px-down-soft);color:var(--px-down)"></p>
+            <button id="om-confirm" type="button" class="px-btn px-btn-primary w-full" style="height:44px"><i class="fa-solid fa-bolt text-[11px]"></i><span>Confirm order</span></button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const PX = window.PX;
+    const $ = id => document.getElementById(id);
+    const XHR = { headers: { 'X-Requested-With': 'XMLHttpRequest' } };
+    const CSRF = '{{ csrf_token }}';
+    const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+    const abbr = s => s.replace('USD', '').slice(0, 3) || s.slice(0, 3);
+    const kindOf = k => (k === 'energy' ? 'metal' : k);
+
+    let style = 'intraday', kind = 'all', results = [], selected = null, detail = null, chartTf = null;
+    let autoTimer = null, scanning = false;
+    try { style = localStorage.getItem('ai-style') || 'intraday'; } catch (e) {}
+    // links from signal notifications: /market-overview/?symbol=XAUUSD&style=intraday
+    const qs = new URLSearchParams(location.search);
+    let deepLink = (qs.get('symbol') || '').toUpperCase() || null;
+    if (['scalp', 'intraday', 'swing'].includes(qs.get('style'))) style = qs.get('style');
+    $('ai-style').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.style === style));
+
+    // ── scanning ─────────────────────────────────────
+    async function scan() {
+        if (scanning) return;
+        scanning = true;
+        const btn = $('ai-scan');
+        btn.querySelector('i').className = 'fa-solid fa-circle-notch spin text-[11px]';
+        btn.querySelector('span').textContent = 'Scanning…';
+        try {
+            const d = await (await fetch(`/api/ai-scan/?style=${style}`, XHR)).json();
+            if (!d.success) throw 0;
+            results = d.results.filter(r => r.ok);
+            renderStats(); renderList(); renderRadar(); checkWatch();
+            $('st-time').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            window.dispatchEvent(new CustomEvent('px:ai-scan', { detail: { style } }));
+            const linked = deepLink && results.find(r => r.symbol === deepLink);
+            deepLink = null;
+            if (linked) {
+                select(linked.symbol);
+            } else if (!selected && window.innerWidth >= 1024) {
+                const best = ranked()[0];
+                if (best) select(best.symbol);
+            } else if (selected) {
+                loadDetail(selected, true);
+            }
+        } catch (e) {
+            $('ai-list').innerHTML = `<div class="px-empty"><i class="fa-solid fa-triangle-exclamation"></i>The scan failed. Check the data feeds and try again.</div>`;
+        }
+        btn.querySelector('i').className = 'fa-solid fa-wand-magic-sparkles text-[11px]';
+        btn.querySelector('span').textContent = 'Scan markets';
+        scanning = false;
+    }
+
+    function ranked() {
+        return results.slice().sort((a, b) => (b.signal !== 'WAIT') - (a.signal !== 'WAIT') || b.confidence - a.confidence);
+    }
+
+    function renderStats() {
+        const buys = results.filter(r => r.signal === 'BUY'), sells = results.filter(r => r.signal === 'SELL');
+        $('st-count').textContent = results.length;
+        $('st-buy').textContent = buys.length;
+        $('st-sell').textContent = sells.length;
+        const best = ranked().find(r => r.signal !== 'WAIT');
+        $('st-best').innerHTML = best ? `<span class="${best.signal === 'BUY' ? 'px-up' : 'px-down'}">${best.signal}</span> ${best.symbol} <span class="px-muted px-num text-[13px]">${best.confidence}</span>` : '<span class="px-muted">None</span>';
+    }
+
+    function meterColor(r) { return r.signal === 'BUY' ? 'var(--px-up)' : r.signal === 'SELL' ? 'var(--px-down)' : 'var(--px-mute)'; }
+    function tfChips(r) {
+        return r.timeframes.map(t => {
+            const c = t.score > 15 ? 'px-up' : t.score < -15 ? 'px-down' : '';
+            const ic = t.score > 15 ? 'fa-caret-up' : t.score < -15 ? 'fa-caret-down' : 'fa-minus';
+            return `<span class="tfchip ${c}">${t.tf.toUpperCase()} <i class="fa-solid ${ic}"></i></span>`;
+        }).join('');
+    }
+
+    function renderList() {
+        const q = $('ai-search').value.trim().toUpperCase();
+        const show = $('ai-show').value, min = +$('ai-min').value;
+        let rows = ranked().filter(r => (kind === 'all' || kindOf(r.kind) === kind) && (!q || r.symbol.includes(q) || (r.name || '').toUpperCase().includes(q)));
+        const all = rows.length;
+        if (show === 'entry') rows = rows.filter(r => r.coach && ['READY', 'IN_ZONE'].includes(r.coach.state))
+            .sort((a, b) => STATE_ORDER[a.coach.state] - STATE_ORDER[b.coach.state] || b.coach.quality - a.coach.quality);
+        if (show === 'signals') rows = rows.filter(r => r.signal !== 'WAIT');
+        if (show === 'strong') rows = rows.filter(r => ['A', 'A+'].includes((window.pxGrades || {})[r.symbol]));
+        rows = rows.filter(r => r.confidence >= min);
+        if (!rows.length) {
+            $('ai-list').innerHTML = `<div class="px-empty"><i class="fa-solid fa-binoculars"></i>${all ? 'No setups pass these filters right now.' : 'No markets match.'}${all && (show === 'signals' || show === 'entry') ? '<br><button type="button" class="mt-3 px-btn px-btn-ghost sm" onclick="document.getElementById(\'ai-show\').value=\'all\';document.getElementById(\'ai-show\').dispatchEvent(new Event(\'change\'))">Show all markets</button>' : ''}</div>`;
+            return;
+        }
+        $('ai-list').innerHTML = rows.map(r => {
+            const p = r.plan || r.watch;
+            return `<div class="row ${r.symbol === selected ? 'sel' : ''}" data-s="${r.symbol}" tabindex="0" role="button" aria-label="${r.symbol} ${r.signal}">
+                <span class="sym-ic k-${r.kind}">${abbr(r.symbol)}</span>
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2"><span class="font-semibold text-[13px] px-strong">${r.symbol}</span><span class="sig ${r.signal}">${r.signal === 'WAIT' ? 'WAIT' : r.signal}</span><span data-grade="${r.symbol}"></span></div>
+                    <div class="flex items-center gap-1.5 mt-1 flex-wrap">${tfChips(r)}${coachChip(r.coach)}</div>
+                    <p class="text-[11px] px-muted mt-1 truncate">${escapeHtml((r.reasons[0] || {}).text || '')}</p>
+                </div>
+                <div class="text-right">
+                    <p class="px-num text-[13px] px-strong" data-live="${r.symbol}">${PX.fmt(r.symbol, PX.quotes[r.symbol] ? PX.quotes[r.symbol].bid : r.price)}</p>
+                    <div class="flex items-center justify-end gap-1.5 mt-1"><span class="meter"><span style="width:${r.confidence}%;background:${meterColor(r)}"></span></span><span class="px-num text-[11px] px-dim">${r.confidence}</span></div>
+                    ${r.signal !== 'WAIT' && p ? `<p class="text-[10px] px-muted mt-1 px-num">R:R ${p.rr}</p>` : `<p class="text-[10px] px-muted mt-1">leans ${(r.lean || '').toLowerCase()}</p>`}
+                </div>
+            </div>`;
+        }).join('');
+        window.dispatchEvent(new Event('px:ai-list'));
+        $('ai-list').querySelectorAll('.row').forEach(el => {
+            el.addEventListener('click', () => select(el.dataset.s));
+            el.addEventListener('keydown', e => { if (e.key === 'Enter') select(el.dataset.s); });
+        });
+    }
+
+    // ── detail ───────────────────────────────────────
+    function select(sym) {
+        selected = sym;
+        $('ai-list').querySelectorAll('.row').forEach(el => el.classList.toggle('sel', el.dataset.s === sym));
+        $('ai-detail').classList.add('open');
+        if (window.innerWidth < 1024) document.body.style.overflow = 'hidden';
+        loadDetail(sym);
+    }
+    function closeDetail() {
+        $('ai-detail').classList.remove('open');
+        document.body.style.overflow = '';
+    }
+    $('ai-detail-close').addEventListener('click', closeDetail);
+
+    async function loadDetail(sym, quiet) {
+        $('ai-detail-empty').classList.add('hidden');
+        $('ai-detail-body').classList.remove('hidden');
+        const r0 = results.find(r => r.symbol === sym);
+        if (r0 && !quiet) header(r0);
+        if (!quiet) {
+            $('d-why').innerHTML = '<div class="px-skel h-24"></div>'; $('d-stats').innerHTML = '<div class="px-skel h-24"></div>';
+            $('co-head').textContent = 'Analysing…'; $('co-q').textContent = '—'; $('co-instr').className = 'coach-instr'; $('co-instr').textContent = 'Reading the chart…';
+            ['co-gauge', 'co-plan', 'co-actions', 'co-story', 'co-checks', 'co-live'].forEach(id => { $(id).innerHTML = ''; });
+            liveAsync = '';
+        }
+        try {
+            const d = await (await fetch(`/api/ai-scan/${sym}/?style=${style}`, XHR)).json();
+            if (sym !== selected) return;
+            if (!d.success) throw new Error(d.error || 'failed');
+            detail = d.result;
+            const i = results.findIndex(r => r.symbol === sym);
+            if (i >= 0) results[i] = Object.assign({}, results[i], { signal: detail.signal, confidence: detail.confidence, plan: detail.plan, watch: detail.watch, timeframes: detail.timeframes, coach: detail.coach });
+            header(detail);
+            if (!chartTf || !detail.charts[chartTf]) chartTf = detail.main_tf;
+            renderTfTabs(); drawChart(); renderPlan(); renderWhy(); renderStatsBox(); renderCoach();
+            window.dispatchEvent(new CustomEvent('px:ai-detail', { detail: { symbol: sym, style } }));
+        } catch (e) {
+            $('d-why').innerHTML = `<p class="text-[12px] px-muted">${escapeHtml(e.message || 'Could not analyse this market right now.')}</p>`;
+            $('d-stats').innerHTML = '';
+        }
+    }
+
+    function header(r) {
+        $('d-ic').className = 'sym-ic k-' + r.kind; $('d-ic').textContent = abbr(r.symbol);
+        $('d-sym').textContent = r.symbol;
+        $('d-name').textContent = `${r.name || ''} · ${({ scalp: 'Scalp', intraday: 'Intraday', swing: 'Swing' })[style]} · ${(r.main_tf || '').toUpperCase()} chart`;
+        $('d-sig').className = 'sig ' + r.signal; $('d-sig').textContent = r.signal;
+        $('d-conf').textContent = r.confidence + '/100';
+        livePrice();
+    }
+    function livePrice() {
+        if (!selected) return;
+        const q = PX.quotes[selected];
+        $('d-price').textContent = PX.fmt(selected, q ? q.bid : (detail && detail.price));
+    }
+
+    function renderTfTabs() {
+        const order = ['5m', '15m', '1h', '4h', '1d'];
+        const tfs = Object.keys(detail.charts).sort((a, b) => order.indexOf(a) - order.indexOf(b));
+        $('d-tfs').innerHTML = tfs.map(tf => {
+            const sc = detail.charts[tf].score;
+            const c = sc > 15 ? 'var(--px-up)' : sc < -15 ? 'var(--px-down)' : 'var(--px-mute)';
+            return `<button data-tf="${tf}" class="${tf === chartTf ? 'on' : ''}">${tf.toUpperCase()}${tf === detail.main_tf ? ' ·' : ''} <span class="px-num" style="color:${c}">${sc > 0 ? '+' : ''}${Math.round(sc)}</span></button>`;
+        }).join('');
+        $('d-tfs').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { chartTf = b.dataset.tf; renderTfTabs(); drawChart(); }));
+    }
+
+    // ── chart ────────────────────────────────────────
+    let chart, candles, e20, e50, lines = [];
+    function chartColors() {
+        return {
+            layout: { background: { type: 'solid', color: 'transparent' }, textColor: css('--px-mute'), fontFamily: 'Inter, sans-serif', fontSize: 11 },
+            grid: { vertLines: { color: css('--px-line-soft') }, horzLines: { color: css('--px-line-soft') } },
+            rightPriceScale: { borderColor: css('--px-line') },
+            timeScale: { borderColor: css('--px-line'), timeVisible: true, secondsVisible: false, rightOffset: 6 },
+            crosshair: { mode: 0 },
+        };
+    }
+    function ensureChart() {
+        if (chart || !window.LightweightCharts) return !!chart;
+        chart = LightweightCharts.createChart($('ai-chart'), Object.assign({ autoSize: true }, chartColors()));
+        candles = chart.addCandlestickSeries({ upColor: css('--px-up'), downColor: css('--px-down'), borderVisible: false, wickUpColor: css('--px-up'), wickDownColor: css('--px-down') });
+        e20 = chart.addLineSeries({ color: '#f0b90b', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+        e50 = chart.addLineSeries({ color: '#60a5fa', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+        window.addEventListener('themeChanged', () => {
+            chart.applyOptions(chartColors());
+            candles.applyOptions({ upColor: css('--px-up'), downColor: css('--px-down'), wickUpColor: css('--px-up'), wickDownColor: css('--px-down') });
+            drawChart();
+        });
+        return true;
+    }
+    function drawChart() {
+        if (!detail || !ensureChart()) return;
+        const c = detail.charts[chartTf];
+        const d = PX.digits(detail.symbol);
+        candles.applyOptions({ priceFormat: { type: 'price', precision: d, minMove: Math.pow(10, -d) } });
+        candles.setData(c.candles);
+        e20.setData(c.ema20); e50.setData(c.ema50);
+        const co = detail.coach;
+        const coachOn = coachView && co && co.plan && co.fib && chartTf === detail.main_tf;
+        $('d-coachview').classList.toggle('on', coachView);
+        let marks = c.markers.map(m => Object.assign({}, m, { color: m.color === '#16c784' ? css('--px-up') : m.color === '#ea3943' ? css('--px-down') : m.color }));
+        if (coachOn) {
+            const first = c.candles.length ? c.candles[0].time : 0;
+            marks = marks.filter(m => m.shape !== 'circle').concat(co.swings.filter(w => w.time >= first).map(w => ({
+                time: w.time, position: w.kind === 'H' ? 'aboveBar' : 'belowBar', shape: 'circle', size: 0.5, text: w.label,
+                color: ['HH', 'HL'].includes(w.label) ? css('--px-up') : ['LH', 'LL'].includes(w.label) ? css('--px-down') : css('--px-mute') })));
+            marks.sort((a, b) => a.time - b.time);
+        }
+        candles.setMarkers(marks);
+        lines.forEach(l => candles.removePriceLine(l)); lines = [];
+        const add = (price, color, title, style = 2, width = 1) => { if (price != null) lines.push(candles.createPriceLine({ price, color, lineWidth: width, lineStyle: style, axisLabelVisible: true, title })); };
+        if (coachOn) {
+            // coach view: its plan + the Fibonacci levels of the leg being retraced
+            const L = co.fib.levels, up = co.side === 'BUY', pl = co.plan, used = new Set();
+            const once = (price, ...rest) => { const k = PX.fmt(detail.symbol, price); if (!used.has(k)) { used.add(k); add(price, ...rest); } };
+            const ord = { market: 'Entry', stop: up ? 'Buy stop' : 'Sell stop', limit: up ? 'Buy limit' : 'Sell limit' }[pl.order];
+            once(pl.entry, css('--px-accent'), ord, 0, 2);
+            once(pl.sl, css('--px-down'), 'SL', 2, 2);
+            once(pl.tp1, css('--px-up'), 'TP1', 2, 2);
+            once(pl.tp2, css('--px-up'), 'TP2', 3);
+            [['0.382', '38.2%'], ['0.5', '50%'], ['0.618', '61.8%'], ['0.786', '78.6%']].forEach(([k, t]) => once(L[k], css('--px-accent'), t, 1, 1));
+            once(L['0'], css('--px-mute'), up ? 'Leg high' : 'Leg low', 0, 1);
+            once(L['1'], css('--px-mute'), up ? 'Leg low' : 'Leg high', 0, 1);
+        } else {
+            c.levels.forEach(l => add(l.price, css('--px-mute'), `${l.kind === 'resistance' ? 'R' : 'S'}×${l.touches}`, 1));
+        }
+        const p = !coachOn && (detail.plan || detail.watch);
+        if (p) {
+            const faint = !detail.plan;
+            add(p.entry, faint ? css('--px-mute') : css('--px-accent'), faint ? 'watch' : 'Entry', 0, 2);
+            add(p.sl, css('--px-down'), 'SL', 2, faint ? 1 : 2);
+            add(p.tp1, css('--px-up'), 'TP1', 2, faint ? 1 : 2);
+            add(p.tp2, css('--px-up'), 'TP2', 3);
+        }
+        const n = c.candles.length;
+        chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - 120), to: n + 6 });
+    }
+
+    // ── plan / reasons / stats ───────────────────────
+    function renderPlan() {
+        const p = detail.plan || detail.watch;
+        const live = detail.plan;
+        $('d-plan-title').textContent = live ? `${detail.signal === 'BUY' ? 'Buy' : 'Sell'} plan` : `No trade yet · leaning ${(detail.lean || '').toLowerCase()}`;
+        $('d-plan-note').textContent = p ? `Stop = ${p.risk_atr} × ATR` : '';
+        if (!p) { $('d-plan').innerHTML = ''; $('d-plan-extra').textContent = ''; return; }
+        const f = v => PX.fmt(detail.symbol, v);
+        $('d-plan').innerHTML = `
+            <div><div class="k">${live ? 'Entry (market)' : 'Would enter near'}</div><div class="v">${f(p.entry)}</div></div>
+            <div><div class="k">Stop loss</div><div class="v px-down">${f(p.sl)}</div></div>
+            <div><div class="k">Take profit 1 · ${p.rr}R</div><div class="v px-up">${f(p.tp1)}</div></div>
+            <div><div class="k">Take profit 2</div><div class="v px-up">${f(p.tp2)}</div></div>`;
+        const bits = [];
+        if (p.pullback_entry) bits.push(`Better price: wait for a pullback to the 20 EMA near ${f(p.pullback_entry)}.`);
+        if (p.risk_per_lot_usd) bits.push(`Risk per 1 lot: ${PX.money(p.risk_per_lot_usd)}.`);
+        if (!live) bits.push('Signals are not aligned enough to trade. The levels show where it would set up.');
+        $('d-plan-extra').textContent = bits.join(' ');
+        $('d-trade').disabled = !live;
+        $('d-trade').style.opacity = live ? '' : '.5';
+        $('d-trade').querySelector('span').textContent = live ? `${detail.signal === 'BUY' ? 'Buy' : 'Sell'} ${detail.symbol}` : 'No trade signal';
+    }
+    function renderWhy() {
+        const items = detail.reasons;
+        const max = Math.max(4, ...items.map(r => Math.abs(r.impact)));
+        $('d-why').innerHTML = items.map(r => {
+            const w = Math.abs(r.impact) / max * 50;
+            const pos = r.impact >= 0;
+            const bar = r.impact ? `<span style="${pos ? 'left:50%' : 'right:50%'};width:${w}%;background:${pos ? 'var(--px-up)' : 'var(--px-down)'}"></span>` : '';
+            return `<div class="why"><span class="px-dim">${escapeHtml(r.text)}</span><span class="bar"><span style="left:50%;width:1px;background:var(--px-line)"></span>${bar}</span></div>`;
+        }).join('');
+    }
+    function pct(v) { return v == null ? '—' : Math.round(v * 100) + '%'; }
+    function renderStatsBox() {
+        const m = detail.model || {}, b = detail.backtest || {};
+        const rows = [];
+        if (m.trained) {
+            const edge = m.test_accuracy - m.baseline;
+            rows.push(`<div class="flex justify-between"><span class="px-dim">Model accuracy (unseen data)</span><span class="px-num font-semibold ${edge > 0.02 ? 'px-up' : 'px-strong'}">${pct(m.test_accuracy)}</span></div>
+                <p class="text-[11px] px-muted -mt-1">Trained on ${m.samples - m.test_samples} past setups, tested on the last ${m.test_samples}. Always guessing the more common outcome would score ${pct(m.baseline)}.</p>`);
+            rows.push(`<div class="flex justify-between"><span class="px-dim">Chance of +1.5 ATR before −1.5 ATR</span><span class="px-num font-semibold px-strong">${pct(m.prob_up)}</span></div>`);
+        } else {
+            rows.push('<p class="px-muted">Not enough history to train the model on this market.</p>');
+        }
+        if (b.trades) {
+            rows.push(`<div class="flex justify-between"><span class="px-dim">Backtest win rate</span><span class="px-num font-semibold ${b.win_rate >= 0.45 ? 'px-up' : 'px-strong'}">${pct(b.win_rate)}</span></div>
+                <div class="flex justify-between"><span class="px-dim">Trades · avg result</span><span class="px-num px-strong">${b.trades} · ${b.avg_r >= 0 ? '+' : ''}${b.avg_r.toFixed(2)}R</span></div>
+                <div class="flex justify-between"><span class="px-dim">Profit factor</span><span class="px-num px-strong">${b.profit_factor == null ? '—' : b.profit_factor.toFixed(2)}</span></div>
+                <p class="text-[11px] px-muted -mt-1">This signal rule replayed over the last ${b.bars} ${detail.main_tf} candles with a 1.5 ATR stop and 1.5R target. At 1.5R, about 40% wins breaks even.</p>`);
+        }
+        rows.push(`<div class="flex justify-between"><span class="px-dim">RSI · ADX</span><span class="px-num px-strong">${detail.rsi} · ${detail.adx}</span></div>`);
+        rows.push(`<div class="flex justify-between"><span class="px-dim">Data</span><span class="px-strong">${escapeHtml(detail.source || '—')} · ${new Date(detail.analysed_at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></div>`);
+        $('d-stats').innerHTML = rows.join('');
+    }
+
+    // ── entry coach ──────────────────────────────────
+    // The server (chart_scanner.entry_coach) reads the chart; this adds what changes by the second:
+    // live retracement, session, spread, news, candle close and your own exposure.
+    const STATE_ORDER = { READY: 0, IN_ZONE: 1, WAIT_PULLBACK: 2, EXTENDED: 3, MISSED: 4, INVALID: 5, NO_TREND: 6 };
+    const STATE_LABEL = { READY: 'Entry ready', IN_ZONE: 'In zone', WAIT_PULLBACK: 'Pulling back', EXTENDED: 'Extended', MISSED: 'Missed', INVALID: 'Broken', NO_TREND: 'No trend' };
+    const TF_SEC = { '5m': 300, '15m': 900, '30m': 1800, '1h': 3600, '4h': 14400, '1d': 86400 };
+    const ICON = { pass: 'fa-circle-check', warn: 'fa-circle-exclamation', fail: 'fa-circle-xmark', info: 'fa-circle-info' };
+    // retracement bar, from the leg end (0 %) to the leg start (100 %)
+    const SEGS = [[0, .236, 'var(--px-line)'], [.236, .382, 'var(--px-line-soft)'], [.382, .5, 'color-mix(in srgb, var(--px-accent) 35%, transparent)'],
+                  [.5, .618, 'var(--px-accent)'], [.618, .786, 'color-mix(in srgb, var(--px-accent) 35%, transparent)'], [.786, 1, 'var(--px-down-soft)']];
+    let coachView = true;
+    try { coachView = localStorage.getItem('coach-view') !== 'off'; } catch (e) {}
+    let watch = {};
+    try { watch = JSON.parse(localStorage.getItem('coach-watch') || '{}') || {}; } catch (e) {}
+    const saveWatch = () => { try { localStorage.setItem('coach-watch', JSON.stringify(watch)); } catch (e) {} };
+    let newsCache = {}, posCache = { t: 0, list: [] }, liveAsync = '', equityAt = 0;
+
+    const clamp01 = v => Math.max(0, Math.min(1, v || 0));
+    const segHtml = () => SEGS.map(([a, b, c]) => `<span style="flex:${b - a} 0 0;background:${c}"></span>`).join('');
+    const chk = (st, t, text) => `<div class="chk ${st}"><i class="fa-solid ${ICON[st]}"></i><div><span class="t">${t}</span><p>${text}</p></div></div>`;
+    const fmtDur = sec => { sec = Math.max(0, Math.round(sec)); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60); return h ? `${h}h ${m}m` : m ? `${m} min` : `${sec}s`; };
+    function liveRetrace(c, price) {
+        if (!c || !c.fib || price == null) return null;
+        const a = c.fib.a.price, b = c.fib.b.price;
+        return a === b ? null : (b - price) / (b - a);
+    }
+    function coachChip(c) {
+        if (!c) return '';
+        const pct = c.side && c.retrace != null ? ` · ${Math.round(Math.max(0, c.retrace) * 100)}%` : '';
+        const arrow = c.side ? `<i class="fa-solid fa-arrow-${c.side === 'BUY' ? 'up' : 'down'}"></i>` : '';
+        return `<span class="cs cs-${c.state}" title="${escapeHtml(c.instruction || '')}">${arrow}${STATE_LABEL[c.state]}${pct}</span>`;
+    }
+
+    function renderRadar() {
+        const rows = results.filter(r => r.coach);
+        if (!rows.length) {
+            $('radar-sum').innerHTML = '';
+            $('radar-body').innerHTML = '<div class="px-empty"><i class="fa-solid fa-crosshairs"></i>The entry coach is not running on the server yet (update chart_scanner.py).</div>';
+            return;
+        }
+        const n = st => rows.filter(r => r.coach.state === st).length;
+        $('radar-sum').innerHTML = ['READY', 'IN_ZONE', 'WAIT_PULLBACK', 'EXTENDED'].map(st => `<span class="cs cs-${st}">${STATE_LABEL[st]} ${n(st)}</span>`).join('')
+            + `<span>${n('NO_TREND')} without a trend</span>`;
+        const list = rows.filter(r => r.coach.side && r.coach.state !== 'INVALID')
+            .sort((a, b) => STATE_ORDER[a.coach.state] - STATE_ORDER[b.coach.state] || b.coach.quality - a.coach.quality);
+        if (!list.length) { $('radar-body').innerHTML = '<div class="px-empty"><i class="fa-solid fa-mug-hot"></i>No market is trending cleanly right now. Waiting is a position too.</div>'; return; }
+        $('radar-body').innerHTML = `<div class="rd-grid">${list.slice(0, 12).map(r => {
+            const c = r.coach, q = PX.quotes[r.symbol];
+            const live = liveRetrace(c, q ? q.bid : r.price);
+            return `<button type="button" class="rd ${c.state}" data-s="${r.symbol}">
+                <div class="flex items-center justify-between gap-2"><span class="font-semibold text-[13px] px-strong">${r.symbol}</span>${coachChip(c)}</div>
+                <div class="mini-wrap"><div class="mini">${segHtml()}</div><span class="mini-mark" data-rd="${r.symbol}" style="left:${clamp01(live == null ? c.retrace : live) * 100}%"></span></div>
+                <p class="text-[11px] px-dim mt-3 leading-snug" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${escapeHtml(c.instruction || '')}</p>
+                <p class="text-[10px] px-muted mt-1.5">${c.side === 'BUY' ? 'Uptrend' : 'Downtrend'} ${c.tf.toUpperCase()} · quality <b class="px-strong px-num">${c.quality}</b></p>
+            </button>`;
+        }).join('')}</div>`;
+        $('radar-body').querySelectorAll('.rd').forEach(b => b.addEventListener('click', () => select(b.dataset.s)));
+    }
+    function updateRadarMarks() {
+        document.querySelectorAll('#radar-body [data-rd]').forEach(el => {
+            const r = results.find(x => x.symbol === el.dataset.rd), q = PX.quotes[el.dataset.rd];
+            const live = r && q ? liveRetrace(r.coach, q.bid) : null;
+            if (live != null) el.style.left = clamp01(live) * 100 + '%';
+        });
+    }
+
+    function renderCoach() {
+        const c = detail && detail.coach;
+        const scr = $('co-scrutiny');
+        if (scr && detail) scr.href = `${scr.dataset.base}?symbol=${encodeURIComponent(detail.symbol)}&style=${style}`;
+        $('co-tf').textContent = c ? `· ${c.tf.toUpperCase()} chart` : '';
+        if (!c) {
+            $('co-head').textContent = 'Coach unavailable';
+            $('co-instr').className = 'coach-instr';
+            $('co-instr').textContent = 'The server did not return an entry-coach reading for this market. Update store/chart_scanner.py and restart.';
+            $('co-q').textContent = '—';
+            ['co-gauge', 'co-plan', 'co-actions', 'co-story', 'co-checks'].forEach(id => { $(id).innerHTML = ''; });
+            renderLive();
+            return;
+        }
+        $('co-head').innerHTML = `${coachChip(c)} <span class="ml-1">${escapeHtml(c.headline)}</span>`;
+        $('co-q').textContent = c.quality;
+        $('co-q').style.color = c.quality >= 75 ? 'var(--px-up)' : c.quality >= 50 ? 'var(--px-accent)' : 'var(--px-down)';
+        $('co-instr').className = 'coach-instr ' + c.state;
+        $('co-instr').textContent = c.instruction;
+        renderGauge();
+        renderCoachPlan();
+        $('co-story').innerHTML = `<p class="lbl mb-1.5">What the chart says</p>` + (c.story || []).map(t => `<p>${escapeHtml(t)}</p>`).join('');
+        const counted = c.checks.filter(x => x.status !== 'info');
+        $('co-chk-n').textContent = `${counted.filter(x => x.status === 'pass').length}/${counted.length} passed`;
+        $('co-checks').innerHTML = c.checks.map(x => chk(x.status, escapeHtml(x.label), escapeHtml(x.text))).join('');
+        renderLive();
+    }
+
+    function renderGauge() {
+        const c = detail.coach;
+        if (!c.fib) { $('co-gauge-sec').classList.add('hidden'); return; }
+        $('co-gauge-sec').classList.remove('hidden');
+        const f = v => PX.fmt(detail.symbol, v), L = c.fib.levels, up = c.side === 'BUY';
+        $('co-leg').textContent = `${f(c.fib.a.price)} → ${f(c.fib.b.price)}`;
+        const ticks = [['0', up ? 'High' : 'Low'], ['0.382', '38.2%'], ['0.618', '61.8%'], ['1', up ? 'Low' : 'High']];
+        $('co-gauge').innerHTML = `<div class="g-wrap"><span class="g-tag" id="co-g-tag"></span><div class="gauge">${segHtml()}</div>
+            <span class="g-mark deep" style="left:${clamp01(c.retrace_deepest) * 100}%" title="Deepest point of the pullback"></span><span class="g-mark" id="co-g-mark"></span></div>
+            <div class="g-lbls">${ticks.map(([k, t]) => `<span style="left:${+k * 100}%">${t}<br><b class="px-num px-dim">${f(L[k])}</b></span>`).join('')}</div>
+            <p class="text-[11px] px-muted">Gold band = golden zone 50–61.8% (${f(L['0.5'])}–${f(L['0.618'])}). Grey tick = deepest point so far.</p>`;
+        updateGauge();
+    }
+    function updateGauge() {
+        updateRadarMarks();
+        const c = detail && detail.coach, m = $('co-g-mark');
+        if (!c || !c.fib || !m) return;
+        const q = PX.quotes[detail.symbol];
+        const r = liveRetrace(c, q ? q.bid : detail.price);
+        if (r == null) return;
+        const x = clamp01(r) * 100;
+        m.style.left = x + '%';
+        $('co-g-tag').style.left = Math.max(6, Math.min(94, x)) + '%';
+        $('co-g-tag').textContent = r > 1 ? 'beyond the leg start' : r < 0 ? 'new extreme' : `now ${Math.round(r * 100)}%`;
+    }
+
+    function renderCoachPlan() {
+        const c = detail.coach, p = c.plan, f = v => PX.fmt(detail.symbol, v);
+        const watchBtn = () => {
+            const on = watch[detail.symbol];
+            return `<button type="button" class="px-btn px-btn-ghost coach-watch ${on ? 'on' : ''}" data-act="watch" style="height:40px"><i class="fa-${on ? 'solid' : 'regular'} fa-bell text-[11px]"></i><span>${on ? 'Watching: alert on entry' : 'Alert me at entry'}</span></button>`;
+        };
+        if (!p) {
+            $('co-plan-title').textContent = 'Coach plan';
+            $('co-plan').innerHTML = '<p class="text-[12px] px-muted col-span-full">No plan without a trend. The coach will build one when structure appears.</p>';
+            $('co-size').textContent = '';
+            $('co-actions').innerHTML = watchBtn();
+        } else {
+            const buy = p.side === 'BUY', verb = buy ? 'buy' : 'sell';
+            const how = { market: 'Entry · market', stop: `Entry · ${verb} stop`, limit: `Entry · ${verb} limit` }[p.order];
+            $('co-plan-title').textContent = `Coach plan · ${verb}`;
+            $('co-plan').innerHTML = `
+                <div><div class="k">${how}</div><div class="v">${f(p.entry)}</div></div>
+                <div><div class="k">Stop loss · ${p.risk_atr} ATR</div><div class="v px-down">${f(p.sl)}</div></div>
+                <div><div class="k">Target 1 · ${p.rr}R</div><div class="v px-up">${f(p.tp1)}</div></div>
+                <div><div class="k">Target 2</div><div class="v px-up">${f(p.tp2)}</div></div>`;
+            const acts = [];
+            const spec = { side: p.side, sl: p.sl, tp: p.tp1 };
+            if (c.state === 'READY') {
+                acts.push(`<button type="button" class="px-btn px-btn-primary flex-1" data-act="market" style="height:40px"><i class="fa-solid fa-bolt text-[11px]"></i><span>${buy ? 'Buy' : 'Sell'} ${detail.symbol} now</span></button>`);
+            } else if (['IN_ZONE', 'WAIT_PULLBACK', 'EXTENDED'].includes(c.state) && p.order !== 'market') {
+                acts.push(`<button type="button" class="px-btn ${c.state === 'IN_ZONE' ? 'px-btn-primary' : 'px-btn-ghost'} flex-1" data-act="pending" style="height:40px"><i class="fa-solid fa-hourglass-half text-[11px]"></i><span>Place ${verb} ${p.order} at ${f(p.entry)}</span></button>`);
+            }
+            $('co-actions').innerHTML = acts.join('') + watchBtn();
+            $('co-actions').querySelector('[data-act="market"]')?.addEventListener('click', () => openOrder(spec));
+            $('co-actions').querySelector('[data-act="pending"]')?.addEventListener('click', () => openOrder(Object.assign({ pending: { type: p.order, price: p.entry } }, spec)));
+            sizeHint();
+        }
+        $('co-actions').querySelector('[data-act="watch"]').addEventListener('click', toggleWatch);
+    }
+    async function sizeHint() {
+        const c = detail.coach, p = c && c.plan, base = detail.plan || detail.watch || {};
+        $('co-size').textContent = '';
+        if (!p || !base.risk_per_lot_usd || base.entry === base.sl) return;
+        if (Date.now() - equityAt > 60000) { await loadEquity(); equityAt = Date.now(); }
+        if (!equity || detail.coach !== c) return;
+        const perLot = base.risk_per_lot_usd / Math.abs(base.entry - base.sl) * Math.abs(p.entry - p.sl);
+        const lots = Math.floor(equity * 0.01 / perLot * 100) / 100;
+        $('co-size').textContent = lots >= (base.volume_min || 0.01) ? `1% risk = ${lots.toFixed(2)} lots` : `1% risk is below the minimum lot (${PX.money(perLot * 0.01)} per 0.01)`;
+    }
+
+    // ── watch: alert when a market reaches the zone or confirms ──
+    function toggleWatch() {
+        const sym = detail.symbol;
+        if (watch[sym]) delete watch[sym];
+        else {
+            watch[sym] = { style, state: detail.coach ? detail.coach.state : null };
+            if ('Notification' in window && Notification.permission === 'default') { try { Notification.requestPermission(); } catch (e) {} }
+            (window.showMarketToast || alert)(`Watching ${sym}: you'll be alerted when it enters the zone and when the entry confirms (while this page is open).`, 'success');
+        }
+        saveWatch(); renderCoachPlan(); ensureWatchTimer();
+    }
+    function checkWatch() {
+        Object.entries(watch).forEach(([sym, w]) => {
+            if (w.style !== style) return;
+            const r = results.find(x => x.symbol === sym);
+            if (!r || !r.coach) return;
+            const now = r.coach.state, prev = w.state;
+            if (prev && now !== prev && (now === 'READY' || (now === 'IN_ZONE' && prev !== 'READY'))) {
+                const title = `${sym}: ${now === 'READY' ? 'entry confirmed' : 'in the entry zone'}`;
+                (window.showMarketToast || alert)(`${title}. ${r.coach.instruction}`, 'success');
+                if ('Notification' in window && Notification.permission === 'granted') {
+                    try { new Notification(`Entry coach · ${title}`, { body: r.coach.instruction, tag: 'coach-' + sym }); } catch (e) {}
+                }
+            }
+            w.state = now;
+        });
+        saveWatch();
+    }
+    let watchTimer = null;
+    function ensureWatchTimer() {
+        const any = Object.values(watch).some(w => w.style === style);
+        if (any && !watchTimer) watchTimer = setInterval(() => { if (!autoTimer) scan(); }, 2 * 60 * 1000);
+        if (!any && watchTimer) { clearInterval(watchTimer); watchTimer = null; }
+    }
+
+    // ── live checks ──
+    function currenciesOf(sym, kind) {
+        if (kind === 'crypto') return ['USD'];
+        if (/^[A-Z]{6}$/.test(sym)) return [sym.slice(0, 3), sym.slice(3)].filter(c => !['XAU', 'XAG'].includes(c));
+        return ['USD'];
+    }
+    async function loadNews(sym, kind) {
+        const cur = currenciesOf(sym, kind).join(',');
+        const hit = newsCache[cur];
+        if (hit && Date.now() - hit.t < 300000) return hit.d;
+        let d;
+        try {
+            const r = await fetch(`/api/news-risk/?currencies=${cur}&hours=24`, XHR);
+            d = (r.headers.get('content-type') || '').includes('json') ? await r.json() : { success: false, missing: r.status === 404 };
+        } catch (e) { d = { success: false }; }
+        newsCache[cur] = { t: Date.now(), d };
+        return d;
+    }
+    async function loadPositions() {
+        if (Date.now() - posCache.t < 30000) return posCache.list;
+        try { const d = await (await fetch('/api/open-positions/', XHR)).json(); posCache = { t: Date.now(), list: d.success ? d.positions || [] : [] }; } catch (e) {}
+        return posCache.list;
+    }
+    function sessionCheck(sym, kind) {
+        const now = new Date(), h = now.getUTCHours() + now.getUTCMinutes() / 60, wd = now.getUTCDay();
+        if (kind === 'crypto') {
+            const busy = h >= 12 && h < 21;
+            return chk(busy ? 'pass' : 'info', 'Session', busy ? 'Crypto trades 24/7, and the US session is open: the busiest hours.' : 'Crypto trades 24/7. Volume is lower outside US hours (12:00–21:00 UTC).');
+        }
+        if (wd === 6 || (wd === 0 && h < 22) || (wd === 5 && h >= 21)) return chk('fail', 'Market hours', 'Closed for the weekend. Nothing fills until Sunday 22:00 UTC, and Monday can open with a gap.');
+        const open = n => ({ Sydney: h >= 21 || h < 6, Tokyo: h < 9, London: h >= 7 && h < 16, 'New York': h >= 12 && h < 21 })[n];
+        const names = ['Sydney', 'Tokyo', 'London', 'New York'].filter(open);
+        if (open('London') && open('New York')) return chk('pass', 'Session', 'London–New York overlap: the most liquid hours of the day.');
+        if (open('London') || open('New York')) return chk('pass', 'Session', `${names.join(' + ')} open: good liquidity.`);
+        if (names.length && /JPY|AUD|NZD/.test(sym)) return chk('pass', 'Session', `${names.join(' + ')} open: active hours for this pair.`);
+        if (names.length) return chk('warn', 'Session', `Only ${names.join(' + ')} open: thin liquidity for ${sym}. Breaks often fail until London opens (07:00 UTC).`);
+        return chk('warn', 'Session', 'Between sessions: thin liquidity and wider spreads.');
+    }
+    async function renderLive() {
+        if (!detail) return;
+        const sym = detail.symbol, c = detail.coach, items = [sessionCheck(sym, detail.kind)];
+        const q = PX.quotes[sym], atr = c && c.atr;
+        if (q && atr) {
+            const sp = q.ask - q.bid, pct = sp / atr * 100;
+            items.push(chk(pct < 10 ? 'pass' : pct < 25 ? 'warn' : 'fail', 'Spread', `${PX.fmt(sym, sp)}, ${pct.toFixed(0)}% of the ${c.tf.toUpperCase()} ATR. `
+                + (pct < 10 ? 'Cheap to trade.' : pct < 25 ? 'A real cost: keep the stop well outside it.' : 'Too expensive right now. Wait for it to tighten.')));
+        } else items.push(chk('info', 'Spread', 'Waiting for a live bid/ask.'));
+        if (c) {
+            const sec = TF_SEC[c.tf] || 3600, left = sec - Math.floor(Date.now() / 1000) % sec;
+            items.push(chk('info', `${c.tf.toUpperCase()} candle close`, `In ${fmtDur(left)}. The coach only trusts closed candles. `
+                + (c.state === 'IN_ZONE' ? 'Confirmation can come at this close.' : 'It re-reads the chart after every close.')));
+        }
+        $('co-live').innerHTML = items.join('') + `<div id="co-live-async">${liveAsync || '<div class="px-skel h-10 mt-2"></div>'}</div>`;
+        $('co-live-at').textContent = new Date().toISOString().slice(11, 16) + ' UTC';
+        const [news, pos] = await Promise.all([loadNews(sym, detail.kind), loadPositions()]);
+        if (!detail || detail.symbol !== sym || !$('co-live-async')) return;
+        const more = [], cur = currenciesOf(sym, detail.kind).join('/');
+        if (!news || !news.success) {
+            more.push(chk('info', 'News', news && news.missing ? 'The news check is not installed on the server yet (/api/news-risk/). Check the economic calendar yourself.' : 'Economic calendar unreachable. Check it yourself before trading.'));
+        } else {
+            const hi = news.events.filter(e => e.impact === 'high');
+            const label = e => `${e.currency} ${escapeHtml(e.event)}`;
+            const soon = hi.find(e => e.minutes >= -15 && e.minutes <= 30);
+            const near = hi.find(e => e.minutes > 30 && e.minutes <= 120);
+            const next = hi.find(e => e.minutes > 0);
+            if (soon) more.push(chk('fail', 'High-impact news', `${label(soon)} ${soon.minutes >= 0 ? 'in ' + fmtDur(soon.minutes * 60) : 'released ' + fmtDur(-soon.minutes * 60) + ' ago'}. Spreads widen and price spikes both ways: no new entries until 15 minutes after.`));
+            else if (near) more.push(chk('warn', 'High-impact news', `${label(near)} in ${fmtDur(near.minutes * 60)}. Only enter if you can close or move the stop to break-even before it.`));
+            else more.push(chk('pass', 'News', `No high-impact ${cur} news in the next 2 hours${next ? `. Next: ${label(next)} in ${fmtDur(next.minutes * 60)}` : ''}.`));
+        }
+        const mine = (pos || []).filter(p => p.symbol === sym);
+        if (mine.length) {
+            const against = c && c.side && mine.some(p => p.direction !== c.side);
+            more.push(chk('warn', 'Your exposure', `You already hold ${mine.map(p => `${String(p.direction).toLowerCase()} ${Number(p.volume).toFixed(2)}`).join(', ')} on ${sym}. `
+                + (against ? 'That is against the coach’s side: decide which idea you trust.' : 'Adding raises the risk on one idea.')));
+        } else more.push(chk('pass', 'Your exposure', `No open ${sym} positions.`));
+        liveAsync = more.join('');
+        $('co-live-async').innerHTML = liveAsync;
+    }
+    setInterval(() => { if (detail && !document.hidden) renderLive(); }, 30000);
+    $('d-coachview').addEventListener('click', () => {
+        coachView = !coachView;
+        try { localStorage.setItem('coach-view', coachView ? 'on' : 'off'); } catch (e) {}
+        drawChart();
+    });
+    ensureWatchTimer();
+
+    // ── order ticket ─────────────────────────────────
+    let equity = null, riskPct = 1, om = null;
+    async function loadEquity() {
+        try { const d = await (await fetch('/api/mt5/metrics/', XHR)).json(); if (d.success) equity = d.equity; } catch (e) {}
+    }
+    // spec: {side, sl, tp, pending?: {type: 'limit'|'stop', price}}; no spec = the scanner's own plan
+    function openOrder(spec) {
+        if (!detail) return;
+        if (!spec || !spec.side) spec = detail.plan ? { side: detail.signal, sl: detail.plan.sl, tp: detail.plan.tp1 } : null;
+        if (!spec) return;
+        const base = detail.plan || detail.watch || {};
+        const perUnit = base.risk_per_lot_usd && base.entry !== base.sl ? base.risk_per_lot_usd / Math.abs(base.entry - base.sl) : null;
+        om = { symbol: detail.symbol, side: spec.side, perUnit, mpl: base.margin_per_lot_usd, min: base.volume_min || 0.01, pending: spec.pending || null };
+        const pend = om.pending;
+        $('om-title').textContent = pend ? `Place ${spec.side.toLowerCase()} ${pend.type}` : 'Place order';
+        $('om-sub').textContent = pend ? `Pending order: fills only if price reaches ${PX.fmt(om.symbol, pend.price)}` : 'Market execution with stop loss and take profit';
+        $('om-pprice-row').classList.toggle('hidden', !pend);
+        if (pend) { $('om-pprice').value = pend.price; $('om-pprice').step = Math.pow(10, -PX.digits(om.symbol)); $('om-pprice-lbl').textContent = `${spec.side === 'BUY' ? 'Buy' : 'Sell'} ${pend.type} price`; }
+        $('om-confirm').querySelector('span').textContent = pend ? 'Place order' : 'Confirm order';
+        $('om-sym').textContent = om.symbol;
+        $('om-sig').className = 'sig ' + om.side; $('om-sig').textContent = om.side;
+        $('om-sl').value = spec.sl; $('om-tp').value = spec.tp;
+        $('om-sl').step = $('om-tp').step = Math.pow(10, -PX.digits(om.symbol));
+        $('om-warn').classList.add('hidden');
+        $('order-modal').classList.remove('hidden');
+        loadEquity().then(() => { $('om-equity').textContent = PX.money(equity); suggestLots(); });
+        orderPrice();
+    }
+    window.closeOrder = () => $('order-modal').classList.add('hidden');
+    function currentPrice() {
+        if (om.pending) return parseFloat($('om-pprice').value) || om.pending.price;
+        const q = PX.quotes[om.symbol];
+        return q ? (om.side === 'BUY' ? q.ask : q.bid) : om.entry;
+    }
+    function riskPerLot() {
+        const sl = parseFloat($('om-sl').value);
+        if (!om.perUnit || !sl) return null;
+        return om.perUnit * Math.abs(currentPrice() - sl);
+    }
+    function suggestLots() {
+        const rpl = riskPerLot();
+        if (!rpl || !equity) return;
+        const lots = Math.max(om.min, Math.floor(equity * riskPct / 100 / rpl * 100) / 100);
+        $('om-lots').value = lots.toFixed(2);
+        preview();
+    }
+    window.stepLots = dir => { $('om-lots').value = Math.max(om.min, (parseFloat($('om-lots').value) || 0) + dir * 0.01).toFixed(2); preview(); };
+    function orderPrice() { if (om) $('om-price').textContent = PX.fmt(om.symbol, currentPrice()); }
+    function preview() {
+        if (!om) return;
+        const lots = parseFloat($('om-lots').value) || 0, sl = parseFloat($('om-sl').value), tp = parseFloat($('om-tp').value), px = currentPrice();
+        const rpl = riskPerLot();
+        const loss = rpl ? rpl * lots : null;
+        const profit = rpl && tp ? rpl / Math.abs(px - sl) * Math.abs(tp - px) * lots : null;
+        $('om-margin').textContent = om.mpl ? PX.money(om.mpl * lots) : '—';
+        $('om-loss').textContent = loss != null ? '-' + PX.money(loss) : '—';
+        $('om-profit').textContent = profit != null ? '+' + PX.money(profit) : '—';
+        $('om-rr').textContent = sl && tp ? (Math.abs(tp - px) / Math.abs(px - sl)).toFixed(2) : '—';
+        const warn = $('om-warn'), msgs = [];
+        if (om.side === 'BUY' && (sl >= px || tp <= px)) msgs.push('For a buy, the stop loss must be below the price and the take profit above it.');
+        if (om.side === 'SELL' && (sl <= px || tp >= px)) msgs.push('For a sell, the stop loss must be above the price and the take profit below it.');
+        if (equity && loss && loss / equity > 0.05) msgs.push(`This risks ${(loss / equity * 100).toFixed(1)}% of your equity.`);
+        warn.textContent = msgs.join(' ');
+        warn.classList.toggle('hidden', !msgs.length);
+    }
+    $('om-risk').addEventListener('click', e => {
+        const b = e.target.closest('.risk-btn'); if (!b) return;
+        riskPct = +b.dataset.r;
+        $('om-risk').querySelectorAll('.risk-btn').forEach(x => x.classList.toggle('on', x === b));
+        suggestLots();
+    });
+    ['om-lots', 'om-sl', 'om-tp', 'om-pprice'].forEach(id => $(id).addEventListener('input', preview));
+    $('om-pprice').addEventListener('change', () => { orderPrice(); suggestLots(); });
+    $('om-sl').addEventListener('change', suggestLots);
+    $('om-confirm').addEventListener('click', async () => {
+        const btn = $('om-confirm');
+        btn.disabled = true; btn.querySelector('span').textContent = 'Sending…';
+        try {
+            const lots = parseFloat($('om-lots').value), sl = parseFloat($('om-sl').value), tp = parseFloat($('om-tp').value);
+            const pend = om.pending;
+            const r = await fetch(pend ? '/trade/pending/place/' : '/trade/execute/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF, 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify(pend
+                    ? { symbol: om.symbol, order_type: `${om.side}_${pend.type.toUpperCase()}`, volume: lots, price: currentPrice(), sl, tp }
+                    : { symbol: om.symbol, contract_type: om.side, volume: lots, sl, tp }),
+            });
+            const d = await r.json();
+            if (!d.success) throw new Error(d.error || d.message || 'Order rejected');
+            closeOrder();
+            posCache.t = 0;
+            if (pend) showMarketToast(`${om.side.toLowerCase()} ${pend.type} ${lots.toFixed(2)} ${om.symbol} at ${PX.fmt(om.symbol, currentPrice())} placed${d.order ? ' · ' + d.order.ticket : ''}`, 'success');
+            else showMarketToast(`${d.order_type} ${d.volume} ${d.symbol} opened at ${PX.fmt(d.symbol, d.entry)} · ticket ${d.ticket_id}`, 'success');
+        } catch (e) {
+            const w = $('om-warn'); w.textContent = e.message; w.classList.remove('hidden');
+        }
+        btn.disabled = false; btn.querySelector('span').textContent = om && om.pending ? 'Place order' : 'Confirm order';
+    });
+    $('order-modal').addEventListener('click', e => { if (e.target.id === 'order-modal') closeOrder(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (!$('order-modal').classList.contains('hidden')) closeOrder(); else closeDetail(); } });
+    $('d-trade').addEventListener('click', () => openOrder());
+    $('d-refresh').addEventListener('click', () => selected && loadDetail(selected));
+
+    // ── controls ─────────────────────────────────────
+    $('ai-scan').addEventListener('click', scan);
+    $('ai-style').addEventListener('click', e => {
+        const b = e.target.closest('button[data-style]'); if (!b || b.dataset.style === style) return;
+        style = b.dataset.style;
+        try { localStorage.setItem('ai-style', style); } catch (er) {}
+        $('ai-style').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+        chartTf = null; scan();
+    });
+    $('ai-kind').addEventListener('click', e => {
+        const b = e.target.closest('button[data-k]'); if (!b) return;
+        kind = b.dataset.k;
+        $('ai-kind').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+        renderList();
+    });
+    ['ai-search', 'ai-show', 'ai-min'].forEach(id => $(id).addEventListener(id === 'ai-search' ? 'input' : 'change', renderList));
+    $('ai-auto').addEventListener('click', () => {
+        const on = !autoTimer;
+        if (on) autoTimer = setInterval(() => { if (!document.hidden) scan(); }, 5 * 60 * 1000);
+        else { clearInterval(autoTimer); autoTimer = null; }
+        $('ai-auto').querySelector('span').textContent = on ? 'Auto: 5 min' : 'Auto: off';
+        $('ai-auto').classList.toggle('px-btn-primary', on); $('ai-auto').classList.toggle('px-btn-ghost', !on);
+    });
+
+    // live prices from the shared feed
+    window.addEventListener('px:quotes', () => {
+        document.querySelectorAll('#ai-list [data-live]').forEach(el => { const q = PX.quotes[el.dataset.live]; if (q) el.textContent = PX.fmt(el.dataset.live, q.bid); });
+        livePrice();
+        updateGauge();
+        if (om && !$('order-modal').classList.contains('hidden')) { orderPrice(); preview(); }
+    });
+
+    window.pxAiRenderList = renderList;
+    scan();
+})();
+</script>
+<script>
+// ═══ AI confluence: every scanner + the model, background worker status, alerts, strong-signal log ═══
+(function () {
+    const $ = id => document.getElementById(id);
+    const XHR = { headers: { 'X-Requested-With': 'XMLHttpRequest' } };
+    const CSRF = '{{ csrf_token }}';
+    const PX = window.PX;
+    let style = 'intraday', bySym = {}, meta = [], loading = null;
+    window.pxGrades = {};
+
+    const gradeBadge = g => g ? `<span class="grade ${g === 'A+' ? 'g-Ap' : 'g-' + g}" title="Confluence grade">${g}</span>` : '';
+    const ago = iso => { const s = Math.max(0, (Date.now() - new Date(iso)) / 1000); return s < 60 ? `${Math.round(s)}s ago` : s < 3600 ? `${Math.round(s / 60)} min ago` : `${Math.round(s / 3600)} h ago`; };
+
+    async function load(st, sym) {
+        style = st || style;
+        const url = `/api/signals/confluence/?style=${style}` + (sym ? `&symbol=${sym}` : '');
+        const d = await (await fetch(url, XHR)).json();
+        if (!d.success) throw new Error(d.error || 'failed');
+        meta = d.scanners;
+        d.results.forEach(r => { bySym[r.symbol] = r; window.pxGrades[r.symbol] = r.grade; });
+        worker(d.worker, d.updated_at);
+        return d;
+    }
+
+    function worker(w, updated) {
+        const el = $('cf-worker');
+        if (!el) return;
+        el.innerHTML = w && w.running
+            ? `<span class="cf-dot live shrink-0"></span><span>Background scanner live — checked every market ${ago(w.last_run)}. Strong setups are sent to your notifications.</span>`
+            : `<span class="cf-dot shrink-0" style="background:var(--px-accent)"></span><span>Background scanner not running — results below are from this page (${updated ? ago(updated) : 'now'}). Start it on the server with <code class="px-num whitespace-nowrap">python manage.py signal_scanner</code>.</span>`;
+    }
+
+    function decorate() {
+        document.querySelectorAll('#ai-list [data-grade]').forEach(el => { el.innerHTML = gradeBadge(window.pxGrades[el.dataset.grade]); });
+    }
+
+    function chip(x, dirSign, agree) {
+        const m = meta.find(k => k.key === x.key) || { icon: 'fa-circle', label: x.label };
+        let cls = 'cf-chip', st;
+        if (x.vote == null && x.gate != null) {
+            cls += ' gate' + (x.gate === 0 ? ' down' : '');
+            st = x.gate === 0 ? 'Closed' : x.gate >= 1 ? 'Good' : `×${x.gate}`;
+        } else if (x.vote == null) {
+            cls += ' nodata'; st = 'No data';
+        } else if (x.vote >= 0.25) { cls += ' up'; st = 'Bullish'; }
+        else if (x.vote <= -0.25) { cls += ' down'; st = 'Bearish'; }
+        else st = 'Neutral';
+        if (x.vote != null && x.gate != null) st += x.gate < 1 ? ` · ×${x.gate}` : '';
+        if (agree) cls += ' agree';
+        return `<div class="${cls}" title="${escapeHtml(x.text)}"><div class="h"><i class="fa-solid ${m.icon} ic"></i><span class="truncate">${escapeHtml(m.label)}</span><span class="st">${st}</span></div><p>${escapeHtml(x.text)}</p></div>`;
+    }
+
+    function renderBox(sym) {
+        const r = bySym[sym];
+        if (!$('cf-box')) return;
+        if (!r) {
+            $('cf-grid').innerHTML = '<p class="text-[12px] px-muted col-span-full">No confluence reading for this market yet.</p>';
+            $('cf-summary').textContent = ''; $('cf-grade-badge').innerHTML = ''; $('cf-note').textContent = '';
+            return;
+        }
+        const sign = r.direction === 'BUY' ? 1 : -1;
+        $('cf-grade-badge').innerHTML = gradeBadge(r.grade) || '<span class="grade g-B" style="opacity:.6">—</span>';
+        $('cf-summary').innerHTML = `<b class="${r.direction === 'BUY' ? 'px-up' : 'px-down'}">${r.direction}</b> · ${r.agree.length}/${r.voting} agree · ${r.oppose.length} against`;
+        const c = Math.max(-100, Math.min(100, r.confluence));
+        const fill = $('cf-bar-fill');
+        fill.style.left = c >= 0 ? '50%' : `${50 + c / 2}%`;
+        fill.style.width = `${Math.abs(c) / 2}%`;
+        fill.style.background = c >= 0 ? 'var(--px-up)' : 'var(--px-down)';
+        $('cf-score').textContent = `${c > 0 ? '+' : ''}${Math.round(c)} · quality ${Math.round(r.quality)}`;
+        $('cf-grid').innerHTML = r.scanners.map(x => chip(x, sign, r.agree.includes(x.key))).join('');
+        const bits = [];
+        if (r.strong && r.recorded) bits.push(`Strong ${r.grade} setup — recorded by the background scanner and sent to everyone with alerts on.`);
+        else if (r.strong) bits.push(`Strong ${r.grade} setup — alerts go out when the background scanner records it on its next pass.`);
+        else if (r.conflict) bits.push(`The scanners lean ${r.direction}, but the chart scanner's main signal is ${r.base_signal} — conflicting, so no grade and no alert.`);
+        else if (r.grade === 'B') bits.push('Grade B: a decent lean, but not enough agreement to alert on.');
+        else bits.push('Not enough agreement between the scanners for a graded setup.');
+        if (r.gate < 1) bits.push(`Quality reduced ×${r.gate} by the session / volatility check.`);
+        bits.push(`Read on the last closed ${r.main_tf.toUpperCase()} candle.`);
+        $('cf-note').textContent = bits.join(' ');
+    }
+
+    async function refreshAll(st) {
+        if (loading) return loading;
+        loading = load(st).then(() => { decorate(); if (window.pxAiRenderList && $('ai-show').value === 'strong') window.pxAiRenderList(); })
+            .catch(() => { const el = $('cf-worker'); if (el) el.textContent = 'Could not load the scanner confluence.'; })
+            .finally(() => { loading = null; });
+        return loading;
+    }
+
+    window.addEventListener('px:ai-scan', e => { bySym = {}; window.pxGrades = {}; refreshAll(e.detail.style).then(() => { history(); }); });
+    window.addEventListener('px:ai-list', decorate);
+    window.addEventListener('px:ai-detail', async e => {
+        const { symbol, style: st } = e.detail;
+        if (!bySym[symbol] || st !== style) { $('cf-grid').innerHTML = '<div class="px-skel h-14"></div><div class="px-skel h-14"></div><div class="px-skel h-14"></div>'; }
+        try {
+            if (loading) await loading;
+            if (!bySym[symbol] || st !== style) await load(st, symbol);
+        } catch (er) {}
+        renderBox(symbol);
+        decorate();
+    });
+
+    // ── strong-signal history ──
+    async function history() {
+        try {
+            const d = await (await fetch('/api/signals/history/', XHR)).json();
+            if (!d.success) return;
+            const s = d.stats;
+            $('cf-stats').innerHTML = `<span class="px-dim">Last ${s.days} days</span>
+                <span><span class="px-muted">Signals</span> <b class="px-num px-strong">${s.signals}</b></span>
+                <span><span class="px-muted">Open</span> <b class="px-num px-strong">${s.open}</b></span>
+                <span><span class="px-muted">Target first</span> <b class="px-num px-strong">${s.hit_rate == null ? '—' : Math.round(s.hit_rate * 100) + '%'}</b></span>
+                <span><span class="px-muted">Avg result</span> <b class="px-num ${s.avg_r > 0 ? 'px-up' : s.avg_r < 0 ? 'px-down' : 'px-strong'}">${s.avg_r == null ? '—' : (s.avg_r > 0 ? '+' : '') + s.avg_r + 'R'}</b></span>`;
+            if (!d.signals.length) {
+                $('cf-hist').innerHTML = `<div class="px-empty"><i class="fa-solid fa-satellite-dish"></i>No strong setups recorded yet. ${d.worker.running ? 'The background scanner is watching every market.' : 'Start the background scanner to record and alert on them.'}</div>`;
+                return;
+            }
+            $('cf-hist').innerHTML = `<div class="overflow-x-auto"><table class="w-full text-[12px]"><thead><tr class="px-muted text-left text-[11px]">
+                <th class="px-4 py-2 font-medium">Time</th><th class="px-2 py-2 font-medium">Market</th><th class="px-2 py-2 font-medium">Setup</th>
+                <th class="px-2 py-2 font-medium text-right">Entry</th><th class="px-2 py-2 font-medium text-right">Stop</th><th class="px-2 py-2 font-medium text-right">Target</th>
+                <th class="px-2 py-2 font-medium text-right">Agree</th><th class="px-4 py-2 font-medium text-right">Result</th></tr></thead><tbody>` +
+                d.signals.slice(0, 12).map(x => `<tr class="cursor-pointer" style="border-top:1px solid var(--px-line-soft)" data-sym="${x.symbol}" data-style="${x.style}">
+                    <td class="px-4 py-2 px-num px-dim whitespace-nowrap">${new Date(x.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+                    <td class="px-2 py-2 font-semibold px-strong">${x.symbol} <span class="px-muted font-normal">${x.timeframe.toUpperCase()}</span></td>
+                    <td class="px-2 py-2 whitespace-nowrap"><span class="sig ${x.direction}" style="height:20px">${x.direction}</span> ${gradeBadge(x.grade)}</td>
+                    <td class="px-2 py-2 text-right px-num px-strong">${PX.fmt(x.symbol, x.entry)}</td>
+                    <td class="px-2 py-2 text-right px-num px-down">${PX.fmt(x.symbol, x.sl)}</td>
+                    <td class="px-2 py-2 text-right px-num px-up">${PX.fmt(x.symbol, x.tp)}</td>
+                    <td class="px-2 py-2 text-right px-num px-dim">${x.agree}</td>
+                    <td class="px-4 py-2 text-right whitespace-nowrap"><span class="oc ${x.outcome}">${x.outcome === 'TP' ? 'Target' : x.outcome === 'SL' ? 'Stopped' : x.outcome === 'OPEN' ? 'Live' : 'Expired'}</span>${x.result_r != null ? ` <span class="px-num ${x.result_r > 0 ? 'px-up' : 'px-down'}">${x.result_r > 0 ? '+' : ''}${x.result_r}R</span>` : ''}</td>
+                </tr>`).join('') + '</tbody></table></div>';
+            $('cf-hist').querySelectorAll('tr[data-sym]').forEach(tr => tr.addEventListener('click', () => {
+                location.href = `/market-overview/?symbol=${tr.dataset.sym}&style=${tr.dataset.style}`;
+            }));
+        } catch (e) {}
+    }
+    setInterval(() => { if (!document.hidden) { history(); refreshAll(); } }, 60000);
+
+    // ── alerts ──
+    const pop = $('cf-pop'), btn = $('cf-alerts');
+    function paintBtn(a) {
+        btn.querySelector('span').textContent = a.enabled ? `Alerts: ${a.min_grade === 'A+' ? 'A+' : 'A, A+'}` : 'Alerts: off';
+        btn.querySelector('i').className = (a.enabled ? 'fa-solid' : 'fa-regular') + ' fa-bell text-[11px]';
+        btn.classList.toggle('px-btn-primary', a.enabled); btn.classList.toggle('px-btn-ghost', !a.enabled);
+        $('cf-on').checked = a.enabled; $('cf-style').value = a.style; $('cf-grade').value = a.min_grade;
+    }
+    async function loadAlerts() {
+        try { const d = await (await fetch('/api/signals/alerts/', XHR)).json(); if (d.success) paintBtn(d.alerts); } catch (e) {}
+    }
+    btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const open = pop.classList.toggle('hidden') === false;
+        btn.setAttribute('aria-expanded', open);
+        if (open && !$('cf-on').checked) { $('cf-on').checked = true; $('cf-style').value = style; }
+    });
+    document.addEventListener('click', e => { if (!pop.classList.contains('hidden') && !pop.contains(e.target) && e.target !== btn) pop.classList.add('hidden'); });
+    $('cf-save').addEventListener('click', async () => {
+        const body = { enabled: $('cf-on').checked, style: $('cf-style').value, min_grade: $('cf-grade').value };
+        try {
+            const d = await (await fetch('/api/signals/alerts/', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF, 'X-Requested-With': 'XMLHttpRequest' }, body: JSON.stringify(body) })).json();
+            if (!d.success) throw 0;
+            paintBtn(d.alerts);
+            pop.classList.add('hidden');
+            if (d.alerts.enabled && 'Notification' in window && Notification.permission === 'default') { try { Notification.requestPermission(); } catch (e) {} }
+            (window.showMarketToast || alert)(d.alerts.enabled ? `Alerts on: ${d.alerts.style} setups, grade ${d.alerts.min_grade === 'A+' ? 'A+' : 'A and up'}.` : 'Signal alerts turned off.', 'success');
+        } catch (e) {
+            $('cf-pop-note').textContent = 'Could not save. Try again.';
+        }
+    });
+    loadAlerts();
+})();
+</script>
+{% endblock %}

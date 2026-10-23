@@ -1,0 +1,372 @@
+{% extends 'base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Funded Account Payout - PATREOAIX{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto space-y-6 pb-6">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl sm:text-3xl font-black text-white flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                    <i class="fa-solid fa-hand-holding-dollar"></i>
+                </span>
+                Funded Account Payout
+            </h1>
+            <p class="text-xs text-slate-400 mt-2">Withdraw a percentage of your funded balance to your exchange account (monthly).</p>
+        </div>
+        <a href="{% url 'payout_history' %}" class="text-xs font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+            <i class="fa-solid fa-clock-rotate-left"></i> View Payout History
+        </a>
+    </div>
+
+    {% if messages %}
+    <div class="space-y-2">
+        {% for message in messages %}
+        <div class="p-3 rounded-lg text-xs font-semibold {% if message.tags == 'error' %}bg-rose-950/80 text-rose-400 border border-rose-500/30{% else %}bg-emerald-950/80 text-emerald-400 border border-emerald-500/30{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Balance Summary -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="bg-gradient-to-br from-emerald-950/60 to-slate-900/80 border border-emerald-500/30 rounded-2xl p-5">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
+                <span class="text-[10px] uppercase tracking-widest text-emerald-400 font-bold">Funded Balance</span>
+            </div>
+            <h2 class="text-2xl font-black text-white font-mono">${{ funded_account.balance|floatformat:2 }}</h2>
+            <p class="text-[10px] text-slate-500 mt-1">Initial: ${{ funded_account.initial_balance|floatformat:2 }}</p>
+        </div>
+
+        <div class="bg-slate-900/80 border border-indigo-500/20 rounded-2xl p-5">
+            <div class="flex items-center gap-2 mb-2">
+                <i class="fa-solid fa-wallet text-indigo-400 text-xs"></i>
+                <span class="text-[10px] uppercase tracking-widest text-indigo-400 font-bold">Exchange Balance</span>
+            </div>
+            <h2 class="text-2xl font-black text-white font-mono">${{ exchange_balance|floatformat:2 }}</h2>
+            <p class="text-[10px] text-slate-500 mt-1">Payouts land here</p>
+        </div>
+
+        <div class="bg-slate-900/80 border border-amber-500/20 rounded-2xl p-5">
+            <div class="flex items-center gap-2 mb-2">
+                <i class="fa-solid fa-crown text-amber-400 text-xs"></i>
+                <span class="text-[10px] uppercase tracking-widest text-amber-400 font-bold">Your Tier</span>
+            </div>
+            <h2 class="text-2xl font-black text-white uppercase">{{ tier }}</h2>
+            <p class="text-[10px] text-slate-500 mt-1">{{ payout_percentage }}% monthly payout limit</p>
+        </div>
+    </div>
+
+    <!-- Eligibility Check -->
+    {% if not has_active_subscription %}
+    <!-- Locked State -->
+    <div class="bg-gradient-to-br from-slate-950 to-slate-900 border border-slate-800 rounded-2xl p-8 text-center space-y-4">
+        <div class="w-16 h-16 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-2xl flex items-center justify-center mx-auto text-xl">
+            <i class="fa-solid fa-lock"></i>
+        </div>
+        <div class="max-w-md mx-auto space-y-2">
+            <h3 class="text-base font-bold text-white">Pro & VIP Exclusive Feature</h3>
+            <p class="text-xs text-slate-400 leading-relaxed">
+                Funded account payouts are only available for active Pro and VIP members. Upgrade your plan to unlock monthly payouts from your funded trading account.
+            </p>
+        </div>
+        <a href="{% url 'subscription_billing' %}" 
+           class="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 active:scale-[0.98] text-slate-950 font-bold px-6 py-3 rounded-xl transition text-xs shadow-lg shadow-amber-500/20">
+            <i class="fa-solid fa-crown text-[10px]"></i>
+            Upgrade to Pro / VIP
+        </a>
+    </div>
+
+    {% elif existing_this_month %}
+    <!-- Already Requested This Month -->
+    <div class="bg-slate-900/80 border border-amber-500/30 rounded-2xl p-6">
+        <div class="flex items-start gap-4">
+            <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+                <i class="fa-solid fa-hourglass-half"></i>
+            </div>
+            <div class="flex-1">
+                <h3 class="text-sm font-bold text-white mb-1">Payout Already Requested for {{ current_month }}</h3>
+                <p class="text-xs text-slate-400 mb-3">
+                    You've already submitted a payout request for this month. Your next payout will be available on the 1st of next month.
+                </p>
+                <div class="bg-slate-950/60 rounded-xl p-3 border border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                    <div>
+                        <span class="text-slate-500 block text-[10px] uppercase">Amount</span>
+                        <span class="font-bold text-white font-mono">${{ existing_this_month.requested_amount|floatformat:2 }}</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 block text-[10px] uppercase">Percentage</span>
+                        <span class="font-bold text-amber-400 font-mono">{{ existing_this_month.payout_percentage|floatformat:1 }}%</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 block text-[10px] uppercase">Status</span>
+                        <span class="font-bold {% if existing_this_month.status == 'COMPLETED' %}text-emerald-400{% elif existing_this_month.status == 'REJECTED' %}text-rose-400{% else %}text-amber-400{% endif %}">
+                            {{ existing_this_month.status }}
+                        </span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 block text-[10px] uppercase">Requested</span>
+                        <span class="font-bold text-white font-mono">{{ existing_this_month.created_at|date:"M d, Y" }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% elif can_request %}
+    <!-- Payout Request Form -->
+    <div class="bg-slate-900/80 border border-emerald-500/30 rounded-2xl p-6 space-y-5">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                <i class="fa-solid fa-money-bill-transfer"></i>
+            </div>
+            <div>
+                <h3 class="text-sm font-bold text-white">Request Payout for {{ current_month }}</h3>
+                <p class="text-[11px] text-slate-400">Available once per month</p>
+            </div>
+        </div>
+
+        <!-- Limits Info -->
+        <div class="grid grid-cols-2 gap-3 text-xs">
+            <div class="bg-slate-950/60 rounded-xl p-3 border border-slate-800">
+                <span class="text-slate-500 block text-[10px] uppercase">Max Payout ({{ tier }})</span>
+                <span class="font-bold text-emerald-400 font-mono text-base">${{ max_amount|floatformat:2 }}</span>
+                <span class="text-[10px] text-slate-500 block">{{ payout_percentage }}% of funded balance</span>
+            </div>
+            <div class="bg-slate-950/60 rounded-xl p-3 border border-slate-800">
+                <span class="text-slate-500 block text-[10px] uppercase">Min Payout</span>
+                <span class="font-bold text-white font-mono text-base">$10.00</span>
+                <span class="text-[10px] text-slate-500 block">Minimum withdrawal</span>
+            </div>
+        </div>
+
+        <!-- Amount Input -->
+        <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                Payout Amount (USD)
+            </label>
+            <div class="relative">
+                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">$</span>
+                <input type="number" 
+                       id="payoutAmount" 
+                       min="10" 
+                       max="{{ max_amount }}" 
+                       step="0.01" 
+                       placeholder="0.00"
+                       class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-4 py-3.5 font-mono font-bold text-white text-sm focus:outline-none focus:border-emerald-500 transition">
+            </div>
+            <div class="flex justify-between mt-2 text-[10px]">
+                <span class="text-slate-500">Minimum: $10.00</span>
+                <button type="button" onclick="setMaxAmount()" class="text-emerald-400 hover:text-emerald-300 font-bold">
+                    Use Max (${{ max_amount|floatformat:2 }})
+                </button>
+            </div>
+        </div>
+
+        <!-- Percentage Display -->
+        <div id="percentageDisplay" class="hidden bg-slate-950/60 rounded-xl p-3 border border-slate-800 flex items-center justify-between text-xs">
+            <span class="text-slate-400">Percentage of funded balance:</span>
+            <span id="percentageValue" class="font-bold text-emerald-400 font-mono">0.00%</span>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="button" 
+                id="submitPayoutBtn"
+                onclick="submitPayoutRequest()"
+                class="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 active:scale-[0.98] text-white font-bold py-3.5 rounded-xl transition text-sm shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2">
+            <i class="fa-solid fa-paper-plane text-xs"></i>
+            Request Payout
+        </button>
+
+        <!-- Status Message -->
+        <div id="payoutStatusMessage" class="hidden text-center text-xs font-bold"></div>
+
+        <!-- Info Note -->
+        <div class="flex items-start gap-2 bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-3">
+            <i class="fa-solid fa-circle-info text-indigo-400 text-xs mt-0.5"></i>
+            <p class="text-[10px] text-slate-400 leading-relaxed">
+                Payout requests are reviewed by our team within 24 hours. Once approved, funds will be credited to your <strong class="text-white">Exchange Account</strong>. You can request one payout per calendar month.
+            </p>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Ineligible (other reasons) -->
+    <div class="bg-slate-900/80 border border-rose-500/30 rounded-2xl p-6 text-center">
+        <div class="w-14 h-14 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-2xl flex items-center justify-center mx-auto text-lg mb-3">
+            <i class="fa-solid fa-circle-exclamation"></i>
+        </div>
+        <h3 class="text-sm font-bold text-white mb-2">Payout Not Available</h3>
+        <p class="text-xs text-slate-400 max-w-md mx-auto">{{ reason }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Payout History Preview -->
+    {% if payout_history %}
+    <div class="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-clock-rotate-left text-indigo-400 text-xs"></i>
+                Recent Payouts
+            </h3>
+            <a href="{% url 'payout_history' %}" class="text-[10px] font-bold text-indigo-400 hover:text-indigo-300">View All →</a>
+        </div>
+        <div class="divide-y divide-slate-800/60">
+            {% for payout in payout_history|slice:":5" %}
+            <div class="px-5 py-3 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-8 h-8 rounded-lg 
+                        {% if payout.status == 'COMPLETED' %}bg-emerald-500/10 text-emerald-400 border border-emerald-500/20
+                        {% elif payout.status == 'REJECTED' %}bg-rose-500/10 text-rose-400 border border-rose-500/20
+                        {% else %}bg-amber-500/10 text-amber-400 border border-amber-500/20{% endif %}
+                        flex items-center justify-center shrink-0">
+                        <i class="fa-solid 
+                            {% if payout.status == 'COMPLETED' %}fa-check
+                            {% elif payout.status == 'REJECTED' %}fa-xmark
+                            {% else %}fa-hourglass-half{% endif %} text-[10px]"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="text-xs font-bold text-white truncate">{{ payout.payout_month|date:"F Y" }}</p>
+                        <p class="text-[10px] text-slate-500">{{ payout.created_at|date:"M d, Y H:i" }}</p>
+                    </div>
+                </div>
+                <div class="text-right shrink-0">
+                    <p class="text-xs font-bold font-mono text-white">${{ payout.requested_amount|floatformat:2 }}</p>
+                    <p class="text-[10px] font-bold 
+                        {% if payout.status == 'COMPLETED' %}text-emerald-400
+                        {% elif payout.status == 'REJECTED' %}text-rose-400
+                        {% else %}text-amber-400{% endif %}">
+                        {{ payout.status }}
+                    </p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    .pulse-dot {
+        animation: pulseDot 2s ease-in-out infinite;
+    }
+    @keyframes pulseDot {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(0.9); }
+    }
+</style>
+
+<script>
+const FUNDED_BALANCE = {{ funded_account.balance|default:"0" }};
+const MAX_AMOUNT = {{ max_amount|default:"0" }};
+
+function setMaxAmount() {
+    const input = document.getElementById('payoutAmount');
+    input.value = MAX_AMOUNT.toFixed(2);
+    updatePercentage();
+}
+
+function updatePercentage() {
+    const input = document.getElementById('payoutAmount');
+    const display = document.getElementById('percentageDisplay');
+    const valueEl = document.getElementById('percentageValue');
+    
+    const amount = parseFloat(input.value) || 0;
+    
+    if (amount > 0 && FUNDED_BALANCE > 0) {
+        const pct = (amount / FUNDED_BALANCE) * 100;
+        valueEl.textContent = pct.toFixed(2) + '%';
+        display.classList.remove('hidden');
+    } else {
+        display.classList.add('hidden');
+    }
+}
+
+document.getElementById('payoutAmount')?.addEventListener('input', updatePercentage);
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+async function submitPayoutRequest() {
+    const amountInput = document.getElementById('payoutAmount');
+    const statusMsg = document.getElementById('payoutStatusMessage');
+    const submitBtn = document.getElementById('submitPayoutBtn');
+    
+    const amount = parseFloat(amountInput.value);
+    
+    statusMsg.classList.add('hidden');
+    
+    // Client-side validation
+    if (!amount || amount < 10) {
+        statusMsg.classList.remove('hidden');
+        statusMsg.className = 'text-center text-xs font-bold text-rose-400';
+        statusMsg.textContent = '❌ Minimum payout amount is $10.00';
+        return;
+    }
+    
+    if (amount > MAX_AMOUNT) {
+        statusMsg.classList.remove('hidden');
+        statusMsg.className = 'text-center text-xs font-bold text-rose-400';
+        statusMsg.textContent = `❌ Maximum payout is $${MAX_AMOUNT.toFixed(2)}`;
+        return;
+    }
+    
+    // Disable button
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i> Submitting...';
+    
+    try {
+        const response = await fetch('{% url "request_funded_payout" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: JSON.stringify({ amount: amount })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            statusMsg.classList.remove('hidden');
+            statusMsg.className = 'text-center text-xs font-bold text-emerald-400';
+            statusMsg.textContent = `✅ ${data.message}`;
+            
+            // Reload after delay
+            setTimeout(() => window.location.reload(), 2000);
+        } else {
+            statusMsg.classList.remove('hidden');
+            statusMsg.className = 'text-center text-xs font-bold text-rose-400';
+            statusMsg.textContent = `❌ ${data.error}`;
+            
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane text-xs"></i> Request Payout';
+        }
+    } catch (err) {
+        statusMsg.classList.remove('hidden');
+        statusMsg.className = 'text-center text-xs font-bold text-rose-400';
+        statusMsg.textContent = '❌ Network error. Please try again.';
+        
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane text-xs"></i> Request Payout';
+    }
+}
+</script>
+{% endblock %}

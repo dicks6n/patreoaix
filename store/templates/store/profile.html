@@ -1,0 +1,1235 @@
+{% extends 'base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Profile & Security - PATREOAIX{% endblock %}
+
+{% block content %}
+{% include 'partials/legacy_skin.html' %}
+<style>
+    /* profile in the site palette: gold = action/brand, green = OK, red = danger */
+    main .bg-gradient-to-br.from-indigo-500.to-purple-600 { background: var(--px-accent) !important; color: var(--px-accent-ink) !important; box-shadow: none !important; }
+    main [class*="bg-indigo-500/10"], main [class*="bg-purple-500/10"] { background: var(--px-accent-soft) !important; border-color: transparent !important; color: var(--px-accent) !important; }
+    main .w-10.h-10[class*="bg-emerald-500/10"], main .w-10.h-10[class*="bg-amber-500/10"] { background: var(--px-accent-soft) !important; border-color: transparent !important; color: var(--px-accent) !important; }
+    main .w-10.h-10 i { color: inherit !important; }
+    main .text-purple-400 { color: var(--px-accent) !important; }
+    main .bg-emerald-600, main .bg-amber-600 { background: var(--px-accent) !important; color: var(--px-accent-ink) !important; box-shadow: none !important; }
+    main .bg-emerald-600 *, main .bg-amber-600 * { color: var(--px-accent-ink) !important; }
+    main .bg-emerald-600:hover, main .bg-amber-600:hover { filter: brightness(1.06); }
+    main .blur-3xl { display: none; }
+    main .bg-gradient-to-br.from-slate-900.to-slate-950 { background: var(--px-panel) !important; border-color: var(--px-line) !important; }
+    input:checked + .toggle-slider { background-color: var(--px-accent) !important; }
+    .toggle-slider { background-color: var(--px-panel-2) !important; border: 1px solid var(--px-line); }
+    main input[type=checkbox] { accent-color: var(--px-accent); }
+    main .border-amber-500\/20.bg-amber-500\/5 { background: var(--px-accent-soft) !important; border-color: transparent !important; }
+    .px-wallet-qr { width: 112px; flex-shrink: 0; padding: 7px; background: #fff; border-radius: 12px; box-shadow: 0 0 0 1px var(--px-line); }
+    .px-wallet-qr svg { display: block; width: 100%; height: auto; }
+</style>
+<!-- LOADING SPINNER -->
+<div id="loading-spinner" class="fixed inset-0 z-[9999] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center transition-opacity duration-500">
+    <div class="relative flex items-center justify-center">
+        <div class="w-20 h-20 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin"></div>
+        <div class="absolute w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center animate-pulse">
+            <div class="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
+        </div>
+    </div>
+    <div class="mt-5 text-center space-y-1">
+        <p class="text-xs font-mono tracking-widest text-indigo-300 uppercase animate-pulse">Loading Profile</p>
+        <p class="text-[10px] font-mono text-slate-500">Syncing your account data...</p>
+    </div>
+</div>
+
+<style>
+    .spinner-hidden { opacity: 0; pointer-events: none; visibility: hidden; }
+
+    .profile-card {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 27, 75, 0.4) 100%);
+        border: 1px solid rgba(99, 102, 241, 0.15);
+        border-radius: 20px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+    }
+
+    @media (max-width: 640px) {
+        .profile-card { border-radius: 16px; }
+    }
+
+    .input-field {
+        width: 100%;
+        background: rgba(2, 6, 23, 0.9);
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        border-radius: 12px;
+        padding: 12px 16px;
+        font-size: 13px;
+        color: #ffffff;
+        font-family: 'JetBrains Mono', monospace;
+        transition: all 0.2s ease;
+    }
+
+    .input-field:focus {
+        outline: none;
+        border-color: rgba(99, 102, 241, 0.6);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
+    .input-field::placeholder { color: #64748b; }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 44px;
+        height: 24px;
+    }
+    .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #1e293b;
+        transition: 0.3s;
+        border-radius: 24px;
+    }
+    .toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.3s;
+        border-radius: 50%;
+    }
+    input:checked + .toggle-slider {
+        background-color: #10b981;
+    }
+    input:checked + .toggle-slider:before {
+        transform: translateX(20px);
+    }
+
+    .strength-bar {
+        height: 4px;
+        border-radius: 4px;
+        background: #1e293b;
+        overflow: hidden;
+        display: flex;
+        gap: 2px;
+    }
+    .strength-segment {
+        flex: 1;
+        background: #1e293b;
+        transition: background 0.3s ease;
+    }
+
+    @keyframes modalIn {
+        from { opacity: 0; transform: scale(0.95) translateY(10px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .modal-in { animation: modalIn 0.2s ease-out; }
+
+    .password-input-wrapper { position: relative; }
+    .password-input-wrapper .toggle-password {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #64748b;
+        cursor: pointer;
+        transition: color 0.2s;
+        background: transparent;
+        border: none;
+        padding: 4px;
+    }
+    .password-input-wrapper .toggle-password:hover { color: #ffffff; }
+</style>
+
+<div class="space-y-5 pb-4">
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- HEADER BANNER                                            -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div class="profile-card p-5 sm:p-6 relative overflow-hidden">
+        <div class="absolute -top-20 -right-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-20 -left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="relative z-10">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-2xl font-black text-white shadow-xl shadow-indigo-500/30 border-2 border-indigo-400/30">
+                        {{ user.username|slice:":2"|upper }}
+                    </div>
+                    <div class="min-w-0">
+                        <h1 class="text-xl sm:text-2xl font-black text-white truncate">
+                            {{ user.get_full_name|default:user.username }}
+                        </h1>
+                        <p class="text-xs text-slate-400 truncate">{{ user.email|default:"No email set" }}</p>
+                        <div class="flex items-center gap-2 mt-2">
+                            <span class="status-badge bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                {{ account_type }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="saveProfile()" id="save-btn" class="px-5 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-black transition shadow-lg shadow-indigo-600/25 flex items-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-floppy-disk text-[10px]"></i>
+                    <span>Save Changes</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- STATS GRID                                               -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div class="profile-card p-4">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Trader ID</span>
+                <i class="fa-solid fa-id-badge text-indigo-400 text-xs"></i>
+            </div>
+            <p class="text-sm font-black text-white font-mono truncate">{{ trader_id }}</p>
+        </div>
+
+        <div class="profile-card p-4">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">KYC Status</span>
+                <i class="fa-solid fa-shield-halved text-emerald-400 text-xs"></i>
+            </div>
+            {% if kyc_record and kyc_record.status|upper == 'APPROVED' %}
+                <p class="text-sm font-black text-emerald-400 font-mono">Verified</p>
+            {% elif kyc_record and kyc_record.status|upper == 'PENDING' %}
+                <p class="text-sm font-black text-amber-400 font-mono">Pending</p>
+            {% else %}
+                <p class="text-sm font-black text-rose-400 font-mono">Not Started</p>
+            {% endif %}
+        </div>
+
+        <div class="profile-card p-4">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Member Since</span>
+                <i class="fa-solid fa-calendar text-purple-400 text-xs"></i>
+            </div>
+            <p class="text-sm font-black text-white font-mono">{{ user.date_joined|date:"Y"|default:"2026" }}</p>
+        </div>
+
+        <div class="profile-card p-4">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Funded Balance</span>
+                <i class="fa-solid fa-wallet text-amber-400 text-xs"></i>
+            </div>
+            <p class="text-sm font-black text-emerald-400 font-mono">${{ funded_account.balance|default:"0.00" }}</p>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- MAIN GRID                                                -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+        <div class="lg:col-span-2 space-y-5">
+
+            <!-- ═══════════════════════════════════════════════ -->
+            <!-- PERSONAL INFORMATION (with phone save)         -->
+            <!-- ═══════════════════════════════════════════════ -->
+            <div class="profile-card p-5 sm:p-6">
+                <div class="flex items-center gap-3 mb-5 pb-4 border-b border-slate-800/60">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                        <i class="fa-solid fa-user text-sm"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-white">Personal Information</h3>
+                        <p class="text-[10px] text-slate-500 mt-0.5">Your basic account details</p>
+                    </div>
+                </div>
+
+                <form method="POST" id="profile-form" class="space-y-4">
+                    {% csrf_token %}
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
+                                <i class="fa-solid fa-user text-[9px] mr-1.5 text-indigo-400"></i>
+                                Username
+                            </label>
+                            <input type="text" value="{{ user.username }}" disabled class="input-field opacity-60">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
+                                <i class="fa-solid fa-envelope text-[9px] mr-1.5 text-indigo-400"></i>
+                                Email Address
+                            </label>
+                            <input type="email" name="email" value="{{ user.email }}" placeholder="your@email.com" class="input-field">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
+                                <i class="fa-solid fa-signature text-[9px] mr-1.5 text-indigo-400"></i>
+                                First Name
+                            </label>
+                            <input type="text" name="first_name" value="{{ user.first_name }}" placeholder="John" class="input-field">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
+                                <i class="fa-solid fa-signature text-[9px] mr-1.5 text-indigo-400"></i>
+                                Last Name
+                            </label>
+                            <input type="text" name="last_name" value="{{ user.last_name }}" placeholder="Doe" class="input-field">
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════ -->
+            <!-- 📱 SMS NOTIFICATIONS (NEW)                     -->
+            <!-- ═══════════════════════════════════════════════ -->
+            <div class="profile-card p-5 sm:p-6">
+                <div class="flex items-center gap-3 mb-5 pb-4 border-b border-slate-800/60">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                        <i class="fa-solid fa-comment-sms text-sm"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-white">SMS Notifications</h3>
+                        <p class="text-[10px] text-slate-500 mt-0.5">Get instant updates on withdrawals, deposits & security</p>
+                    </div>
+                </div>
+
+                <form method="POST" action="{% url 'profile' %}" class="space-y-4">
+                    {% csrf_token %}
+                    <input type="hidden" name="update_sms" value="1">
+
+                    <div>
+                        <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
+                            <i class="fa-solid fa-phone text-[9px] mr-1.5 text-emerald-400"></i>
+                            Phone Number
+                        </label>
+                        <input type="tel" name="phone_number" id="phone-number-input"
+                               value="{{ user_profile.phone_number|default:'' }}"
+                               placeholder="+254712345678"
+                               class="input-field">
+                        <p class="text-[10px] text-slate-500 mt-1.5">
+                            Include country code. Kenya: <span class="font-mono text-slate-400">+254712345678</span>, US: <span class="font-mono text-slate-400">+15551234567</span>
+                        </p>
+                    </div>
+
+                    <!-- SMS opt-in toggle -->
+                    <label class="flex items-start gap-3 bg-slate-950/60 border border-slate-800/60 rounded-xl p-4 cursor-pointer hover:border-emerald-500/30 transition">
+                        <input type="checkbox" name="sms_opt_in" {% if user_profile.sms_opt_in %}checked{% endif %}
+                               class="mt-0.5 rounded border-slate-700 bg-slate-950 text-emerald-600 focus:ring-0">
+                        <div class="flex-1">
+                            <p class="text-xs font-bold text-white">Enable SMS alerts</p>
+                            <p class="text-[10px] text-slate-400 mt-0.5 leading-relaxed">
+                                Receive transactional SMS when your withdrawal is submitted, approved, or when there's a security alert on your account.
+                            </p>
+                        </div>
+                    </label>
+
+                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-xs transition shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-floppy-disk text-[10px]"></i>
+                        <span>Save Phone Number</span>
+                    </button>
+                </form>
+
+                {% if user_profile.phone_number and user_profile.sms_opt_in %}
+                <div class="mt-4 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20 flex items-start gap-2">
+                    <i class="fa-solid fa-circle-check text-emerald-400 text-sm mt-0.5"></i>
+                    <div>
+                        <p class="text-[11px] text-emerald-300 font-bold">SMS active</p>
+                        <p class="text-[10px] text-slate-400 mt-0.5">
+                            You'll receive updates at <span class="font-mono text-slate-300">{{ user_profile.phone_number }}</span>
+                        </p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- ═══════════════════════════════════════════════ -->
+            <!-- DEPOSIT WALLET                                 -->
+            <!-- ═══════════════════════════════════════════════ -->
+            <div class="profile-card p-5 sm:p-6">
+                <div class="flex items-center gap-3 mb-5 pb-4 border-b border-slate-800/60">
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                        <i class="fa-brands fa-bitcoin text-sm"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-white">Binance Deposit Wallet</h3>
+                        <p class="text-[10px] text-slate-500 mt-0.5">USDT TRC20 · Send deposits to this address</p>
+                    </div>
+                </div>
+
+                <div class="bg-slate-950/60 border border-slate-800/60 rounded-xl p-4 mb-3 flex flex-col sm:flex-row gap-4 sm:items-center">
+                    <div class="px-wallet-qr mx-auto sm:mx-0">{% include 'partials/usdt_qr.html' %}</div>
+                    <div class="flex-1 min-w-0">
+                    <p class="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2">Wallet Address</p>
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                        <input type="text" id="profileBinanceWallet" readonly value="TTjvfn3jT5BYtV76jC8zgT6CUaWfukSRYA"
+                               class="input-field flex-1 text-xs">
+                        <button type="button" onclick="copyProfileWallet()"
+                                class="px-5 py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-xl transition shadow-lg shadow-amber-600/20 flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap">
+                            <i class="fa-solid fa-copy text-[10px]"></i>
+                            <span>Copy</span>
+                        </button>
+                    </div>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-3 bg-amber-500/5 border border-amber-500/20 rounded-xl p-3">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-400 text-sm mt-0.5"></i>
+                    <div>
+                        <p class="text-[11px] text-amber-300 font-bold mb-0.5">Important</p>
+                        <p class="text-[10px] text-amber-200/70 leading-relaxed">Only send USDT on the TRC20 network. Sending other assets or networks may result in permanent loss.</p>
+                    </div>
+                </div>
+
+                <p id="profileCopyFeedback" class="text-[11px] text-emerald-400 font-bold mt-3 hidden font-mono items-center gap-1.5">
+                    <i class="fa-solid fa-check-circle"></i> Address copied to clipboard!
+                </p>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════ -->
+            <!-- SECURITY                                       -->
+            <!-- ═══════════════════════════════════════════════ -->
+            <div class="profile-card p-5 sm:p-6">
+                <div class="flex items-center gap-3 mb-5 pb-4 border-b border-slate-800/60">
+                    <div class="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
+                        <i class="fa-solid fa-lock text-sm"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-white">Security</h3>
+                        <p class="text-[10px] text-slate-500 mt-0.5">Protect your account</p>
+                    </div>
+                </div>
+
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between bg-slate-950/60 border border-slate-800/60 rounded-xl p-4">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="w-9 h-9 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400">
+                                <i class="fa-solid fa-key text-xs"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-xs font-bold text-white">Password</p>
+                                <p id="password-last-updated" class="text-[10px] text-slate-500">Change regularly for security</p>
+                            </div>
+                        </div>
+                        <button onclick="openPasswordModal()" class="px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[10px] font-bold border border-rose-500/20 transition cursor-pointer">
+                            Change
+                        </button>
+                    </div>
+
+                    <div class="flex items-center justify-between bg-slate-950/60 border border-slate-800/60 rounded-xl p-4">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="w-9 h-9 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400">
+                                <i class="fa-solid fa-desktop text-xs"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-xs font-bold text-white">Active Sessions</p>
+                                <p id="sessions-count-label" class="text-[10px] text-slate-500">Manage devices</p>
+                            </div>
+                        </div>
+                        <button onclick="openSessionsModal()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold transition cursor-pointer">
+                            Manage
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- RIGHT SIDEBAR -->
+        <div class="space-y-5">
+
+            <!-- KYC -->
+            <div class="profile-card p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-shield-halved text-emerald-400 text-xs"></i>
+                        KYC Verification
+                    </h3>
+                </div>
+
+                {% if kyc_record and kyc_record.status|upper == 'APPROVED' %}
+                    <div class="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-center">
+                        <div class="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto mb-3">
+                            <i class="fa-solid fa-check text-emerald-400 text-lg"></i>
+                        </div>
+                        <p class="text-sm font-bold text-emerald-400">Verified</p>
+                        <p class="text-[10px] text-slate-400 mt-1">Your identity is confirmed</p>
+                    </div>
+                {% elif kyc_record and kyc_record.status|upper == 'PENDING' %}
+                    <div class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-center">
+                        <div class="w-12 h-12 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center mx-auto mb-3">
+                            <i class="fa-solid fa-clock text-amber-400 text-lg"></i>
+                        </div>
+                        <p class="text-sm font-bold text-amber-400">Pending Review</p>
+                        <p class="text-[10px] text-slate-400 mt-1">Verification in progress</p>
+                        <a href="{% url 'kyc_status' %}" class="inline-block mt-3 px-4 py-2 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-[10px] font-bold border border-amber-500/30 transition">
+                            View Status
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="bg-slate-950/60 border border-slate-800/60 rounded-xl p-4 text-center">
+                        <div class="w-12 h-12 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center mx-auto mb-3">
+                            <i class="fa-solid fa-id-card text-slate-500 text-lg"></i>
+                        </div>
+                        <p class="text-sm font-bold text-white">Not Verified</p>
+                        <p class="text-[10px] text-slate-400 mt-1 mb-3">Verify to unlock all features</p>
+                        <a href="{% url 'kyc_submit' %}" class="inline-block px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold transition shadow-lg shadow-emerald-600/20">
+                            Start Verification
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="profile-card p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                        <i class="fa-regular fa-bell text-indigo-400 text-xs"></i>
+                        Recent Activity
+                    </h3>
+                    <span class="text-[10px] text-slate-500">{{ notifications|length }}</span>
+                </div>
+
+                <div class="space-y-3 max-h-80 overflow-y-auto">
+                    {% for note in notifications %}
+                    <div class="flex items-start gap-3 bg-slate-950/60 border border-slate-800/60 rounded-xl p-3">
+                        <div class="mt-1 w-2 h-2 rounded-full {% if not note.is_read %}bg-emerald-500 animate-pulse{% else %}bg-slate-600{% endif %} shrink-0"></div>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-xs font-bold text-white truncate">{{ note.title }}</p>
+                            <p class="text-[10px] text-slate-400 mt-0.5 leading-relaxed">{{ note.message|truncatechars:80 }}</p>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center py-6">
+                        <i class="fa-solid fa-inbox text-slate-600 text-2xl mb-2"></i>
+                        <p class="text-xs text-slate-500">No recent activity</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Preferences -->
+            <div class="profile-card p-5">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2 mb-4">
+                    <i class="fa-solid fa-sliders text-purple-400 text-xs"></i>
+                    Preferences
+                </h3>
+
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-slate-300">Email Notifications</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked onchange="showToast(this.checked ? 'Email notifications enabled' : 'Email notifications disabled', 'info')">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-slate-300">Trade Alerts</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked onchange="showToast(this.checked ? 'Trade alerts enabled' : 'Trade alerts disabled', 'info')">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-slate-300">Marketing Emails</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" onchange="showToast(this.checked ? 'Marketing emails enabled' : 'Marketing emails disabled', 'info')">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Danger Zone -->
+            <div class="profile-card p-5 border border-rose-500/20">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2 mb-3">
+                    <i class="fa-solid fa-triangle-exclamation text-rose-400 text-xs"></i>
+                    Danger Zone
+                </h3>
+                <p class="text-[10px] text-slate-400 mb-3 leading-relaxed">Log out safely from this device.</p>
+                <form method="POST" action="{% url 'logout' %}" class="inline w-full">
+                    {% csrf_token %}
+                    <button type="submit" class="w-full px-4 py-2.5 rounded-xl bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 text-xs font-bold border border-rose-500/20 transition flex items-center justify-center gap-2 cursor-pointer">
+                        <i class="fa-solid fa-right-from-bracket text-[10px]"></i>
+                        Log Out of Account
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- PASSWORD CHANGE MODAL                                    -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="password-modal" class="hidden fixed inset-0 z-[9999] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-gradient-to-br from-slate-900 to-slate-950 border border-indigo-500/30 rounded-2xl w-full max-w-md shadow-2xl modal-in overflow-hidden">
+
+        <div class="relative p-6 border-b border-slate-800/60">
+            <div class="absolute -top-20 -right-20 w-56 h-56 bg-rose-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="relative flex items-start justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
+                        <i class="fa-solid fa-key text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-white">Change Password</h3>
+                        <p class="text-[10px] text-slate-400 mt-0.5">Update your account password</p>
+                    </div>
+                </div>
+                <button onclick="closePasswordModal()" class="text-slate-400 hover:text-white transition p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="p-6 space-y-4">
+            <div>
+                <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
+                    Current Password
+                </label>
+                <div class="password-input-wrapper">
+                    <input type="password" id="current-password" placeholder="Enter current password" class="input-field pr-12">
+                    <button type="button" class="toggle-password" onclick="togglePasswordVisibility('current-password', this)">
+                        <i class="fa-solid fa-eye text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
+                    New Password
+                </label>
+                <div class="password-input-wrapper">
+                    <input type="password" id="new-password" placeholder="Enter new password" class="input-field pr-12" oninput="updatePasswordStrength(this.value)">
+                    <button type="button" class="toggle-password" onclick="togglePasswordVisibility('new-password', this)">
+                        <i class="fa-solid fa-eye text-xs"></i>
+                    </button>
+                </div>
+
+                <div class="mt-3">
+                    <div class="strength-bar">
+                        <div class="strength-segment" id="seg-1"></div>
+                        <div class="strength-segment" id="seg-2"></div>
+                        <div class="strength-segment" id="seg-3"></div>
+                        <div class="strength-segment" id="seg-4"></div>
+                    </div>
+                    <div class="flex items-center justify-between mt-2">
+                        <span id="strength-label" class="text-[10px] text-slate-500 font-mono">Enter a password</span>
+                        <span id="strength-score" class="text-[10px] text-slate-500 font-mono"></span>
+                    </div>
+                </div>
+
+                <div class="mt-3 space-y-1.5">
+                    <div class="flex items-center gap-2 text-[10px]" id="req-length">
+                        <i class="fa-solid fa-circle text-[6px] text-slate-600"></i>
+                        <span class="text-slate-500">At least 8 characters</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-[10px]" id="req-upper">
+                        <i class="fa-solid fa-circle text-[6px] text-slate-600"></i>
+                        <span class="text-slate-500">Contains uppercase letter</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-[10px]" id="req-number">
+                        <i class="fa-solid fa-circle text-[6px] text-slate-600"></i>
+                        <span class="text-slate-500">Contains a number</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-[10px]" id="req-special">
+                        <i class="fa-solid fa-circle text-[6px] text-slate-600"></i>
+                        <span class="text-slate-500">Contains special character</span>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
+                    Confirm New Password
+                </label>
+                <div class="password-input-wrapper">
+                    <input type="password" id="confirm-password" placeholder="Re-enter new password" class="input-field pr-12" oninput="checkPasswordsMatch()">
+                    <button type="button" class="toggle-password" onclick="togglePasswordVisibility('confirm-password', this)">
+                        <i class="fa-solid fa-eye text-xs"></i>
+                    </button>
+                </div>
+                <p id="match-feedback" class="text-[10px] mt-2 hidden">
+                    <i class="fa-solid fa-circle-check mr-1"></i> Passwords match
+                </p>
+            </div>
+        </div>
+
+        <div class="p-5 border-t border-slate-800/60 flex items-center justify-end gap-3 bg-slate-950/40">
+            <button onclick="closePasswordModal()" class="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer">
+                Cancel
+            </button>
+            <button id="change-password-btn" onclick="submitPasswordChange()"
+                    class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-bold transition shadow-lg shadow-rose-600/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer">
+                <i class="fa-solid fa-key text-[10px]"></i>
+                <span>Change Password</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- ACTIVE SESSIONS MODAL                                    -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="sessions-modal" class="hidden fixed inset-0 z-[9999] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-gradient-to-br from-slate-900 to-slate-950 border border-indigo-500/30 rounded-2xl w-full max-w-2xl shadow-2xl modal-in overflow-hidden max-h-[90vh] flex flex-col">
+
+        <div class="relative p-5 sm:p-6 border-b border-slate-800/60 flex items-center justify-between gap-4">
+            <div class="absolute -top-20 -right-20 w-56 h-56 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="relative flex items-center gap-3">
+                <div class="w-11 h-11 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                    <i class="fa-solid fa-shield-halved text-lg"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-white">Active Sessions</h3>
+                    <p class="text-[10px] text-slate-400 mt-0.5">Devices currently logged into your account</p>
+                </div>
+            </div>
+
+            <button onclick="closeSessionsModal()" class="text-slate-400 hover:text-white transition p-1">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <div class="p-5 sm:p-6 overflow-y-auto flex-1">
+            <div id="sessions-list" class="space-y-3">
+                <div class="text-center py-8">
+                    <i class="fa-solid fa-circle-notch animate-spin text-indigo-400 text-2xl"></i>
+                    <p class="text-xs text-slate-400 mt-2">Loading your sessions...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-4 sm:p-5 border-t border-slate-800/60 bg-slate-950/40 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <button onclick="revokeAllOtherSessions()" id="revoke-all-btn"
+                    class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 text-xs font-bold border border-rose-500/20 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
+                <i class="fa-solid fa-triangle-exclamation text-[10px]"></i>
+                <span>Log Out All Other Devices</span>
+            </button>
+            <button onclick="closeSessionsModal()" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ═══════════════════════════════════════════════════════
+    // COPY WALLET
+    // ═══════════════════════════════════════════════════════
+    function copyProfileWallet() {
+        const walletInput = document.getElementById('profileBinanceWallet');
+        walletInput.select();
+        walletInput.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(walletInput.value);
+
+        const feedback = document.getElementById('profileCopyFeedback');
+        feedback.classList.remove('hidden');
+        feedback.classList.add('flex');
+        setTimeout(() => {
+            feedback.classList.add('hidden');
+            feedback.classList.remove('flex');
+        }, 2500);
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // AUTO-FORMAT PHONE NUMBER
+    // ═══════════════════════════════════════════════════════
+    document.getElementById('phone-number-input')?.addEventListener('blur', function() {
+        let val = this.value.trim().replace(/\s/g, '').replace(/-/g, '');
+
+        if (!val) return;
+
+        // Kenya local format (07xx)
+        if (val.startsWith('0') && !val.startsWith('+')) {
+            this.value = '+254' + val.slice(1);
+        }
+        // Any number without +
+        else if (!val.startsWith('+')) {
+            this.value = '+' + val;
+        }
+    });
+
+    // ═══════════════════════════════════════════════════════
+    // SAVE PROFILE
+    // ═══════════════════════════════════════════════════════
+    function saveProfile() {
+        const btn = document.getElementById('save-btn');
+        const form = document.getElementById('profile-form');
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[10px]"></i> <span>Saving...</span>';
+
+        // Submit the form
+        form.submit();
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // PASSWORD MODAL
+    // ═══════════════════════════════════════════════════════
+    function openPasswordModal() {
+        document.getElementById('password-modal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+
+        document.getElementById('current-password').value = '';
+        document.getElementById('new-password').value = '';
+        document.getElementById('confirm-password').value = '';
+        document.getElementById('match-feedback').classList.add('hidden');
+
+        updatePasswordStrength('');
+
+        setTimeout(() => document.getElementById('current-password').focus(), 200);
+    }
+
+    function closePasswordModal() {
+        document.getElementById('password-modal').classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // TOGGLE PASSWORD VISIBILITY
+    // ═══════════════════════════════════════════════════════
+    function togglePasswordVisibility(inputId, btn) {
+        const input = document.getElementById(inputId);
+        const icon = btn.querySelector('i');
+
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.className = 'fa-solid fa-eye-slash text-xs';
+        } else {
+            input.type = 'password';
+            icon.className = 'fa-solid fa-eye text-xs';
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // PASSWORD STRENGTH
+    // ═══════════════════════════════════════════════════════
+    function updatePasswordStrength(password) {
+        const requirements = {
+            length: password.length >= 8,
+            upper: /[A-Z]/.test(password),
+            number: /[0-9]/.test(password),
+            special: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+        };
+
+        updateRequirement('req-length', requirements.length);
+        updateRequirement('req-upper', requirements.upper);
+        updateRequirement('req-number', requirements.number);
+        updateRequirement('req-special', requirements.special);
+
+        const score = Object.values(requirements).filter(Boolean).length;
+
+        const colors = ['#1e293b', '#ef4444', '#f59e0b', '#f59e0b', '#10b981'];
+        const labels = ['Enter a password', 'Weak', 'Fair', 'Good', 'Strong'];
+
+        for (let i = 1; i <= 4; i++) {
+            const seg = document.getElementById(`seg-${i}`);
+            if (i <= score) {
+                seg.style.background = colors[score];
+            } else {
+                seg.style.background = '#1e293b';
+            }
+        }
+
+        const label = document.getElementById('strength-label');
+        const scoreEl = document.getElementById('strength-score');
+
+        if (!password) {
+            label.textContent = 'Enter a password';
+            label.className = 'text-[10px] text-slate-500 font-mono';
+            scoreEl.textContent = '';
+        } else {
+            label.textContent = labels[score];
+            label.className = `text-[10px] font-mono font-bold ${
+                score === 1 ? 'text-rose-400' :
+                score === 2 ? 'text-amber-400' :
+                score === 3 ? 'text-amber-400' :
+                score === 4 ? 'text-emerald-400' : 'text-slate-500'
+            }`;
+            scoreEl.textContent = `${score}/4`;
+            scoreEl.className = `text-[10px] font-mono ${
+                score === 1 ? 'text-rose-400' :
+                score === 2 ? 'text-amber-400' :
+                score === 3 ? 'text-amber-400' :
+                score === 4 ? 'text-emerald-400' : 'text-slate-500'
+            }`;
+        }
+    }
+
+    function updateRequirement(id, met) {
+        const el = document.getElementById(id);
+        const icon = el.querySelector('i');
+        const text = el.querySelector('span');
+
+        if (met) {
+            icon.className = 'fa-solid fa-circle-check text-[10px] text-emerald-400';
+            text.className = 'text-emerald-400';
+        } else {
+            icon.className = 'fa-solid fa-circle text-[6px] text-slate-600';
+            text.className = 'text-slate-500';
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // CHECK PASSWORDS MATCH
+    // ═══════════════════════════════════════════════════════
+    function checkPasswordsMatch() {
+        const newPwd = document.getElementById('new-password').value;
+        const confirmPwd = document.getElementById('confirm-password').value;
+        const feedback = document.getElementById('match-feedback');
+
+        if (!confirmPwd) {
+            feedback.classList.add('hidden');
+            return;
+        }
+
+        feedback.classList.remove('hidden');
+
+        if (newPwd === confirmPwd && newPwd.length > 0) {
+            feedback.className = 'text-[10px] mt-2 text-emerald-400 font-bold';
+            feedback.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> Passwords match';
+        } else {
+            feedback.className = 'text-[10px] mt-2 text-rose-400 font-bold';
+            feedback.innerHTML = '<i class="fa-solid fa-circle-xmark mr-1"></i> Passwords do not match';
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // SUBMIT PASSWORD CHANGE
+    // ═══════════════════════════════════════════════════════
+    async function submitPasswordChange() {
+        const currentPwd = document.getElementById('current-password').value;
+        const newPwd = document.getElementById('new-password').value;
+        const confirmPwd = document.getElementById('confirm-password').value;
+        const btn = document.getElementById('change-password-btn');
+
+        if (!currentPwd) { showToast('Please enter your current password', 'error'); return; }
+        if (!newPwd) { showToast('Please enter a new password', 'error'); return; }
+        if (newPwd.length < 8) { showToast('Password must be at least 8 characters', 'error'); return; }
+        if (!/[A-Z]/.test(newPwd)) { showToast('Password must contain an uppercase letter', 'error'); return; }
+        if (!/[0-9]/.test(newPwd)) { showToast('Password must contain a number', 'error'); return; }
+        if (newPwd !== confirmPwd) { showToast('Passwords do not match', 'error'); return; }
+        if (newPwd === currentPwd) { showToast('New password must be different from current', 'error'); return; }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[10px]"></i> <span>Updating...</span>';
+
+        try {
+            const response = await fetch('/api/change-password/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: JSON.stringify({
+                    current_password: currentPwd,
+                    new_password: newPwd,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                btn.innerHTML = '<i class="fa-solid fa-check text-[10px]"></i> <span>Updated!</span>';
+                btn.classList.add('bg-emerald-600');
+
+                showToast('Password changed successfully!', 'success');
+
+                const lastUpdated = document.getElementById('password-last-updated');
+                if (lastUpdated) lastUpdated.textContent = 'Last updated just now';
+
+                setTimeout(() => {
+                    closePasswordModal();
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-key text-[10px]"></i> <span>Change Password</span>';
+                    btn.classList.remove('bg-emerald-600');
+                }, 1500);
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-key text-[10px]"></i> <span>Change Password</span>';
+                showToast(data.error || 'Failed to change password', 'error');
+            }
+        } catch (err) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-key text-[10px]"></i> <span>Change Password</span>';
+            showToast('Network error. Please try again.', 'error');
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // SESSIONS MODAL
+    // ═══════════════════════════════════════════════════════
+    function openSessionsModal() {
+        document.getElementById('sessions-modal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        loadSessions();
+    }
+
+    function closeSessionsModal() {
+        document.getElementById('sessions-modal').classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    async function loadSessions() {
+        const list = document.getElementById('sessions-list');
+        list.innerHTML = `
+            <div class="text-center py-8">
+                <i class="fa-solid fa-circle-notch animate-spin text-indigo-400 text-2xl"></i>
+                <p class="text-xs text-slate-400 mt-2">Loading your sessions...</p>
+            </div>
+        `;
+
+        try {
+            const res = await fetch('/api/sessions/');
+            const data = await res.json();
+
+            if (!data.success || !data.sessions || data.sessions.length === 0) {
+                list.innerHTML = `
+                    <div class="text-center py-8">
+                        <i class="fa-solid fa-desktop text-slate-600 text-3xl mb-3"></i>
+                        <p class="text-xs text-slate-400">No active sessions found</p>
+                    </div>
+                `;
+                document.getElementById('sessions-count-label').textContent = 'No active sessions';
+                return;
+            }
+
+            // Update the count label
+            const label = document.getElementById('sessions-count-label');
+            if (label) {
+                label.textContent = `${data.count} active session${data.count > 1 ? 's' : ''}`;
+            }
+
+            // Render sessions
+            list.innerHTML = data.sessions.map(s => `
+                <div class="bg-slate-950/60 border ${s.is_current ? 'border-emerald-500/40' : 'border-slate-800/60'} rounded-xl p-4 flex items-start justify-between gap-3">
+                    <div class="flex items-start gap-3 min-w-0 flex-1">
+                        <div class="w-10 h-10 rounded-lg ${s.is_current ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-slate-800/60 border-slate-700 text-slate-400'} border flex items-center justify-center shrink-0">
+                            <i class="fa-solid ${s.device_type === 'mobile' ? 'fa-mobile-screen' : s.device_type === 'tablet' ? 'fa-tablet-screen-button' : 'fa-desktop'} text-sm"></i>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <p class="text-xs font-bold text-white">${s.browser} on ${s.os_name}</p>
+                                ${s.is_current ? '<span class="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[9px] font-bold">CURRENT</span>' : ''}
+                            </div>
+                            <p class="text-[10px] text-slate-500 font-mono mt-1">
+                                <i class="fa-solid fa-location-dot text-[8px] mr-1"></i>${s.ip_address}
+                            </p>
+                            <p class="text-[10px] text-slate-500 font-mono mt-0.5">
+                                <i class="fa-solid fa-clock text-[8px] mr-1"></i>Last active: ${new Date(s.last_activity).toLocaleString()}
+                            </p>
+                        </div>
+                    </div>
+                    ${!s.is_current ? `
+                        <button onclick="revokeSession(${s.id}, this)"
+                                class="px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[10px] font-bold border border-rose-500/30 transition shrink-0 cursor-pointer">
+                            <i class="fa-solid fa-xmark mr-1"></i>Revoke
+                        </button>
+                    ` : ''}
+                </div>
+            `).join('');
+        } catch (err) {
+            list.innerHTML = `
+                <div class="text-center py-8">
+                    <i class="fa-solid fa-circle-exclamation text-rose-400 text-3xl mb-3"></i>
+                    <p class="text-xs text-rose-400">Failed to load sessions</p>
+                </div>
+            `;
+        }
+    }
+
+    async function revokeSession(sessionId, btn) {
+        if (!confirm('Revoke this session? The device will be logged out.')) return;
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[10px]"></i>';
+
+        try {
+            const res = await fetch(`/api/sessions/${sessionId}/revoke/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCookie('csrftoken') },
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                showToast('Session revoked', 'success');
+                loadSessions();
+            } else {
+                showToast(data.error || 'Failed to revoke', 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-xmark mr-1"></i>Revoke';
+            }
+        } catch (err) {
+            showToast('Network error', 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-xmark mr-1"></i>Revoke';
+        }
+    }
+
+    async function revokeAllOtherSessions() {
+        if (!confirm('Log out all OTHER devices? You\'ll stay logged in here.')) return;
+
+        const btn = document.getElementById('revoke-all-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[10px]"></i> <span>Revoking...</span>';
+
+        try {
+            const res = await fetch('/api/sessions/revoke-all/', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCookie('csrftoken') },
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                showToast(`${data.revoked_count} session${data.revoked_count !== 1 ? 's' : ''} revoked`, 'success');
+                loadSessions();
+            } else {
+                showToast('Failed to revoke sessions', 'error');
+            }
+        } catch (err) {
+            showToast('Network error', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-[10px]"></i> <span>Log Out All Other Devices</span>';
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // CLOSE MODALS ON ESC / BACKDROP
+    // ═══════════════════════════════════════════════════════
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closePasswordModal();
+            closeSessionsModal();
+        }
+    });
+
+    document.getElementById('password-modal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'password-modal') closePasswordModal();
+    });
+
+    document.getElementById('sessions-modal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'sessions-modal') closeSessionsModal();
+    });
+
+    // ═══════════════════════════════════════════════════════
+    // COOKIE HELPER
+    // ═══════════════════════════════════════════════════════
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // TOAST
+    // ═══════════════════════════════════════════════════════
+    function showToast(message, type = 'info') {
+        const colors = {
+            info: 'bg-indigo-900/90 border-indigo-500 text-indigo-200',
+            success: 'bg-emerald-900/90 border-emerald-500 text-emerald-200',
+            warn: 'bg-amber-900/90 border-amber-500 text-amber-200',
+            error: 'bg-rose-900/90 border-rose-500 text-rose-200'
+        };
+        const icons = {
+            info: 'fa-circle-info',
+            success: 'fa-circle-check',
+            warn: 'fa-circle-exclamation',
+            error: 'fa-triangle-exclamation'
+        };
+
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-5 right-5 z-[10000] px-4 py-3 rounded-xl border font-mono text-xs shadow-2xl backdrop-blur-md transition-all duration-300 ${colors[type]}`;
+        toast.innerHTML = `<i class="fa-solid ${icons[type]} mr-2"></i> ${message}`;
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(20px)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // INIT
+    // ═══════════════════════════════════════════════════════
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+            const spinner = document.getElementById('loading-spinner');
+            if (spinner) {
+                spinner.classList.add('spinner-hidden');
+                setTimeout(() => spinner.remove(), 500);
+            }
+        }, 400);
+
+        // Load sessions count on page load
+        fetch('/api/sessions/')
+            .then(r => r.json())
+            .then(data => {
+                const label = document.getElementById('sessions-count-label');
+                if (label && data.success) {
+                    const count = data.count || 0;
+                    label.textContent = `${count} active session${count !== 1 ? 's' : ''}`;
+                }
+            })
+            .catch(() => {});
+    });
+
+    // ── Added: keep the preference switches as set (on this device), and Escape closes the modals ──
+    (function () {
+        const card = [...document.querySelectorAll('.profile-card')].find(c => /Preferences/.test(c.querySelector('h3')?.textContent || ''));
+        if (card) {
+            card.querySelectorAll('.toggle-switch input[type=checkbox]').forEach(cb => {
+                const key = 'px-pref:' + (cb.closest('.flex')?.querySelector('span')?.textContent || '').trim();
+                try {
+                    const saved = localStorage.getItem(key);
+                    if (saved !== null) cb.checked = saved === '1';
+                } catch (e) {}
+                cb.addEventListener('change', () => { try { localStorage.setItem(key, cb.checked ? '1' : '0'); } catch (e) {} });
+            });
+            const note = document.createElement('p');
+            note.className = 'text-[10px] text-slate-500 mt-3';
+            note.textContent = 'Saved on this device.';
+            card.appendChild(note);
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key !== 'Escape') return;
+            if (typeof closePasswordModal === 'function') closePasswordModal();
+            if (typeof closeSessionsModal === 'function') closeSessionsModal();
+        });
+    })();
+</script>
+{% endblock %}

@@ -1,0 +1,72 @@
+{# Shared styles for the AI setup panel (market overview + signal detail) #}
+<style>
+    .px-card { background: var(--px-panel); border: 1px solid var(--px-line); border-radius: 12px; box-shadow: var(--px-shadow); }
+    .px-card-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--px-line); }
+    .px-card-t { font-size: 13px; font-weight: 600; color: var(--px-text); display: flex; align-items: center; gap: 8px; }
+    .px-num { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+    .px-muted { color: var(--px-mute); } .px-dim { color: var(--px-dim); } .px-strong { color: var(--px-text); }
+    .px-seg { display: inline-flex; padding: 3px; border-radius: 8px; background: var(--px-panel-2); border: 1px solid var(--px-line); gap: 2px; }
+    .px-seg button { height: 28px; padding: 0 11px; border-radius: 6px; font-size: 12px; font-weight: 600; color: var(--px-dim); white-space: nowrap; }
+    .px-seg button:hover { color: var(--px-text); }
+    .px-seg button.on { background: var(--px-panel); color: var(--px-text); box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+    html.light .px-seg button.on { box-shadow: 0 1px 2px rgba(16,24,40,.08); }
+    .px-select, .px-input { height: 36px; padding: 0 10px; border-radius: 8px; background: var(--px-panel-2) !important; border: 1px solid var(--px-line) !important; color: var(--px-text) !important; font-size: 13px; outline: none; }
+    .px-select:focus, .px-input:focus { border-color: var(--px-accent) !important; }
+    .px-stat { padding: 14px 16px; }
+    .px-stat .k { font-size: 11px; color: var(--px-mute); }
+    .px-stat .v { font-size: 20px; font-weight: 600; color: var(--px-text); margin-top: 2px; }
+
+    .sym-ic { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; flex-shrink: 0; }
+    .k-forex  { background: rgba(59,130,246,.12);  color: #60a5fa; }
+    .k-metal  { background: rgba(240,185,11,.12);  color: var(--px-accent); }
+    .k-energy { background: rgba(249,115,22,.12);  color: #fb923c; }
+    .k-crypto { background: rgba(139,92,246,.13);  color: #a78bfa; }
+    html.light .k-forex { color: #2563eb; } html.light .k-energy { color: #ea580c; } html.light .k-crypto { color: #7c3aed; }
+
+    .sig { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px; border-radius: 6px; font-size: 11px; font-weight: 700; letter-spacing: .03em; }
+    .sig.BUY  { background: var(--px-up-soft); color: var(--px-up); }
+    .sig.SELL { background: var(--px-down-soft); color: var(--px-down); }
+    .sig.WAIT { background: var(--px-panel-2); color: var(--px-dim); border: 1px solid var(--px-line); }
+
+    .row { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--px-line-soft); cursor: pointer; position: relative; transition: background-color .1s ease; }
+    .row:hover { background: var(--px-hover); }
+    .row.sel { background: var(--px-accent-soft); }
+    .row.sel::before { content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: var(--px-accent); }
+    .meter { height: 4px; border-radius: 4px; background: var(--px-line); overflow: hidden; width: 64px; }
+    .meter > span { display: block; height: 100%; border-radius: 4px; }
+    .tfchip { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: var(--px-panel-2); color: var(--px-dim); }
+
+    .plan { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+    @media (min-width: 640px) { .plan { grid-template-columns: repeat(4, minmax(0,1fr)); } }
+    .plan > div { padding: 10px 12px; border-radius: 9px; background: var(--px-panel-2); border: 1px solid var(--px-line-soft); }
+    .plan .k { font-size: 11px; color: var(--px-mute); }
+    .plan .v { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 600; color: var(--px-text); margin-top: 2px; }
+
+    .why { display: grid; grid-template-columns: 1fr 70px; gap: 10px; align-items: center; padding: 7px 0; font-size: 12px; border-bottom: 1px dashed var(--px-line-soft); }
+    .why:last-child { border-bottom: 0; }
+    .why .bar { height: 6px; border-radius: 6px; background: var(--px-line-soft); position: relative; }
+    .why .bar > span { position: absolute; top: 0; bottom: 0; border-radius: 6px; }
+
+    #ai-chart-wrap { height: 380px; }
+    @media (max-width: 640px) { #ai-chart-wrap { height: 300px; } }
+
+    /* detail panel: side column on desktop, full-screen sheet on phones/tablets */
+    @media (max-width: 1023px) {
+        #ai-detail.sheet { position: fixed; inset: 0; z-index: 70; border-radius: 0; overflow-y: auto; transform: translateY(100%); transition: transform .25s ease; padding-bottom: env(safe-area-inset-bottom); }
+        #ai-detail.sheet.open { transform: translateY(0); }
+        #ai-detail.sheet #ai-detail-close { display: inline-flex !important; }
+    }
+    @media (min-width: 1024px) { #ai-detail.sheet { position: sticky; top: 104px; max-height: calc(100vh - 120px); overflow-y: auto; } }
+
+    .px-modal { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0,0,0,.6); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+    .px-modal.hidden { display: none; }
+    .risk-btn { height: 32px; border-radius: 7px; font-size: 12px; font-weight: 600; background: var(--px-panel-2); border: 1px solid var(--px-line); color: var(--px-dim); }
+    .risk-btn.on { border-color: var(--px-accent); color: var(--px-accent); background: var(--px-accent-soft); }
+
+    .px-skel { background: linear-gradient(90deg, var(--px-panel-2), var(--px-hover), var(--px-panel-2)); background-size: 200% 100%; animation: skel 1.2s ease-in-out infinite; border-radius: 6px; }
+    @keyframes skel { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+    .px-empty { padding: 40px 16px; text-align: center; color: var(--px-mute); font-size: 12px; }
+    .px-empty i { display: block; font-size: 22px; margin-bottom: 10px; opacity: .7; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spin { animation: spin 1s linear infinite; }
+</style>

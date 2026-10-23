@@ -1,0 +1,185 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - PATREOAIX</title>
+    <!-- Tailwind CSS & FontAwesome -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-[#090d16] text-slate-100 font-sans min-h-screen flex flex-col justify-between">
+
+    <!-- Top Header Navigation -->
+    <header class="border-b border-slate-800/80 bg-[#0d1322] px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+        <a href="/" class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold text-lg">
+                <i class="fa-solid fa-brain"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg leading-tight tracking-wide text-white">PATREOAIX</h1>
+                <p class="text-xs text-slate-400">AI Prediction Engine</p>
+            </div>
+        </a>
+
+        <div class="flex items-center gap-3 text-xs">
+            <span class="text-slate-400 hidden sm:inline">Don't have an account?</span>
+            <a href="{% url 'account_signup' %}" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold transition border border-slate-700">
+                Sign Up
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 flex items-center justify-center p-6">
+        <div class="w-full max-w-md">
+
+            <!-- Ambient Background Glow -->
+            <div class="relative">
+                <div class="absolute -top-10 -left-10 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="absolute -bottom-10 -right-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                <!-- PATREOAIX Styled Login Card -->
+                <div class="bg-[#0d1322] border border-slate-800 rounded-2xl p-8 shadow-2xl relative z-10">
+                    
+                    <div class="text-center mb-6">
+                        <div class="w-14 h-14 mx-auto rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 text-2xl mb-3">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-white tracking-wide">Welcome Back</h2>
+                        <p class="text-xs text-slate-400 mt-1">Sign in to access your AI trading dashboard</p>
+                    </div>
+
+                    <!-- Login Method Toggle Tabs -->
+                    <div class="flex p-1 bg-[#090d16] border border-slate-800 rounded-xl mb-6">
+                        <button type="button" id="tab-email-btn" onclick="switchLoginMethod('email')" class="flex-1 py-2 text-xs font-bold rounded-lg transition bg-indigo-600 text-white shadow-sm flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-envelope text-[11px]"></i> Email / Username
+                        </button>
+                        <button type="button" id="tab-phone-btn" onclick="switchLoginMethod('phone')" class="flex-1 py-2 text-xs font-bold rounded-lg transition text-slate-400 hover:text-white flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-phone text-[11px]"></i> Phone Number
+                        </button>
+                    </div>
+
+                    <!-- Django Error Message Alert -->
+                    {% if form.errors or error %}
+                    <div class="mb-5 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2.5 font-medium">
+                        <i class="fa-solid fa-circle-exclamation text-sm"></i>
+                        <span>Please check your credentials and try again.</span>
+                    </div>
+                    {% endif %}
+
+                    <!-- Login Form -->
+                    <form method="POST" action="{% url 'account_login' %}" class="space-y-4">
+                        {% csrf_token %}
+
+                        <!-- Email / Username Input Group -->
+                        <div id="group-email" class="space-y-4">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Username or Email</label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500">
+                                        <i class="fa-solid fa-user text-xs"></i>
+                                    </span>
+                                    <input type="text" 
+                                           name="login" 
+                                           id="input-login"
+                                           class="w-full bg-[#090d16] border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition font-mono" 
+                                           placeholder="Enter your username or email">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Phone Number Input Group (Hidden by default) -->
+                        <div id="group-phone" class="space-y-4 hidden">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Phone Number</label>
+                                <div class="relative flex">
+                                    <div class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500 pointer-events-none">
+                                        <i class="fa-solid fa-phone text-xs"></i>
+                                    </div>
+                                    <input type="tel" 
+                                           name="phone_number" 
+                                           id="input-phone"
+                                           class="w-full bg-[#090d16] border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition font-mono" 
+                                           placeholder="+1 (555) 000-0000">
+                                </div>
+                                <p class="text-[10px] text-slate-500 mt-1.5">We will send an OTP verification code to your phone.</p>
+                            </div>
+                        </div>
+
+                        <!-- Password Field -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Password</label>
+                                <a href="{% url 'account_reset_password' %}" class="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition">Forgot password?</a>
+                            </div>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500">
+                                    <i class="fa-solid fa-lock text-xs"></i>
+                                </span>
+                                <input type="password" 
+                                       name="password" 
+                                       class="w-full bg-[#090d16] border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition font-mono" 
+                                       placeholder="Enter your password" 
+                                       required>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button type="submit" 
+                                class="w-full py-3 px-4 mt-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-right-to-bracket"></i> Sign In to Account
+                        </button>
+                    </form>
+
+            
+
+                    <!-- Card Footer Link -->
+                    <div class="mt-6 pt-5 border-t border-slate-800/80 text-center">
+                        <p class="text-xs text-slate-400">
+                            New to PATREOAIX? 
+                            <a href="{% url 'account_signup' %}" class="font-bold text-emerald-400 hover:text-emerald-300 transition">Create an account</a>
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Page Footer -->
+    <footer class="border-t border-slate-800/80 bg-[#0d1322] px-6 py-4 text-center text-xs text-slate-500">
+        &copy; PATREOAIX AI Prediction Engine. All rights reserved.
+    </footer>
+
+    <!-- Interactive Tab Script -->
+    <script>
+        function switchLoginMethod(method) {
+            const emailBtn = document.getElementById('tab-email-btn');
+            const phoneBtn = document.getElementById('tab-phone-btn');
+            const groupEmail = document.getElementById('group-email');
+            const groupPhone = document.getElementById('group-phone');
+            const inputLogin = document.getElementById('input-login');
+            const inputPhone = document.getElementById('input-phone');
+
+            if (method === 'email') {
+                emailBtn.className = "flex-1 py-2 text-xs font-bold rounded-lg transition bg-indigo-600 text-white shadow-sm flex items-center justify-center gap-2";
+                phoneBtn.className = "flex-1 py-2 text-xs font-bold rounded-lg transition text-slate-400 hover:text-white flex items-center justify-center gap-2";
+                groupEmail.classList.remove('hidden');
+                groupPhone.classList.add('hidden');
+                inputLogin.setAttribute('required', 'true');
+                inputPhone.removeAttribute('required');
+            } else {
+                phoneBtn.className = "flex-1 py-2 text-xs font-bold rounded-lg transition bg-indigo-600 text-white shadow-sm flex items-center justify-center gap-2";
+                emailBtn.className = "flex-1 py-2 text-xs font-bold rounded-lg transition text-slate-400 hover:text-white flex items-center justify-center gap-2";
+                groupPhone.classList.remove('hidden');
+                groupEmail.classList.add('hidden');
+                inputPhone.setAttribute('required', 'true');
+                inputLogin.removeAttribute('required');
+            }
+        }
+    </script>
+</body>
+</html>

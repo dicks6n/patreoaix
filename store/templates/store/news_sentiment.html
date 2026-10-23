@@ -1,0 +1,379 @@
+{% extends 'base_dashboard.html' %}
+
+{% block content %}
+{% include 'partials/legacy_skin.html' %}
+<style>
+    .px-tab-on { background: var(--px-accent) !important; color: var(--px-accent-ink) !important; }
+    .px-tab-off { background: var(--px-panel-2) !important; color: var(--px-dim) !important; }
+    .px-tab-off:hover { color: var(--px-text) !important; }
+</style>
+<div class="max-w-7xl mx-auto space-y-6" x-data="newsSentiment()">
+
+    <!-- HEADER & ACTIONS -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h1 class="text-2xl font-black text-white">News & Sentiment</h1>
+            <p class="text-sm text-slate-400">AI-powered market news with real-time sentiment analysis</p>
+        </div>
+        <div class="flex gap-2">
+            <button @click="loadData()" :disabled="loading" class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2">
+                <i class="fa-solid fa-rotate" :class="loading ? 'fa-spin' : ''"></i>
+                <span x-text="loading ? 'Scanning...' : 'Refresh Feed'"></span>
+            </button>
+            <div class="relative">
+                <button class="bg-slate-900 border border-slate-800 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition">
+                    <i class="fa-solid fa-filter mr-2"></i>Filters
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ERROR STATE -->
+    <div x-show="error" x-transition class="bg-rose-950/40 border border-rose-500/30 p-4 rounded-2xl flex items-center gap-3">
+        <i class="fa-solid fa-circle-exclamation text-rose-400"></i>
+        <p class="text-xs text-rose-300 font-mono" x-text="error"></p>
+    </div>
+
+    <!-- MAIN GRID LAYOUT -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- LEFT COLUMN: News Feed (Span 2) -->
+        <div class="lg:col-span-2 space-y-6">
+
+            <!-- Stats Row (Live) -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+                    <p class="text-[10px] text-slate-400 font-bold uppercase">Market Sentiment</p>
+                    <div class="text-xl font-black mt-1" :class="overallSentiment.color">
+                        <span x-text="overallSentiment.score"></span>%
+                        <span class="text-[10px] font-medium" :class="overallSentiment.changeColor" x-text="overallSentiment.change"></span>
+                    </div>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+                    <p class="text-[10px] text-slate-400 font-bold uppercase">News Volume</p>
+                    <div class="text-xl font-black text-white mt-1">
+                        <span x-text="newsVolume"></span>
+                        <span class="text-[10px] font-medium text-emerald-500">Live</span>
+                    </div>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+                    <p class="text-[10px] text-slate-400 font-bold uppercase">Fear & Greed</p>
+                    <div class="text-xl font-black text-amber-400 mt-1">
+                        <span x-text="fearGreedScore"></span>
+                        <span class="text-[10px] text-slate-500 font-medium" x-text="fearGreedLabel"></span>
+                    </div>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+                    <p class="text-[10px] text-slate-400 font-bold uppercase">Pairs Scanned</p>
+                    <div class="text-xl font-black text-white mt-1">
+                        <span x-text="scannedPairs"></span>
+                        <span class="text-[10px] font-medium text-indigo-400">Assets</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Categories Tabs (Visual Only for now) -->
+            <div class="flex gap-2 overflow-x-auto pb-1">
+                <button @click="category = 'all'" :class="category === 'all' ? 'px-tab-on' : 'px-tab-off'" class="text-xs font-bold px-4 py-2 rounded-xl whitespace-nowrap">All News</button>
+                <button @click="category = 'Forex'" :class="category === 'Forex' ? 'px-tab-on' : 'px-tab-off'" class="text-xs font-bold px-4 py-2 rounded-xl whitespace-nowrap">Forex</button>
+                <button @click="category = 'Crypto'" :class="category === 'Crypto' ? 'px-tab-on' : 'px-tab-off'" class="text-xs font-bold px-4 py-2 rounded-xl whitespace-nowrap">Crypto</button>
+                <button @click="category = 'Commodity'" :class="category === 'Commodity' ? 'px-tab-on' : 'px-tab-off'" class="text-xs font-bold px-4 py-2 rounded-xl whitespace-nowrap">Commodities</button>
+            </div>
+
+            <!-- Feed Items -->
+            <div class="space-y-4">
+                <template x-if="loading && newsFeed.length === 0">
+                    <div class="flex flex-col items-center justify-center py-20 text-slate-500">
+                        <i class="fa-solid fa-circle-notch fa-spin text-3xl mb-3 text-indigo-500"></i>
+                        <p class="text-xs font-mono">Scanning global sources...</p>
+                    </div>
+                </template>
+
+                <template x-for="(item, index) in filteredFeed()" :key="index">
+                    <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl hover:border-indigo-500/40 transition group">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-800 text-slate-400" x-text="item.type"></span>
+                                    <span class="text-[9px] font-mono" :class="item.sentimentColor" x-text="item.sentimentLabel"></span>
+                                </div>
+                                <h3 class="text-sm font-bold text-white leading-snug group-hover:text-indigo-300 transition" x-text="item.title"></h3>
+                                <p class="text-[11px] text-slate-400 mt-1.5 line-clamp-2" x-text="item.summary"></p>
+                                <div class="flex items-center gap-3 mt-3 text-[10px] text-slate-500 font-mono">
+                                    <span><i class="fa-regular fa-clock mr-1"></i> <span x-text="item.time"></span></span>
+                                    <span><i class="fa-solid fa-tag mr-1"></i> <span x-text="item.symbol"></span></span>
+                                </div>
+                            </div>
+                            <div class="shrink-0 flex flex-col items-end">
+                                <span class="text-[10px] font-mono font-bold px-2 py-1 rounded-md bg-slate-950 border border-slate-800 text-slate-300" x-text="item.price"></span>
+                                <span class="text-[10px] font-mono font-bold mt-1" :class="item.changeColor" x-text="item.change"></span>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <template x-if="!loading && newsFeed.length === 0 && !error">
+                    <p class="text-slate-400 text-center py-10 text-xs">No news articles found. Try refreshing.</p>
+                </template>
+                <template x-if="newsFeed.length > 0 && filteredFeed().length === 0">
+                    <p class="text-slate-400 text-center py-10 text-xs">Nothing in this category right now.</p>
+                </template>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Sidebar (Span 1) -->
+        <div class="space-y-6">
+
+            <!-- Overall Sentiment -->
+            <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+                <h3 class="text-xs font-bold text-white mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-gauge-high text-indigo-400"></i>
+                    Overall Market Sentiment
+                </h3>
+                <div class="text-3xl font-black mb-2 transition-colors" :class="overallSentiment.color" x-text="overallSentiment.label"></div>
+                <p class="text-[10px] text-slate-400 mb-6">
+                    <span x-text="overallSentiment.score"></span>% positive sentiment across <span x-text="newsVolume"></span> scanned assets
+                </p>
+
+                <div class="space-y-4">
+                    <template x-for="asset in assetSentiments" :key="asset.pair">
+                        <div>
+                            <div class="flex justify-between text-[10px] font-bold mb-1 text-slate-300">
+                                <span x-text="asset.pair"></span>
+                                <span :class="asset.score >= 50 ? 'text-emerald-400' : 'text-rose-400'" x-text="asset.score + '%'"></span>
+                            </div>
+                            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                <div class="h-full transition-all duration-500" :class="asset.score >= 50 ? 'bg-emerald-500' : 'bg-rose-500'" :style="'width: ' + asset.score + '%'"></div>
+                            </div>
+                        </div>
+                    </template>
+                    <div x-show="assetSentiments.length === 0" class="text-[10px] text-slate-500 text-center py-4">
+                        Waiting for market scan...
+                    </div>
+                </div>
+            </div>
+
+            {% if news_list %}
+            <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
+                <h3 class="text-xs font-bold text-white mb-1 flex items-center gap-2">
+                    <i class="fa-regular fa-newspaper text-indigo-400"></i> Latest Headlines
+                </h3>
+                <p class="text-[10px] text-slate-500 mb-3">Stored news · overall {{ overall_sentiment }} (polarity {{ avg_polarity }})</p>
+                <div class="space-y-3">
+                    {% for a in news_list %}
+                    <a href="{{ a.link }}" target="_blank" rel="noopener noreferrer" class="block group">
+                        <p class="text-[11px] font-semibold text-slate-200 leading-snug group-hover:text-indigo-300">{{ a.title }}</p>
+                        <p class="text-[10px] mt-0.5 font-mono">
+                            <span class="{% if a.polarity > 0.1 %}text-emerald-400{% elif a.polarity < -0.1 %}text-rose-400{% else %}text-slate-400{% endif %}">{{ a.sentiment|default:"Neutral" }}</span>
+                            {% if a.published %}<span class="text-slate-500"> · {{ a.published }}</span>{% endif %}
+                        </p>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- TradingView Widget -->
+            <div class="bg-slate-900 border border-slate-800 p-2 rounded-2xl overflow-hidden">
+                <div class="tradingview-widget-container">
+                    <div class="tradingview-widget-container__widget"></div>
+                    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-timeline.js" async>
+                    {
+                        "displayMode": "regular",
+                        "feedMode": "all_symbols",
+                        "colorTheme": "dark",
+                        "isTransparent": true,
+                        "locale": "en",
+                        "width": "100%",
+                        "height": 550
+                    }
+                    </script>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Alpine.js for reactive UI -->
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+<script>
+function newsSentiment() {
+    return {
+        loading: false,
+        error: null,
+        newsFeed: [],
+        assetSentiments: [],
+        overallSentiment: {
+            score: 0,
+            label: 'Neutral',
+            color: 'text-slate-400',
+            change: '0%',
+            changeColor: 'text-slate-500'
+        },
+        newsVolume: 0,
+        fearGreedScore: 50,
+        fearGreedLabel: 'Neutral',
+        scannedPairs: 0,
+        category: 'all',
+
+        filteredFeed() {
+            return this.category === 'all' ? this.newsFeed : this.newsFeed.filter(i => String(i.type).toLowerCase() === this.category.toLowerCase());
+        },
+
+        // Positive/Negative keyword dictionaries for sentiment analysis
+        positiveWords: ['bullish', 'surge', 'rally', 'gain', 'profit', 'high', 'up', 'positive', 'strong', 'growth', 'soar', 'breakout', 'record', 'momentum', 'support'],
+        negativeWords: ['bearish', 'drop', 'fall', 'loss', 'low', 'down', 'negative', 'weak', 'crash', 'plunge', 'breakdown', 'fear', 'risk', 'resistance', 'selloff'],
+
+        init() {
+            this.loadData();
+            // Auto-refresh every 5 minutes
+            setInterval(() => this.loadData(), 300000);
+        },
+
+        async loadData() {
+            this.loading = true;
+            this.error = null;
+            try {
+                // Fetch live market data from your existing scanner API
+                const resp = await fetch('/get-market-scan-data/', {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+
+                if (!resp.ok) throw new Error('Failed to fetch market data');
+                const data = await resp.json();
+
+                if (data.success && data.data && data.data.length > 0) {
+                    this.processMarketData(data.data);
+                } else {
+                    throw new Error('No market data available');
+                }
+            } catch (err) {
+                console.error('News load error:', err);
+                this.error = 'Unable to fetch live market data. Retrying shortly...';
+                // Fallback to simulated data so the UI isn't empty
+                this.generateFallbackData();
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        processMarketData(markets) {
+            // 1. Build asset sentiments from real market trends
+            this.assetSentiments = markets
+                .filter(m => ['XAU/USD', 'EUR/USD', 'GBP/USD', 'BTC/USD', 'ETH/USD'].includes(m.symbol))
+                .map(m => {
+                    // Convert trend strength into a 0-100 score
+                    let score = 50;
+                    if (m.trend === 'Bullish') score = Math.min(98, 60 + (m.strength * 0.4));
+                    if (m.trend === 'Bearish') score = Math.max(2, 40 - (m.strength * 0.4));
+                    return {
+                        pair: m.symbol,
+                        score: Math.round(score)
+                    };
+                });
+
+            // 2. Compute overall sentiment from all assets
+            const bullishCount = markets.filter(m => m.trend === 'Bullish').length;
+            const bearishCount = markets.filter(m => m.trend === 'Bearish').length;
+            const total = markets.length;
+
+            const bullPct = total > 0 ? (bullishCount / total) * 100 : 50;
+            this.overallSentiment.score = Math.round(bullPct);
+
+            if (bullPct > 65) {
+                this.overallSentiment.label = 'Strong Bullish';
+                this.overallSentiment.color = 'text-emerald-400';
+            } else if (bullPct > 55) {
+                this.overallSentiment.label = 'Bullish';
+                this.overallSentiment.color = 'text-emerald-500';
+            } else if (bullPct < 35) {
+                this.overallSentiment.label = 'Strong Bearish';
+                this.overallSentiment.color = 'text-rose-400';
+            } else if (bullPct < 45) {
+                this.overallSentiment.label = 'Bearish';
+                this.overallSentiment.color = 'text-rose-500';
+            } else {
+                this.overallSentiment.label = 'Neutral';
+                this.overallSentiment.color = 'text-slate-400';
+            }
+
+            // 3. Compute Fear & Greed from volatility
+            const avgVolatility = markets.reduce((sum, m) => sum + (m.volatility || 1), 0) / total;
+            this.fearGreedScore = Math.round(Math.min(95, Math.max(5, 50 + (bullPct - 50) + (avgVolatility * 2))));
+            if (this.fearGreedScore > 70) this.fearGreedLabel = 'Greed';
+            else if (this.fearGreedScore < 30) this.fearGreedLabel = 'Fear';
+            else this.fearGreedLabel = 'Neutral';
+
+            this.scannedPairs = total;
+            this.newsVolume = markets.length;
+
+            // 4. Build the news feed from market moves + AI summaries
+            this.newsFeed = markets.map(m => {
+                // Sentiment analysis on the AI summary
+                const sentiment = this.analyzeText(m.ai_summary || m.name);
+
+                let changeColor = 'text-slate-400';
+                let changeStr = '0.00%';
+                if (m.change_24h > 0) {
+                    changeColor = 'text-emerald-400';
+                    changeStr = '+' + m.change_24h.toFixed(2) + '%';
+                } else if (m.change_24h < 0) {
+                    changeColor = 'text-rose-400';
+                    changeStr = m.change_24h.toFixed(2) + '%';
+                }
+
+                return {
+                    title: `${m.name} (${m.symbol}) — ${m.trend} Signal Detected`,
+                    summary: m.ai_summary || `AI detected a ${m.trend.toLowerCase()} trend with ${m.strength}% confidence. Current RSI is ${m.rsi}, volatility at ${m.volatility}%.`,
+                    type: m.type,
+                    symbol: m.symbol,
+                    sentimentLabel: sentiment.label,
+                    sentimentColor: sentiment.color,
+                    price: m.price,
+                    change: changeStr,
+                    changeColor: changeColor,
+                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                };
+            });
+        },
+
+        analyzeText(text) {
+            if (!text) return { label: 'Neutral', color: 'text-slate-400' };
+            const lower = text.toLowerCase();
+            let posCount = 0;
+            let negCount = 0;
+
+            this.positiveWords.forEach(w => { if (lower.includes(w)) posCount++; });
+            this.negativeWords.forEach(w => { if (lower.includes(w)) negCount++; });
+
+            if (posCount > negCount) return { label: 'Bullish', color: 'text-emerald-400' };
+            if (negCount > posCount) return { label: 'Bearish', color: 'text-rose-400' };
+            return { label: 'Neutral', color: 'text-slate-400' };
+        },
+
+        generateFallbackData() {
+            // Used only if the API fails, so the page still works
+            this.scannedPairs = 0;
+            this.newsVolume = 0;
+            this.overallSentiment = { score: '—', label: 'Unavailable', color: 'text-slate-400', change: '', changeColor: 'text-slate-500' };
+            this.fearGreedScore = '—';
+            this.fearGreedLabel = '';
+            this.assetSentiments = [];
+            this.newsFeed = [{
+                title: 'Market data temporarily unavailable',
+                summary: 'Live market data could not be loaded. It retries every 5 minutes, or press Refresh Feed.',
+                type: 'System',
+                symbol: 'N/A',
+                sentimentLabel: 'Neutral',
+                sentimentColor: 'text-slate-400',
+                price: '--',
+                change: '0.00%',
+                changeColor: 'text-slate-400',
+                time: 'Just now'
+            }];
+        }
+    }
+}
+</script>
+{% endblock %}

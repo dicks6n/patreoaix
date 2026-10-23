@@ -1,0 +1,496 @@
+{% extends 'base_dashboard.html' %}
+
+{% block title %}My Funded Account & Rewards - PATREOAIX{% endblock %}
+
+{% block content %}
+{% include 'partials/legacy_skin.html' %}
+<!-- ========================================== -->
+<!-- LOADING SPINNER -->
+<!-- ========================================== -->
+<div id="loading-spinner" class="fixed inset-0 z-[9999] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center transition-opacity duration-500">
+    <div class="relative flex items-center justify-center">
+        <div class="w-20 h-20 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin"></div>
+        <div class="absolute w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center animate-pulse">
+            <div class="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
+        </div>
+    </div>
+    <div class="mt-5 text-center space-y-1">
+        <p class="text-xs font-mono tracking-widest text-indigo-300 uppercase animate-pulse">Connecting Web3 Vault</p>
+        <p class="text-[10px] font-mono text-slate-500">Synchronizing live oracles & AI signals...</p>
+    </div>
+</div>
+
+<style>
+    .spinner-hidden {
+        opacity: 0;
+        pointer-events: none;
+        visibility: hidden;
+    }
+    
+    .funded-card {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 27, 75, 0.4) 100%);
+        border: 1px solid rgba(99, 102, 241, 0.15);
+        border-radius: 20px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+    }
+    
+    @media (max-width: 640px) {
+        .funded-card {
+            border-radius: 16px;
+            padding: 16px;
+        }
+    }
+    
+    .stat-block {
+        padding: 14px 12px;
+        border-radius: 14px;
+        background: rgba(2, 6, 23, 0.5);
+        border: 1px solid rgba(51, 65, 85, 0.4);
+    }
+    
+    .pulse-dot {
+        animation: pulseDot 2s ease-in-out infinite;
+    }
+    @keyframes pulseDot {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(0.9); }
+    }
+</style>
+
+<div class="max-w-7xl mx-auto space-y-5 pb-4">
+
+    <!-- ========================================== -->
+    <!-- HEADER SECTION (MOBILE-FIRST) -->
+    <!-- ========================================== -->
+    <div class="space-y-4">
+        
+        <!-- Title Row -->
+        <div>
+            <h1 class="text-2xl sm:text-3xl font-black text-white leading-tight">
+                My Funded Account &<br class="sm:hidden"> Rewards
+            </h1>
+            <p class="text-xs sm:text-sm text-slate-400 mt-2 max-w-2xl leading-relaxed">
+                Overview of your funded account balance, subscription tier, and claimable survey rewards
+            </p>
+        </div>
+
+        <!-- Status Badges Row (Mobile: 2 cards side by side) -->
+        <div class="grid grid-cols-2 gap-3 sm:flex sm:items-center sm:gap-3">
+            {% if funded_account.is_funded %}
+            <div class="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl px-4 py-3 text-center sm:rounded-full sm:py-2 sm:px-4 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
+                <span class="text-[10px] sm:text-[11px] font-black text-emerald-400 uppercase tracking-wider leading-tight">
+                    Active &<br class="sm:hidden"> Funded
+                </span>
+            </div>
+            {% else %}
+            <div class="bg-amber-500/10 border border-amber-500/30 rounded-2xl px-4 py-3 text-center sm:rounded-full sm:py-2 sm:px-4 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                <span class="text-[10px] sm:text-[11px] font-black text-amber-400 uppercase tracking-wider leading-tight">
+                    Pending<br class="sm:hidden"> Payment
+                </span>
+            </div>
+            {% endif %}
+
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl px-4 py-3 text-center sm:rounded-full sm:py-2 sm:px-4">
+                <span class="block text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold tracking-wider leading-none mb-1">Current Equity</span>
+                <span class="text-sm sm:text-base font-black text-white font-mono leading-none">${{ funded_account.balance|default:"0.00"|floatformat:2 }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MAIN GRID -->
+    <!-- ========================================== -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        
+        <!-- LEFT/MIDDLE COLUMN -->
+        <div class="lg:col-span-2 space-y-5">
+            
+            <!-- ========================================== -->
+            <!-- CONSOLIDATED PERFORMANCE CARD -->
+            <!-- ========================================== -->
+            <div class="funded-card p-5 sm:p-6">
+                <!-- Card Header -->
+                <div class="flex justify-between items-start mb-5">
+                    <div>
+                        <h3 class="text-base font-bold text-white">Consolidated Performance</h3>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Capital metrics & subscription tracking</p>
+                    </div>
+                    <span class="px-2.5 py-1 bg-indigo-500/10 text-indigo-400 text-[10px] font-bold rounded-lg border border-indigo-500/20 whitespace-nowrap">
+                        LIVE ACCOUNT
+                    </span>
+                </div>
+                
+                <!-- Main Numbers (Mobile: Stacked, Desktop: 3-col) -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+                    <!-- Initial Capital -->
+                    <div class="stat-block sm:bg-transparent sm:border-0 sm:p-0">
+                        <p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-1">Initial Capital</p>
+                        <h2 class="text-2xl sm:text-2xl font-black text-white font-mono leading-none">
+                            ${{ funded_account.initial_balance|default:"0.00"|floatformat:2 }}
+                        </h2>
+                    </div>
+                    
+                    <!-- Current Balance -->
+                    <div class="stat-block sm:bg-transparent sm:border-0 sm:p-0">
+                        <p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-1">Current Balance</p>
+                        <h2 class="text-2xl sm:text-2xl font-black text-emerald-400 font-mono leading-none">
+                            ${{ funded_account.balance|default:"0.00"|floatformat:2 }}
+                        </h2>
+                    </div>
+                    
+                    <!-- Last Updated -->
+                    <div class="stat-block sm:bg-transparent sm:border-0 sm:p-0">
+                        <p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-1">Last Updated</p>
+                        <h2 class="text-sm font-bold text-slate-200 leading-tight mt-0.5">
+                            {{ funded_account.updated_at|date:"M d, Y" }}<br>
+                            <span class="text-xs text-slate-400 font-mono">{{ funded_account.updated_at|date:"H:i" }}</span>
+                        </h2>
+                    </div>
+                </div>
+
+                <!-- Added: growth versus initial capital -->
+                <div id="px-growth" class="mt-4 flex items-center justify-between gap-3 text-xs rounded-xl px-4 py-3"
+                     data-initial="{{ funded_account.initial_balance|default:0|stringformat:'s' }}" data-balance="{{ funded_account.balance|default:0|stringformat:'s' }}"
+                     style="background:var(--px-panel-2);border:1px solid var(--px-line)">
+                    <span class="text-slate-400">Change since funding</span>
+                    <span id="px-growth-val" class="font-mono font-bold">—</span>
+                </div>
+
+                <!-- Equity Progress Bar -->
+                <div class="mt-5 bg-slate-950/60 p-4 rounded-xl border border-slate-800/60">
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Account Allocation</h4>
+                        <span class="text-xs font-bold text-white font-mono">
+                            ${{ funded_account.balance|default:"0.00"|floatformat:2 }}
+                        </span>
+                    </div>
+                    
+                    <!-- Progress Bar -->
+                    <div class="w-full bg-slate-950 h-3 rounded-full overflow-hidden border border-slate-800">
+                        <div class="bg-gradient-to-r from-emerald-500 to-emerald-400 h-full w-full relative group">
+                            <span class="absolute -top-6 left-0 text-[9px] text-emerald-400 font-bold opacity-0 group-hover:opacity-100 transition whitespace-nowrap">100% Active Capital</span>
+                        </div>
+                    </div>
+                
+                    <!-- Legend -->
+                    <div class="flex items-center gap-2 mt-3">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+                        <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Funded Subscription Tier</span>
+                    </div>
+                </div>
+
+                <!-- ✅ PAYOUT REQUEST BUTTON (Main Card) -->
+                <div class="mt-5 flex flex-col sm:flex-row gap-3">
+                    <a href="{% url 'funded_payout' %}" 
+                       class="flex-1 bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white text-xs font-bold px-4 py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20">
+                        <i class="fa-solid fa-hand-holding-dollar text-[11px]"></i>
+                        Request Payout
+                    </a>
+                    <a href="{% url 'payout_history' %}" 
+                       class="flex-1 bg-slate-800 hover:bg-slate-700 active:scale-[0.98] text-slate-200 text-xs font-bold px-4 py-3 rounded-xl transition flex items-center justify-center gap-2 border border-slate-700">
+                        <i class="fa-solid fa-clock-rotate-left text-[11px]"></i>
+                        Payout History
+                    </a>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- AI GOLD TRADE RECORD (every AI Gold trade on this funded account) -->
+            <!-- ========================================== -->
+            <div id="ai-gold-record" class="funded-card p-5 sm:p-6">
+                <div class="flex justify-between items-start mb-4 gap-3">
+                    <div>
+                        <h3 class="text-base font-bold text-white">AI Gold Trade Record</h3>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Every AI Gold trade on this funded account · wins credited at 88 %, losses in full</p>
+                    </div>
+                    <a href="{% url 'digits_trading' %}" class="px-2.5 py-1 bg-amber-500/10 text-amber-400 text-[10px] font-bold rounded-lg border border-amber-500/20 whitespace-nowrap">🪙 AI Gold</a>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+                    <div class="stat-block"><p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-1">Trades</p>
+                        <p class="text-lg font-black text-white font-mono">{{ ai_gold_stats.trades }}{% if ai_gold_stats.open %} <span class="text-[10px] text-amber-400 font-bold">+{{ ai_gold_stats.open }} open</span>{% endif %}</p></div>
+                    <div class="stat-block"><p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-1">Won / Lost</p>
+                        <p class="text-lg font-black font-mono"><span class="text-emerald-400">{{ ai_gold_stats.wins }}</span> <span class="text-slate-600">/</span> <span class="text-rose-400">{{ ai_gold_stats.losses }}</span></p></div>
+                    <div class="stat-block"><p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-1">Win rate</p>
+                        <p class="text-lg font-black text-white font-mono">{{ ai_gold_stats.win_rate }}%</p></div>
+                    <div class="stat-block"><p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-1">Net P&amp;L</p>
+                        <p class="text-lg font-black font-mono {% if ai_gold_stats.pnl >= 0 %}text-emerald-400{% else %}text-rose-400{% endif %}">{% if ai_gold_stats.pnl < 0 %}-{% endif %}${{ ai_gold_stats.pnl|stringformat:".2f"|cut:"-" }}</p></div>
+                </div>
+
+                {% if ai_gold_trades %}
+                <div class="overflow-x-auto -mx-1">
+                    <table class="w-full text-[11px] font-mono">
+                        <thead>
+                            <tr class="text-[9px] uppercase tracking-wider text-slate-500 text-left">
+                                <th class="px-1 py-2 font-bold">Opened</th><th class="px-1 py-2 font-bold">Side</th><th class="px-1 py-2 font-bold hidden sm:table-cell">Lots</th>
+                                <th class="px-1 py-2 font-bold">Entry → Exit</th><th class="px-1 py-2 font-bold hidden sm:table-cell">Exit</th><th class="px-1 py-2 font-bold text-right">Result</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for t in ai_gold_trades %}
+                            <tr class="border-t border-slate-800/60">
+                                <td class="px-1 py-2 text-slate-400 whitespace-nowrap">{{ t.created_at|date:"M d H:i" }}</td>
+                                <td class="px-1 py-2 font-bold {% if t.direction == 'BUY' %}text-emerald-400{% else %}text-rose-400{% endif %}">{{ t.direction }}</td>
+                                <td class="px-1 py-2 text-slate-300 hidden sm:table-cell">{{ t.lot_size }}</td>
+                                <td class="px-1 py-2 text-slate-300 whitespace-nowrap">{{ t.entry_price }} → {% if t.exit_price %}{{ t.exit_price }}{% else %}<span class="text-amber-400">running</span>{% endif %}</td>
+                                <td class="px-1 py-2 text-slate-500 hidden sm:table-cell">{% if t.close_reason == 'SL' %}stop{% elif t.close_reason == 'TP' %}target{% elif t.close_reason == 'TIME' %}time{% elif t.status == 'OPEN' %}—{% else %}{{ t.close_reason|default:"—"|lower }}{% endif %}</td>
+                                <td class="px-1 py-2 text-right font-bold whitespace-nowrap {% if t.status == 'WON' %}text-emerald-400{% elif t.status == 'LOST' %}text-rose-400{% else %}text-amber-400{% endif %}">
+                                    {% if t.status == 'OPEN' %}OPEN{% else %}{% if t.profit_amount >= 0 %}+{% else %}-{% endif %}${{ t.profit_amount|stringformat:".2f"|cut:"-" }} · {{ t.status }}{% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-xs text-slate-500 text-center py-6">No AI Gold trades yet. Turn on the AI Gold auto-trader to start.</p>
+                {% endif %}
+            </div>
+
+            <!-- ========================================== -->
+            <!-- SURVEY REWARDS CENTER -->
+            <!-- ========================================== -->
+            <div class="funded-card p-5 sm:p-6 space-y-5">
+                <!-- Card Header -->
+                <div class="space-y-3">
+                    <div>
+                        <h3 class="text-base font-bold text-white">Survey Rewards Center</h3>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Exclusive paid survey payouts for Pro and VIP tier members</p>
+                    </div>
+                    
+                    <!-- Claimable Balance -->
+                    <div class="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3 flex items-center justify-between">
+                        <span class="text-[10px] uppercase tracking-widest text-emerald-500 font-bold">Claimable Balance</span>
+                        <span class="text-lg font-black text-emerald-300 font-mono">
+                            ${{ claimable_reward_balance|default:"0.00"|floatformat:2 }}
+                        </span>
+                    </div>
+                </div>
+
+                {% if is_eligible %}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {% for reward in available_rewards %}
+                        <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-4 flex flex-col justify-between gap-4">
+                            <div class="space-y-2">
+                                <div class="flex items-start justify-between gap-3">
+                                    <span class="px-2 py-0.5 rounded-md text-[9px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase tracking-wider whitespace-nowrap">
+                                        {{ reward.tier_required|default:"VIP / Pro" }}
+                                    </span>
+                                    <span class="text-base font-black text-emerald-400 font-mono whitespace-nowrap">${{ reward.amount }}</span>
+                                </div>
+                                <h4 class="text-sm font-bold text-white">{{ reward.title }}</h4>
+                                <p class="text-[11px] text-slate-400 leading-relaxed">
+                                    {{ reward.description|default:"Completed market research survey payout approved by Admin." }}
+                                </p>
+                            </div>
+
+                            <form method="POST" action="{% url 'claim_survey_reward' reward.id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-bold py-2.5 rounded-lg transition text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20">
+                                    <i class="fa-solid fa-gift"></i> Claim ${{ reward.amount }}
+                                </button>
+                            </form>
+                        </div>
+                        {% empty %}
+                        <!-- Empty State -->
+                        <div class="col-span-full bg-slate-950/40 border border-slate-800 rounded-xl p-6 text-center space-y-3">
+                            <div class="w-12 h-12 bg-slate-900 text-slate-500 rounded-full flex items-center justify-center mx-auto text-base border border-slate-800">
+                                <i class="fa-solid fa-box-open"></i>
+                            </div>
+                            <div class="space-y-1">
+                                <h5 class="font-bold text-white text-sm">No active reward claims assigned</h5>
+                                <p class="text-[11px] text-slate-500 max-w-sm mx-auto leading-relaxed">
+                                    Admin hasn't assigned any survey rewards to your account yet. Check back soon or complete surveys to qualify.
+                                </p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <!-- Locked State -->
+                    <div class="bg-gradient-to-br from-slate-950 to-slate-900 border border-slate-800 rounded-xl p-6 text-center space-y-4">
+                        <div class="w-14 h-14 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-2xl flex items-center justify-center mx-auto text-lg">
+                            <i class="fa-solid fa-lock"></i>
+                        </div>
+                        <div class="max-w-md mx-auto space-y-1.5">
+                            <h4 class="text-sm font-bold text-white">Pro & VIP Tier Exclusive</h4>
+                            <p class="text-[11px] text-slate-400 leading-relaxed">
+                                Paid survey rewards and instant click-to-claim payouts are restricted to Pro and VIP members. Upgrade your account tier to start claiming cash rewards.
+                            </p>
+                        </div>
+                        <a href="{% url 'subscription_billing' %}" 
+                           class="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 active:scale-[0.98] text-slate-950 font-bold px-5 py-2.5 rounded-xl transition text-xs shadow-lg shadow-amber-500/20">
+                            <i class="fa-solid fa-crown text-[10px]"></i>
+                            Upgrade to Pro / VIP
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- ========================================== -->
+            <!-- GUIDELINES -->
+            <!-- ========================================== -->
+            <div class="funded-card p-5 sm:p-6">
+                <div class="flex items-start gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
+                        <i class="fa-solid fa-circle-info text-xs"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white mb-1.5">Funded Account Guidelines</h3>
+                        <p class="text-[11px] text-slate-400 leading-relaxed">
+                            Your funded trading account balance matches the exact subscription tier payment you completed. You can use these funds to execute automated trading strategies, run bots, or scale your account tier anytime from the billing page.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- RIGHT SIDEBAR (ACCOUNT STATUS) -->
+        <!-- ========================================== -->
+        <div class="space-y-5">
+            <div class="funded-card p-5 sm:p-6 space-y-5">
+                <h3 class="text-sm font-bold text-white">Account Status</h3>
+                
+                <div class="space-y-3.5">
+                    <div class="flex justify-between items-center text-xs py-2 border-b border-slate-800/50">
+                        <span class="text-slate-500">Account Owner</span>
+                        <span class="text-white font-bold font-mono text-[11px]">{{ request.user.username }}</span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs py-2 border-b border-slate-800/50">
+                        <span class="text-slate-500">Subscription Tier</span>
+                        <span class="text-indigo-400 font-bold uppercase text-[11px]">
+                            {{ request.user.userprofile.subscription_tier|default:"Free" }}
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs py-2 border-b border-slate-800/50">
+                        <span class="text-slate-500">Funded Status</span>
+                        <span class="{% if funded_account.is_funded %}text-emerald-400{% else %}text-amber-400{% endif %} font-bold text-[11px]">
+                            {% if funded_account.is_funded %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs py-2">
+                        <span class="text-slate-500">Account ID</span>
+                        <span class="text-white font-bold font-mono text-[11px]">#{{ request.user.id|stringformat:"04d" }}</span>
+                    </div>
+                </div>
+
+                <a href="{% url 'subscription_billing' %}" 
+                   class="block w-full py-3 text-center rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white font-bold text-xs transition shadow-lg shadow-indigo-600/30">
+                    <i class="fa-solid fa-credit-card mr-2 text-[10px]"></i>
+                    Manage Subscription
+                </a>
+            </div>
+
+            <!-- Quick Actions Card -->
+            <div class="funded-card p-5 sm:p-6 space-y-3">
+                <h3 class="text-sm font-bold text-white mb-2">Quick Actions</h3>
+                
+                <!-- ✅ PAYOUT REQUEST (Quick Actions) -->
+                <a href="{% url 'funded_payout' %}" 
+                   class="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-emerald-500/40 transition group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                            <i class="fa-solid fa-hand-holding-dollar text-xs"></i>
+                        </div>
+                        <span class="text-xs font-bold text-white">Request Payout</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-slate-500 group-hover:text-emerald-400 transition text-[10px]"></i>
+                </a>
+
+                <!-- ✅ PAYOUT HISTORY (Quick Actions) -->
+                <a href="{% url 'payout_history' %}" 
+                   class="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-indigo-500/40 transition group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                            <i class="fa-solid fa-clock-rotate-left text-xs"></i>
+                        </div>
+                        <span class="text-xs font-bold text-white">Payout History</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-slate-500 group-hover:text-indigo-400 transition text-[10px]"></i>
+                </a>
+
+                <a href="{% url 'funding_deposit' %}" 
+                   class="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-emerald-500/40 transition group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                            <i class="fa-solid fa-arrow-down text-xs"></i>
+                        </div>
+                        <span class="text-xs font-bold text-white">Deposit Funds</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-slate-500 group-hover:text-emerald-400 transition text-[10px]"></i>
+                </a>
+
+                <!-- Added: AI Gold Auto-Trader runs on this funded balance -->
+                <a href="{% url 'digits_trading' %}"
+                   class="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-amber-500/40 transition group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                            <i class="fa-solid fa-coins text-xs"></i>
+                        </div>
+                        <span class="text-xs font-bold text-white">AI Gold Auto-Trader</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-slate-500 group-hover:text-amber-400 transition text-[10px]"></i>
+                </a>
+
+                <a href="{% url 'trade' %}" 
+                   class="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-indigo-500/40 transition group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                            <i class="fa-solid fa-chart-line text-xs"></i>
+                        </div>
+                        <span class="text-xs font-bold text-white">Start Trading</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-slate-500 group-hover:text-indigo-400 transition text-[10px]"></i>
+                </a>
+
+                <a href="{% url 'trade_history' %}" 
+                   class="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-purple-500/40 transition group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                            <i class="fa-solid fa-clock-rotate-left text-xs"></i>
+                        </div>
+                        <span class="text-xs font-bold text-white">Trade History</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-slate-500 group-hover:text-purple-400 transition text-[10px]"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Hide spinner once full page assets load
+    window.addEventListener('load', function() {
+        setTimeout(() => {
+            const spinner = document.getElementById('loading-spinner');
+            if (spinner) {
+                spinner.classList.add('spinner-hidden');
+                setTimeout(() => spinner.remove(), 500);
+            }
+        }, 300);
+    });
+
+    // Animate the allocation bar
+    document.addEventListener('DOMContentLoaded', function() {
+        const bar = document.querySelector('.bg-gradient-to-r.from-emerald-500');
+        if (bar) {
+            bar.style.transition = 'width 1s ease-out';
+        }
+    });
+
+    // Added: growth versus initial capital
+    (function () {
+        const el = document.getElementById('px-growth'); if (!el) return;
+        const ini = parseFloat(el.dataset.initial) || 0, bal = parseFloat(el.dataset.balance) || 0, v = document.getElementById('px-growth-val');
+        if (!ini) { v.textContent = '—'; return; }
+        const diff = bal - ini, pct = diff / ini * 100;
+        v.textContent = `${diff >= 0 ? '+' : '-'}$${Math.abs(diff).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%)`;
+        v.style.color = diff > 0 ? 'var(--px-up)' : diff < 0 ? 'var(--px-down)' : 'var(--px-dim)';
+    })();
+</script>
+{% endblock %}

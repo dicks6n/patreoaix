@@ -1,0 +1,55 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}Open on your phone{% endblock %}
+
+{% block content %}
+<script>
+    // Detect the phone itself, not the browser text: touch screen + phone-sized screen (or the browser saying "mobile").
+    // Catches an iPhone on "Request Desktop Website" or an Android phone in desktop mode → remember it and open the terminal.
+    (function () {
+        var touch = (navigator.maxTouchPoints || 0) > 0 || (window.matchMedia && matchMedia('(pointer: coarse)').matches);
+        var shortSide = Math.min(screen.width || 9999, screen.height || 9999);
+        var phone = (navigator.userAgentData && navigator.userAgentData.mobile) || (touch && shortSide <= 540);
+        window.pxSetPhone = function () {
+            document.cookie = 'px_phone=1; path=/; max-age=31536000; samesite=lax';
+            location.replace('{{ terminal_url|escapejs }}');
+        };
+        var tried = false;
+        try { tried = sessionStorage.getItem('px_phone_try') === '1'; sessionStorage.setItem('px_phone_try', '1'); } catch (e) {}
+        if (phone && !tried) window.pxSetPhone();
+    })();
+</script>
+<style>
+    .mt5-phone-only {
+        max-width: 420px; margin: 60px auto; padding: 32px 24px; text-align: center;
+        background: #111114; border: 1px solid #2c2c2e; border-radius: 20px; color: #fff;
+        font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
+    }
+    .mt5-phone-only .icon { font-size: 44px; color: #0a84ff; margin-bottom: 16px; }
+    .mt5-phone-only h1 { font-size: 22px; font-weight: 700; margin: 0 0 10px; }
+    .mt5-phone-only p { font-size: 14px; color: #a1a1aa; line-height: 1.55; margin: 0 0 18px; }
+    .mt5-phone-only #mt5-qr { display: inline-block; padding: 12px; background: #fff; border-radius: 12px; margin-bottom: 16px; }
+    .mt5-phone-only .url { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; color: #0a84ff;
+        word-break: break-all; background: #1c1c1e; padding: 10px 12px; border-radius: 10px; }
+    .mt5-phone-only .hint { font-size: 12px; color: #71717a; margin-top: 16px; }
+    .mt5-phone-only .phone-btn { margin-top: 16px; width: 100%; padding: 13px; border-radius: 12px; background: #0a84ff; color: #fff; font-size: 14px; font-weight: 600; border: 0; cursor: pointer; }
+</style>
+
+<div class="mt5-phone-only">
+    <div class="icon"><i class="fa-solid fa-mobile-screen-button"></i></div>
+    <h1>The trading terminal is for phones</h1>
+    <p>Scan this code with your phone's camera, or open the link below on your phone, and log in with the same account.</p>
+    <div id="mt5-qr"></div>
+    <div class="url">{{ terminal_url }}</div>
+    <button type="button" class="phone-btn" onclick="pxSetPhone()"><i class="fa-solid fa-mobile-screen-button"></i> I'm on my phone: open the terminal</button>
+    <div class="hint">Already on a phone? Tap the button above, or turn off "Request desktop site" in your browser menu and reload.</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+    try {
+        new QRCode(document.getElementById('mt5-qr'), { text: "{{ terminal_url|escapejs }}", width: 180, height: 180 });
+    } catch (e) {
+        document.getElementById('mt5-qr').style.display = 'none';
+    }
+</script>
+{% endblock %}

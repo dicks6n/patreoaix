@@ -1,0 +1,9 @@
+# .gitignore
+venv/
+*.pyc
+__pycache__/
+db.sqlite3
+.env
+.DS_Store
+staticfiles/mpesa_debug.log
+*.log

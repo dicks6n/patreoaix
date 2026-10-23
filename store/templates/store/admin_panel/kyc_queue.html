@@ -1,0 +1,64 @@
+{% extends 'base_dashboard.html' %}
+
+{% block title %}Admin KYC Verification Queue - PATREOAIX{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-6 px-4 space-y-6 pb-24 md:pb-6 font-mono">
+    <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div>
+            <h2 class="text-xl font-bold text-white tracking-wide">KYC Verification Queue</h2>
+            <p class="text-xs text-slate-400 mt-0.5">Review and authorize client identity documents and biometric verification</p>
+        </div>
+        <span class="px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold rounded-full">
+            Pending: {{ pending_kyc.count }}
+        </span>
+    </div>
+
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl overflow-x-auto">
+        <table class="w-full text-left text-xs">
+            <thead class="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800 font-semibold">
+                <tr>
+                    <th class="py-3 px-3">User</th>
+                    <th class="py-3 px-3">Document Type</th>
+                    <th class="py-3 px-3">ID Number</th>
+                    <th class="py-3 px-3">Submitted At</th>
+                    <th class="py-3 px-3 text-center">Selfie / Doc Preview</th>
+                    <th class="py-3 px-3 text-right">Action</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/80">
+                {% for kyc in pending_kyc %}
+                <tr class="hover:bg-slate-800/40 transition-colors">
+                    <td class="py-4 px-3 font-bold text-white font-sans">
+                        {{ kyc.user.username }}<br>
+                        <span class="text-[10px] text-slate-400 font-mono">{{ kyc.user.email }}</span>
+                    </td>
+                    <td class="py-4 px-3 text-slate-300">{{ kyc.document_type }}</td>
+                    <td class="py-4 px-3 text-indigo-300 font-bold">{{ kyc.document_number }}</td>
+                    <td class="py-4 px-3 text-slate-400">{{ kyc.submitted_at|date:"Y-m-d H:i" }}</td>
+                    <td class="py-4 px-3 text-center">
+                        <a href="{{ kyc.document_image.url }}" target="_blank" class="text-indigo-400 hover:underline font-bold text-[11px]">View Files</a>
+                    </td>
+                    <td class="py-4 px-3 text-right font-sans">                    
+                        <form method="post" action="{% url 'update_kyc_status' kyc.id %}" class="inline-flex gap-2">
+                            {% csrf_token %}
+                            <button type="submit" name="action" value="APPROVE" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] rounded-xl transition cursor-pointer">Approve</button>
+                            <button type="submit" name="action" value="REJECT" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-[11px] rounded-xl transition cursor-pointer">Reject</button>
+                        </form>
+                    
+                    
+                    
+                    
+                    
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center py-8 text-slate-500 font-sans">No pending KYC verifications in queue.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

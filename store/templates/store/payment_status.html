@@ -1,0 +1,105 @@
+{% extends 'base_dashboard.html' %}
+
+{% block content %}
+<div class="space-y-6 max-w-7xl mx-auto">
+
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+        <div>
+            <h1 class="text-2xl font-black text-white tracking-wide">Payment & Transaction History</h1>
+            <p class="text-xs text-slate-400 mt-1">Track your account deposits, withdrawals, and M-Pesa processing status.</p>
+        </div>
+    </div>
+
+    <!-- Active / Processing Payment Requests (e.g. STK Push) -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm">
+        <h3 class="text-lg font-bold text-white mb-1">Active Payment Requests</h3>
+        <p class="text-xs text-slate-400 mb-4">Real-time status of initiated M-Pesa STK pushes or gateway requests</p>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs font-mono">
+                <thead class="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800 font-semibold">
+                    <tr>
+                        <th class="py-3 px-3">Gateway / Method</th>
+                        <th class="py-3 px-3">Amount</th>
+                        <th class="py-3 px-3">Status</th>
+                        <th class="py-3 px-3">Date</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800 text-slate-300">
+                    {% for req in payment_requests %}
+                    <tr class="hover:bg-slate-800/40 transition">
+                        <td class="py-3.5 px-3 font-bold text-indigo-400">{{ req.payment_method }}</td>
+                        <td class="py-3.5 px-3 font-bold text-white">${{ req.amount }} USD</td>
+                        <td class="py-3.5 px-3">
+                            {% if req.status == 'APPROVED' %}
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">APPROVED</span>
+                            {% elif req.status == 'PROCESSING' %}
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse">PROCESSING</span>
+                            {% elif req.status == 'REJECTED' %}
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">REJECTED</span>
+                            {% else %}
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">{{ req.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3.5 px-3 text-slate-400">{{ req.created_at|date:"M d, Y H:i" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center py-4 text-slate-500">No active payment requests found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Completed Transactions History (Deposits & Withdrawals) -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm">
+        <h3 class="text-lg font-bold text-white mb-1">Deposits & Withdrawals Ledger</h3>
+        <p class="text-xs text-slate-400 mb-4">Complete log of successful account fundings and payouts</p>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs font-mono">
+                <thead class="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800 font-semibold">
+                    <tr>
+                        <th class="py-3 px-3">Type</th>
+                        <th class="py-3 px-3">Details</th>
+                        <th class="py-3 px-3">Amount</th>
+                        <th class="py-3 px-3">Date</th>
+                        <th class="py-3 px-3 text-right">Receipt / Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800 text-slate-300">
+                    {% for tx in transactions %}
+                    <tr class="hover:bg-slate-800/40 transition">
+                        <td class="py-3.5 px-3 font-bold">
+                            {% if tx.transaction_type == 'DEPOSIT' %}
+                                <span class="text-emerald-400 flex items-center gap-1.5"><i class="fa-solid fa-arrow-down-long"></i> DEPOSIT</span>
+                            {% elif tx.transaction_type == 'WITHDRAWAL' %}
+                                <span class="text-rose-400 flex items-center gap-1.5"><i class="fa-solid fa-arrow-up-long"></i> WITHDRAWAL</span>
+                            {% else %}
+                                <span class="text-indigo-400">{{ tx.transaction_type }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3.5 px-3 font-sans text-slate-300">{{ tx.details|default:"Account Operation" }}</td>
+                        <td class="py-3.5 px-3 font-bold text-white">
+                            {% if tx.transaction_type == 'DEPOSIT' %}+{% else %}-{% endif %}${{ tx.amount }} USD
+                        </td>
+                        <td class="py-3.5 px-3 text-slate-400">{{ tx.created_at|date:"M d, Y H:i" }}</td>
+                        <td class="py-3.5 px-3 text-right">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">COMPLETED</span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-slate-500">No deposit or withdrawal history available.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

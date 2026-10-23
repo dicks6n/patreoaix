@@ -1,0 +1,32 @@
+{% extends 'base_dashboard.html' %}
+
+{% block title %}Cryptocurrency Deposit - PATREOAIX{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto py-6 px-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+        <div class="mb-5 pb-4 border-b border-slate-800">
+            <h2 class="text-xl font-bold text-white tracking-wide">Cryptocurrency Deposit</h2>
+            <p class="text-xs text-slate-400 mt-0.5">Send only USDT (TRC20) to the address below</p>
+        </div>
+        <div class="space-y-4 text-xs">
+            <div>
+                <label class="block text-slate-400 font-bold uppercase mb-1.5">Deposit Address (USDT TRC20)</label>
+                <div class="flex gap-2">
+                    <input type="text" id="deposit-address" value="TXYZ...SampleDepositAddress...1234" readonly class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white font-mono focus:outline-none">
+                    <button onclick="navigator.clipboard.writeText(document.getElementById('deposit-address').value); alert('Address copied!');" class="px-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition cursor-pointer">
+                        Copy
+                    </button>
+                </div>
+            </div>
+            <div class="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-start gap-3">
+                <i class="fa-solid fa-triangle-exclamation text-base mt-0.5"></i>
+                <div>
+                    <span class="font-bold block mb-0.5">Important Notice</span>
+                    Minimum deposit: $50 equivalent. Send only USDT via the TRC20 network. Network confirmation is required.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

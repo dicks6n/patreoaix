@@ -1,0 +1,107 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}Admin — Payment Approvals{% endblock %}
+{% block message_toasts %}{% endblock %}{# this page prints messages itself #}
+
+{% block content %}
+{% include 'partials/legacy_skin.html' %}
+<style>
+    main .journal-card, main .stat-card, main .model-card, main .alert-card { background: var(--px-panel) !important; border: 1px solid var(--px-line) !important; border-radius: 12px !important; box-shadow: var(--px-shadow) !important; }
+    main .alert-card::before { display: none; }
+    main .journal-card:hover, main .stat-card:hover, main .model-card:hover { transform: none !important; }
+    .journal-modal-box { background: var(--px-panel) !important; border: 1px solid var(--px-line) !important; }
+    .px-chip { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 8px; background: var(--px-panel-2); color: var(--px-dim); border: 1px solid var(--px-line); }
+    .px-chip.on { background: var(--px-accent); color: var(--px-accent-ink); border-color: var(--px-accent); }
+</style>
+<div class="max-w-6xl mx-auto py-6 px-4">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-xl font-black text-white">Pending Payment Approvals</h1>
+            <p class="text-xs text-slate-400 mt-0.5">{{ requests|length }} awaiting review{% if pending_total %} · ${{ pending_total|floatformat:2 }} in total{% endif %}</p>
+        </div>
+        {% if requests %}
+        <div class="flex gap-1.5" id="px-ap-tabs">
+            <button type="button" class="px-chip on" data-f="">All</button>
+            <button type="button" class="px-chip" data-f="DEPOSIT">Deposits</button>
+            <button type="button" class="px-chip" data-f="WITHDRAWAL">Withdrawals</button>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if messages %}
+        {% for m in messages %}
+        <div class="mb-3 p-3 rounded-xl text-xs {% if m.tags == 'error' %}bg-rose-500/10 border border-rose-500/20 text-rose-400{% elif m.tags == 'warning' %}bg-amber-500/10 border border-amber-500/20 text-amber-400{% else %}bg-emerald-500/10 border border-emerald-500/20 text-emerald-400{% endif %}">{{ m }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+        {% if requests %}
+        <table class="w-full text-left text-xs">
+            <thead class="bg-slate-950 text-slate-400 uppercase text-[10px]">
+                <tr>
+                    <th class="p-3">User</th>
+                    <th class="p-3">Amount</th>
+                    <th class="p-3">Method</th>
+                    <th class="p-3">Type</th>
+                    <th class="p-3">Date</th>
+                    <th class="p-3 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800">
+                {% for req in requests %}
+                <tr class="hover:bg-slate-800/40 transition" data-type="{{ req.transaction_type|upper }}">
+                    <td class="p-3 font-bold text-white">{{ req.user.username }}{% if req.tx_hash %}<span class="block text-[9px] font-mono text-slate-500 truncate max-w-[140px]" title="{{ req.tx_hash }}">TxID {{ req.tx_hash|truncatechars:14 }}</span>{% endif %}</td>
+                    <td class="p-3 font-mono text-emerald-400">${{ req.amount }}</td>
+                    <td class="p-3 text-slate-300">{{ req.payment_method }}</td>
+                    <td class="p-3 text-slate-300">{{ req.transaction_type }}</td>
+                    <td class="p-3 text-slate-500 text-[10px]">{{ req.created_at|date:"M d, H:i" }}</td>
+                    <td class="p-3 text-right">
+                        <form method="POST" class="inline-flex gap-2">
+                            {% csrf_token %}
+                            <input type="hidden" name="request_id" value="{{ req.id }}">
+                            <input type="hidden" name="admin_notes" value="">
+                            <button name="action" value="APPROVE" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] rounded-lg transition">
+                                Approve
+                            </button>
+                            <button name="action" value="REJECT" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-[10px] rounded-lg transition">
+                                Reject
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="p-10 text-center">
+            <div class="w-14 h-14 rounded-full bg-slate-800/60 flex items-center justify-center mx-auto mb-3 text-slate-600">
+                <i class="fa-solid fa-check-double text-lg"></i>
+            </div>
+            <p class="text-xs text-slate-500">No pending payment requests</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+<script>
+    // ── Added: confirm approvals, ask for a rejection reason, filter by type ──
+    document.querySelectorAll('form[method=POST]').forEach(f => {
+        let action = '';
+        f.querySelectorAll('button[name=action]').forEach(b => b.addEventListener('click', () => { action = b.value; }));
+        f.addEventListener('submit', e => {
+            const row = f.closest('tr'), who = row.children[0].firstChild.textContent.trim(), amt = row.children[1].textContent.trim(), type = row.children[3].textContent.trim().toLowerCase();
+            if (action === 'APPROVE') {
+                if (!confirm(`Approve ${type} of ${amt} for ${who}? This moves money on their account.`)) return e.preventDefault();
+            } else {
+                const reason = prompt(`Reason for rejecting ${who}'s ${type} of ${amt} (sent to the user):`, '');
+                if (reason === null) return e.preventDefault();
+                f.querySelector('[name=admin_notes]').value = reason;
+            }
+            f.querySelectorAll('button').forEach(b => { b.disabled = true; });
+            const flag = document.createElement('input'); flag.type = 'hidden'; flag.name = 'action'; flag.value = action; f.appendChild(flag);
+        });
+    });
+    document.querySelectorAll('#px-ap-tabs [data-f]').forEach(b => b.addEventListener('click', () => {
+        document.querySelectorAll('#px-ap-tabs [data-f]').forEach(x => x.classList.toggle('on', x === b));
+        document.querySelectorAll('tbody tr[data-type]').forEach(r => { r.style.display = !b.dataset.f || r.dataset.type === b.dataset.f ? '' : 'none'; });
+    }));
+</script>
+{% endblock %}

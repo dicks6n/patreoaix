@@ -1,0 +1,1728 @@
+{% extends 'base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Risk Metrics - PATREOAIX{% endblock %}
+
+{% block content %}
+{% include 'partials/legacy_skin.html' %}
+<!-- LOADING SPINNER -->
+<div id="loading-spinner" class="fixed inset-0 z-[9999] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center transition-opacity duration-500">
+    <div class="relative flex items-center justify-center">
+        <div class="w-20 h-20 rounded-full border-4 border-rose-500/20 border-t-rose-500 animate-spin"></div>
+        <div class="absolute w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center animate-pulse">
+            <div class="w-2.5 h-2.5 rounded-full bg-amber-400"></div>
+        </div>
+    </div>
+    <div class="mt-5 text-center space-y-1">
+        <p class="text-xs font-mono tracking-widest text-rose-300 uppercase animate-pulse">Computing Risk Exposure</p>
+        <p class="text-[10px] font-mono text-slate-500">Running Monte Carlo simulations...</p>
+    </div>
+</div>
+
+<style>
+    .spinner-hidden { opacity: 0; pointer-events: none; visibility: hidden; }
+    
+    /* ==========================================
+       CYBERPUNK GLASS CARDS
+       ========================================== */
+    .risk-card {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 27, 75, 0.6) 100%);
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        border-radius: 24px;
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .risk-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.6), transparent);
+        animation: scanLine 3s linear infinite;
+    }
+    
+    @keyframes scanLine {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
+    
+    /* ==========================================
+       ANIMATED GAUGE RING
+       ========================================== */
+    .gauge-ring {
+        transform: rotate(-90deg);
+        transform-origin: center;
+    }
+    
+    .gauge-ring circle {
+        fill: none;
+        stroke-linecap: round;
+    }
+    
+    .gauge-track {
+        stroke: rgba(30, 41, 59, 0.6);
+    }
+    
+    .gauge-fill {
+        stroke-dasharray: 502;
+        stroke-dashoffset: 502;
+        animation: gaugeFill 2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+    
+    @keyframes gaugeFill {
+        to { stroke-dashoffset: var(--target-offset); }
+    }
+    
+    .gauge-glow {
+        filter: drop-shadow(0 0 8px currentColor);
+    }
+    
+    /* ==========================================
+       RISK LEVEL BADGES
+       ========================================== */
+    .risk-badge-low {
+        background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(16, 185, 129, 0.1));
+        border: 1px solid rgba(34, 197, 94, 0.4);
+        color: #4ade80;
+    }
+    
+    .risk-badge-medium {
+        background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.1));
+        border: 1px solid rgba(245, 158, 11, 0.4);
+        color: #fbbf24;
+    }
+    
+    .risk-badge-high {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.1));
+        border: 1px solid rgba(239, 68, 68, 0.4);
+        color: #f87171;
+        animation: pulseDanger 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulseDanger {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+        50% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+    }
+    
+    /* ==========================================
+       HEATMAP CELLS
+       ========================================== */
+    .heat-cell {
+        aspect-ratio: 1;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        position: relative;
+        cursor: pointer;
+        border: 1px solid transparent;
+    }
+    
+    .heat-cell:hover {
+        transform: scale(1.08);
+        z-index: 10;
+        border-color: rgba(255, 255, 255, 0.3);
+    }
+    
+    .heat-low { background: linear-gradient(135deg, rgba(34, 197, 94, 0.7), rgba(16, 185, 129, 0.5)); }
+    .heat-mid { background: linear-gradient(135deg, rgba(245, 158, 11, 0.7), rgba(217, 119, 6, 0.5)); }
+    .heat-high { background: linear-gradient(135deg, rgba(239, 68, 68, 0.8), rgba(220, 38, 38, 0.6)); }
+    .heat-critical { 
+        background: linear-gradient(135deg, rgba(220, 38, 38, 0.9), rgba(153, 27, 27, 0.7));
+        animation: heatPulse 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes heatPulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+    
+    /* ==========================================
+       ALERT BANNER
+       ========================================== */
+    .alert-banner {
+        background: linear-gradient(90deg, rgba(220, 38, 38, 0.9), rgba(153, 27, 27, 0.8), rgba(220, 38, 38, 0.9));
+        background-size: 200% 100%;
+        animation: alertScroll 3s linear infinite;
+        border: 1px solid rgba(239, 68, 68, 0.5);
+    }
+    
+    @keyframes alertScroll {
+        0% { background-position: 0% 0; }
+        100% { background-position: 200% 0; }
+    }
+    
+    /* ==========================================
+       LIVE DATA PULSE
+       ========================================== */
+    .live-dot {
+        width: 8px;
+        height: 8px;
+        background: #22c55e;
+        border-radius: 50%;
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+        animation: livePulse 2s infinite;
+    }
+    
+    @keyframes livePulse {
+        0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+        70% { box-shadow: 0 0 0 12px rgba(34, 197, 94, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+    }
+    
+    /* ==========================================
+       PROGRESS BARS
+       ========================================== */
+    .metric-bar {
+        height: 8px;
+        border-radius: 9999px;
+        background: rgba(30, 41, 59, 0.6);
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .metric-bar-fill {
+        height: 100%;
+        border-radius: 9999px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .metric-bar-fill::after {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        animation: barShine 2s linear infinite;
+    }
+    
+    @keyframes barShine {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
+    
+    /* ==========================================
+       NUMBER FLASH
+       ========================================== */
+    .num-flash-up { animation: numUp 0.6s ease; }
+    .num-flash-down { animation: numDown 0.6s ease; }
+    
+    @keyframes numUp {
+        0%, 100% { color: inherit; }
+        50% { color: #4ade80; transform: scale(1.1); }
+    }
+    @keyframes numDown {
+        0%, 100% { color: inherit; }
+        50% { color: #f87171; transform: scale(1.1); }
+    }
+    
+    /* ==========================================
+       TICKER TAPE
+       ========================================== */
+    .ticker-tape {
+        overflow: hidden;
+        white-space: nowrap;
+        position: relative;
+    }
+    
+    .ticker-tape-content {
+        display: inline-block;
+        animation: tickerScroll 30s linear infinite;
+        padding-left: 100%;
+    }
+    
+    @keyframes tickerScroll {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-100%); }
+    }
+    
+    /* ==========================================
+       GLASS MORPHISM
+       ========================================== */
+    .glass-panel {
+        background: rgba(15, 23, 42, 0.5);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(99, 102, 241, 0.15);
+        border-radius: 16px;
+    }
+    
+    /* ==========================================
+       GRID BACKGROUND
+       ========================================== */
+    .cyber-grid {
+        background-image: 
+            linear-gradient(rgba(99, 102, 241, 0.05) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(99, 102, 241, 0.05) 1px, transparent 1px);
+        background-size: 40px 40px;
+    }
+</style>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+
+<div class="space-y-5 pb-4 cyber-grid">
+
+    <!-- ========================================== -->
+    <!-- 🚨 CRITICAL ALERT BANNER (conditional) -->
+    <!-- ========================================== -->
+    <div id="alertBanner" class="hidden alert-banner rounded-2xl p-4 flex items-center gap-3 shadow-2xl">
+        <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center text-white shrink-0">
+            <i class="fa-solid fa-triangle-exclamation text-xl animate-pulse"></i>
+        </div>
+        <div class="flex-1">
+            <h3 class="text-white font-black text-sm uppercase tracking-wider">⚠️ High Risk Exposure Detected</h3>
+            <p class="text-white/90 text-xs mt-0.5" id="alertText">Portfolio volatility exceeds safety threshold. Consider reducing position sizes.</p>
+        </div>
+        <button onclick="dismissAlert()" class="text-white/70 hover:text-white transition">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- HEADER + TICKER TAPE -->
+    <!-- ========================================== -->
+    <div class="risk-card p-5">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-10">
+            <div>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                        Risk <span class="text-rose-400">Metrics</span>
+                    </h1>
+                    <span class="px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-500/20 text-rose-300 border border-rose-500/30 uppercase tracking-wider flex items-center gap-2">
+                        <span class="live-dot"></span>
+                        Live Analysis
+                    </span>
+                </div>
+                <p class="text-xs text-slate-400 mt-1.5">Real-time portfolio risk intelligence & volatility monitoring</p>
+            </div>
+
+            <div class="flex items-center gap-2 flex-wrap">
+                <button onclick="runStressTest()" 
+                        class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-black transition shadow-lg shadow-indigo-500/30 flex items-center gap-2 active:scale-95">
+                    <i class="fa-solid fa-flask-vial text-[10px]"></i>
+                    Run Stress Test
+                </button>
+                <button onclick="exportRiskReport()" 
+                        class="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-bold transition border border-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-download text-[10px]"></i>
+                    Export
+                </button>
+            </div>
+        </div>
+
+        <!-- Live Ticker Tape -->
+        <div class="mt-4 -mx-5 px-5 border-t border-slate-800/60 pt-3">
+            <div class="ticker-tape text-xs font-mono">
+                <div class="ticker-tape-content">
+                    <span class="text-slate-400 mr-6">PORTFOLIO BETA: <span class="text-white font-bold">1.42</span></span>
+                    <span class="text-emerald-400 mr-6">SHARPE RATIO: <span class="font-bold">2.18</span></span>
+                    <span class="text-rose-400 mr-6">MAX DRAWDOWN: <span class="font-bold">-8.3%</span></span>
+                    <span class="text-amber-400 mr-6">VOLATILITY (30d): <span class="font-bold">18.6%</span></span>
+                    <span class="text-indigo-400 mr-6">VaR (95%): <span class="font-bold">-$2,450</span></span>
+                    <span class="text-slate-400 mr-6">WIN RATE: <span class="text-emerald-400 font-bold">64.2%</span></span>
+                    <span class="text-slate-400 mr-6">AVG RISK/TRADE: <span class="text-white font-bold">1.8%</span></span>
+                    <span class="text-cyan-400 mr-6">EXPOSURE: <span class="font-bold">$12,450</span></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Added: figures from your own MT5 account -->
+    <div class="risk-card p-5" id="px-rm">
+        <div class="flex items-center justify-between gap-3 flex-wrap mb-4">
+            <div>
+                <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2"><i class="fa-solid fa-user-shield text-emerald-400 text-xs"></i> Your Account Risk</h3>
+                <p class="text-[10px] text-slate-500 mt-0.5" id="px-rm-note">Loading your account…</p>
+            </div>
+            <span id="px-rm-upd" class="text-[10px] text-slate-500 font-mono"></span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div class="glass-panel p-3"><span class="text-[10px] text-slate-500 font-bold uppercase block">Equity</span><span id="px-rm-equity" class="text-base font-black font-mono text-white">—</span></div>
+            <div class="glass-panel p-3"><span class="text-[10px] text-slate-500 font-bold uppercase block">Floating P/L</span><span id="px-rm-float" class="text-base font-black font-mono text-white">—</span></div>
+            <div class="glass-panel p-3"><span class="text-[10px] text-slate-500 font-bold uppercase block">Margin Level</span><span id="px-rm-ml" class="text-base font-black font-mono text-white">—</span></div>
+            <div class="glass-panel p-3"><span class="text-[10px] text-slate-500 font-bold uppercase block">Exposure</span><span id="px-rm-exp" class="text-base font-black font-mono text-white">—</span></div>
+            <div class="glass-panel p-3"><span class="text-[10px] text-slate-500 font-bold uppercase block">Win Rate</span><span id="px-rm-win" class="text-base font-black font-mono text-white">—</span></div>
+            <div class="glass-panel p-3"><span class="text-[10px] text-slate-500 font-bold uppercase block">Profit Factor</span><span id="px-rm-pf" class="text-base font-black font-mono text-white">—</span></div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+            <div>
+                <p class="text-[10px] text-slate-500 font-bold uppercase mb-2">Exposure by symbol</p>
+                <div id="px-rm-bysym" class="space-y-2 text-xs font-mono"><p class="text-slate-500">—</p></div>
+            </div>
+            <div>
+                <p class="text-[10px] text-slate-500 font-bold uppercase mb-2">Stress test · every position moves against you</p>
+                <div id="px-rm-stress" class="grid grid-cols-3 gap-2 text-xs font-mono">
+                    <div class="glass-panel p-2 text-center"><span class="block text-[10px] text-slate-500">-1%</span><span class="font-bold">—</span></div>
+                    <div class="glass-panel p-2 text-center"><span class="block text-[10px] text-slate-500">-2%</span><span class="font-bold">—</span></div>
+                    <div class="glass-panel p-2 text-center"><span class="block text-[10px] text-slate-500">-5%</span><span class="font-bold">—</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TOP STATS GRID (4 CARDS) -->
+    <!-- ========================================== -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Risk Score Gauge -->
+        <div class="risk-card p-4 relative">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Risk Score</span>
+                <span class="text-[9px] px-2 py-0.5 rounded-full font-bold risk-badge-medium">MODERATE</span>
+            </div>
+            <div class="flex items-center justify-center py-2">
+                <svg width="90" height="90" viewBox="0 0 180 180" class="gauge-ring">
+                    <circle cx="90" cy="90" r="80" stroke-width="12" class="gauge-track"></circle>
+                    <circle cx="90" cy="90" r="80" stroke-width="12" 
+                            stroke="url(#gaugeGradient)" 
+                            class="gauge-fill gauge-glow text-amber-400"
+                            style="--target-offset: 200;"></circle>
+                    <defs>
+                        <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#22c55e"/>
+                            <stop offset="50%" stop-color="#f59e0b"/>
+                            <stop offset="100%" stop-color="#ef4444"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <div class="absolute">
+                    <div class="text-center">
+                        <div class="text-2xl font-black text-amber-400 font-mono">62</div>
+                        <div class="text-[9px] text-slate-500 uppercase font-bold">/100</div>
+                    </div>
+                </div>
+            </div>
+            <p class="text-center text-[10px] text-slate-500 mt-1 font-mono">Balanced Risk Profile</p>
+        </div>
+
+        <!-- Portfolio VaR -->
+        <div class="risk-card p-4">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Value at Risk (95%)</span>
+                <i class="fa-solid fa-shield-halved text-rose-400 text-xs"></i>
+            </div>
+            <div class="text-2xl font-black text-rose-400 font-mono" id="varValue">-$2,450.00</div>
+            <div class="text-[10px] text-slate-500 mt-1 font-mono">1-day horizon</div>
+            
+            <div class="metric-bar mt-3">
+                <div class="metric-bar-fill bg-gradient-to-r from-rose-600 to-rose-400" style="width: 45%;"></div>
+            </div>
+            <div class="flex justify-between text-[9px] text-slate-500 mt-1.5 font-mono">
+                <span>Current</span>
+                <span>Limit: $5,500</span>
+            </div>
+        </div>
+
+        <!-- Sharpe Ratio -->
+        <div class="risk-card p-4">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Sharpe Ratio</span>
+                <i class="fa-solid fa-chart-line text-emerald-400 text-xs"></i>
+            </div>
+            <div class="text-2xl font-black text-emerald-400 font-mono" id="sharpeValue">2.18</div>
+            <div class="text-[10px] text-slate-500 mt-1 font-mono">Excellent (target: >1.5)</div>
+            
+            <div class="metric-bar mt-3">
+                <div class="metric-bar-fill bg-gradient-to-r from-emerald-600 to-emerald-400" style="width: 72%;"></div>
+            </div>
+            <div class="flex justify-between text-[9px] text-slate-500 mt-1.5 font-mono">
+                <span>0.0</span>
+                <span>3.0</span>
+            </div>
+        </div>
+
+        <!-- Max Drawdown -->
+        <div class="risk-card p-4">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Max Drawdown</span>
+                <i class="fa-solid fa-arrow-trend-down text-amber-400 text-xs"></i>
+            </div>
+            <div class="text-2xl font-black text-amber-400 font-mono" id="drawdownValue">-8.3%</div>
+            <div class="text-[10px] text-slate-500 mt-1 font-mono">Within safe limits</div>
+            
+            <div class="metric-bar mt-3">
+                <div class="metric-bar-fill bg-gradient-to-r from-amber-600 to-amber-400" style="width: 28%;"></div>
+            </div>
+            <div class="flex justify-between text-[9px] text-slate-500 mt-1.5 font-mono">
+                <span>0%</span>
+                <span>Limit: -30%</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MAIN GRID: CHARTS ROW -->
+    <!-- ========================================== -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        
+        <!-- Equity Curve / Drawdown -->
+        <div class="risk-card p-5 lg:col-span-2">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-chart-area text-indigo-400 text-xs"></i>
+                        Equity Curve & Drawdown
+                    </h3>
+                    <p class="text-[10px] text-slate-500 mt-0.5">Last 30 days performance</p>
+                </div>
+                <div class="flex items-center gap-1 bg-slate-950/80 p-1 rounded-lg border border-slate-800 text-[10px] font-mono">
+                    <button onclick="setChartRange('7d')" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition">7D</button>
+                    <button onclick="setChartRange('30d')" class="px-2.5 py-1 rounded bg-indigo-600 text-white font-bold">30D</button>
+                    <button onclick="setChartRange('90d')" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition">90D</button>
+                    <button onclick="setChartRange('1y')" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition">1Y</button>
+                </div>
+            </div>
+            <div style="height: 280px; position: relative;">
+                <canvas id="equityChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Volatility Gauge -->
+        <div class="risk-card p-5">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-wave-square text-amber-400 text-xs"></i>
+                        Volatility
+                    </h3>
+                    <p class="text-[10px] text-slate-500 mt-0.5">Rolling 30-day avg</p>
+                </div>
+            </div>
+
+            <div class="space-y-4 mt-4">
+                <!-- Vol gauge -->
+                <div class="text-center">
+                    <div class="text-4xl font-black text-amber-400 font-mono">18.6%</div>
+                    <div class="text-[10px] text-slate-500 uppercase font-bold mt-1">Annualized Volatility</div>
+                </div>
+
+                <!-- Vol zones -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between text-[10px]">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                            <span class="text-slate-400">Low</span>
+                        </div>
+                        <span class="font-mono text-slate-500">&lt; 12%</span>
+                    </div>
+                    <div class="flex items-center justify-between text-[10px]">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                            <span class="text-slate-300 font-bold">Moderate</span>
+                        </div>
+                        <span class="font-mono text-amber-400 font-bold">12% - 25%</span>
+                    </div>
+                    <div class="flex items-center justify-between text-[10px]">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+                            <span class="text-slate-400">High</span>
+                        </div>
+                        <span class="font-mono text-slate-500">&gt; 25%</span>
+                    </div>
+                </div>
+
+                <!-- Position indicator -->
+                <div class="mt-5 pt-5 border-t border-slate-800/60">
+                    <div class="metric-bar">
+                        <div class="metric-bar-fill bg-gradient-to-r from-emerald-500 via-amber-500 to-rose-500 relative" style="width: 100%;"></div>
+                        <div class="absolute top-0 h-full w-1 bg-white rounded-full shadow-lg" style="left: 62%; transform: translateX(-50%);"></div>
+                    </div>
+                    <div class="flex justify-between text-[9px] text-slate-500 mt-2 font-mono">
+                        <span>0%</span>
+                        <span class="text-amber-400 font-bold">← You are here</span>
+                        <span>40%+</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- EXPOSURE HEATMAP + CORRELATION -->
+    <!-- ========================================== -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        
+        <!-- Portfolio Exposure Heatmap -->
+        <div class="risk-card p-5">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-fire text-rose-400 text-xs"></i>
+                        Position Heatmap
+                    </h3>
+                    <p class="text-[10px] text-slate-500 mt-0.5">Exposure by instrument (% of portfolio)</p>
+                </div>
+                <span class="text-[9px] px-2 py-1 rounded-lg bg-slate-950 text-slate-400 border border-slate-800 font-mono">LIVE</span>
+            </div>
+
+            <!-- Legend -->
+            <div class="flex items-center gap-4 mb-4 text-[10px] font-mono">
+                <div class="flex items-center gap-1.5">
+                    <div class="w-3 h-3 rounded heat-low"></div>
+                    <span class="text-slate-400">Low &lt;5%</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <div class="w-3 h-3 rounded heat-mid"></div>
+                    <span class="text-slate-400">Mid 5-15%</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <div class="w-3 h-3 rounded heat-high"></div>
+                    <span class="text-slate-400">High 15-25%</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <div class="w-3 h-3 rounded heat-critical"></div>
+                    <span class="text-slate-400">Critical &gt;25%</span>
+                </div>
+            </div>
+
+            <!-- Heatmap Grid -->
+            <div class="grid grid-cols-4 sm:grid-cols-5 gap-2">
+                <div class="heat-cell heat-high p-2" title="XAUUSD - 22.5% exposure">
+                    <span class="text-[8px] font-bold text-white/90 uppercase">XAU</span>
+                    <span class="text-xs font-black text-white font-mono">22.5%</span>
+                </div>
+                <div class="heat-cell heat-mid p-2" title="BTCUSD - 12.8% exposure">
+                    <span class="text-[8px] font-bold text-white/90 uppercase">BTC</span>
+                    <span class="text-xs font-black text-white font-mono">12.8%</span>
+                </div>
+                <div class="heat-cell heat-mid p-2" title="EURUSD - 10.2% exposure">
+                    <span class="text-[8px] font-bold text-white/90 uppercase">EUR</span>
+                    <span class="text-xs font-black text-white font-mono">10.2%</span>
+                </div>
+                <div class="heat-cell heat-low p-2" title="USOIL - 4.5% exposure">
+                    <span class="text-[8px] font-bold text-white/90 uppercase">OIL</span>
+                    <span class="text-xs font-black text-white font-mono">4.5%</span>
+                </div>
+                <div class="heat-cell heat-high p-2" title="GBPUSD - 18.7% exposure">
+                    <span class="text-[8px] font-bold text-white/90 uppercase">GBP</span>
+                    <span class="text-xs font-black text-white font-mono">18.7%</span>
+                </div>
+                <div class="heat-cell heat-low p-2" title="USDJPY - 3.2% exposure">
+                    <span class="text-[8px] font-bold text-white/90 uppercase">JPY</span>
+                    <span class="text-xs font-black text-white font-mono">3.2%</span>
+                </div>
+                <div class="heat-cell heat-critical p-2" title="R_100 - 28.4% exposure">
+                    <span class="text-[8px] font-bold text-white/90 uppercase">V100</span>
+                    <span class="text-xs font-black text-white font-mono">28.4%</span>
+                </div>
+                <div class="heat-cell heat-mid p-2" title="ETHUSD - 8.5% exposure">
+                    <span class="text-[8px] font-bold text-white/90 uppercase">ETH</span>
+                    <span class="text-xs font-black text-white font-mono">8.5%</span>
+                </div>
+                <div class="heat-cell heat-low p-2" title="R_75 - 2.1% exposure">
+                    <span class="text-[8px] font-bold text-white/90 uppercase">V75</span>
+                    <span class="text-xs font-black text-white font-mono">2.1%</span>
+                </div>
+                <div class="heat-cell heat-low p-2" title="USDCAD - 1.8% exposure">
+                    <span class="text-[8px] font-bold text-white/90 uppercase">CAD</span>
+                    <span class="text-xs font-black text-white font-mono">1.8%</span>
+                </div>
+                <div class="heat-cell heat-mid p-2" title="AUDUSD - 6.3% exposure">
+                    <span class="text-[8px] font-bold text-white/90 uppercase">AUD</span>
+                    <span class="text-xs font-black text-white font-mono">6.3%</span>
+                </div>
+                <div class="heat-cell heat-low p-2" title="NZDUSD - 2.4% exposure">
+                    <span class="text-[8px] font-bold text-white/90 uppercase">NZD</span>
+                    <span class="text-xs font-black text-white font-mono">2.4%</span>
+                </div>
+            </div>
+
+            <!-- Concentration warning -->
+            <div class="mt-4 p-3 bg-rose-950/40 border border-rose-500/20 rounded-xl flex items-start gap-2">
+                <i class="fa-solid fa-triangle-exclamation text-rose-400 text-xs mt-0.5"></i>
+                <div class="text-[10px] leading-relaxed">
+                    <span class="text-rose-300 font-bold">Concentration warning:</span>
+                    <span class="text-slate-400"> V100 (28.4%) & XAU (22.5%) together = <strong class="text-white">50.9%</strong> of portfolio. Consider diversifying.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Correlation Matrix -->
+        <div class="risk-card p-5">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-grid-2 text-purple-400 text-xs"></i>
+                        Correlation Matrix
+                    </h3>
+                    <p class="text-[10px] text-slate-500 mt-0.5">How assets move together</p>
+                </div>
+            </div>
+
+            <!-- Correlation Grid -->
+            <div class="grid grid-cols-5 gap-1.5">
+                <!-- Headers -->
+                <div></div>
+                <div class="text-[9px] font-bold text-slate-500 text-center py-1 font-mono">XAU</div>
+                <div class="text-[9px] font-bold text-slate-500 text-center py-1 font-mono">BTC</div>
+                <div class="text-[9px] font-bold text-slate-500 text-center py-1 font-mono">EUR</div>
+                <div class="text-[9px] font-bold text-slate-500 text-center py-1 font-mono">V100</div>
+
+                <!-- XAU row -->
+                <div class="text-[9px] font-bold text-slate-500 text-center py-2 font-mono">XAU</div>
+                <div class="heat-cell p-0" style="background: linear-gradient(135deg, #22c55e, #16a34a);"><span class="text-[10px] font-black text-white">1.0</span></div>
+                <div class="heat-cell p-0" style="background: linear-gradient(135deg, #22c55e, #16a34a, #f59e0b);"><span class="text-[10px] font-black text-white">0.3</span></div>
+                <div class="heat-cell p-0" style="background: linear-gradient(135deg, #22c55e, #16a34a);"><span class="text-[10px] font-black text-white">0.1</span></div>
+                <div class="heat-cell p-0" style="background: linear-gradient(135deg, #ef4444, #dc2626);"><span class="text-[10px] font-black text-white">-0.4</span></div>
+
+                <!-- BTC row -->
+                <div class="text-[9px] font-bold text-slate-500 text-center py-2 font-mono">BTC</div>
+                <div class="heat-cell p-0" style="background: linear-gradient(135deg, #22c55e, #16a34a, #f59e0b);"><span class="text-[10px] font-black text-white">0.3</span></div>
+                <div class="heat-cell p-0" style="background: linear-gradient(135deg, #22c55e, #16a34a);"><span class="text-[10px] font-black text-white">1.0</span></div>
+                <div class="heat-cell p-0" style="background: linear-gradient(135deg, #f59e0b, #16a34a);"><span class="text-[10px] font-black text-white">0.2</span></div>
+                <div class="heat-cell p-0" style="background: linear-gradient(135deg, #22c55e, #16a34a);"><span class="text-[10px] font-black text-white">0.6</span></div>
+
+                <!-- EUR row -->
+                <div class="text-[9px] font-bold text-slate-500 text-center py-2 font-mono">EUR</div>
+                <div class="heat-cell p-0" style="background: linear-gradient(135deg, #22c55e, #16a34a);"><span class="text-[10px] font-black text-white">0.1</span></div>
+                <div class="heat-cell p-0" style="background: linear-gradient(135deg, #f59e0b, #16a34a);"><span class="text-[10px] font-black text-white">0.2</span></div>
+                <div class="heat-cell p-0" style="background: linear-gradient(135deg, #22c55e, #16a34a);"><span class="text-[10px] font-black text-white">1.0</span></div>
+                <div class="heat-cell p-0" style="background: linear-gradient(135deg, #ef4444, #dc2626);"><span class="text-[10px] font-black text-white">-0.2</span></div>
+
+                <!-- V100 row -->
+                <div class="text-[9px] font-bold text-slate-500 text-center py-2 font-mono">V100</div>
+                <div class="heat-cell p-0" style="background: linear-gradient(135deg, #ef4444, #dc2626);"><span class="text-[10px] font-black text-white">-0.4</span></div>
+                <div class="heat-cell p-0" style="background: linear-gradient(135deg, #22c55e, #16a34a);"><span class="text-[10px] font-black text-white">0.6</span></div>
+                <div class="heat-cell p-0" style="background: linear-gradient(135deg, #ef4444, #dc2626);"><span class="text-[10px] font-black text-white">-0.2</span></div>
+                <div class="heat-cell p-0" style="background: linear-gradient(135deg, #22c55e, #16a34a);"><span class="text-[10px] font-black text-white">1.0</span></div>
+            </div>
+
+            <!-- Legend -->
+            <div class="flex items-center justify-between mt-4 text-[9px] font-mono text-slate-500">
+                <span class="flex items-center gap-1.5">
+                    <div class="w-3 h-3 rounded" style="background: linear-gradient(135deg, #ef4444, #dc2626);"></div>
+                    Negative (-1)
+                </span>
+                <span class="flex items-center gap-1.5">
+                    <div class="w-3 h-3 rounded" style="background: linear-gradient(135deg, #f59e0b, #16a34a);"></div>
+                    Neutral (0)
+                </span>
+                <span class="flex items-center gap-1.5">
+                    <div class="w-3 h-3 rounded" style="background: linear-gradient(135deg, #22c55e, #16a34a);"></div>
+                    Positive (+1)
+                </span>
+            </div>
+
+            <!-- Insight -->
+            <div class="mt-4 p-3 bg-indigo-950/40 border border-indigo-500/20 rounded-xl flex items-start gap-2">
+                <i class="fa-solid fa-lightbulb text-indigo-400 text-xs mt-0.5"></i>
+                <div class="text-[10px] leading-relaxed">
+                    <span class="text-indigo-300 font-bold">Diversification tip:</span>
+                    <span class="text-slate-400"> XAU and V100 are negatively correlated (-0.4) — good hedge pair. Reduce BTC+V100 overlap (0.6 correlation).</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- DETAILED RISK BREAKDOWN -->
+    <!-- ========================================== -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        
+        <!-- Risk Limits -->
+        <div class="risk-card p-5">
+            <h3 class="text-sm font-black text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-shield-halved text-emerald-400 text-xs"></i>
+                Risk Limits
+            </h3>
+            
+            <div class="space-y-4">
+                <!-- Daily Loss -->
+                <div>
+                    <div class="flex justify-between items-center mb-1.5">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase">Daily Loss</span>
+                        <span class="text-[10px] font-mono text-emerald-400 font-bold">-$340 / -$500</span>
+                    </div>
+                    <div class="metric-bar">
+                        <div class="metric-bar-fill bg-gradient-to-r from-emerald-600 to-emerald-400" style="width: 68%;"></div>
+                    </div>
+                </div>
+
+                <!-- Weekly Loss -->
+                <div>
+                    <div class="flex justify-between items-center mb-1.5">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase">Weekly Loss</span>
+                        <span class="text-[10px] font-mono text-amber-400 font-bold">-$1,240 / -$2,500</span>
+                    </div>
+                    <div class="metric-bar">
+                        <div class="metric-bar-fill bg-gradient-to-r from-amber-600 to-amber-400" style="width: 50%;"></div>
+                    </div>
+                </div>
+
+                <!-- Monthly Loss -->
+                <div>
+                    <div class="flex justify-between items-center mb-1.5">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase">Monthly Loss</span>
+                        <span class="text-[10px] font-mono text-rose-400 font-bold">-$2,890 / -$5,000</span>
+                    </div>
+                    <div class="metric-bar">
+                        <div class="metric-bar-fill bg-gradient-to-r from-rose-600 to-rose-400" style="width: 58%;"></div>
+                    </div>
+                </div>
+
+                <!-- Leverage -->
+                <div>
+                    <div class="flex justify-between items-center mb-1.5">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase">Leverage Usage</span>
+                        <span class="text-[10px] font-mono text-slate-300 font-bold">2.4x / 5x</span>
+                    </div>
+                    <div class="metric-bar">
+                        <div class="metric-bar-fill bg-gradient-to-r from-indigo-600 to-indigo-400" style="width: 48%;"></div>
+                    </div>
+                </div>
+
+                <!-- Margin -->
+                <div>
+                    <div class="flex justify-between items-center mb-1.5">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase">Margin Used</span>
+                        <span class="text-[10px] font-mono text-cyan-400 font-bold">$2,450 / $5,000</span>
+                    </div>
+                    <div class="metric-bar">
+                        <div class="metric-bar-fill bg-gradient-to-r from-cyan-600 to-cyan-400" style="width: 49%;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Risk Distribution -->
+        <div class="risk-card p-5 lg:col-span-2">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-chart-pie text-amber-400 text-xs"></i>
+                        Return Distribution (Monte Carlo)
+                    </h3>
+                    <p class="text-[10px] text-slate-500 mt-0.5">10,000 simulated outcomes</p>
+                </div>
+            </div>
+            <div style="height: 200px;">
+                <canvas id="distributionChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- RECOMMENDATIONS -->
+    <!-- ========================================== -->
+    <div class="risk-card p-5">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-robot text-indigo-400 text-xs"></i>
+                    AI Risk Recommendations
+                </h3>
+                <p class="text-[10px] text-slate-500 mt-0.5">Auto-generated based on your portfolio analysis</p>
+            </div>
+            <span class="px-2.5 py-1 rounded-full text-[9px] font-black bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 uppercase tracking-wider">
+                <i class="fa-solid fa-wand-magic-sparkles mr-1"></i>
+                AI Powered
+            </span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <!-- Recommendation 1 -->
+            <div class="glass-panel p-4 border-l-2 border-rose-500">
+                <div class="flex items-start gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0">
+                        <i class="fa-solid fa-triangle-exclamation text-xs"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-white mb-1">Reduce V100 Exposure</h4>
+                        <p class="text-[10px] text-slate-400 leading-relaxed">V100 position is at 28.4% — above the 25% concentration limit. Reduce by 3.4%.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommendation 2 -->
+            <div class="glass-panel p-4 border-l-2 border-emerald-500">
+                <div class="flex items-start gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                        <i class="fa-solid fa-check text-xs"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-white mb-1">Excellent Sharpe Ratio</h4>
+                        <p class="text-[10px] text-slate-400 leading-relaxed">2.18 is well above the target of 1.5. Current strategy is well-balanced.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommendation 3 -->
+            <div class="glass-panel p-4 border-l-2 border-amber-500">
+                <div class="flex items-start gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                        <i class="fa-solid fa-balance-scale text-xs"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-white mb-1">Hedge with V100 Short</h4>
+                        <p class="text-[10px] text-slate-400 leading-relaxed">XAU-V100 correlation is -0.4. A small V100 short could hedge your gold exposure.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommendation 4 -->
+            <div class="glass-panel p-4 border-l-2 border-indigo-500">
+                <div class="flex items-start gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
+                        <i class="fa-solid fa-chart-line text-xs"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-white mb-1">Increase GBP Allocation</h4>
+                        <p class="text-[10px] text-slate-400 leading-relaxed">GBP/USD has shown strong performance. Consider increasing allocation by 2%.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommendation 5 -->
+            <div class="glass-panel p-4 border-l-2 border-cyan-500">
+                <div class="flex items-start gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+                        <i class="fa-solid fa-clock text-xs"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-white mb-1">Optimal Trade Timing</h4>
+                        <p class="text-[10px] text-slate-400 leading-relaxed">Highest win rate during NY session (09:00-12:00 EST). Adjust your schedule.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommendation 6 -->
+            <div class="glass-panel p-4 border-l-2 border-purple-500">
+                <div class="flex items-start gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0">
+                        <i class="fa-solid fa-brain text-xs"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-white mb-1">Enable Trailing Stop</h4>
+                        <p class="text-[10px] text-slate-400 leading-relaxed">47% of your winners give back profit. A trailing stop could improve returns by ~12%.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ==========================================
+// SPINNER
+// ==========================================
+window.addEventListener('load', function() {
+    setTimeout(() => {
+        const spinner = document.getElementById('loading-spinner');
+        if (spinner) {
+            spinner.classList.add('spinner-hidden');
+            setTimeout(() => spinner.remove(), 500);
+        }
+    }, 800);
+});
+
+// ==========================================
+// EQUITY CURVE + DRAWDOWN CHART
+// ==========================================
+const equityCtx = document.getElementById('equityChart').getContext('2d');
+
+const gradientEquity = equityCtx.createLinearGradient(0, 0, 0, 280);
+gradientEquity.addColorStop(0, 'rgba(99, 102, 241, 0.4)');
+gradientEquity.addColorStop(1, 'rgba(99, 102, 241, 0)');
+
+const gradientDrawdown = equityCtx.createLinearGradient(0, 0, 0, 280);
+gradientDrawdown.addColorStop(0, 'rgba(239, 68, 68, 0.3)');
+gradientDrawdown.addColorStop(1, 'rgba(239, 68, 68, 0)');
+
+// Generate sample data
+const days = Array.from({length: 30}, (_, i) => `Day ${i+1}`);
+const equityData = [];
+const drawdownData = [];
+let equity = 10000;
+let peak = 10000;
+
+for (let i = 0; i < 30; i++) {
+    const change = (Math.random() - 0.4) * 400;
+    equity += change;
+    peak = Math.max(peak, equity);
+    const dd = ((equity - peak) / peak) * 100;
+    
+    equityData.push(equity);
+    drawdownData.push(dd);
+}
+
+const equityChart = new Chart(equityCtx, {
+    type: 'line',
+    data: {
+        labels: days,
+        datasets: [
+            {
+                label: 'Equity',
+                data: equityData,
+                borderColor: '#818cf8',
+                backgroundColor: gradientEquity,
+                borderWidth: 2.5,
+                tension: 0.4,
+                fill: true,
+                pointRadius: 0,
+                pointHoverRadius: 6,
+                pointHoverBackgroundColor: '#818cf8',
+                pointHoverBorderColor: '#fff',
+                pointHoverBorderWidth: 2,
+                yAxisID: 'y',
+            },
+            {
+                label: 'Drawdown %',
+                data: drawdownData,
+                borderColor: '#ef4444',
+                backgroundColor: gradientDrawdown,
+                borderWidth: 1.5,
+                tension: 0.4,
+                fill: true,
+                pointRadius: 0,
+                pointHoverRadius: 6,
+                pointHoverBackgroundColor: '#ef4444',
+                pointHoverBorderColor: '#fff',
+                pointHoverBorderWidth: 2,
+                borderDash: [5, 3],
+                yAxisID: 'y1',
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+            mode: 'index',
+            intersect: false,
+        },
+        plugins: {
+            legend: {
+                display: true,
+                position: 'top',
+                align: 'end',
+                labels: {
+                    color: '#94a3b8',
+                    font: { size: 10, family: 'JetBrains Mono' },
+                    boxWidth: 12,
+                    boxHeight: 2,
+                    usePointStyle: true,
+                    padding: 15,
+                }
+            },
+            tooltip: {
+                backgroundColor: 'rgba(2, 6, 23, 0.95)',
+                borderColor: 'rgba(99, 102, 241, 0.4)',
+                borderWidth: 1,
+                titleColor: '#fff',
+                bodyColor: '#cbd5e1',
+                titleFont: { size: 11, weight: 'bold' },
+                bodyFont: { size: 10, family: 'JetBrains Mono' },
+                padding: 12,
+                cornerRadius: 8,
+                displayColors: true,
+                callbacks: {
+                    label: function(context) {
+                        if (context.datasetIndex === 0) {
+                            return 'Equity: $' + context.parsed.y.toFixed(2);
+                        } else {
+                            return 'Drawdown: ' + context.parsed.y.toFixed(2) + '%';
+                        }
+                    }
+                }
+            }
+        },
+        scales: {
+            x: {
+                grid: {
+                    color: 'rgba(51, 65, 85, 0.3)',
+                    drawBorder: false,
+                },
+                ticks: {
+                    color: '#64748b',
+                    font: { size: 9, family: 'JetBrains Mono' },
+                    maxTicksLimit: 8,
+                }
+            },
+            y: {
+                position: 'left',
+                grid: {
+                    color: 'rgba(51, 65, 85, 0.3)',
+                    drawBorder: false,
+                },
+                ticks: {
+                    color: '#64748b',
+                    font: { size: 9, family: 'JetBrains Mono' },
+                    callback: function(value) {
+                        return '$' + (value/1000).toFixed(1) + 'K';
+                    }
+                }
+            },
+            y1: {
+                position: 'right',
+                grid: {
+                    drawOnChartArea: false,
+                },
+                ticks: {
+                    color: '#ef4444',
+                    font: { size: 9, family: 'JetBrains Mono' },
+                    callback: function(value) {
+                        return value.toFixed(0) + '%';
+                    }
+                }
+            }
+        }
+    }
+});
+
+// ==========================================
+// DISTRIBUTION CHART
+// ==========================================
+const distCtx = document.getElementById('distributionChart').getContext('2d');
+
+const gradientDist = distCtx.createLinearGradient(0, 0, 0, 200);
+gradientDist.addColorStop(0, 'rgba(139, 92, 246, 0.8)');
+gradientDist.addColorStop(1, 'rgba(99, 102, 241, 0.2)');
+
+// Simulated normal distribution
+const bins = ['-15%','-12%','-9%','-6%','-3%','0%','3%','6%','9%','12%','15%'];
+const frequencies = [50, 120, 280, 520, 890, 1240, 1150, 780, 420, 180, 70];
+
+new Chart(distCtx, {
+    type: 'bar',
+    data: {
+        labels: bins,
+        datasets: [{
+            label: 'Frequency',
+            data: frequencies,
+            backgroundColor: (context) => {
+                const value = context.parsed.y;
+                if (value < 300) return 'rgba(239, 68, 68, 0.7)';
+                if (value < 900) return 'rgba(245, 158, 11, 0.7)';
+                return 'rgba(34, 197, 94, 0.7)';
+            },
+            borderRadius: 4,
+            borderSkipped: false,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: 'rgba(2, 6, 23, 0.95)',
+                borderColor: 'rgba(99, 102, 241, 0.4)',
+                borderWidth: 1,
+                titleColor: '#fff',
+                bodyColor: '#cbd5e1',
+                titleFont: { size: 11, weight: 'bold' },
+                bodyFont: { size: 10, family: 'JetBrains Mono' },
+                padding: 12,
+                cornerRadius: 8,
+                callbacks: {
+                    label: function(context) {
+                        const pct = (context.parsed.y / 5700 * 100).toFixed(1);
+                        return 'Frequency: ' + context.parsed.y + ' outcomes (' + pct + '%)';
+                    }
+                }
+            }
+        },
+        scales: {
+            x: {
+                grid: { display: false },
+                ticks: {
+                    color: '#64748b',
+                    font: { size: 9, family: 'JetBrains Mono' },
+                }
+            },
+            y: {
+                grid: {
+                    color: 'rgba(51, 65, 85, 0.3)',
+                    drawBorder: false,
+                },
+                ticks: {
+                    color: '#64748b',
+                    font: { size: 9, family: 'JetBrains Mono' },
+                }
+            }
+        }
+    }
+});
+
+// ==========================================
+// LIVE METRIC UPDATES
+// ==========================================
+function updateLiveMetrics() {
+    // Slight random variation to simulate "live" data
+    const varEl = document.getElementById('varValue');
+    const sharpeEl = document.getElementById('sharpeValue');
+    const ddEl = document.getElementById('drawdownValue');
+    
+    const currentVar = parseFloat(varEl.textContent.replace('$', '').replace(',', ''));
+    const newVar = currentVar + (Math.random() - 0.5) * 30;
+    
+    if (Math.abs(newVar - currentVar) > 5) {
+        varEl.textContent = '$' + newVar.toFixed(2);
+        varEl.classList.remove('num-flash-up', 'num-flash-down');
+        varEl.classList.add(newVar > currentVar ? 'num-flash-up' : 'num-flash-down');
+        setTimeout(() => varEl.classList.remove('num-flash-up', 'num-flash-down'), 600);
+    }
+}
+
+// setInterval(updateLiveMetrics, 3000);   // disabled: it moved VaR randomly — real figures load below
+
+// ==========================================
+// RUN STRESS TEST
+// ==========================================
+function runStressTest() {
+    showToast('🧪 Running Monte Carlo simulation...', 'info');
+    
+    // Simulate test by animating metrics
+    const metrics = ['varValue', 'sharpeValue', 'drawdownValue'];
+    metrics.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.classList.add('num-flash-up');
+            setTimeout(() => el.classList.remove('num-flash-up'), 600);
+        }
+    });
+    
+    setTimeout(() => {
+        showToast('✅ Stress test complete — 3 scenarios analyzed', 'success');
+    }, 2500);
+}
+
+// ==========================================
+// EXPORT REPORT
+// ==========================================
+function exportRiskReport() {
+    showToast('📄 Generating PDF report...', 'info');
+    setTimeout(() => {
+        showToast('✅ Report exported to your downloads', 'success');
+    }, 1500);
+}
+
+// ==========================================
+// CHART RANGE SELECTOR
+// ==========================================
+function setChartRange(range) {
+    const buttons = document.querySelectorAll('button[onclick^="setChartRange"]');
+    buttons.forEach(btn => {
+        btn.className = 'px-2.5 py-1 rounded text-slate-400 hover:text-white transition';
+    });
+    if (event && event.target) {
+        event.target.className = 'px-2.5 py-1 rounded bg-indigo-600 text-white font-bold';
+    }
+    
+    // Regenerate chart data based on range
+    const daysCount = range === '7d' ? 7 : range === '30d' ? 30 : range === '90d' ? 90 : 365;
+    const newLabels = Array.from({length: daysCount}, (_, i) => `Day ${i+1}`);
+    const newEquity = [];
+    const newDrawdown = [];
+    let eq = 10000;
+    let pk = 10000;
+    
+    for (let i = 0; i < daysCount; i++) {
+        const change = (Math.random() - 0.42) * 400;
+        eq += change;
+        pk = Math.max(pk, eq);
+        const dd = ((eq - pk) / pk) * 100;
+        
+        newEquity.push(eq);
+        newDrawdown.push(dd);
+    }
+    
+    equityChart.data.labels = newLabels;
+    equityChart.data.datasets[0].data = newEquity;
+    equityChart.data.datasets[1].data = newDrawdown;
+    equityChart.update('active');
+}
+
+// ==========================================
+// DISMISS ALERT
+// ==========================================
+function dismissAlert() {
+    const banner = document.getElementById('alertBanner');
+    if (banner) {
+        banner.style.transition = 'all 0.3s ease';
+        banner.style.opacity = '0';
+        banner.style.transform = 'translateY(-20px)';
+        setTimeout(() => banner.classList.add('hidden'), 300);
+    }
+}
+
+// Show alert banner if any metric is critical
+setTimeout(() => {
+    const banner = document.getElementById('alertBanner');
+    if (banner && window.pxRiskCritical) {   // was a coin flip; set from the real account below
+        banner.classList.remove('hidden');
+    }
+}, 2000);
+
+// ==========================================
+// TOAST
+// ==========================================
+function showToast(message, type = 'info') {
+    const colors = {
+        success: 'bg-emerald-900/95 border-emerald-500 text-emerald-200',
+        error: 'bg-rose-900/95 border-rose-500 text-rose-200',
+        info: 'bg-indigo-900/95 border-indigo-500 text-indigo-200',
+    };
+    const icons = {
+        success: 'fa-circle-check',
+        error: 'fa-circle-xmark',
+        info: 'fa-circle-info',
+    };
+    
+    const toast = document.createElement('div');
+    toast.className = `fixed bottom-5 right-5 z-[100000] px-4 py-3 rounded-xl border font-mono text-xs shadow-2xl backdrop-blur-md transition-all duration-300 ${colors[type]}`;
+    toast.style.animation = 'slideDownBanner 0.3s ease-out';
+    toast.innerHTML = `<i class="fa-solid ${icons[type]} mr-2"></i> ${message}`;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        setTimeout(() => toast.remove(), 300);
+    }, 3500);
+}
+
+// ==========================================
+// CURSOR-FOLLOWING GLOW (cyberpunk effect)
+// ==========================================
+document.addEventListener('mousemove', (e) => {
+    document.documentElement.style.setProperty('--mouse-x', e.clientX + 'px');
+    document.documentElement.style.setProperty('--mouse-y', e.clientY + 'px');
+});
+</script>
+<script>
+// ── Added: drive the cards and charts above from the user's MT5 account ──
+(function () {
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const money = v => (v < 0 ? '-$' : '$') + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const pct = v => (v > 0 ? '+' : '') + v.toFixed(1) + '%';
+    const tone = (el, v) => { if (el) el.style.color = v > 0 ? 'var(--px-up)' : v < 0 ? 'var(--px-down)' : ''; };
+    const parseT = s => new Date(String(s).replace(/^(\d{4})\.(\d{2})\.(\d{2}) /, '$1-$2-$3T'));
+    const say = (m, t) => (window.showMarketToast ? showMarketToast(m, t) : showToast(m, t));
+    let state = null;
+
+    // nothing illustrative is shown: blank the page's built-in figures until the account loads
+    function card(id) { return $(id)?.closest('.risk-card'); }
+    function cardByTitle(t) { return [...document.querySelectorAll('.risk-card h3')].find(x => x.textContent.trim().startsWith(t))?.closest('.risk-card'); }
+    (function blank() {
+        ['varValue', 'sharpeValue', 'drawdownValue'].forEach(id => { const el = $(id); if (el) el.textContent = '—'; });
+        const g = document.querySelector('.gauge-ring')?.closest('.risk-card');
+        if (g) { const n = g.querySelector('.text-2xl'); if (n) n.textContent = '—'; }
+        const tape = document.querySelector('.ticker-tape-content'); if (tape) tape.innerHTML = '<span class="text-slate-500 mr-6">Loading your account…</span>';
+        document.querySelectorAll('.risk-card .space-y-4 > div').forEach(row => { const v = row.querySelectorAll('span')[1]; if (v && /\$|x \//.test(v.textContent)) v.textContent = '—'; });
+        document.querySelectorAll('.risk-card .metric-bar-fill').forEach(f => { if (!f.closest('#px-rm')) f.style.width = '0%'; });
+        if (typeof equityChart !== 'undefined') { equityChart.data.labels = []; equityChart.data.datasets.forEach(d => d.data = []); equityChart.update('none'); }
+        const dist = window.Chart && Chart.getChart(document.getElementById('distributionChart'));
+        // its bar colours are a function of the value, which breaks on an empty chart — use a flat colour until real data arrives
+        if (dist) { dist.data.datasets[0].data = []; dist.data.datasets[0].backgroundColor = 'rgba(240,185,11,.6)'; dist.update('none'); }
+        const vol = cardByTitle('Volatility'); if (vol) vol.querySelector('.text-4xl').textContent = '—';
+        const heat = cardByTitle('Position Heatmap'); if (heat) { heat.querySelector('.grid').innerHTML = ''; heat.querySelector('.bg-rose-950\\/40')?.classList.add('hidden'); }
+        const cor = cardByTitle('Correlation Matrix'); if (cor) { cor.querySelector('.grid').innerHTML = ''; const tip = cor.querySelector('.bg-indigo-950\\/40 .text-slate-400'); if (tip) tip.textContent = ' Loading…'; }
+        const rec = cardByTitle('AI Risk Recommendations');
+        if (rec) {
+            rec.querySelector('.grid').innerHTML = '<p class="text-[11px] text-slate-500">Loading your account…</p>';
+            const badge = [...rec.querySelectorAll('span')].find(x => /AI Powered/.test(x.textContent));
+            if (badge) badge.innerHTML = '<i class="fa-solid fa-user-shield mr-1"></i> From your account';
+        }
+    })();
+
+    function closedStats(closed, balanceNow) {
+        const rows = closed.map(c => ({ t: parseT(c.closed_at), net: (c.pnl || 0) + (c.swap || 0) + (c.commission || 0), sym: c.symbol }))
+                           .filter(r => !isNaN(r.t)).sort((a, b) => a.t - b.t);
+        const totalNet = rows.reduce((s, r) => s + r.net, 0);
+        let bal = balanceNow - totalNet, peak = bal, maxDD = 0;
+        const curve = [], dd = [], rets = [];
+        rows.forEach(r => {
+            if (bal > 0) rets.push(r.net / bal);
+            bal += r.net;
+            peak = Math.max(peak, bal);
+            const d = peak > 0 ? (bal - peak) / peak * 100 : 0;
+            maxDD = Math.min(maxDD, d);
+            curve.push({ t: r.t, v: bal }); dd.push(d);
+        });
+        const wins = rows.filter(r => r.net > 0), losses = rows.filter(r => r.net < 0);
+        const gw = wins.reduce((s, r) => s + r.net, 0), gl = -losses.reduce((s, r) => s + r.net, 0);
+        const mean = rets.length ? rets.reduce((s, x) => s + x, 0) / rets.length : 0;
+        const sd = rets.length > 1 ? Math.sqrt(rets.reduce((s, x) => s + (x - mean) ** 2, 0) / (rets.length - 1)) : 0;
+        const sortedNet = rows.map(r => r.net).sort((a, b) => a - b);
+        const var95 = sortedNet.length >= 5 ? sortedNet[Math.floor(sortedNet.length * 0.05)] : null;
+        return { rows, curve, dd, n: rows.length, winRate: rows.length ? wins.length / rows.length * 100 : null,
+                 pf: gl > 0 ? gw / gl : (gw > 0 ? Infinity : null), sharpe: sd > 0 ? mean / sd : null, maxDD, var95, rets };
+    }
+
+    function setBar(el, w) { const f = el?.querySelector('.metric-bar-fill'); if (f) f.style.width = Math.max(0, Math.min(100, w)) + '%'; }
+    function subText(id, text) { const el = $(id)?.nextElementSibling; if (el) el.textContent = text; }
+
+    function paint(m, p, h) {
+        const pos = p.positions || [];
+        const s = closedStats(h.positions || [], m.balance);
+        const exposure = pos.reduce((t, q) => t + (q.notional_usd || 0), 0);
+        const lev = m.equity > 0 ? exposure / m.equity : 0;
+        state = { m, pos, s, exposure };
+
+        // account strip
+        $('px-rm-equity').textContent = money(m.equity);
+        $('px-rm-float').textContent = (m.floating_pnl > 0 ? '+' : '') + money(m.floating_pnl); tone($('px-rm-float'), m.floating_pnl);
+        $('px-rm-ml').textContent = m.margin_level != null ? m.margin_level.toFixed(0) + '%' : '—';
+        $('px-rm-exp').textContent = money(exposure) + (exposure ? ` · ${lev.toFixed(1)}x` : '');
+        $('px-rm-win').textContent = s.winRate != null ? s.winRate.toFixed(1) + '%' : '—';
+        $('px-rm-pf').textContent = s.pf == null ? '—' : (s.pf === Infinity ? '∞' : s.pf.toFixed(2));
+        $('px-rm-note').textContent = `${pos.length} open position${pos.length === 1 ? '' : 's'} · ${s.n} closed trade${s.n === 1 ? '' : 's'}`;
+        $('px-rm-upd').textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        const by = {};
+        pos.forEach(q => {
+            const b = by[q.symbol] || (by[q.symbol] = { n: 0, lots: 0, notional: 0, pnl: 0 });
+            b.lots += q.volume * (q.direction === 'BUY' ? 1 : -1); b.notional += q.notional_usd || 0; b.pnl += q.pnl; b.n++;
+        });
+        const list = Object.entries(by).sort((a, b) => b[1].notional - a[1].notional);
+        $('px-rm-bysym').innerHTML = list.length ? list.map(([sym, b]) => {
+            const share = exposure ? b.notional / exposure * 100 : 0;
+            return `<div><div class="flex justify-between"><span class="font-bold text-white">${esc(sym)} <span class="text-slate-500">${b.lots > 0 ? '+' : ''}${b.lots.toFixed(2)} lots</span></span>
+                <span>${money(b.notional)} · ${share.toFixed(0)}%</span></div>
+                <div class="metric-bar mt-1"><div class="metric-bar-fill" style="width:${share.toFixed(1)}%;background:${share > 60 ? 'var(--px-down)' : 'var(--px-accent)'}"></div></div></div>`;
+        }).join('') : '<p class="text-slate-500">No open positions.</p>';
+        stress(false);
+
+        // top cards
+        if (s.var95 != null) {
+            $('varValue').textContent = money(Math.min(0, s.var95));
+            subText('varValue', `historical · worst 5% of ${s.n} trades`);
+            setBar(card('varValue'), m.balance ? Math.abs(Math.min(0, s.var95)) / (m.balance * 0.05) * 100 : 0);
+        } else {
+            $('varValue').textContent = '—';
+            subText('varValue', 'needs 5+ closed trades');
+            setBar(card('varValue'), 0);
+        }
+        const vl = card('varValue')?.querySelector('.flex.justify-between span:last-child');
+        if (vl) vl.textContent = 'Limit: ' + money(m.balance * 0.05);
+        $('sharpeValue').textContent = s.sharpe != null ? s.sharpe.toFixed(2) : '—';
+        subText('sharpeValue', s.sharpe != null ? `per trade · ${s.n} trades` : 'needs 2+ closed trades');
+        setBar(card('sharpeValue'), s.sharpe != null ? s.sharpe / 3 * 100 : 0);
+        $('drawdownValue').textContent = s.n ? s.maxDD.toFixed(1) + '%' : '—';
+        subText('drawdownValue', s.n ? (s.maxDD > -10 ? 'Within safe limits' : s.maxDD > -20 ? 'Elevated' : 'Severe') : 'no closed trades yet');
+        setBar(card('drawdownValue'), Math.abs(s.maxDD) / 30 * 100);
+
+        // risk score: leverage, drawdown, margin
+        const score = Math.round(Math.min(100, lev * 4 + Math.abs(s.maxDD) * 1.5 + (m.margin_call ? 30 : (m.margin_level != null && m.margin_level < 300 ? 15 : 0))));
+        const gauge = document.querySelector('.gauge-ring');
+        const rc = gauge?.closest('.risk-card');
+        if (rc) {
+            const num = rc.querySelector('.text-2xl'); if (num) num.textContent = score;
+            const badge = rc.querySelector('[class*="risk-badge-"]');
+            const [cls, lbl, desc] = score < 35 ? ['risk-badge-low', 'LOW', 'Conservative Risk Profile'] : score < 65 ? ['risk-badge-medium', 'MODERATE', 'Balanced Risk Profile'] : ['risk-badge-high', 'HIGH', 'Aggressive Risk Profile'];
+            if (badge) { badge.className = badge.className.replace(/risk-badge-\w+/, cls); badge.textContent = lbl; }
+            const d = rc.querySelector('p.text-center'); if (d) d.textContent = desc;
+            const fill = gauge.querySelector('.gauge-fill');
+            if (fill) { fill.style.setProperty('--target-offset', (502.65 * (1 - score / 100)).toFixed(1)); fill.style.strokeDashoffset = (502.65 * (1 - score / 100)).toFixed(1); }
+        }
+
+        // ticker tape
+        const tape = document.querySelector('.ticker-tape-content');
+        if (tape) {
+            const item = (label, val, color) => `<span class="text-slate-400 mr-6">${label}: <span class="font-bold" style="color:${color || 'var(--px-text)'}">${val}</span></span>`;
+            tape.innerHTML = [
+                item('EQUITY', money(m.equity)),
+                item('FLOATING', money(m.floating_pnl), m.floating_pnl >= 0 ? 'var(--px-up)' : 'var(--px-down)'),
+                item('MARGIN LEVEL', m.margin_level != null ? m.margin_level.toFixed(0) + '%' : '—'),
+                item('EXPOSURE', money(exposure)),
+                item('LEVERAGE', lev.toFixed(1) + 'x'),
+                item('MAX DRAWDOWN', s.n ? s.maxDD.toFixed(1) + '%' : '—', 'var(--px-down)'),
+                item('WIN RATE', s.winRate != null ? s.winRate.toFixed(1) + '%' : '—', 'var(--px-up)'),
+                item('SHARPE (TRADE)', s.sharpe != null ? s.sharpe.toFixed(2) : '—'),
+            ].join('');
+        }
+
+        // risk limits: realised loss vs % of balance, leverage, margin
+        const since = d => { const t = Date.now() - d * 864e5; return s.rows.filter(r => r.t >= t).reduce((a, r) => a + r.net, 0); };
+        const limits = { 'Daily Loss': [since(1), 0.05], 'Weekly Loss': [since(7), 0.10], 'Monthly Loss': [since(30), 0.15] };
+        document.querySelectorAll('.risk-card .space-y-4 > div').forEach(row => {
+            const label = row.querySelector('span')?.textContent.trim();
+            const val = row.querySelectorAll('span')[1];
+            if (!label || !val) return;
+            if (limits[label]) {
+                const [net, frac] = limits[label];
+                const cap = m.balance * frac, loss = Math.max(0, -net);
+                val.textContent = `${money(-loss)} / ${money(-cap)}`;
+                setBar(row, cap ? loss / cap * 100 : 0);
+            } else if (label === 'Leverage Usage') {
+                val.textContent = `${lev.toFixed(1)}x / 30x`; setBar(row, lev / 30 * 100);
+            } else if (label === 'Margin Used') {
+                val.textContent = `${money(m.margin_used)} / ${money(m.equity)}`; setBar(row, m.equity ? m.margin_used / m.equity * 100 : 0);
+            }
+        });
+
+        // equity curve
+        if (s.curve.length && typeof equityChart !== 'undefined') drawCurve(30);
+        else {
+            const sub = document.getElementById('equityChart').closest('.risk-card').querySelector('h3 + p');
+            if (sub) sub.textContent = 'No closed trades yet — the curve starts with your first closed trade';
+        }
+
+        // return distribution from real trades
+        const dist = window.Chart && Chart.getChart(document.getElementById('distributionChart'));
+        if (dist && s.rets.length >= 5) {
+            const edges = [-15, -12, -9, -6, -3, 0, 3, 6, 9, 12, 15];
+            const counts = edges.map(() => 0);
+            s.rets.forEach(r => {
+                const x = r * 100;
+                let i = edges.findIndex(e => x < e + 1.5);
+                if (i < 0) i = edges.length - 1;
+                counts[i]++;
+            });
+            dist.data.datasets[0].data = counts;
+            dist.data.datasets[0].backgroundColor = edges.map(e => e < 0 ? 'rgba(234,57,67,.7)' : e > 0 ? 'rgba(22,199,132,.7)' : 'rgba(240,185,11,.7)');
+            dist.options.plugins.tooltip.callbacks.label = c => `${c.parsed.y} trade${c.parsed.y === 1 ? '' : 's'} (${(c.parsed.y / s.rets.length * 100).toFixed(1)}%)`;
+            dist.update();
+            const h = [...document.querySelectorAll('.risk-card h3')].find(x => x.textContent.includes('Return Distribution'));
+            if (h) h.lastChild.textContent = ' Return Distribution (your trades, % of balance)';
+            const sub = h?.closest('.risk-card').querySelector('h3 + p'); if (sub) sub.textContent = `${s.rets.length} closed trades`;
+        } else {
+            const h = [...document.querySelectorAll('.risk-card h3')].find(x => x.textContent.includes('Return Distribution'));
+            if (h) h.lastChild.textContent = ' Return Distribution (needs 5+ closed trades)';
+            const sub = h?.closest('.risk-card').querySelector('h3 + p'); if (sub) sub.textContent = `${s.n} closed so far`;
+        }
+        market(m, pos, s, exposure, list);
+
+        // alert banner on real conditions only
+        const reasons = [];
+        if (m.margin_call) reasons.push(`margin level ${m.margin_level?.toFixed(0)}% is at the margin-call level`);
+        else if (m.margin_level != null && m.margin_level < 300) reasons.push(`margin level is ${m.margin_level.toFixed(0)}%`);
+        if (lev > 20) reasons.push(`effective leverage is ${lev.toFixed(1)}x`);
+        if (list.length && exposure && list[0][1].notional / exposure > 0.8 && pos.length > 1) reasons.push(`${list[0][0]} is ${(list[0][1].notional / exposure * 100).toFixed(0)}% of exposure`);
+        window.pxRiskCritical = reasons.length > 0;
+        const banner = $('alertBanner');
+        if (banner && reasons.length && !banner.dataset.dismissed) {
+            $('alertText').textContent = reasons.join(' · ') + '. Consider reducing position sizes.';
+            banner.classList.remove('hidden'); banner.style.opacity = ''; banner.style.transform = '';
+        } else if (banner && !reasons.length) banner.classList.add('hidden');
+    }
+
+    const candleCache = {};
+    async function daily(sym) {
+        const hit = candleCache[sym];
+        if (hit && Date.now() - hit.at < 10 * 60e3) return hit.rows;
+        const r = await fetch(`/api/candles/?symbol=${encodeURIComponent(sym)}&timeframe=1d`, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' }).then(r => r.json()).catch(() => ({}));
+        const rows = (r.success && r.candles) ? r.candles.map(c => ({ t: Math.floor(c.time / 86400), c: +c.close })).filter(x => x.c > 0) : [];
+        candleCache[sym] = { at: Date.now(), rows };
+        return rows;
+    }
+    const yearDays = sym => /^(BTC|ETH|SOL|BNB|XRP|ADA|DOGE|DOT|LINK)|^R_|^1HZ/.test(sym) ? 365 : 252;
+    function returnsByDay(rows) { const m = {}; for (let i = 1; i < rows.length; i++) m[rows[i].t] = Math.log(rows[i].c / rows[i - 1].c); return m; }
+    function corr(a, b) {
+        const days = Object.keys(a).filter(d => d in b).sort().slice(-60);
+        if (days.length < 15) return null;
+        const x = days.map(d => a[d]), y = days.map(d => b[d]);
+        const mx = x.reduce((s, v) => s + v, 0) / x.length, my = y.reduce((s, v) => s + v, 0) / y.length;
+        let sxy = 0, sxx = 0, syy = 0;
+        x.forEach((v, i) => { sxy += (v - mx) * (y[i] - my); sxx += (v - mx) ** 2; syy += (y[i] - my) ** 2; });
+        return sxx && syy ? sxy / Math.sqrt(sxx * syy) : null;
+    }
+    const short = s => s.replace(/USD$/, '').replace(/^R_/, 'V');
+
+    async function market(m, pos, s, exposure, list) {
+        // which symbols: open exposure first, else what you traded recently
+        let syms = list.map(([k]) => k);
+        let basis = 'your open positions';
+        if (!syms.length) { syms = [...new Set(s.rows.slice().reverse().map(r => r.sym))]; basis = 'symbols you traded'; }
+        syms = syms.slice(0, 5);
+        const weights = {};
+        syms.forEach(k => { const b = list.find(([x]) => x === k); weights[k] = b && exposure ? Math.sign(b[1].lots || 1) * b[1].notional / exposure : 1 / syms.length; });
+
+        const vol = cardByTitle('Volatility'), heat = cardByTitle('Position Heatmap'), cor = cardByTitle('Correlation Matrix'), rec = cardByTitle('AI Risk Recommendations');
+        const rets = {}, sig = {};
+        await Promise.all(syms.map(async k => {
+            const rows = (await daily(k)).slice(-61);
+            if (rows.length < 20) return;
+            rets[k] = returnsByDay(rows);
+            const v = Object.values(rets[k]).slice(-30), mu = v.reduce((a, b) => a + b, 0) / v.length;
+            sig[k] = Math.sqrt(v.reduce((a, b) => a + (b - mu) ** 2, 0) / (v.length - 1)) * Math.sqrt(yearDays(k));
+        }));
+        const have = syms.filter(k => sig[k] != null);
+        const C = {};
+        have.forEach(a => have.forEach(b => { C[a + '|' + b] = a === b ? 1 : corr(rets[a], rets[b]); }));
+
+        // volatility (portfolio, with correlation)
+        if (vol) {
+            const big = vol.querySelector('.text-4xl'), sub = vol.querySelector('h3 + p');
+            if (have.length) {
+                let v2 = 0;
+                have.forEach(a => have.forEach(b => { v2 += weights[a] * weights[b] * sig[a] * sig[b] * (C[a + '|' + b] ?? (a === b ? 1 : 0)); }));
+                const pv = Math.sqrt(Math.max(0, v2)) * 100;
+                big.textContent = pv.toFixed(1) + '%';
+                big.style.color = pv < 12 ? 'var(--px-up)' : pv <= 25 ? 'var(--px-accent)' : 'var(--px-down)';
+                if (sub) sub.textContent = `30-day, ${basis}: ${have.map(k => `${short(k)} ${(sig[k] * 100).toFixed(0)}%`).join(' · ')}`;
+                const pin = vol.querySelector('.absolute.top-0'); if (pin) pin.style.left = Math.min(100, pv / 40 * 100) + '%';
+                vol.querySelector('.metric-bar')?.style.setProperty('position', 'relative');
+                const zones = vol.querySelectorAll('.space-y-2 > div');
+                const zi = pv < 12 ? 0 : pv <= 25 ? 1 : 2;
+                zones.forEach((z, i) => { z.style.opacity = i === zi ? '1' : '.45'; });
+                const here = [...vol.querySelectorAll('span')].find(x => /You are here/.test(x.textContent)); if (here) here.textContent = `← ${pv.toFixed(1)}%`;
+            } else {
+                big.textContent = '—';
+                if (sub) sub.textContent = syms.length ? 'Live daily prices unavailable right now' : 'No positions or trades yet';
+            }
+        }
+
+        // heatmap = real exposure shares
+        if (heat) {
+            const grid = heat.querySelector('.grid'), warn = heat.querySelector('.bg-rose-950\\/40');
+            if (list.length) {
+                grid.innerHTML = list.map(([k, b]) => {
+                    const pct = exposure ? b.notional / exposure * 100 : 0;
+                    const cls = pct < 5 ? 'heat-low' : pct < 15 ? 'heat-mid' : pct < 25 ? 'heat-high' : 'heat-critical';
+                    return `<div class="heat-cell ${cls} p-2" title="${esc(k)} — ${money(b.notional)} (${b.lots > 0 ? '+' : ''}${b.lots.toFixed(2)} lots)"><span class="text-[8px] font-bold text-white/90 uppercase">${esc(short(k))}</span><span class="text-xs font-black text-white font-mono">${pct.toFixed(1)}%</span></div>`;
+                }).join('');
+                const top2 = list.slice(0, 2), share = top2.reduce((a, [, b]) => a + b.notional, 0) / (exposure || 1) * 100;
+                if (warn && list.length > 2 && share > 60) {
+                    warn.classList.remove('hidden');
+                    warn.querySelector('.text-slate-400').innerHTML = ` ${top2.map(([k, b]) => `${esc(short(k))} (${(b.notional / exposure * 100).toFixed(1)}%)`).join(' & ')} together = <strong class="text-white">${share.toFixed(1)}%</strong> of exposure.`;
+                } else if (warn) warn.classList.add('hidden');
+            } else {
+                grid.innerHTML = '<p class="col-span-full text-[11px] text-slate-500 py-6 text-center">No open positions.</p>';
+                warn?.classList.add('hidden');
+            }
+        }
+
+        // correlation of daily returns
+        if (cor) {
+            const grid = cor.querySelector('.grid'), tip = cor.querySelector('.bg-indigo-950\\/40 .text-slate-400');
+            if (have.length >= 2) {
+                const color = v => v == null ? 'var(--px-panel-2)' : v >= 0.5 ? 'rgba(22,199,132,.75)' : v >= 0.2 ? 'rgba(22,199,132,.45)' : v > -0.2 ? 'rgba(240,185,11,.45)' : v > -0.5 ? 'rgba(234,57,67,.45)' : 'rgba(234,57,67,.75)';
+                grid.style.gridTemplateColumns = `repeat(${have.length + 1}, minmax(0, 1fr))`;
+                grid.innerHTML = '<div></div>' + have.map(k => `<div class="text-[9px] font-bold text-slate-500 text-center py-1 font-mono">${esc(short(k))}</div>`).join('') +
+                    have.map(a => `<div class="text-[9px] font-bold text-slate-500 text-center py-2 font-mono">${esc(short(a))}</div>` +
+                        have.map(b => { const v = C[a + '|' + b]; return `<div class="heat-cell p-0" style="background:${color(v)}" title="${esc(a)} / ${esc(b)}, 60 days"><span class="text-[10px] font-black text-white">${v == null ? '—' : v.toFixed(2)}</span></div>`; }).join('')).join('');
+                const pairs = [];
+                have.forEach((a, i) => have.slice(i + 1).forEach(b => { if (C[a + '|' + b] != null) pairs.push([a, b, C[a + '|' + b]]); }));
+                pairs.sort((x, y) => y[2] - x[2]);
+                if (tip && pairs.length === 1) {
+                    const [x, y, v] = pairs[0];
+                    tip.textContent = ` ${short(x)} and ${short(y)}: correlation ${v.toFixed(2)} over 60 days of daily returns — ${v > 0.5 ? 'they tend to move together' : v < -0.3 ? 'they tend to offset each other' : 'only loosely related'}.`;
+                } else if (tip && pairs.length) {
+                    const hi = pairs[0], lo = pairs[pairs.length - 1];
+                    tip.textContent = ` Most alike: ${short(hi[0])}/${short(hi[1])} (${hi[2].toFixed(2)}). Most different: ${short(lo[0])}/${short(lo[1])} (${lo[2].toFixed(2)}). Based on 60 days of daily returns.`;
+                }
+            } else {
+                grid.style.gridTemplateColumns = '';
+                grid.innerHTML = '<p class="col-span-full text-[11px] text-slate-500 py-6 text-center">Needs two or more symbols with live daily prices.</p>';
+                if (tip) tip.textContent = ' Hold or trade at least two instruments to see how they move together.';
+            }
+        }
+
+        // recommendations from the account itself
+        if (rec) {
+            const out = [];
+            const add = (tone, icon, title, text) => out.push({ tone, icon, title, text });
+            const lev = m.equity > 0 ? exposure / m.equity : 0;
+            const noStop = pos.filter(q => q.sl == null);
+            if (noStop.length) add('rose', 'fa-shield-halved', 'Set stop losses', `${noStop.length} open position${noStop.length > 1 ? 's have' : ' has'} no stop loss (${[...new Set(noStop.map(q => q.symbol))].join(', ')}).`);
+            if (list.length > 1 && exposure && list[0][1].notional / exposure > 0.6) add('amber', 'fa-chart-pie', `Concentrated in ${list[0][0]}`, `${(list[0][1].notional / exposure * 100).toFixed(0)}% of your exposure is one instrument.`);
+            if (lev > 10) add('rose', 'fa-gauge-high', 'High leverage', `Effective leverage is ${lev.toFixed(1)}x. A 5% adverse move would cost ${money(exposure * 0.05)} (${(exposure * 0.05 / m.equity * 100).toFixed(0)}% of equity).`);
+            if (m.margin_level != null && m.margin_level < 300) add('rose', 'fa-triangle-exclamation', 'Margin level is low', `Margin level ${m.margin_level.toFixed(0)}% (margin call at ${m.margin_call_level}%). Close or reduce positions.`);
+            have.forEach((a, i) => have.slice(i + 1).forEach(b => {
+                const v = C[a + '|' + b], da = list.find(([x]) => x === a), db = list.find(([x]) => x === b);
+                if (v != null && v > 0.7 && da && db && Math.sign(da[1].lots) === Math.sign(db[1].lots)) add('amber', 'fa-link', `${short(a)} and ${short(b)} move together`, `Correlation ${v.toFixed(2)} and both are ${da[1].lots > 0 ? 'long' : 'short'} — effectively one bigger position.`);
+            }));
+            if (s.n >= 10 && s.pf != null && s.pf < 1) add('amber', 'fa-arrow-trend-down', 'Losing more than winning', `Profit factor ${s.pf.toFixed(2)} over ${s.n} trades: average losses outweigh wins.`);
+            if (s.n >= 10 && s.maxDD < -15) add('rose', 'fa-arrow-down', 'Deep drawdown', `Max drawdown ${s.maxDD.toFixed(1)}%. Consider halving position size until it recovers.`);
+            if (s.n >= 10 && s.pf != null && s.pf >= 1.5) add('emerald', 'fa-check', 'Edge is holding', `Profit factor ${s.pf === Infinity ? '∞' : s.pf.toFixed(2)} and win rate ${s.winRate.toFixed(0)}% over ${s.n} trades.`);
+            if (!pos.length && !s.n) add('indigo', 'fa-circle-info', 'No activity yet', 'Open a trade in the terminal and this page will analyse it.');
+            if (!out.length) add('emerald', 'fa-check', 'No risk issues found', `Leverage ${lev.toFixed(1)}x, margin level ${m.margin_level != null ? m.margin_level.toFixed(0) + '%' : '—'}, ${pos.length} position${pos.length === 1 ? '' : 's'} all with stops.`);
+            rec.querySelector('.grid').innerHTML = out.map(r => `
+                <div class="glass-panel p-4 border-l-2 border-${r.tone}-500"><div class="flex items-start gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-${r.tone}-500/20 border border-${r.tone}-500/30 flex items-center justify-center text-${r.tone}-400 shrink-0"><i class="fa-solid ${r.icon} text-xs"></i></div>
+                    <div><h4 class="text-xs font-bold text-white mb-1">${esc(r.title)}</h4><p class="text-[10px] text-slate-400 leading-relaxed">${esc(r.text)}</p></div>
+                </div></div>`).join('');
+        }
+    }
+
+    function drawCurve(days) {
+        if (!state || !state.s.curve.length) return false;
+        const from = days ? Date.now() - days * 864e5 : 0;
+        const idx = state.s.curve.map((c, i) => i).filter(i => state.s.curve[i].t >= from);
+        const use = idx.length ? idx : state.s.curve.map((c, i) => i);
+        equityChart.data.labels = use.map(i => state.s.curve[i].t.toLocaleDateString([], { month: 'short', day: 'numeric' }));
+        equityChart.data.datasets[0].data = use.map(i => state.s.curve[i].v);
+        equityChart.data.datasets[1].data = use.map(i => state.s.dd[i]);
+        equityChart.update();
+        const sub = document.getElementById('equityChart').closest('.risk-card').querySelector('h3 + p');
+        if (sub) sub.textContent = `Balance after each closed trade · ${use.length} trade${use.length === 1 ? '' : 's'}`;
+        return true;
+    }
+
+    // range buttons: real data when there is some, otherwise keep the original behaviour
+    window.setChartRange = function (range) {
+        const days = { '7d': 7, '30d': 30, '90d': 90, '1y': 365 }[range];
+        if (state && state.s.curve.length) {
+            document.querySelectorAll('button[onclick^="setChartRange"]').forEach(b => {
+                b.className = b.getAttribute('onclick').includes(`'${range}'`) ? 'px-2.5 py-1 rounded bg-indigo-600 text-white font-bold' : 'px-2.5 py-1 rounded text-slate-400 hover:text-white transition';
+            });
+            drawCurve(days);
+        }
+    };
+
+    function stress(announce) {
+        if (!state) { if (announce) say('Account data is still loading.', 'info'); return; }
+        const shocks = [0.01, 0.02, 0.05];
+        const cells = document.querySelectorAll('#px-rm-stress > div span.font-bold');
+        const res = shocks.map(k => -state.exposure * k);
+        res.forEach((v, i) => {
+            if (!cells[i]) return;
+            cells[i].textContent = state.pos.length ? money(v) : '—';
+            cells[i].style.color = v < 0 ? 'var(--px-down)' : '';
+            cells[i].title = state.m.equity ? `Equity after: ${money(state.m.equity + v)} (${pct(v / state.m.equity * 100)})` : '';
+        });
+        if (announce) {
+            say(state.pos.length ? `Stress test: a 1% / 2% / 5% adverse move would cost ${res.map(money).join(' / ')}.`
+                                 : 'Stress test: no open positions, so nothing is at risk right now.', state.pos.length ? 'info' : 'success');
+            $('px-rm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+    window.runStressTest = () => stress(true);
+
+    // export: a real CSV of the figures and closed trades
+    window.exportRiskReport = function () {
+        if (!state) return say('Account data is still loading.', 'info');
+        const { m, s, exposure } = state;
+        const lines = [['Metric', 'Value'], ['Balance', m.balance], ['Equity', m.equity], ['Floating P/L', m.floating_pnl],
+            ['Margin used', m.margin_used], ['Margin level %', m.margin_level ?? ''], ['Exposure USD', exposure.toFixed(2)],
+            ['Closed trades', s.n], ['Win rate %', s.winRate?.toFixed(2) ?? ''], ['Profit factor', s.pf === Infinity ? 'inf' : (s.pf?.toFixed(2) ?? '')],
+            ['Max drawdown %', s.maxDD.toFixed(2)], ['VaR 95% (per trade)', s.var95 ?? ''], [], ['Closed', 'Symbol', 'Net P/L']]
+            .concat(s.rows.map(r => [r.t.toISOString(), r.sym, r.net.toFixed(2)]));
+        const csv = lines.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+        a.download = 'risk-report-' + new Date().toISOString().slice(0, 10) + '.csv';
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        say('Risk report downloaded.', 'success');
+    };
+
+    const banner = $('alertBanner');
+    banner?.querySelector('button')?.addEventListener('click', () => { banner.dataset.dismissed = '1'; });
+
+    async function load() {
+        try {
+            const get = u => fetch(u, { credentials: 'same-origin' }).then(r => r.json());
+            const [m, p, h] = await Promise.all([get('/api/mt5/metrics/'), get('/api/open-positions/'), get('/api/mt5/history/?period=all')]);
+            if (!m.success || !p.success || !h.success) throw new Error('bad response');
+            paint(m, p, h);
+        } catch (e) {
+            $('px-rm-note').textContent = 'Could not load your account — retrying.';
+        }
+    }
+    load();
+    setInterval(() => { if (!document.hidden) load(); }, 15000);
+})();
+</script>
+{% endblock %}

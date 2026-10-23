@@ -1,0 +1,146 @@
+{% extends 'base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Payout History - PATREOAIX{% endblock %}
+
+{% block content %}
+{% include 'partials/legacy_skin.html' %}
+<div class="max-w-5xl mx-auto space-y-6 pb-6">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-black text-white flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                </span>
+                Payout History
+            </h1>
+            <p class="text-xs text-slate-400 mt-2">All your funded account payout requests</p>
+        </div>
+        <a href="{% url 'funded_payout' %}" class="text-xs font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1">
+            <i class="fa-solid fa-plus"></i> Request New Payout
+        </a>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-3 gap-4">
+        <div class="bg-slate-900/80 border border-emerald-500/20 rounded-2xl p-4">
+            <span class="text-[10px] uppercase tracking-widest text-emerald-400 font-bold block mb-1">Total Paid Out</span>
+            <span class="text-xl font-black text-white font-mono">${{ total_paid_out|floatformat:2 }}</span>
+        </div>
+        <div class="bg-slate-900/80 border border-amber-500/20 rounded-2xl p-4">
+            <span class="text-[10px] uppercase tracking-widest text-amber-400 font-bold block mb-1">Pending</span>
+            <span class="text-xl font-black text-white font-mono">{{ pending_count }}</span>
+        </div>
+        <div class="bg-slate-900/80 border border-indigo-500/20 rounded-2xl p-4">
+            <span class="text-[10px] uppercase tracking-widest text-indigo-400 font-bold block mb-1">Completed</span>
+            <span class="text-xl font-black text-white font-mono">{{ completed_count }}</span>
+        </div>
+    </div>
+
+    <!-- Added: status filter + CSV export -->
+    {% if payouts %}
+    <div class="flex items-center justify-between gap-3 flex-wrap" id="px-payout-tools">
+        <div class="flex gap-2 flex-wrap text-[11px] font-bold">
+            <button type="button" data-f="ALL" class="px-pf px-3 py-1.5 rounded-lg">All</button>
+            <button type="button" data-f="PENDING" class="px-pf px-3 py-1.5 rounded-lg">Pending</button>
+            <button type="button" data-f="PROCESSING" class="px-pf px-3 py-1.5 rounded-lg">Processing</button>
+            <button type="button" data-f="COMPLETED" class="px-pf px-3 py-1.5 rounded-lg">Completed</button>
+            <button type="button" data-f="REJECTED" class="px-pf px-3 py-1.5 rounded-lg">Rejected</button>
+        </div>
+        <button type="button" id="px-payout-csv" class="text-[11px] font-bold px-3 py-1.5 rounded-lg px-pf"><i class="fa-solid fa-download text-[10px] mr-1"></i>Export CSV</button>
+    </div>
+    {% endif %}
+
+    <!-- Payouts Table -->
+    <div class="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="border-b border-slate-800 text-[10px] text-slate-400 uppercase bg-slate-950/60">
+                        <th class="p-4 font-bold">Month</th>
+                        <th class="p-4 font-bold">Amount</th>
+                        <th class="p-4 font-bold">% of Balance</th>
+                        <th class="p-4 font-bold">Status</th>
+                        <th class="p-4 font-bold">Requested</th>
+                        <th class="p-4 font-bold">Processed</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60">
+                    {% for payout in payouts %}
+                    <tr class="hover:bg-slate-800/30 transition">
+                        <td class="p-4">
+                            <span class="text-xs font-bold text-white">{{ payout.payout_month|date:"F Y" }}</span>
+                        </td>
+                        <td class="p-4">
+                            <span class="text-xs font-bold font-mono text-white">${{ payout.requested_amount|floatformat:2 }}</span>
+                        </td>
+                        <td class="p-4">
+                            <span class="text-xs font-bold font-mono text-amber-400">{{ payout.payout_percentage|floatformat:1 }}%</span>
+                        </td>
+                        <td class="p-4">
+                            <span class="px-2.5 py-1 rounded-md text-[10px] font-bold
+                                {% if payout.status == 'COMPLETED' %}bg-emerald-950/80 text-emerald-400 border border-emerald-500/20
+                                {% elif payout.status == 'REJECTED' %}bg-rose-950/80 text-rose-400 border border-rose-500/20
+                                {% elif payout.status == 'PROCESSING' %}bg-blue-950/80 text-blue-400 border border-blue-500/20
+                                {% else %}bg-amber-950/80 text-amber-400 border border-amber-500/20{% endif %}">
+                                {{ payout.status }}
+                            </span>
+                        </td>
+                        <td class="p-4">
+                            <span class="text-[11px] text-slate-400">{{ payout.created_at|date:"M d, Y" }}</span>
+                        </td>
+                        <td class="p-4">
+                            {% if payout.processed_at %}
+                            <span class="text-[11px] text-slate-400">{{ payout.processed_at|date:"M d, Y" }}</span>
+                            {% else %}
+                            <span class="text-[11px] text-slate-600">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="p-10 text-center">
+                            <div class="w-14 h-14 bg-slate-800/50 rounded-2xl flex items-center justify-center mx-auto mb-3 text-slate-600">
+                                <i class="fa-solid fa-inbox text-lg"></i>
+                            </div>
+                            <p class="text-xs text-slate-500">No payout requests yet</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<style>
+    .px-pf { background: var(--px-panel-2); color: var(--px-dim); border: 1px solid var(--px-line); }
+    .px-pf:hover { color: var(--px-text); }
+    .px-pf.on { background: var(--px-accent); color: var(--px-accent-ink); border-color: var(--px-accent); }
+</style>
+<script>
+    (function () {
+        const tools = document.getElementById('px-payout-tools');
+        if (!tools) return;
+        const rows = [...document.querySelectorAll('tbody tr')].filter(tr => tr.children.length === 6);
+        const status = tr => tr.children[3].innerText.trim().toUpperCase();
+        tools.querySelectorAll('[data-f]').forEach(b => b.addEventListener('click', () => {
+            tools.querySelectorAll('[data-f]').forEach(x => x.classList.toggle('on', x === b));
+            rows.forEach(tr => { tr.style.display = (b.dataset.f === 'ALL' || status(tr) === b.dataset.f) ? '' : 'none'; });
+        }));
+        tools.querySelector('[data-f="ALL"]').classList.add('on');
+        document.getElementById('px-payout-csv').addEventListener('click', () => {
+            const cell = el => el.textContent.replace(/\s+/g, ' ').trim();
+            const head = [...document.querySelectorAll('thead th')].map(cell);
+            const body = rows.filter(tr => tr.style.display !== 'none').map(tr => [...tr.children].map(cell));
+            const csv = [head, ...body].map(r => r.map(c => '"' + c.replace(/"/g, '""') + '"').join(',')).join('\n');
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+            a.download = 'payout-history.csv';
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        });
+    })();
+</script>
+{% endblock %}

@@ -1,0 +1,822 @@
+{% extends 'base_dashboard.html' %}
+{% load static %}
+
+{% block title %}AI Trade Journal - PATREOAIX{% endblock %}
+
+{% block content %}
+{% include 'partials/legacy_skin.html' %}
+<style>
+    main .journal-card, main .stat-card, main .model-card, main .alert-card { background: var(--px-panel) !important; border: 1px solid var(--px-line) !important; border-radius: 12px !important; box-shadow: var(--px-shadow) !important; }
+    main .alert-card::before { display: none; }
+    main .journal-card:hover, main .stat-card:hover, main .model-card:hover { transform: none !important; }
+    .journal-modal-box { background: var(--px-panel) !important; border: 1px solid var(--px-line) !important; }
+    .px-chip { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 8px; background: var(--px-panel-2); color: var(--px-dim); border: 1px solid var(--px-line); }
+    .px-chip.on { background: var(--px-accent); color: var(--px-accent-ink); border-color: var(--px-accent); }
+    /* journal in the site palette: gold = brand/action, green = win, red = loss */
+    main .flex.items-center.justify-center[class*="bg-gradient-to-br"], .journal-modal-box .flex.items-center.justify-center[class*="bg-gradient-to-br"] {
+        background: var(--px-accent) !important; box-shadow: none !important; }
+    main .flex.items-center.justify-center[class*="bg-gradient-to-br"] i, .journal-modal-box .flex.items-center.justify-center[class*="bg-gradient-to-br"] i { color: var(--px-accent-ink) !important; }
+    main [class*="bg-indigo-500/10"], main [class*="bg-purple-500/10"], main [class*="bg-blue-500/10"], main [class*="bg-cyan-500/10"] {
+        background: var(--px-accent-soft) !important; border-color: transparent !important; color: var(--px-accent) !important; }
+    main .text-purple-400, main .text-blue-400, main .text-cyan-400 { color: var(--px-accent) !important; }
+    main .bg-gradient-to-br.from-indigo-950\/40 { background: var(--px-panel-2) !important; border-color: var(--px-line) !important; }
+    main .bg-emerald-600, main .bg-gradient-to-r.from-emerald-600, .journal-modal-box .bg-gradient-to-r.from-emerald-600 {
+        background: var(--px-accent) !important; color: var(--px-accent-ink) !important; box-shadow: none !important; }
+    main .bg-emerald-600 *, main .bg-gradient-to-r.from-emerald-600 *, .journal-modal-box .bg-gradient-to-r.from-emerald-600 * { color: var(--px-accent-ink) !important; }
+    main .text-emerald-400 { color: var(--px-up) !important; }
+    main .text-rose-400 { color: var(--px-down) !important; }
+    main [class*="bg-emerald-500/10"] { background: var(--px-up-soft) !important; border-color: transparent !important; }
+    main [class*="bg-rose-500/10"] { background: var(--px-down-soft) !important; border-color: transparent !important; }
+    main .bg-gradient-to-r.from-emerald-500 { background: var(--px-up) !important; }
+    main .bg-gradient-to-r.from-amber-500 { background: var(--px-accent) !important; }
+    main .bg-gradient-to-r.from-rose-500 { background: var(--px-down) !important; }
+    main .blur-3xl { display: none; }
+    .insight-card { border-radius: 10px; }
+    .insight-positive { background: var(--px-up-soft) !important; border-color: color-mix(in srgb, var(--px-up) 30%, transparent) !important; }
+    .insight-warning { background: var(--px-down-soft) !important; border-color: color-mix(in srgb, var(--px-down) 30%, transparent) !important; }
+    .insight-info { background: var(--px-accent-soft) !important; border-color: color-mix(in srgb, var(--px-accent) 30%, transparent) !important; }
+    .symbol-row { background: var(--px-panel-2) !important; border-color: var(--px-line) !important; }
+    .symbol-row:hover { border-color: var(--px-accent) !important; }
+    .progress-bar { background: var(--px-panel-2) !important; }
+    .trade-row:hover { background: var(--px-hover) !important; }
+</style>
+<!-- LOADING SPINNER -->
+<div id="loading-spinner" class="fixed inset-0 z-[9999] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center transition-opacity duration-500">
+    <div class="relative flex items-center justify-center">
+        <div class="w-20 h-20 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin"></div>
+        <div class="absolute w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center animate-pulse">
+            <div class="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
+        </div>
+    </div>
+    <div class="mt-5 text-center space-y-1">
+        <p class="text-xs font-mono tracking-widest text-indigo-300 uppercase animate-pulse">Loading Trade Journal</p>
+        <p class="text-[10px] font-mono text-slate-500">Analysing your performance...</p>
+    </div>
+</div>
+
+<style>
+    .spinner-hidden { opacity: 0; pointer-events: none; visibility: hidden; }
+    
+    .journal-card {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 27, 75, 0.4) 100%);
+        border: 1px solid rgba(99, 102, 241, 0.15);
+        border-radius: 20px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+        transition: all 0.3s ease;
+    }
+    
+    .journal-card:hover {
+        border-color: rgba(99, 102, 241, 0.4);
+    }
+    
+    /* Stat cards */
+    .stat-card {
+        background: rgba(15, 23, 42, 0.8);
+        border: 1px solid rgba(99, 102, 241, 0.15);
+        border-radius: 16px;
+        padding: 16px;
+        transition: all 0.3s ease;
+    }
+    .stat-card:hover {
+        border-color: rgba(99, 102, 241, 0.4);
+        transform: translateY(-2px);
+    }
+    
+/* Daily chart */
+.daily-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 120px;
+    padding: 8px 0;
+    position: relative;
+    overflow: hidden;      /* ← KEY: prevents overflow */
+}
+.daily-bar {
+    flex: 1;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    min-height: 4px;
+    cursor: pointer;
+    max-height: 100%;       /* ← KEY: caps at parent height */
+}
+    .daily-bar:hover {
+        transform: scaleY(1.05);
+        filter: brightness(1.2);
+    }
+    .daily-bar.positive {
+        background: linear-gradient(180deg, #10b981, #059669);
+    }
+    .daily-bar.negative {
+        background: linear-gradient(180deg, #f43f5e, #be123c);
+    }
+    .daily-bar.neutral {
+        background: linear-gradient(180deg, #334155, #1e293b);
+    }
+    
+    /* AI Insight cards */
+    .insight-card {
+        border-radius: 16px;
+        padding: 16px;
+        border: 1px solid;
+        display: flex;
+        gap: 12px;
+        transition: all 0.3s ease;
+    }
+    .insight-card:hover {
+        transform: translateX(4px);
+    }
+    .insight-positive {
+        background: rgba(16, 185, 129, 0.05);
+        border-color: rgba(16, 185, 129, 0.25);
+    }
+    .insight-warning {
+        background: rgba(244, 63, 94, 0.05);
+        border-color: rgba(244, 63, 94, 0.25);
+    }
+    .insight-info {
+        background: rgba(99, 102, 241, 0.05);
+        border-color: rgba(99, 102, 241, 0.25);
+    }
+    
+    /* Symbol performance */
+    .symbol-row {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(99, 102, 241, 0.1);
+        border-radius: 12px;
+        padding: 12px;
+        transition: all 0.2s ease;
+    }
+    .symbol-row:hover {
+        border-color: rgba(99, 102, 241, 0.4);
+        transform: translateX(2px);
+    }
+    
+    /* Trade row */
+    .trade-row {
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+    .trade-row:hover {
+        background: rgba(30, 41, 59, 0.4);
+    }
+    
+    /* Progress bar */
+    .progress-bar {
+        height: 6px;
+        border-radius: 6px;
+        background: rgba(30, 41, 59, 0.8);
+        overflow: hidden;
+    }
+    .progress-fill {
+        height: 100%;
+        border-radius: 6px;
+        transition: width 0.8s ease;
+    }
+    
+    /* Pills */
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    /* Modal */
+    .journal-modal-backdrop {
+        position: fixed; inset: 0; z-index: 99999;
+        background: rgba(2, 6, 23, 0.85);
+        backdrop-filter: blur(12px);
+        display: flex; align-items: center; justify-content: center;
+        padding: 16px;
+        opacity: 0; pointer-events: none;
+        transition: opacity 0.2s ease;
+    }
+    .journal-modal-backdrop.active { opacity: 1; pointer-events: all; }
+    .journal-modal-box {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 27, 75, 0.6) 100%);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        border-radius: 24px;
+        max-width: 560px; width: 100%;
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+        transform: scale(0.92);
+        transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    .journal-modal-backdrop.active .journal-modal-box { transform: scale(1); }
+</style>
+
+<div class="space-y-5 pb-4">
+
+    <!-- ========================================== -->
+    <!-- HERO BANNER -->
+    <!-- ========================================== -->
+    <div class="journal-card p-5 sm:p-6 relative overflow-hidden">
+        <div class="absolute -top-20 -right-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-20 -left-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="relative z-10">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                <div>
+                    <div class="flex items-center gap-3 flex-wrap mb-2">
+                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-xl shadow-indigo-500/30">
+                            <i class="fa-solid fa-book-open text-white text-lg"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-xl sm:text-2xl font-black text-white">AI Trade Journal</h1>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Personal performance analytics powered by machine learning</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 flex-wrap mt-3">
+                        <span class="px-3 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            LIVE DATA
+                        </span>
+                        <span class="px-3 py-1 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                            <i class="fa-solid fa-brain text-[9px] mr-1"></i>
+                            AI ANALYST ACTIVE
+                        </span>
+                        <span class="px-3 py-1 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700 font-mono">
+                            {{ total_trades }} TRADES ANALYSED
+                        </span>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-3">
+                    <button onclick="scrollToSection('trades-section')" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition border border-slate-700 flex items-center gap-2">
+                        <i class="fa-solid fa-list text-[10px]"></i>
+                        <span>View Trades</span>
+                    </button>
+                    <a href="{% url 'trade' %}" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold transition shadow-lg shadow-emerald-600/25 flex items-center gap-2">
+                        <i class="fa-solid fa-plus text-[10px]"></i>
+                        <span>New Trade</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TOP STATS GRID -->
+    <!-- ========================================== -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        
+        <!-- Total P&L -->
+        <div class="journal-card p-4">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Total P&L</span>
+                <div class="w-7 h-7 rounded-lg {% if total_pnl >= 0 %}bg-emerald-500/10 border-emerald-500/20 text-emerald-400{% else %}bg-rose-500/10 border-rose-500/20 text-rose-400{% endif %} border flex items-center justify-center">
+                    <i class="fa-solid {% if total_pnl >= 0 %}fa-arrow-trend-up{% else %}fa-arrow-trend-down{% endif %} text-[10px]"></i>
+                </div>
+            </div>
+            <p class="text-2xl font-black font-mono {% if total_pnl >= 0 %}text-emerald-400{% else %}text-rose-400{% endif %}">
+                {% if total_pnl >= 0 %}+{% endif %}${{ total_pnl|floatformat:2 }}
+            </p>
+            <p class="text-[10px] text-slate-500 mt-1 font-mono">
+                {% if total_pnl >= 0 %}▲ Net gain{% else %}▼ Net loss{% endif %}
+            </p>
+        </div>
+
+        <!-- Win Rate -->
+        <div class="journal-card p-4">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Win Rate</span>
+                <div class="w-7 h-7 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                    <i class="fa-solid fa-bullseye text-[10px]"></i>
+                </div>
+            </div>
+            <p class="text-2xl font-black font-mono 
+                {% if win_rate >= 60 %}text-emerald-400{% elif win_rate >= 45 %}text-amber-400{% else %}text-rose-400{% endif %}">
+                {{ win_rate }}%
+            </p>
+            <div class="mt-2 progress-bar">
+                <div class="progress-fill 
+                    {% if win_rate >= 60 %}bg-gradient-to-r from-emerald-500 to-teal-500
+                    {% elif win_rate >= 45 %}bg-gradient-to-r from-amber-500 to-orange-500
+                    {% else %}bg-gradient-to-r from-rose-500 to-red-500{% endif %}"
+                    style="width: {{ win_rate }}%;">
+                </div>
+            </div>
+        </div>
+
+        <!-- Wins vs Losses -->
+        <div class="journal-card p-4">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">W / L</span>
+                <div class="w-7 h-7 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center">
+                    <i class="fa-solid fa-trophy text-[10px]"></i>
+                </div>
+            </div>
+            <div class="flex items-baseline gap-1">
+                <p class="text-2xl font-black text-emerald-400 font-mono">{{ wins }}</p>
+                <span class="text-sm text-slate-500 font-mono">/</span>
+                <p class="text-2xl font-black text-rose-400 font-mono">{{ losses }}</p>
+            </div>
+            <p class="text-[10px] text-slate-500 mt-1 font-mono">{{ closed_trades_count }} closed trades</p>
+        </div>
+
+        <!-- Avg Win / Loss -->
+        <div class="journal-card p-4">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Avg Win / Loss</span>
+                <div class="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center">
+                    <i class="fa-solid fa-scale-balanced text-[10px]"></i>
+                </div>
+            </div>
+            <div class="flex items-baseline gap-1">
+                <p class="text-sm font-black text-emerald-400 font-mono">+${{ avg_win|floatformat:2 }}</p>
+                <span class="text-xs text-slate-500">/</span>
+                <p class="text-sm font-black text-rose-400 font-mono">-${{ avg_loss|floatformat:2 }}</p>
+            </div>
+            <p class="text-[10px] text-slate-500 mt-1 font-mono">
+                {% if avg_win > 0 and avg_loss > 0 %}
+                    R/R Ratio: 1:{{ avg_win|floatformat:2 }}
+                {% else %}
+                    Awaiting data
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- AI INSIGHTS + DAILY PERFORMANCE -->
+    <!-- ========================================== -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        
+        <!-- AI INSIGHTS -->
+        <div class="lg:col-span-2 journal-card p-5">
+            <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800/60">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
+                        <i class="fa-solid fa-brain text-white text-xs"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">AI Performance Insights</h3>
+                        <p class="text-[10px] text-slate-500">Generated from your {{ total_trades }} trades</p>
+                    </div>
+                </div>
+                <span class="text-[9px] px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold uppercase">
+                    <span class="w-1 h-1 rounded-full bg-emerald-400 inline-block mr-1 animate-pulse"></span>
+                    LIVE
+                </span>
+            </div>
+
+            <div class="space-y-3">
+                {% for insight in ai_insights %}
+                <div class="insight-card insight-{{ insight.type }}">
+                    <div class="w-10 h-10 rounded-xl bg-{{ insight.color }}-500/10 border border-{{ insight.color }}-500/20 flex items-center justify-center shrink-0">
+                        <i class="fa-solid {{ insight.icon }} text-{{ insight.color }}-400"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold text-white">{{ insight.title }}</p>
+                        <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">{{ insight.message }}</p>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center py-12">
+                    <div class="w-16 h-16 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center mx-auto mb-3 text-slate-500 text-2xl">
+                        <i class="fa-solid fa-inbox"></i>
+                    </div>
+                    <p class="text-sm font-bold text-white mb-1">No trades yet</p>
+                    <p class="text-xs text-slate-500 max-w-xs mx-auto">Execute your first trade to unlock AI insights</p>
+                    <a href="{% url 'trade' %}" class="inline-block mt-4 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition">
+                        <i class="fa-solid fa-bolt text-[10px] mr-1.5"></i> Start Trading
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- DAILY PERFORMANCE -->
+        <div class="journal-card p-5">
+            <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800/60">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg">
+                        <i class="fa-solid fa-chart-simple text-white text-xs"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">Last 7 Days</h3>
+                        <p class="text-[10px] text-slate-500">Daily P&L performance</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="daily-chart">
+                {% for day in daily_stats %}
+                    <div class="daily-bar {% if day.pnl > 0 %}positive{% elif day.pnl < 0 %}negative{% else %}neutral{% endif %}" 
+                         style="height: {% if day.pnl >= 0 %}{{ day.pnl|floatformat:0|add:10 }}%{% else %}20%{% endif %};"
+                         title="{{ day.date }}: {% if day.pnl >= 0 %}+{% endif %}${{ day.pnl }} ({{ day.trades }} trades)"></div>
+                {% endfor %}
+            </div>
+
+            <div class="grid grid-cols-7 gap-1 mt-2">
+                {% for day in daily_stats %}
+                    <span class="text-[9px] text-center text-slate-500 font-mono">{{ day.day }}</span>
+                {% endfor %}
+            </div>
+
+            <!-- Best & Worst -->
+            <div class="mt-5 pt-4 border-t border-slate-800/60 space-y-3">
+                {% if best_trade %}
+                <div>
+                    <span class="text-[10px] text-emerald-400 uppercase font-bold tracking-wider block mb-1">🏆 Best Trade</span>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-slate-300 font-bold">{{ best_trade.asset.symbol }}</span>
+                        <span class="text-emerald-400 font-mono font-bold">+${{ best_pnl }}</span>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if worst_trade %}
+                <div>
+                    <span class="text-[10px] text-rose-400 uppercase font-bold tracking-wider block mb-1">📉 Worst Trade</span>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-slate-300 font-bold">{{ worst_trade.asset.symbol }}</span>
+                        <span class="text-rose-400 font-mono font-bold">${{ worst_pnl }}</span>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- SYMBOL PERFORMANCE -->
+    <!-- ========================================== -->
+    {% if symbol_performance %}
+    <div class="journal-card p-5">
+        <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800/60">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg">
+                    <i class="fa-solid fa-coins text-white text-xs"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-white">Symbol Performance</h3>
+                    <p class="text-[10px] text-slate-500">AI-ranked by profitability</p>
+                </div>
+            </div>
+            <span class="text-[10px] text-slate-500 font-mono">{{ symbol_performance|length }} assets</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {% for s in symbol_performance %}
+            <div class="symbol-row">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg 
+                            {% if 'XAU' in s.symbol or 'GOLD' in s.symbol %}bg-amber-500/10 border-amber-500/20 text-amber-400
+                            {% elif 'BTC' in s.symbol %}bg-amber-500/10 border-amber-500/20 text-amber-400
+                            {% elif 'ETH' in s.symbol %}bg-purple-500/10 border-purple-500/20 text-purple-400
+                            {% elif 'JPY' in s.symbol %}bg-rose-500/10 border-rose-500/20 text-rose-400
+                            {% else %}bg-blue-500/10 border-blue-500/20 text-blue-400{% endif %} border flex items-center justify-center">
+                            <i class="fa-solid 
+                                {% if 'XAU' in s.symbol or 'GOLD' in s.symbol %}fa-coins
+                                {% elif 'BTC' in s.symbol %}fa-bitcoin
+                                {% elif 'ETH' in s.symbol %}fa-ethereum
+                                {% else %}fa-chart-line{% endif %} text-[10px]"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-bold text-white">{{ s.symbol }}</p>
+                            <p class="text-[9px] text-slate-500 font-mono">{{ s.total }} trades</p>
+                        </div>
+                    </div>
+                    {% if s.best_performer %}
+                    <span class="text-[9px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
+                        ⭐ BEST
+                    </span>
+                    {% endif %}
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 text-[11px]">
+                    <div>
+                        <span class="text-slate-500">Wins:</span>
+                        <span class="text-emerald-400 font-bold font-mono ml-1">{{ s.wins }}</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500">Losses:</span>
+                        <span class="text-rose-400 font-bold font-mono ml-1">{{ s.losses }}</span>
+                    </div>
+                </div>
+
+                <div class="mt-3">
+                    <div class="flex justify-between text-[10px] mb-1">
+                        <span class="text-slate-500">Win Rate</span>
+                        <span class="{% if s.win_rate >= 60 %}text-emerald-400{% elif s.win_rate >= 45 %}text-amber-400{% else %}text-rose-400{% endif %} font-mono font-bold">{{ s.win_rate }}%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill {% if s.win_rate >= 60 %}bg-gradient-to-r from-emerald-500 to-teal-500{% elif s.win_rate >= 45 %}bg-gradient-to-r from-amber-500 to-orange-500{% else %}bg-gradient-to-r from-rose-500 to-red-500{% endif %}" 
+                             style="width: {{ s.win_rate }}%;"></div>
+                    </div>
+                </div>
+
+                <div class="mt-3 pt-3 border-t border-slate-800/60 flex items-center justify-between">
+                    <span class="text-[10px] text-slate-500">P&L</span>
+                    <span class="text-sm font-black font-mono {% if s.pnl >= 0 %}text-emerald-400{% else %}text-rose-400{% endif %}">
+                        {% if s.pnl >= 0 %}+{% endif %}${{ s.pnl }}
+                    </span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ========================================== -->
+    <!-- RECENT TRADES WITH AI ANALYSIS -->
+    <!-- ========================================== -->
+    <div id="trades-section" class="journal-card p-5">
+        <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800/60">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg">
+                    <i class="fa-solid fa-clock-rotate-left text-white text-xs"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-white">Recent Trades & AI Analysis</h3>
+                    <p class="text-[10px] text-slate-500">Click any trade to see AI commentary</p>
+                </div>
+            </div>
+            <a href="{% url 'trade_history' %}" class="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1.5">
+                View All <i class="fa-solid fa-arrow-right text-[9px]"></i>
+            </a>
+        </div>
+
+        {% if recent_trades %}
+        <div class="flex items-center justify-between gap-2 flex-wrap mb-3" id="px-j-tools">
+            <div class="flex gap-1.5 flex-wrap">
+                <button type="button" class="px-chip on" data-f="">All</button>
+                <button type="button" class="px-chip" data-f="WON">Won</button>
+                <button type="button" class="px-chip" data-f="LOST">Lost</button>
+                <button type="button" class="px-chip" data-f="OPEN">Open</button>
+            </div>
+            <div class="flex gap-2">
+                <input type="search" id="px-j-q" placeholder="Symbol" class="rounded-lg px-3 py-1.5 text-[11px] border w-28">
+                <button type="button" class="px-chip" id="px-j-csv"><i class="fa-solid fa-download mr-1"></i>CSV</button>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800 font-semibold">
+                    <tr>
+                        <th class="py-3 px-3">Date</th>
+                        <th class="py-3 px-3">Symbol</th>
+                        <th class="py-3 px-3">Type</th>
+                        <th class="py-3 px-3">Stake</th>
+                        <th class="py-3 px-3">Status</th>
+                        <th class="py-3 px-3 text-right">P&L</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/50 font-mono">
+                    {% for t in recent_trades %}
+                    <tr class="trade-row" onclick="showTradeDetail({{ t.id }})" data-id="{{ t.id }}" data-status="{{ t.status }}" data-symbol="{{ t.symbol|lower }}">
+                        <td class="py-3 px-3 text-slate-400 text-[11px]">{{ t.date|date:"M d, H:i" }}</td>
+                        <td class="py-3 px-3 font-bold text-white">{{ t.symbol }}</td>
+                        <td class="py-3 px-3 {% if t.direction == 'BUY' %}text-emerald-400{% else %}text-rose-400{% endif %} font-bold text-[10px]">{{ t.direction }}</td>
+                        <td class="py-3 px-3 text-slate-300">${{ t.stake|floatformat:2 }}</td>
+                        <td class="py-3 px-3">
+                            <span class="status-pill 
+                                {% if t.status == 'WON' %}bg-emerald-500/10 text-emerald-400 border border-emerald-500/20
+                                {% elif t.status == 'LOST' %}bg-rose-500/10 text-rose-400 border border-rose-500/20
+                                {% else %}bg-amber-500/10 text-amber-400 border border-amber-500/20{% endif %}">
+                                {% if t.status == 'WON' %}✓ {% elif t.status == 'LOST' %}✗ {% else %}● {% endif %}{{ t.status }}
+                            </span>
+                        </td>
+                        <td class="py-3 px-3 text-right font-bold {% if t.pnl >= 0 %}text-emerald-400{% else %}text-rose-400{% endif %}">
+                            {% if t.pnl >= 0 %}+{% endif %}${{ t.pnl|floatformat:2 }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-12">
+            <div class="w-16 h-16 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center mx-auto mb-3 text-slate-500 text-2xl">
+                <i class="fa-solid fa-inbox"></i>
+            </div>
+            <p class="text-sm font-bold text-white mb-1">No trades yet</p>
+            <p class="text-xs text-slate-500 max-w-xs mx-auto">Your trade history and AI analysis will appear here</p>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- TRADE DETAIL MODAL -->
+<div id="trade-modal" class="journal-modal-backdrop">
+    <div class="journal-modal-box p-6">
+        <div class="flex items-center justify-between mb-5 pb-4 border-b border-slate-800/60">
+            <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg">
+                    <i class="fa-solid fa-receipt text-white"></i>
+                </div>
+                <div>
+                    <h3 id="modal-trade-title" class="text-base font-bold text-white">Trade Detail</h3>
+                    <p id="modal-trade-subtitle" class="text-[10px] text-slate-500">AI-powered analysis</p>
+                </div>
+            </div>
+            <button onclick="closeTradeModal()" class="text-slate-400 hover:text-white transition p-1">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <div id="modal-trade-content"></div>
+
+        <div class="mt-5 pt-4 border-t border-slate-800/60 grid grid-cols-2 gap-3">
+            <button onclick="closeTradeModal()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition">
+                Close
+            </button>
+            <a href="{% url 'trade' %}" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold transition shadow-lg shadow-emerald-600/25 text-center">
+                <i class="fa-solid fa-bolt text-[10px] mr-1.5"></i> Trade Again
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+// ==========================================
+// TRADE DATA (Injected from Django)
+// ==========================================
+const tradeData = {
+    {% for t in recent_trades %}
+    "{{ t.id }}": {
+        id: {{ t.id }},
+        symbol: "{{ t.symbol }}",
+        direction: "{{ t.direction }}",
+        stake: {{ t.stake|default:0 }},
+        entry: {{ t.entry_price|default:"null" }},
+        exit: {{ t.exit_price|default:"null" }},
+        status: "{{ t.status }}",
+        pnl: {{ t.pnl|default:0 }},
+        date: "{{ t.date|date:'Y-m-d H:i' }}",
+        analysis: [
+            {% for a in t.analysis %}
+            "{{ a|escapejs }}",
+            {% endfor %}
+        ],
+    },
+    {% endfor %}
+};
+
+// ==========================================
+// SHOW TRADE DETAIL
+// ==========================================
+function showTradeDetail(tradeId) {
+    const trade = tradeData[tradeId];
+    if (!trade) return;
+
+    const modal = document.getElementById('trade-modal');
+    const titleEl = document.getElementById('modal-trade-title');
+    const subtitleEl = document.getElementById('modal-trade-subtitle');
+    const contentEl = document.getElementById('modal-trade-content');
+
+    titleEl.textContent = `${trade.symbol} ${trade.direction}`;
+    subtitleEl.textContent = `${trade.date} · Trade #${trade.id}`;
+
+    const statusColor = trade.status === 'WON' ? 'emerald' : trade.status === 'LOST' ? 'rose' : 'amber';
+    const pnlColor = trade.pnl >= 0 ? 'emerald' : 'rose';
+
+    contentEl.innerHTML = `
+        <!-- Status Badge -->
+        <div class="flex items-center justify-center mb-5">
+            <span class="px-4 py-2 rounded-xl bg-${statusColor}-500/10 border border-${statusColor}-500/20 text-${statusColor}-400 text-sm font-black uppercase tracking-wider">
+                ${trade.status === 'WON' ? '✓ WINNING' : trade.status === 'LOST' ? '✗ LOSING' : '● OPEN'}
+            </span>
+        </div>
+
+        <!-- P&L Display -->
+        <div class="text-center mb-5">
+            <p class="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Profit / Loss</p>
+            <p class="text-3xl font-black text-${pnlColor}-400 font-mono">
+                ${trade.pnl >= 0 ? '+' : ''}$${trade.pnl.toFixed(2)}
+            </p>
+            <p class="text-[10px] text-slate-500 mt-1 font-mono">
+                ${trade.stake > 0 ? ((trade.pnl / trade.stake) * 100).toFixed(1) : 0}% return on stake
+            </p>
+        </div>
+
+        <!-- Trade Details Grid -->
+        <div class="grid grid-cols-2 gap-3 mb-5">
+            <div class="bg-slate-950/60 border border-slate-800/60 rounded-xl p-3">
+                <span class="text-[10px] text-slate-500 uppercase font-bold block">Stake</span>
+                <span class="text-sm font-bold text-white font-mono">$${trade.stake.toFixed(2)}</span>
+            </div>
+            <div class="bg-slate-950/60 border border-slate-800/60 rounded-xl p-3">
+                <span class="text-[10px] text-slate-500 uppercase font-bold block">Direction</span>
+                <span class="text-sm font-bold ${trade.direction === 'BUY' ? 'text-emerald-400' : 'text-rose-400'} font-mono">${trade.direction}</span>
+            </div>
+            <div class="bg-slate-950/60 border border-slate-800/60 rounded-xl p-3">
+                <span class="text-[10px] text-slate-500 uppercase font-bold block">Entry</span>
+                <span class="text-sm font-bold text-white font-mono">${trade.entry.toFixed(4)}</span>
+            </div>
+            <div class="bg-slate-950/60 border border-slate-800/60 rounded-xl p-3">
+                <span class="text-[10px] text-slate-500 uppercase font-bold block">Exit</span>
+                <span class="text-sm font-bold text-white font-mono">${trade.exit ? trade.exit.toFixed(4) : '—'}</span>
+            </div>
+        </div>
+
+        <!-- AI Analysis -->
+        <div class="bg-gradient-to-br from-indigo-950/40 to-slate-950/60 border border-indigo-500/20 rounded-xl p-4">
+            <div class="flex items-center gap-2 mb-3">
+                <i class="fa-solid fa-brain text-indigo-400 text-xs"></i>
+                <p class="text-xs font-bold text-indigo-300">AI Trade Analysis</p>
+            </div>
+            <div class="space-y-2">
+                ${trade.analysis.map(a => `
+                    <div class="flex items-start gap-2 text-[11px] text-slate-300">
+                        <i class="fa-solid fa-circle-check text-indigo-400 mt-0.5 text-[9px] shrink-0"></i>
+                        <span>${a}</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+
+    modal.classList.add('active');
+}
+
+function closeTradeModal() {
+    document.getElementById('trade-modal').classList.remove('active');
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeTradeModal();
+});
+
+document.getElementById('trade-modal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'trade-modal') closeTradeModal();
+});
+
+// ==========================================
+// SCROLL TO SECTION
+// ==========================================
+function scrollToSection(id) {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ==========================================
+// INIT
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        const spinner = document.getElementById('loading-spinner');
+        if (spinner) {
+            spinner.classList.add('spinner-hidden');
+            setTimeout(() => spinner.remove(), 500);
+        }
+    }, 400);
+});
+</script>
+<script>
+    // ── Added: filter / search / CSV, and live P/L for trades that are still open ──
+    (function () {
+        const rows = [...document.querySelectorAll('tr.trade-row')];
+        let f = '';
+        function apply() {
+            const q = (document.getElementById('px-j-q')?.value || '').toLowerCase().trim();
+            rows.forEach(r => { r.style.display = (!f || r.dataset.status === f) && (!q || r.dataset.symbol.includes(q)) ? '' : 'none'; });
+        }
+        document.querySelectorAll('#px-j-tools [data-f]').forEach(b => b.addEventListener('click', () => {
+            document.querySelectorAll('#px-j-tools [data-f]').forEach(x => x.classList.toggle('on', x === b));
+            f = b.dataset.f; apply();
+        }));
+        document.getElementById('px-j-q')?.addEventListener('input', apply);
+        document.getElementById('px-j-csv')?.addEventListener('click', () => {
+            const cell = el => el.textContent.replace(/\s+/g, ' ').trim();
+            const csv = [['Date', 'Symbol', 'Type', 'Stake', 'Status', 'P&L'], ...rows.filter(r => r.style.display !== 'none').map(r => [...r.children].map(cell))]
+                .map(r => r.map(c => '"' + c.replace(/"/g, '""') + '"').join(',')).join('\n');
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+            a.download = 'trade-journal.csv'; a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        });
+        const open = rows.filter(r => r.dataset.status === 'OPEN');
+        if (!open.length) return;
+        async function live() {
+            try {
+                const d = await fetch('/api/open-positions/', { credentials: 'same-origin' }).then(r => r.json());
+                if (!d.success) return;
+                const byId = Object.fromEntries((d.positions || []).map(p => [String(p.id), p]));
+                open.forEach(r => {
+                    const p = byId[r.dataset.id], cell = r.lastElementChild;
+                    if (!p) return;
+                    cell.textContent = (p.pnl >= 0 ? '+' : '-') + '$' + Math.abs(p.pnl).toFixed(2);
+                    cell.classList.remove('text-emerald-400', 'text-rose-400');
+                    cell.classList.add(p.pnl >= 0 ? 'text-emerald-400' : 'text-rose-400');
+                    cell.title = 'Live floating P/L';
+                    if (typeof tradeData !== 'undefined' && tradeData[r.dataset.id]) tradeData[r.dataset.id].pnl = p.pnl;   // const, so not on window
+                });
+            } catch (e) {}
+        }
+        live();
+        setInterval(() => { if (!document.hidden) live(); }, 5000);
+    })();
+</script>
+{% endblock %}

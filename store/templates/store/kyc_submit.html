@@ -1,0 +1,729 @@
+{% extends 'base_dashboard.html' %}
+
+{% block message_toasts %}{% endblock %}{# this page prints messages itself #}
+
+{% block title %}KYC Verification - PATREOAIX{% endblock %}
+
+{% block content %}
+{% include 'partials/legacy_skin.html' %}
+<!-- LOADING SPINNER -->
+<div id="loading-spinner" class="fixed inset-0 z-[9999] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center transition-opacity duration-500">
+    <div class="relative flex items-center justify-center">
+        <div class="w-20 h-20 rounded-full border-4 border-amber-500/20 border-t-amber-500 animate-spin"></div>
+        <div class="absolute w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center animate-pulse">
+            <div class="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
+        </div>
+    </div>
+    <div class="mt-5 text-center space-y-1">
+        <p class="text-xs font-mono tracking-widest text-amber-300 uppercase animate-pulse">Loading KYC</p>
+        <p class="text-[10px] font-mono text-slate-500">Preparing verification form...</p>
+    </div>
+</div>
+
+<style>
+    .spinner-hidden { opacity: 0; pointer-events: none; visibility: hidden; }
+    
+    .kyc-card {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(69, 26, 3, 0.5) 100%);
+        border: 1px solid rgba(217, 119, 6, 0.25);
+        border-radius: 20px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+    }
+    
+    .input-field {
+        width: 100%;
+        background: rgba(2, 6, 23, 0.9);
+        border: 1px solid rgba(217, 119, 6, 0.3);
+        border-radius: 12px;
+        padding: 12px 16px;
+        font-size: 13px;
+        color: #ffffff;
+        font-family: 'JetBrains Mono', monospace;
+        transition: all 0.2s ease;
+    }
+    .input-field:focus {
+        outline: none;
+        border-color: rgba(245, 158, 11, 0.7);
+        box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+    }
+    .input-field::placeholder { color: #64748b; }
+    
+    /* File input styling */
+    input[type="file"].input-field {
+        padding: 10px 12px;
+        cursor: pointer;
+    }
+    input[type="file"].input-field::file-selector-button {
+        background: linear-gradient(135deg, #d97706, #ea580c);
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 11px;
+        margin-right: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    input[type="file"].input-field::file-selector-button:hover {
+        background: linear-gradient(135deg, #f59e0b, #f97316);
+    }
+    
+    /* Upload zone */
+    .upload-zone {
+        border: 2px dashed rgba(217, 119, 6, 0.35);
+        border-radius: 12px;
+        padding: 24px;
+        text-align: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        background: rgba(2, 6, 23, 0.6);
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+        border-color: rgba(245, 158, 11, 0.8);
+        background: rgba(217, 119, 6, 0.06);
+        box-shadow: 0 0 30px rgba(217, 119, 6, 0.15);
+    }
+    .upload-zone.has-file {
+        border-color: rgba(16, 185, 129, 0.5);
+        background: rgba(16, 185, 129, 0.05);
+    }
+    
+    /* Step badges */
+    .step-badge {
+        width: 26px;
+        height: 26px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 900;
+        font-family: 'JetBrains Mono', monospace;
+    }
+    .step-active {
+        background: linear-gradient(135deg, #d97706, #ea580c);
+        color: white;
+        box-shadow: 0 4px 12px rgba(217, 119, 6, 0.35);
+    }
+    .step-inactive {
+        background: rgba(30, 41, 59, 0.8);
+        color: #64748b;
+        border: 1px solid rgba(51, 65, 85, 0.6);
+    }
+    
+    /* Progress bar */
+    .progress-steps {
+        height: 4px;
+        background: rgba(30, 41, 59, 0.8);
+        border-radius: 4px;
+        overflow: hidden;
+        position: relative;
+    }
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #d97706, #f59e0b, #fbbf24);
+        border-radius: 4px;
+        transition: width 0.5s ease;
+    }
+
+    /* Camera specific styles */
+    .mirror-mode {
+        transform: scaleX(-1);
+    }
+    #camera-container {
+        position: relative;
+        width: 100%;
+        background: #000;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    #camera-feed {
+        width: 100%;
+        height: 320px;
+        object-fit: cover;
+        display: block;
+    }
+    .camera-overlay {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 16px;
+    }
+    .face-guide {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 180px;
+        height: 240px;
+        border: 2px dashed rgba(245, 158, 11, 0.6);
+        border-radius: 50%;
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4);
+    }
+    .liveness-progress {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        z-index: 10;
+    }
+    .liveness-step {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: rgba(15, 23, 42, 0.8);
+        border: 2px solid rgba(100, 116, 139, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #64748b;
+        font-size: 10px;
+        font-weight: bold;
+        transition: all 0.3s ease;
+    }
+    .liveness-step.active {
+        border-color: #f59e0b;
+        color: #f59e0b;
+        background: rgba(245, 158, 11, 0.15);
+        animation: pulse 1.5s infinite;
+    }
+    .liveness-step.done {
+        border-color: #10b981;
+        color: #10b981;
+        background: rgba(16, 185, 129, 0.15);
+    }
+    @keyframes pulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+        50% { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); }
+    }
+    .camera-instructions {
+        background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+        padding: 20px 16px 16px;
+        text-align: center;
+        z-index: 10;
+    }
+</style>
+
+<div class="max-w-3xl mx-auto space-y-5 pb-4">
+
+    <!-- ========================================== -->
+    <!-- HEADER -->
+    <!-- ========================================== -->
+    <div class="kyc-card p-5 sm:p-6 relative overflow-hidden">
+        <div class="absolute -top-20 -right-20 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-20 -left-20 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="relative z-10">
+            <div class="flex items-start gap-4">
+                <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 via-orange-500 to-yellow-500 flex items-center justify-center shadow-xl shadow-amber-500/30 shrink-0">
+                    <i class="fa-solid fa-id-card text-white text-lg"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h1 class="text-xl sm:text-2xl font-black text-white">Identity Verification</h1>
+                    <p class="text-[11px] text-slate-400 mt-1">Complete KYC to unlock full trading access & withdrawals</p>
+                    
+                    <div class="flex items-center gap-2 flex-wrap mt-3">
+                        <span class="px-3 py-1 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                            PENDING VERIFICATION
+                        </span>
+                        <span class="px-3 py-1 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                            <i class="fa-solid fa-shield-halved text-[9px] mr-1"></i>
+                            256-bit Encrypted
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- PROGRESS INDICATOR -->
+    <!-- ========================================== -->
+    <div class="kyc-card p-4 sm:p-5">
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-3">
+                <div class="step-badge step-active">1</div>
+                <span class="text-xs font-bold text-white">Submit Documents</span>
+            </div>
+            <i class="fa-solid fa-arrow-right text-slate-600 text-xs"></i>
+            <div class="flex items-center gap-3">
+                <div class="step-badge step-inactive">2</div>
+                <span class="text-xs font-medium text-slate-500">Under Review</span>
+            </div>
+            <i class="fa-solid fa-arrow-right text-slate-600 text-xs"></i>
+            <div class="flex items-center gap-3">
+                <div class="step-badge step-inactive">3</div>
+                <span class="text-xs font-medium text-slate-500">Verified</span>
+            </div>
+        </div>
+        <div class="progress-steps">
+            <div class="progress-fill" style="width: 33%;"></div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MESSAGES -->
+    <!-- ========================================== -->
+    {% if messages %}
+    <div class="space-y-2">
+        {% for message in messages %}
+        <div class="p-3.5 rounded-xl text-xs font-bold flex items-start gap-2.5
+            {% if message.tags == 'error' %}bg-rose-500/10 border border-rose-500/20 text-rose-400
+            {% elif message.tags == 'success' %}bg-emerald-500/10 border border-emerald-500/20 text-emerald-400
+            {% else %}bg-amber-500/10 border border-amber-500/20 text-amber-400{% endif %}">
+            <i class="fa-solid 
+                {% if message.tags == 'error' %}fa-circle-exclamation
+                {% elif message.tags == 'success' %}fa-circle-check
+                {% else %}fa-circle-info{% endif %} mt-0.5"></i>
+            <span>{{ message }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- ========================================== -->
+    <!-- FORM -->
+    <!-- ========================================== -->
+    <form method="POST" enctype="multipart/form-data" id="kyc-form" class="space-y-5">
+        {% csrf_token %}
+
+        <!-- STEP 1: Document Type -->
+        <div class="kyc-card p-5">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                    <i class="fa-solid fa-list-check text-xs"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-white">Choose Document Type</h3>
+                    <p class="text-[10px] text-slate-500 mt-0.5">Select which ID you'll be uploading</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="doc-type-grid">
+                <label class="doc-option cursor-pointer">
+                    <input type="radio" name="document_type" value="passport" class="sr-only peer" checked>
+                    <div class="p-4 rounded-xl border-2 border-amber-800/40 bg-slate-950/60 text-center transition-all duration-200 peer-checked:border-amber-500 peer-checked:bg-amber-500/10 peer-checked:shadow-[0_0_25px_rgba(217,119,6,0.25)] hover:border-amber-600/60">
+                        <i class="fa-solid fa-passport text-xl text-amber-400 mb-2 block"></i>
+                        <p class="text-xs font-bold text-white">Passport</p>
+                        <p class="text-[9px] text-slate-500 mt-0.5">International</p>
+                    </div>
+                </label>
+                <label class="doc-option cursor-pointer">
+                    <input type="radio" name="document_type" value="national_id" class="sr-only peer">
+                    <div class="p-4 rounded-xl border-2 border-amber-800/40 bg-slate-950/60 text-center transition-all duration-200 peer-checked:border-amber-500 peer-checked:bg-amber-500/10 peer-checked:shadow-[0_0_25px_rgba(217,119,6,0.25)] hover:border-amber-600/60">
+                        <i class="fa-solid fa-id-card text-xl text-amber-400 mb-2 block"></i>
+                        <p class="text-xs font-bold text-white">National ID</p>
+                        <p class="text-[9px] text-slate-500 mt-0.5">Government-issued</p>
+                    </div>
+                </label>
+                <label class="doc-option cursor-pointer">
+                    <input type="radio" name="document_type" value="drivers_license" class="sr-only peer">
+                    <div class="p-4 rounded-xl border-2 border-amber-800/40 bg-slate-950/60 text-center transition-all duration-200 peer-checked:border-amber-500 peer-checked:bg-amber-500/10 peer-checked:shadow-[0_0_25px_rgba(217,119,6,0.25)] hover:border-amber-600/60">
+                        <i class="fa-solid fa-car text-xl text-amber-400 mb-2 block"></i>
+                        <p class="text-xs font-bold text-white">Driver's License</p>
+                        <p class="text-[9px] text-slate-500 mt-0.5">Valid license</p>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <!-- STEP 2: ID Number -->
+        <div class="kyc-card p-5">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                    <i class="fa-solid fa-hashtag text-xs"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-white">Identification Number</h3>
+                    <p class="text-[10px] text-slate-500 mt-0.5">Enter the number printed on your document</p>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
+                    <i class="fa-solid fa-hashtag text-[9px] mr-1.5 text-amber-400"></i>
+                    Document Number
+                </label>
+                <input type="text" 
+                       name="id_number" 
+                       id="id_number"
+                       placeholder="e.g. 12345678 or AB123456" 
+                       class="input-field" 
+                       required
+                       autocomplete="off">
+                <p class="text-[10px] text-slate-500 mt-1.5">Must match the number on your uploaded document</p>
+            </div>
+        </div>
+
+        <!-- STEP 3: Document Upload -->
+        <div class="kyc-card p-5">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                    <i class="fa-solid fa-file-arrow-up text-xs"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-white">Upload ID Document</h3>
+                    <p class="text-[10px] text-slate-500 mt-0.5">JPG, PNG or PDF · Max 5MB · Front & back if applicable</p>
+                </div>
+            </div>
+
+            <div class="upload-zone" id="doc-upload-zone" onclick="document.getElementById('document_file').click()">
+                <input type="file" 
+                       name="document_file" 
+                       id="document_file" 
+                       accept="image/*,.pdf" 
+                       class="hidden" 
+                       required>
+                <div id="doc-upload-placeholder">
+                    <div class="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto mb-3">
+                        <i class="fa-solid fa-cloud-arrow-up text-amber-400 text-lg"></i>
+                    </div>
+                    <p class="text-xs font-bold text-white">Click to upload or drag & drop</p>
+                    <p class="text-[10px] text-slate-500 mt-1">Passport, National ID or Driver's License</p>
+                </div>
+                <div id="doc-upload-preview" class="hidden">
+                    <div class="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto mb-3">
+                        <i class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
+                    </div>
+                    <p id="doc-filename" class="text-xs font-bold text-emerald-400">document.jpg</p>
+                    <p class="text-[10px] text-slate-500 mt-1">Click to replace</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 4: Live Selfie Verification -->
+        <div class="kyc-card p-5">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                    <i class="fa-solid fa-camera text-xs"></i>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-sm font-bold text-white">Live Face Verification</h3>
+                    <p class="text-[10px] text-slate-500 mt-0.5">You will be asked to look straight, then turn left, then right.</p>
+                </div>
+                <span class="text-[9px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-bold shadow-[0_0_10px_rgba(16,185,129,0.2)]">REQUIRED</span>
+            </div>
+
+            <div id="selfie-zone" class="relative bg-slate-950/80 border-2 border-dashed border-amber-800/40 rounded-xl overflow-hidden flex flex-col items-center justify-center min-h-[320px] transition-all">
+                
+                <!-- Placeholder / Start Button -->
+                <div id="selfie-placeholder" class="text-center p-6 w-full">
+                    <div class="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto mb-3 text-amber-400">
+                        <i class="fa-solid fa-user-shield text-2xl"></i>
+                    </div>
+                    <p class="text-sm font-bold text-white mb-1">Ready to verify?</p>
+                    <p class="text-[11px] text-slate-400 mb-4 max-w-xs mx-auto">Ensure good lighting and remove hats or glasses. Please follow the on-screen prompts.</p>
+                    <button type="button" id="start-camera-btn" class="px-6 py-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition shadow-lg shadow-amber-600/20 cursor-pointer flex items-center justify-center gap-2 mx-auto">
+                        <i class="fa-solid fa-video"></i> Start Camera
+                    </button>
+                </div>
+
+                <!-- Camera Stream -->
+                <div id="camera-container" class="hidden w-full">
+                    <div class="relative w-full bg-black">
+                        <video id="camera-feed" autoplay playsinline class="mirror-mode w-full h-[320px] object-cover"></video>
+                        
+                        <!-- Guide Overlay -->
+                        <div class="camera-overlay">
+                            <div class="liveness-progress">
+                                <div class="liveness-step active" id="step-straight">1</div>
+                                <div class="liveness-step" id="step-left">2</div>
+                                <div class="liveness-step" id="step-right">3</div>
+                            </div>
+                            
+                            <div class="face-guide"></div>
+                            
+                            <div class="camera-instructions">
+                                <p class="text-sm font-bold text-white" id="prompt-text">Center your face in the oval</p>
+                                <p class="text-xs text-amber-400 font-mono mt-1" id="prompt-subtext">Waiting for camera...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Captured Success -->
+                <div id="selfie-success" class="hidden text-center p-6 w-full absolute inset-0 bg-slate-900 flex flex-col items-center justify-center">
+                    <div class="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto mb-3 text-emerald-400">
+                        <i class="fa-solid fa-circle-check text-2xl"></i>
+                    </div>
+                    <p class="text-sm font-bold text-emerald-400 mb-1">Face Verified</p>
+                    <p class="text-[11px] text-slate-400 mb-4">Your selfie has been securely captured.</p>
+                    <button type="button" id="retake-btn" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition">
+                        Retake
+                    </button>
+                </div>
+                
+                <!-- Hidden file input to hold the captured image -->
+                <input type="file" name="selfie_image" id="selfie_image" accept="image/jpeg" class="hidden" required>
+            </div>
+            <p class="text-[10px] text-slate-500 mt-2 flex items-center gap-1.5">
+                <i class="fa-solid fa-lock text-emerald-400"></i>
+                Video feed is processed locally in your browser and is not transmitted.
+            </p>
+        </div>
+
+        <!-- SUBMIT -->
+        <div class="kyc-card p-5">
+            <div class="bg-slate-950/60 border border-amber-800/30 rounded-xl p-4 mb-4 flex items-start gap-3">
+                <i class="fa-solid fa-shield-halved text-emerald-400 text-sm mt-0.5"></i>
+                <div class="text-[11px] text-slate-400 leading-relaxed">
+                    <strong class="text-white">Your data is secure.</strong> All documents are encrypted with 256-bit SSL, 
+                    stored securely, and only reviewed by our compliance team. We never share your information.
+                </div>
+            </div>
+
+            <button type="submit" 
+                    id="submit-btn"
+                    class="w-full py-4 rounded-xl bg-gradient-to-r from-amber-600 via-orange-600 to-yellow-600 hover:from-amber-500 hover:via-orange-500 hover:to-yellow-500 text-white font-black text-sm transition shadow-lg shadow-amber-600/35 hover:shadow-[0_8px_30px_rgba(217,119,6,0.5)] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="fa-solid fa-paper-plane text-xs"></i>
+                <span>Submit Verification</span>
+            </button>
+        </div>
+    </form>
+
+    <!-- Trust badges -->
+    <div class="flex items-center justify-center gap-4 text-[10px] text-slate-500 font-mono flex-wrap">
+        <span class="flex items-center gap-1.5">
+            <i class="fa-solid fa-lock text-emerald-400"></i>
+            Encrypted
+        </span>
+        <span class="w-1 h-1 rounded-full bg-slate-700"></span>
+        <span class="flex items-center gap-1.5">
+            <i class="fa-solid fa-clock text-amber-400"></i>
+            ~24h Review
+        </span>
+        <span class="w-1 h-1 rounded-full bg-slate-700"></span>
+        <span class="flex items-center gap-1.5">
+            <i class="fa-solid fa-user-shield text-amber-400"></i>
+            GDPR Compliant
+        </span>
+    </div>
+</div>
+
+<script>
+    // ==========================================
+    // DOCUMENT UPLOAD PREVIEW
+    // ==========================================
+    function setupFileUpload(inputId, zoneId, placeholderId, previewId, filenameId) {
+        const input = document.getElementById(inputId);
+        const zone = document.getElementById(zoneId);
+        const placeholder = document.getElementById(placeholderId);
+        const preview = document.getElementById(previewId);
+        const filename = document.getElementById(filenameId);
+        
+        if (!input) return;
+        
+        input.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                filename.textContent = file.name;
+                placeholder.classList.add('hidden');
+                preview.classList.remove('hidden');
+                zone.classList.add('has-file');
+            } else {
+                placeholder.classList.remove('hidden');
+                preview.classList.add('hidden');
+                zone.classList.remove('has-file');
+            }
+        });
+        
+        zone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            zone.classList.add('drag-over');
+        });
+        zone.addEventListener('dragleave', () => {
+            zone.classList.remove('drag-over');
+        });
+        zone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            zone.classList.remove('drag-over');
+            if (e.dataTransfer.files.length) {
+                input.files = e.dataTransfer.files;
+                input.dispatchEvent(new Event('change'));
+            }
+        });
+    }
+    
+    setupFileUpload('document_file', 'doc-upload-zone', 'doc-upload-placeholder', 'doc-upload-preview', 'doc-filename');
+    
+    document.getElementById('kyc-form')?.addEventListener('submit', function(e) {
+        const btn = document.getElementById('submit-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i><span>Uploading...</span>';
+    });
+    
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+            const spinner = document.getElementById('loading-spinner');
+            if (spinner) {
+                spinner.classList.add('spinner-hidden');
+                setTimeout(() => spinner.remove(), 500);
+            }
+        }, 400);
+    });
+
+    // ==========================================
+    // LIVE FACE VERIFICATION (LIVENESS CHECK)
+    // ==========================================
+    let videoStream = null;
+    let captureCanvas = document.createElement('canvas');
+    
+    const startBtn = document.getElementById('start-camera-btn');
+    const videoElement = document.getElementById('camera-feed');
+    const placeholder = document.getElementById('selfie-placeholder');
+    const cameraContainer = document.getElementById('camera-container');
+    const successContainer = document.getElementById('selfie-success');
+    const promptText = document.getElementById('prompt-text');
+    const promptSubtext = document.getElementById('prompt-subtext');
+    const retakeBtn = document.getElementById('retake-btn');
+    const hiddenInput = document.getElementById('selfie_image');
+    
+    const stepStraight = document.getElementById('step-straight');
+    const stepLeft = document.getElementById('step-left');
+    const stepRight = document.getElementById('step-right');
+
+    async function startCamera() {
+        try {
+            videoStream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } } 
+            });
+            videoElement.srcObject = videoStream;
+            
+            placeholder.classList.add('hidden');
+            successContainer.classList.add('hidden');
+            cameraContainer.classList.remove('hidden');
+            
+            // Reset steps
+            stepStraight.className = 'liveness-step active';
+            stepLeft.className = 'liveness-step';
+            stepRight.className = 'liveness-step';
+            
+            // Start the liveness sequence
+            runLivenessSequence();
+            
+        } catch (err) {
+            alert("Camera access denied or unavailable. Please allow camera permissions to verify your identity.");
+            console.error(err);
+        }
+    }
+
+    function runLivenessSequence() {
+        // 1. Look straight (2 seconds)
+        promptText.textContent = "Look straight ahead";
+        promptSubtext.textContent = "Hold still...";
+        
+        setTimeout(() => {
+            // 2. Turn left
+            stepStraight.className = 'liveness-step done';
+            stepLeft.className = 'liveness-step active';
+            promptText.textContent = "Turn your head LEFT";
+            promptSubtext.textContent = "Slowly look to your left...";
+            
+            setTimeout(() => {
+                // 3. Turn right
+                stepLeft.className = 'liveness-step done';
+                stepRight.className = 'liveness-step active';
+                promptText.textContent = "Turn your head RIGHT";
+                promptSubtext.textContent = "Slowly look to your right...";
+                
+                setTimeout(() => {
+                    // 4. Look straight and capture
+                    stepRight.className = 'liveness-step done';
+                    promptText.textContent = "Look straight, capturing...";
+                    promptSubtext.textContent = "Processing your identity...";
+                    
+                    setTimeout(() => {
+                        capturePhoto();
+                    }, 800);
+                }, 1500);
+            }, 1500);
+        }, 2000);
+    }
+
+    function capturePhoto() {
+        // Draw the current video frame to a canvas
+        captureCanvas.width = videoElement.videoWidth || 640;
+        captureCanvas.height = videoElement.videoHeight || 480;
+        const ctx = captureCanvas.getContext('2d');
+        
+        // Draw mirrored so it matches what the user saw
+        ctx.translate(captureCanvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(videoElement, 0, 0, captureCanvas.width, captureCanvas.height);
+        
+        // Convert to blob and inject into the hidden file input
+        captureCanvas.toBlob((blob) => {
+            if (!blob) return;
+            
+            const file = new File([blob], "live_selfie.jpg", { type: "image/jpeg" });
+            
+            // Create a DataTransfer to assign the file to the input
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            hiddenInput.files = dataTransfer.files;
+            
+            // Dispatch change event just in case
+            hiddenInput.dispatchEvent(new Event('change'));
+            
+            stopCamera();
+            
+            // Show success UI
+            cameraContainer.classList.add('hidden');
+            successContainer.classList.remove('hidden');
+            
+            // Enable submit button if it was disabled
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = false;
+            
+        }, 'image/jpeg', 0.9);
+    }
+
+    function stopCamera() {
+        if (videoStream) {
+            videoStream.getTracks().forEach(track => track.stop());
+            videoStream = null;
+        }
+    }
+
+    if (startBtn) startBtn.addEventListener('click', startCamera);
+    
+    if (retakeBtn) {
+        retakeBtn.addEventListener('click', () => {
+            hiddenInput.value = '';
+            successContainer.classList.add('hidden');
+            startCamera();
+        });
+    }
+    
+    // Clean up camera when leaving page
+    window.addEventListener('beforeunload', stopCamera);
+
+    // ==========================================
+    // FORM VALIDATION BEFORE SUBMISSION
+    // ==========================================
+    document.getElementById('kyc-form')?.addEventListener('submit', function(e) {
+        // Check if selfie is captured
+        if (!hiddenInput.files || hiddenInput.files.length === 0) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            alert("Please complete the live face verification before submitting.");
+            document.getElementById('selfie-zone').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+        }
+        
+        // Check if document is uploaded
+        const docInput = document.getElementById('document_file');
+        if (!docInput.files || docInput.files.length === 0) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            alert("Please upload your ID document.");
+            document.getElementById('doc-upload-zone').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+        }
+    });
+</script>
+{% endblock %}

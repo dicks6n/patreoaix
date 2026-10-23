@@ -1,0 +1,636 @@
+<!-- copy_trade.html -->
+{% extends 'base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Copy Trade - PATREOAIX{% endblock %}
+
+{% block content %}
+{% include 'partials/legacy_skin.html' %}
+<div class="max-w-5xl mx-auto py-6 px-4 space-y-6 pb-24 md:pb-6">
+
+    <!-- HERO HEADER -->
+    <div class="trade-card p-6 sm:p-8 relative overflow-hidden">
+        <!-- Ambient -->
+        <div class="absolute -top-16 -right-16 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-16 -left-16 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="relative">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center">
+                    <i class="fa-solid fa-bolt text-indigo-400 text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-black text-white tracking-tight">Copy Trade</h1>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Redeem admin signals with one-time-use codes</p>
+                </div>
+            </div>
+
+            <!-- Tier + Limits -->
+            <div class="grid grid-cols-3 gap-3 mt-5">
+                <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+                    <span class="text-[9px] text-slate-500 uppercase font-bold tracking-wider block">Your Tier</span>
+                    <span class="text-sm font-black text-indigo-400 mt-0.5 block">{{ tier }}</span>
+                </div>
+                <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+                    <span class="text-[9px] text-slate-500 uppercase font-bold tracking-wider block">Daily Limit</span>
+                    <span class="text-sm font-black text-white mt-0.5 block">{{ daily_limit }} trades</span>
+                </div>
+                <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+                    <span class="text-[9px] text-slate-500 uppercase font-bold tracking-wider block">Remaining Today</span>
+                    <span id="remaining-count" class="text-sm font-black mt-0.5 block {% if remaining_today > 0 %}text-emerald-400{% else %}text-rose-400{% endif %}">
+                        {{ remaining_today }} / {{ daily_limit }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- ZS TEAM GLOBAL SCHEDULE & RULES (NEW SECTION)              -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div class="trade-card overflow-hidden border-2 border-indigo-500/30">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 p-4 text-center">
+            <h2 class="text-lg font-black text-white tracking-wider flex items-center justify-center gap-2">
+                <i class="fa-solid fa-globe"></i>
+                PG TEAM — GLOBAL TRADING SIGNAL SCHEDULE
+            </h2>
+        </div>
+
+        <div class="p-4 sm:p-6 space-y-6">
+            <!-- Schedule Table -->
+            <div class="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/50">
+                <table class="w-full text-left text-sm">
+                    <thead>
+                        <tr class="bg-indigo-500/10 border-b border-indigo-500/20 text-indigo-300 uppercase text-[10px] tracking-wider">
+                            <th class="p-3 font-bold">Signal</th>
+                            <th class="p-3 font-bold">Time Zone</th>
+                            <th class="p-3 font-bold text-right">Time</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60 font-mono text-xs">
+                        <!-- Main Signals -->
+                        <tr class="hover:bg-slate-800/30 transition">
+                            <td class="p-3 font-bold text-white">1st Signal</td>
+                            <td class="p-3 text-slate-400">New York Time</td>
+                            <td class="p-3 text-right font-black text-emerald-400">8:30 AM</td>
+                        </tr>
+                        <tr class="hover:bg-slate-800/30 transition">
+                            <td class="p-3 font-bold text-white">2nd Signal</td>
+                            <td class="p-3 text-slate-400">New York Time</td>
+                            <td class="p-3 text-right font-black text-emerald-400">9:30 AM</td>
+                        </tr>
+                        <tr class="hover:bg-slate-800/30 transition">
+                            <td class="p-3 font-bold text-white">3rd Signal</td>
+                            <td class="p-3 text-slate-400">New York Time</td>
+                            <td class="p-3 text-right font-black text-emerald-400">10:30 AM</td>
+                        </tr>
+                        <tr class="hover:bg-slate-800/30 transition">
+                            <td class="p-3 font-bold text-white">4th Signal</td>
+                            <td class="p-3 text-slate-400">New York Time</td>
+                            <td class="p-3 text-right font-black text-amber-400">12:30 PM</td>
+                        </tr>
+                        <tr class="hover:bg-slate-800/30 transition">
+                            <td class="p-3 font-bold text-white">5th Signal</td>
+                            <td class="p-3 text-slate-400">New York Time</td>
+                            <td class="p-3 text-right font-black text-amber-400">1:30 PM</td>
+                        </tr>
+                        <tr class="hover:bg-slate-800/30 transition border-b-2 border-indigo-500/20">
+                            <td class="p-3 font-bold text-white">6th Signal</td>
+                            <td class="p-3 text-slate-400">New York Time</td>
+                            <td class="p-3 text-right font-black text-amber-400">2:30 PM</td>
+                        </tr>
+                        
+                        <!-- Bonus Signals Header Row -->
+                        <tr class="bg-gradient-to-r from-purple-500/10 to-indigo-500/10">
+                            <td colspan="3" class="p-3 text-center font-black text-indigo-300 uppercase tracking-widest text-[10px]">
+                                ⭐ Bonus Signal Times ⭐
+                            </td>
+                        </tr>
+                        
+                        <!-- Bonus Signals -->
+                        <tr class="hover:bg-slate-800/30 transition">
+                            <td class="p-3 font-bold text-white">1st Bonus Signal</td>
+                            <td class="p-3 text-slate-400">New York Time</td>
+                            <td class="p-3 text-right font-black text-indigo-400">3:30 PM</td>
+                        </tr>
+                        <tr class="hover:bg-slate-800/30 transition">
+                            <td class="p-3 font-bold text-white">2nd Bonus Signal</td>
+                            <td class="p-3 text-slate-400">New York Time</td>
+                            <td class="p-3 text-right font-black text-indigo-400">3:30 PM</td>
+                        </tr>
+                        <tr class="hover:bg-slate-800/30 transition">
+                            <td class="p-3 font-bold text-white">3rd Bonus Signal</td>
+                            <td class="p-3 text-slate-400">New York Time</td>
+                            <td class="p-3 text-right font-black text-indigo-400">3:30 PM</td>
+                        </tr>
+                        <tr class="hover:bg-slate-800/30 transition">
+                            <td class="p-3 font-bold text-white">4th Bonus Signal</td>
+                            <td class="p-3 text-slate-400">New York Time</td>
+                            <td class="p-3 text-right font-black text-indigo-400">3:30 PM</td>
+                        </tr>
+                        <tr class="hover:bg-slate-800/30 transition">
+                            <td class="p-3 font-bold text-white">5th Bonus Signal</td>
+                            <td class="p-3 text-slate-400">New York Time</td>
+                            <td class="p-3 text-right font-black text-indigo-400">3:30 PM</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Strict Rules Notice (The Note) -->
+            <div class="bg-rose-950/30 border border-rose-500/40 rounded-xl p-5 relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-1 h-full bg-rose-500"></div>
+                <h3 class="text-xs font-black text-rose-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Note / Strict Rules
+                </h3>
+                <div class="text-[11px] text-slate-300 leading-relaxed space-y-2">
+                    <p>
+                        All trades must strictly adhere to the <strong class="text-rose-400">1% risk management rule</strong> of the account balance. Unauthorized trading during team signal releases is strictly prohibited.
+                    </p>
+                    <p>
+                        Violations will be treated as serious breaches, resulting in the <strong class="text-rose-400">forfeiture of all unauthorized trading amounts</strong> and an <strong class="text-rose-400">additional 30% penalty fee</strong> based on the account balance.
+                    </p>
+                    <p>
+                        All losses incurred from unauthorized trades are <strong>solely the responsibility of the trader</strong>. The team assumes no liability and reserves the right to pursue further action.
+                    </p>
+                    <p class="text-rose-300 font-bold text-center pt-2 border-t border-rose-500/20 mt-2">
+                        These rules are strictly enforced effective immediately. All members are required to comply.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- PROFIT PROJECTION TABLE                                     -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="trade-card overflow-hidden border-2 border-emerald-500/20">
+
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 p-4">
+        <div class="flex items-center justify-between">
+            <div>
+                <h2 class="text-base font-black text-white tracking-wide flex items-center gap-2">
+                    <i class="fa-solid fa-chart-line"></i>
+                    PROFIT PROJECTION
+                </h2>
+                <p class="text-[10px] text-emerald-100 mt-0.5">
+                    {{ tier }} tier · {{ projection_config.daily_yield_percent }}% daily compounding
+                </p>
+            </div>
+            <div class="text-right">
+                <span class="text-[9px] uppercase font-bold text-emerald-100 tracking-wider block">Your Tier</span>
+                <span class="text-xs font-black text-white font-mono">{{ tier }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- USER'S PERSONAL PROJECTION -->
+    {% if user_projection %}
+    <div class="p-4 bg-slate-950/60 border-b border-slate-800">
+        <p class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-3">
+            <i class="fa-solid fa-user-astronaut mr-1"></i> Your Projection
+        </p>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-3">
+                <span class="text-[9px] text-slate-500 uppercase font-bold block">Top Up</span>
+                <span class="text-sm font-black text-white font-mono">${{ user_projection.top_up|floatformat:2 }}</span>
+            </div>
+            <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-3">
+                <span class="text-[9px] text-slate-500 uppercase font-bold block">Day 1 Balance</span>
+                <span class="text-sm font-black text-indigo-400 font-mono">${{ user_projection.starting_balance|floatformat:2 }}</span>
+            </div>
+            <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-3">
+                <span class="text-[9px] text-slate-500 uppercase font-bold block">30 Days</span>
+                <span class="text-sm font-black text-emerald-400 font-mono">${{ user_projection.balance_30d|floatformat:2 }}</span>
+            </div>
+            <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-3">
+                <span class="text-[9px] text-slate-500 uppercase font-bold block">90 Days</span>
+                <span class="text-sm font-black text-emerald-300 font-mono">${{ user_projection.balance_90d|floatformat:2 }}</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- EXAMPLE TABLE -->
+    <div class="p-4">
+        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">
+            <i class="fa-solid fa-table mr-1"></i> Example Growth Scenarios
+        </p>
+        <div class="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/40">
+            <table class="w-full text-left text-xs font-mono whitespace-nowrap">
+                <thead>
+                    <tr class="bg-slate-950 text-[9px] uppercase text-slate-400 border-b border-slate-800">
+                        <th class="p-2.5 font-bold">Top Up</th>
+                        <th class="p-2.5 font-bold text-center">Principal Bonus</th>
+                        <th class="p-2.5 font-bold text-center">Extra Bonus</th>
+                        <th class="p-2.5 font-bold text-center text-indigo-400">Day 1</th>
+                        <th class="p-2.5 font-bold text-center text-emerald-500">30 Days</th>
+                        <th class="p-2.5 font-bold text-center text-emerald-400">60 Days</th>
+                        <th class="p-2.5 font-bold text-center text-emerald-300">90 Days</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60 text-[11px]">
+                    {% for row in example_rows %}
+                    <tr class="hover:bg-slate-800/30 transition">
+                        <td class="p-2.5 font-bold text-white">${{ row.top_up|floatformat:0 }}</td>
+                        <td class="p-2.5 text-center text-slate-300">${{ row.principal_bonus|floatformat:2 }}</td>
+                        <td class="p-2.5 text-center text-slate-300">${{ row.extra_bonus|floatformat:2 }}</td>
+                        <td class="p-2.5 text-center font-bold text-indigo-400">${{ row.starting_balance|floatformat:2 }}</td>
+                        <td class="p-2.5 text-center font-bold text-emerald-500">${{ row.balance_30d|floatformat:2 }}</td>
+                        <td class="p-2.5 text-center font-bold text-emerald-400">${{ row.balance_60d|floatformat:2 }}</td>
+                        <td class="p-2.5 text-center font-black text-emerald-300">${{ row.balance_90d|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p class="text-[9px] text-slate-500 mt-2 italic text-center">
+            Projections based on {{ projection_config.daily_yield_percent }}% daily compounding.
+            Actual results may vary based on market conditions.
+        </p>
+
+        <!-- Upgrade CTA for non-VIP -->
+        {% if tier != 'VIP' %}
+        <div class="mt-4 p-4 rounded-xl bg-gradient-to-r from-indigo-900/40 to-purple-900/40 border border-indigo-500/30">
+            <div class="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                    <p class="text-xs font-bold text-white">
+                        <i class="fa-solid fa-rocket text-indigo-400 mr-1"></i>
+                        Unlock higher daily yields
+                    </p>
+                    <p class="text-[10px] text-slate-400 mt-0.5">
+                        {% if tier == 'STARTER' %}
+                            Upgrade to PRO for 1.78% daily compounding
+                        {% else %}
+                            Upgrade to VIP for 2.50% daily compounding
+                        {% endif %}
+                    </p>
+                </div>
+                <a href="{% url 'subscription_billing' %}"
+                   class="bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black px-3.5 py-2 rounded-xl transition whitespace-nowrap">
+                    Upgrade <i class="fa-solid fa-arrow-right ml-1"></i>
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+    <!-- CODE REDEMPTION BOX -->
+    <div class="trade-card p-6 sm:p-8 relative overflow-hidden">
+        <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500"></div>
+
+        <div class="text-center mb-6">
+            <h2 class="text-lg font-black text-white tracking-tight">Redeem Signal Code</h2>
+            <p class="text-[11px] text-slate-400 mt-1">Paste the unique code from your signal notification</p>
+        </div>
+        
+        <!-- ✅ LIVE MARKET STATUS BANNER -->
+        <div id="market-status-banner" class="mb-4 flex items-center gap-3 p-3 rounded-xl border border-slate-800 bg-slate-950/60 transition">
+            <div id="market-status-icon" class="w-9 h-9 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 shrink-0">
+                <i class="fa-solid fa-circle-notch fa-spin text-xs"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p id="market-status-title" class="text-[11px] font-bold text-slate-300">Checking market status...</p>
+                <p id="market-status-sub" class="text-[10px] text-slate-500 mt-0.5">Verifying live market hours for your tier</p>
+            </div>
+            <span id="market-status-badge" class="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-400 shrink-0">
+                —
+            </span>
+        </div>
+
+        <form id="redeem-form" class="space-y-4">
+            {% csrf_token %}
+            <div class="relative">
+                <i class="fa-solid fa-key absolute left-4 top-1/2 -translate-y-1/2 text-indigo-400 text-sm"></i>
+                <input type="text" id="code-input" name="code"
+                       placeholder="PRO-XXXXXX"
+                       autocomplete="off" autocapitalize="characters"
+                       class="w-full bg-slate-950 border-2 border-slate-800 focus:border-indigo-500 rounded-2xl pl-11 pr-4 py-4 text-center font-mono font-black text-lg tracking-widest text-white placeholder-slate-700 uppercase transition outline-none">
+            </div>
+
+            <button type="submit" id="redeem-btn"
+                    class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black py-4 rounded-2xl text-sm uppercase tracking-wider transition shadow-lg shadow-indigo-900/30 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed">
+                <span id="redeem-btn-text">
+                    <i class="fa-solid fa-bolt mr-2"></i>Redeem & Execute
+                </span>
+                <span id="redeem-btn-loading" class="hidden">
+                    <i class="fa-solid fa-spinner fa-spin mr-2"></i>Executing...
+                </span>
+            </button>
+        </form>
+
+        <!-- Feedback -->
+        <div id="redeem-feedback" class="hidden mt-4 rounded-xl p-4 text-xs font-semibold"></div>
+
+        <!-- Usage bar -->
+        <div class="mt-6 pt-6 border-t border-slate-800">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Daily Usage</span>
+                <span class="text-[11px] font-mono font-bold text-slate-300">
+                    <span id="usage-count">{{ used_today }}</span> / {{ daily_limit }}
+                </span>
+            </div>
+            <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+                <div id="usage-bar" class="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all"
+                     style="width: {% widthratio used_today daily_limit 100 %}%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ACTIVE SIGNALS -->
+    <div class="trade-card overflow-hidden">
+        <div class="p-5 border-b border-slate-800 flex items-center justify-between">
+            <div>
+                <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-satellite-dish text-emerald-400 text-xs"></i>
+                    Active Signals
+                </h3>
+                <p class="text-[10px] text-slate-500 mt-0.5">Broadcasted signals for your tier</p>
+            </div>
+            <span class="text-[10px] font-mono font-bold px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300">
+                {{ active_signals|length }} live
+            </span>
+        </div>
+
+        {% if active_signals %}
+        <div class="divide-y divide-slate-800/60">
+            {% for sig in active_signals %}
+            <div class="p-4 hover:bg-slate-800/20 transition">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="flex items-start gap-3 min-w-0 flex-1">
+                        <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0
+                            {% if sig.direction == 'BUY' %}bg-emerald-500/10 border border-emerald-500/30 text-emerald-400{% else %}bg-rose-500/10 border border-rose-500/30 text-rose-400{% endif %}">
+                            <i class="fa-solid {% if sig.direction == 'BUY' %}fa-arrow-trend-up{% else %}fa-arrow-trend-down{% endif %} text-sm"></i>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <p class="text-sm font-bold text-white">{{ sig.title }}</p>
+                                <span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                                    {{ sig.tier_required }}
+                                </span>
+                                {% if sig.id in redeemed_ids %}
+                                <span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-500/10 text-slate-400 border border-slate-600/30">
+                                    <i class="fa-solid fa-check mr-1"></i>REDEEMED
+                                </span>
+                                {% endif %}
+                            </div>
+                            <p class="text-[11px] text-slate-400 mt-1">
+                                <span class="font-mono font-bold">{{ sig.direction }} {{ sig.symbol }}</span>
+                                · {{ sig.lot_size }} lots
+                                {% if sig.entry_price %} · Entry {{ sig.entry_price }}{% endif %}
+                            </p>
+                            {% if sig.rationale %}
+                            <p class="text-[10px] text-slate-500 mt-1 line-clamp-1">{{ sig.rationale }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <p class="text-[9px] text-slate-500 uppercase font-bold">Code</p>
+                        <p class="font-mono font-black text-xs text-indigo-400 tracking-wider px-chip-btn" data-code="{{ sig.code }}" title="Use this code">{{ sig.code }}</p>
+                        {% if sig.expires_at %}
+                        <p class="text-[9px] text-slate-500 mt-1">{{ sig.expires_at|timeuntil }} left</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="p-12 text-center">
+            <div class="w-14 h-14 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center mx-auto mb-3 text-slate-600">
+                <i class="fa-solid fa-satellite-dish text-lg"></i>
+            </div>
+            <p class="text-xs font-bold text-white">No active signals yet</p>
+            <p class="text-[11px] text-slate-500 mt-1">Signals will appear here when admin broadcasts</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- REDEMPTION HISTORY -->
+    {% if redemptions %}
+    <div class="trade-card overflow-hidden">
+        <div class="p-5 border-b border-slate-800">
+            <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                <i class="fa-solid fa-clock-rotate-left text-indigo-400 text-xs"></i>
+                Your Recent Redemptions
+            </h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs font-mono">
+                <thead class="bg-slate-950 text-slate-400 uppercase text-[10px] border-b border-slate-800">
+                    <tr>
+                        <th class="p-3">Code</th>
+                        <th class="p-3">Trade</th>
+                        <th class="p-3">Direction</th>
+                        <th class="p-3">Lots</th>
+                        <th class="p-3">Status</th>
+                        <th class="p-3 text-right">Redeemed</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/40">
+                    {% for r in redemptions %}
+                    <tr class="hover:bg-slate-800/20 transition">
+                        <td class="p-3 font-bold text-indigo-400">{{ r.signal.code }}</td>
+                        <td class="p-3 text-white">{{ r.signal.symbol }}</td>
+                        <td class="p-3 {% if r.signal.direction == 'BUY' %}text-emerald-400{% else %}text-rose-400{% endif %} font-bold">
+                            {{ r.signal.direction }}
+                        </td>
+                        <td class="p-3 text-slate-300">{{ r.signal.lot_size }}</td>
+                        <td class="p-3">
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full
+                                {% if r.status == 'EXECUTED' %}bg-emerald-500/10 text-emerald-400 border border-emerald-500/20
+                                {% elif r.status == 'REJECTED' %}bg-amber-500/10 text-amber-400 border border-amber-500/20
+                                {% else %}bg-rose-500/10 text-rose-400 border border-rose-500/20{% endif %}">
+                                {{ r.status }}
+                            </span>
+                        </td>
+                        <td class="p-3 text-right text-slate-500 text-[10px]">{{ r.redeemed_at|date:"M d, H:i" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<style>
+    .trade-card {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 27, 75, 0.4) 100%);
+        border: 1px solid rgba(99, 102, 241, 0.15);
+        border-radius: 20px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+    }
+    @keyframes slideUp {
+        from { opacity: 0; transform: translateY(12px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+    .line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+</style>
+
+<script>
+const CSRF_TOKEN = '{{ csrf_token }}';
+
+document.getElementById('redeem-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const input = document.getElementById('code-input');
+    const btn = document.getElementById('redeem-btn');
+    const btnText = document.getElementById('redeem-btn-text');
+    const btnLoading = document.getElementById('redeem-btn-loading');
+    const feedback = document.getElementById('redeem-feedback');
+
+    const code = input.value.trim().toUpperCase();
+    if (!code) {
+        showFeedback('error', 'Please enter a code.');
+        return;
+    }
+
+    // Lock UI
+    btn.disabled = true;
+    btnText.classList.add('hidden');
+    btnLoading.classList.remove('hidden');
+    feedback.classList.add('hidden');
+
+    try {
+        const res = await fetch('/copy-trade/redeem/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN,
+            },
+            body: JSON.stringify({ code }),
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            showFeedback('success',
+                `✅ ${data.message}<br><span class="text-[10px] text-emerald-300 mt-1 block font-mono">Ticket: ${data.ticket_id} · Entry: ${data.entry}</span>`
+            );
+            input.value = '';
+
+            // Update usage counter
+            const usedEl = document.getElementById('usage-count');
+            const remainEl = document.getElementById('remaining-count');
+            const bar = document.getElementById('usage-bar');
+            if (usedEl && remainEl) {
+                const used = parseInt(usedEl.textContent) + 1;
+                usedEl.textContent = used;
+                remainEl.textContent = `${data.remaining_today} / ${data.daily_limit}`;
+                remainEl.className = `text-sm font-black mt-0.5 block ${data.remaining_today > 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+                if (bar) bar.style.width = `${(used / data.daily_limit) * 100}%`;
+            }
+
+            // Redirect to trade page after 2 seconds
+            setTimeout(() => {
+                window.location.href = '/trade/';
+            }, 2200);
+        } else {
+            showFeedback('error', `❌ ${data.error || 'Failed to redeem'}`);
+        }
+    } catch (err) {
+        showFeedback('error', '❌ Network error — please try again');
+    } finally {
+        btn.disabled = false;
+        btnText.classList.remove('hidden');
+        btnLoading.classList.add('hidden');
+    }
+});
+
+// Auto-uppercase input
+document.getElementById('code-input').addEventListener('input', (e) => {
+    e.target.value = e.target.value.toUpperCase();
+});
+
+function showFeedback(type, html) {
+    const el = document.getElementById('redeem-feedback');
+    el.classList.remove('hidden');
+    el.classList.add('slide-up');
+    if (type === 'success') {
+        el.className = 'mt-4 rounded-xl p-4 text-xs font-semibold slide-up bg-emerald-500/10 border border-emerald-500/30 text-emerald-400';
+    } else {
+        el.className = 'mt-4 rounded-xl p-4 text-xs font-semibold slide-up bg-rose-500/10 border border-rose-500/30 text-rose-400';
+    }
+    el.innerHTML = html;
+}
+</script>
+<script>
+// ── Added: live market status, next-signal countdown, tap a code to use it ──
+(function () {
+    // Market status banner (it had no script)
+    async function marketStatus() {
+        const set = (id, html, cls) => { const el = document.getElementById(id); if (!el) return; if (html != null) el.innerHTML = html; if (cls) el.className = cls; };
+        try {
+            const r = await fetch('/api/market-status/?symbols=XAUUSD,EURUSD', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            const d = await r.json();
+            const m = Object.values(d.markets || {}), open = m.some(x => x.is_open);
+            const first = m.find(x => !x.is_open) || {};
+            set('market-status-icon', `<i class="fa-solid ${open ? 'fa-circle-check' : 'fa-moon'} text-xs"></i>`,
+                'w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ' + (open ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400' : 'bg-rose-500/10 border border-rose-500/30 text-rose-400'));
+            set('market-status-title', open ? 'Markets are open' : 'Markets are closed');
+            set('market-status-sub', open ? 'Signals can be redeemed and executed now.' : `${first.reason || 'Outside trading hours'}${first.hint ? ' — ' + first.hint : ''}`);
+            set('market-status-badge', open ? 'OPEN' : 'CLOSED',
+                'text-[9px] font-mono font-bold px-2 py-0.5 rounded-full shrink-0 ' + (open ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400' : 'bg-rose-500/10 border border-rose-500/30 text-rose-400'));
+        } catch (e) {
+            set('market-status-title', 'Market status unavailable');
+            set('market-status-sub', 'Could not reach the server. You can still try to redeem.');
+            set('market-status-badge', '—');
+        }
+    }
+    marketStatus(); setInterval(marketStatus, 60000);
+
+    // Schedule: highlight the next signal, show it in the viewer's local time, count down
+    const table = [...document.querySelectorAll('table')].find(t => /New York Time/.test(t.textContent));
+    function nyNow() {
+        const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: 'numeric', weekday: 'short', hourCycle: 'h23' }).formatToParts(new Date());
+        const g = t => (p.find(x => x.type === t) || {}).value;
+        return { min: +g('hour') * 60 + +g('minute'), wd: g('weekday') };
+    }
+    function parseTime(txt) {
+        const m = /(\d{1,2}):(\d{2})\s*(AM|PM)/i.exec(txt); if (!m) return null;
+        let h = +m[1] % 12; if (/PM/i.test(m[3])) h += 12;
+        return h * 60 + +m[2];
+    }
+    function localLabel(nyMin) {
+        const now = new Date(), ny = nyNow();
+        const d = new Date(now.getTime() + (nyMin - ny.min) * 60000);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    let bar = null;
+    function schedule() {
+        if (!table) return;
+        const rows = [...table.querySelectorAll('tbody tr')].map(tr => ({ tr, cells: tr.querySelectorAll('td') })).filter(r => r.cells.length === 3)
+            .map(r => ({ ...r, min: parseTime(r.cells[2].textContent), name: r.cells[0].textContent.trim() })).filter(r => r.min != null);
+        const ny = nyNow(), weekend = ['Sat', 'Sun'].includes(ny.wd);
+        let next = null;
+        rows.forEach(r => {
+            r.tr.classList.remove('px-next-row', 'px-past-row');
+            if (!r.cells[2].querySelector('.px-local')) r.cells[2].insertAdjacentHTML('beforeend', `<span class="px-local block text-[9px] font-normal text-slate-500">${localLabel(r.min)} your time</span>`);
+            if (!weekend && r.min <= ny.min) r.tr.classList.add('px-past-row');
+            if (!weekend && !next && r.min > ny.min) next = r;
+        });
+        if (next) next.tr.classList.add('px-next-row');
+        if (!bar) { bar = document.createElement('div'); bar.className = 'rounded-xl p-3 text-xs flex items-center gap-2'; bar.style.cssText = 'background:var(--px-accent-soft);color:var(--px-text)'; table.parentElement.before(bar); }
+        if (weekend) bar.innerHTML = '<i class="fa-regular fa-calendar"></i> Weekend — the next signals start Monday 8:30 AM New York time.';
+        else if (next) {
+            const mins = next.min - ny.min, h = Math.floor(mins / 60), m = mins % 60;
+            bar.innerHTML = `<i class="fa-regular fa-clock" style="color:var(--px-accent)"></i> Next: <strong>${next.name}</strong> at ${next.cells[2].childNodes[0].textContent.trim()} New York (${localLabel(next.min)} your time) — in <strong>${h ? h + 'h ' : ''}${m}m</strong>`;
+        } else bar.innerHTML = '<i class="fa-regular fa-moon"></i> All of today\'s signal times have passed. The next one is tomorrow at 8:30 AM New York time.';
+    }
+    schedule(); setInterval(schedule, 30000);
+
+    // Tap a signal code to put it in the redeem box (and copy it)
+    document.querySelectorAll('[data-code]').forEach(el => el.addEventListener('click', () => {
+        const input = document.getElementById('code-input');
+        input.value = el.dataset.code; input.focus();
+        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        try { navigator.clipboard.writeText(el.dataset.code); } catch (e) {}
+        if (window.showMarketToast) showMarketToast(`Code ${el.dataset.code} ready — press Redeem & Execute`, 'info');
+    }));
+})();
+</script>
+{% endblock %}

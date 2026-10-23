@@ -1,0 +1,791 @@
+{% extends 'base_dashboard.html' %}
+{% load static %}
+
+{% block title %}AI Scrutiny · PATREOAIX{% endblock %}
+{% block page_title %}AI Prediction Models{% endblock %}
+
+{% block extra_head %}
+<style>
+    .px-card { background: var(--px-panel); border: 1px solid var(--px-line); border-radius: 12px; box-shadow: var(--px-shadow); }
+    .px-card-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--px-line); }
+    .px-card-t { font-size: 13px; font-weight: 600; color: var(--px-text); display: flex; align-items: center; gap: 8px; }
+    .px-num { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+    .px-muted { color: var(--px-mute); } .px-dim { color: var(--px-dim); } .px-strong { color: var(--px-text); }
+    .px-seg { display: inline-flex; padding: 3px; border-radius: 8px; background: var(--px-panel-2); border: 1px solid var(--px-line); gap: 2px; }
+    .px-seg button { height: 28px; padding: 0 11px; border-radius: 6px; font-size: 12px; font-weight: 600; color: var(--px-dim); white-space: nowrap; }
+    .px-seg button:hover { color: var(--px-text); }
+    .px-seg button.on { background: var(--px-panel); color: var(--px-text); box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+    .px-select { height: 36px; padding: 0 10px; border-radius: 8px; background: var(--px-panel-2) !important; border: 1px solid var(--px-line) !important; color: var(--px-text) !important; font-size: 13px; font-weight: 600; outline: none; }
+    .px-select:focus { border-color: var(--px-accent) !important; }
+    .px-skel { background: linear-gradient(90deg, var(--px-panel-2), var(--px-hover), var(--px-panel-2)); background-size: 200% 100%; animation: skel 1.2s ease-in-out infinite; border-radius: 8px; }
+    @keyframes skel { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+    @keyframes spin { to { transform: rotate(360deg); } } .spin { animation: spin 1s linear infinite; }
+
+    .tag { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 6px; font-size: 10px; font-weight: 800; letter-spacing: .03em; }
+    .tag.UP, .tag.BUY { background: var(--px-up-soft); color: var(--px-up); }
+    .tag.DOWN, .tag.SELL { background: var(--px-down-soft); color: var(--px-down); }
+    .tag.SIDE, .tag.WAIT { background: var(--px-panel-2); color: var(--px-dim); border: 1px solid var(--px-line); }
+    .grade { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 22px; padding: 0 6px; border-radius: 6px; font-size: 10px; font-weight: 800; }
+    .grade.g-Ap { background: var(--px-accent); color: #0b0e14; box-shadow: 0 0 0 3px var(--px-accent-soft); }
+    .grade.g-A { background: var(--px-accent-soft); color: var(--px-accent); border: 1px solid var(--px-accent); }
+    .grade.g-B { background: var(--px-panel-2); color: var(--px-dim); border: 1px solid var(--px-line); }
+    .grade.g-none { background: var(--px-panel-2); color: var(--px-mute); border: 1px dashed var(--px-line); }
+
+    /* consensus ring */
+    .pm-ringbox { width: 132px; height: 132px; position: relative; flex-shrink: 0; }
+    .pm-ringbox svg { transform: rotate(-90deg); }
+    .pm-ringbox .c { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+    /* models */
+    .mdl { padding: 16px; border-radius: 12px; background: var(--px-panel); border: 1px solid var(--px-line); display: flex; flex-direction: column; gap: 10px; }
+    .mdl .pred { border-radius: 10px; padding: 12px; text-align: center; background: var(--px-panel-2); border: 1px solid var(--px-line-soft); }
+    .meter { height: 6px; border-radius: 6px; background: var(--px-line-soft); overflow: hidden; }
+    .meter > span { display: block; height: 100%; border-radius: 6px; }
+    .kv { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+    .kv .k { color: var(--px-dim); } .kv .v { color: var(--px-text); font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+
+    /* mtf / sessions / strength */
+    .mtf { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
+    .mtf > div { border-radius: 10px; padding: 12px 8px; text-align: center; border: 1px solid var(--px-line-soft); }
+    .sess { display: grid; grid-template-columns: 74px 1fr 56px; gap: 10px; align-items: center; font-size: 12px; padding: 6px 0; }
+    .sess .track { height: 8px; border-radius: 8px; background: var(--px-line-soft); position: relative; overflow: hidden; }
+    .sess .track > span { position: absolute; top: 0; bottom: 0; border-radius: 8px; }
+    .sess .now { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--px-accent); }
+    .str { display: grid; grid-template-columns: 38px 1fr 44px; gap: 8px; align-items: center; font-size: 12px; padding: 4px 0; }
+    .str .track { height: 10px; border-radius: 10px; background: var(--px-line-soft); position: relative; }
+    .str .track > span { position: absolute; top: 0; bottom: 0; border-radius: 10px; }
+    .str .track::after { content: ''; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--px-line); }
+
+    /* markets table */
+    .mt-row { cursor: pointer; border-top: 1px solid var(--px-line-soft); }
+    .mt-row:hover { background: var(--px-hover); }
+    .mt-row.sel { background: var(--px-accent-soft); }
+    .mt-row td { padding: 9px 10px; white-space: nowrap; }
+
+    .tag.ENTER { background: var(--px-up); color: #fff; }
+    .tag.GET_READY { background: var(--px-accent-soft); color: var(--px-accent); border: 1px solid var(--px-accent); }
+    .tag.WAIT_PULLBACK, .tag.WATCH { background: var(--px-panel-2); color: var(--px-text); border: 1px solid var(--px-line); }
+    .tag.CONFLICT, .tag.WAIT_NEWS { background: var(--px-down-soft); color: var(--px-down); }
+    .tag.STAND_ASIDE { background: var(--px-panel-2); color: var(--px-mute); border: 1px dashed var(--px-line); }
+
+    /* entry-coach chips (same as Market Overview) */
+    .cs { display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 7px; border-radius: 5px; font-size: 10px; font-weight: 700; white-space: nowrap; letter-spacing: .02em; }
+    .cs-READY { background: var(--px-up); color: #fff; }
+    .cs-IN_ZONE { background: var(--px-accent-soft); color: var(--px-accent); border: 1px solid var(--px-accent); }
+    .cs-WAIT_PULLBACK { background: var(--px-panel-2); color: var(--px-text); border: 1px solid var(--px-line); }
+    .cs-EXTENDED { background: var(--px-panel-2); color: var(--px-dim); border: 1px dashed var(--px-line); }
+    .cs-MISSED, .cs-NO_TREND { background: var(--px-panel-2); color: var(--px-mute); }
+    .cs-INVALID { background: var(--px-down-soft); color: var(--px-down); }
+
+    /* verdict */
+    .vd-news { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; background: var(--px-down-soft); color: var(--px-text); font-size: 12px; border: 1px solid var(--px-down); }
+    .vd-news i { color: var(--px-down); margin-top: 2px; }
+    .tug { height: 12px; border-radius: 12px; background: var(--px-line-soft); display: flex; overflow: hidden; }
+    .tug > span { height: 100%; transition: width .4s ease; }
+    .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+    .chip { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 7px; border-radius: 5px; font-size: 10.5px; font-weight: 600; background: var(--px-panel-2); color: var(--px-dim); border: 1px solid var(--px-line-soft); white-space: nowrap; }
+    .chip.up { color: var(--px-up); border-color: transparent; background: var(--px-up-soft); }
+    .chip.down { color: var(--px-down); border-color: transparent; background: var(--px-down-soft); }
+    .todo { border-radius: 12px; padding: 14px; background: var(--px-panel-2); border: 1px solid var(--px-line-soft); }
+    .todo.ENTER { border-color: var(--px-up); } .todo.GET_READY { border-color: var(--px-accent); } .todo.CONFLICT, .todo.WAIT_NEWS { border-color: var(--px-down); }
+    .plan4 { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 6px; }
+    .plan4 > div { border-radius: 8px; padding: 8px; background: var(--px-panel); }
+    @media (max-width: 520px) { .plan4 { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+
+    /* group summary */
+    .grp { border-radius: 10px; padding: 10px 12px; background: var(--px-panel-2); border: 1px solid var(--px-line-soft); cursor: pointer; text-align: left; }
+    .grp:hover { border-color: var(--px-line); }
+
+    /* strategy board */
+    .sp { padding: 14px; border-radius: 12px; background: var(--px-panel); border: 1px solid var(--px-line); transition: opacity .15s ease; }
+    .sp.off { opacity: .4; }
+    .sp .hd { display: flex; align-items: center; gap: 8px; }
+    .sp .ic { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12px; background: var(--px-panel-2); color: var(--px-dim); border: 1px solid var(--px-line); flex-shrink: 0; }
+    .sp.up .ic { background: var(--px-up-soft); color: var(--px-up); border-color: transparent; }
+    .sp.down .ic { background: var(--px-down-soft); color: var(--px-down); border-color: transparent; }
+    .sp .det { font-size: 11px; color: var(--px-mute); margin-top: 4px; }
+    .vbar { height: 8px; border-radius: 8px; background: var(--px-line-soft); position: relative; overflow: hidden; margin-top: 10px; }
+    .vbar > span { position: absolute; top: 0; bottom: 0; border-radius: 8px; }
+    .vbar::after { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--px-line); }
+    .sw { position: relative; width: 34px; height: 20px; border-radius: 20px; background: var(--px-line); flex-shrink: 0; transition: background .15s ease; }
+    .sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform .15s ease; }
+    .sw.on { background: var(--px-accent); } .sw.on::after { transform: translateX(14px); }
+    .grp-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 18px 0 8px; }
+    .grp-h:first-child { margin-top: 0; }
+
+    /* chart layers + ladder */
+    .lyr { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px; border-radius: 7px; font-size: 11px; font-weight: 600; background: var(--px-panel-2); color: var(--px-mute); border: 1px solid var(--px-line); }
+    .lyr .d { width: 8px; height: 8px; border-radius: 2px; opacity: .35; }
+    .lyr.on { color: var(--px-text); } .lyr.on .d { opacity: 1; }
+    .lad { max-height: 420px; overflow-y: auto; }
+    .lad-row { display: grid; grid-template-columns: 10px 1fr auto 52px; gap: 8px; align-items: center; padding: 6px 12px; font-size: 12px; border-top: 1px solid var(--px-line-soft); }
+    .lad-row .d { width: 8px; height: 8px; border-radius: 2px; }
+    .lad-row.now { background: var(--px-accent-soft); font-weight: 700; color: var(--px-text); }
+    #pm-chart-wrap { height: 420px; }
+    @media (max-width: 640px) { #pm-chart-wrap { height: 300px; } .pm-ringbox { width: 112px; height: 112px; } }
+
+    /* fundamentals */
+    .ev { display: grid; grid-template-columns: 54px 40px 1fr auto; gap: 8px; align-items: center; padding: 7px 0; font-size: 12px; border-top: 1px solid var(--px-line-soft); }
+    .ev:first-child { border-top: 0; }
+    .imp { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 4px; }
+    .imp.high { background: var(--px-down); } .imp.medium { background: var(--px-accent); } .imp.low { background: var(--px-mute); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-4 lg:space-y-5" id="scr-root" data-mo="{{ market_overview_url|default:'/market-overview/' }}">
+
+    <!-- ═══ HEADER ═══ -->
+    <div class="flex flex-col xl:flex-row xl:items-end justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2.5 flex-wrap">
+                <h2 class="text-xl sm:text-2xl font-semibold tracking-tight px-strong">AI Scrutiny</h2>
+                <span class="tag SIDE"><i class="fa-solid fa-link"></i>Linked with Market Overview</span>
+            </div>
+            <p class="text-[13px] mt-1 px-dim max-w-3xl">Every school of trading looks at the same market: trend, structure, Fibonacci pullbacks, liquidity sweeps, order blocks, fair value gaps, support and resistance, candles, sessions, oscillators, a trained model and the economic calendar. Each one votes, and the AI tells you where they agree, where they fight, and whether the timing is right.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+            <select id="pm-symbol" class="px-select px-num" aria-label="Market"></select>
+            <div class="px-seg" id="pm-style" role="tablist" aria-label="Trading style">
+                <button data-style="scalp" title="15m chart · 5m entry · 1H trend">Scalp</button>
+                <button data-style="intraday" class="on" title="1H chart · 15m entry · 4H trend">Intraday</button>
+                <button data-style="swing" title="4H chart · 1H entry · Daily trend">Swing</button>
+            </div>
+            <button id="pm-refresh" type="button" class="px-btn px-btn-ghost" title="Run the scrutiny again"><i class="fa-solid fa-rotate text-[11px]"></i><span>Re-run</span></button>
+            <a id="pm-open-mo" href="{{ market_overview_url|default:'/market-overview/' }}" class="px-btn px-btn-primary"><i class="fa-solid fa-chart-line text-[11px]"></i><span>Market Overview</span></a>
+        </div>
+    </div>
+
+    <!-- ═══ VERDICT ═══ -->
+    <section class="px-card p-4 sm:p-5 space-y-4">
+        <div id="vd-news" class="vd-news" hidden></div>
+        <div class="flex flex-col lg:flex-row lg:items-center gap-5">
+            <div class="flex items-center gap-5 min-w-0 flex-1">
+                <div class="pm-ringbox">
+                    <svg width="100%" height="100%" viewBox="0 0 120 120">
+                        <circle cx="60" cy="60" r="52" fill="none" stroke="var(--px-line-soft)" stroke-width="10"/>
+                        <circle id="pm-ring" cx="60" cy="60" r="52" fill="none" stroke="var(--px-mute)" stroke-width="10" stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="326.7" style="transition:stroke-dashoffset .6s ease, stroke .3s ease"/>
+                    </svg>
+                    <div class="c"><span id="pm-ring-v" class="px-num text-2xl font-bold px-strong">—</span><span class="text-[10px] px-muted font-semibold">net score</span></div>
+                </div>
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span id="pm-sym" class="text-[13px] font-semibold px-dim">—</span>
+                        <span id="vd-action" class="tag SIDE">—</span>
+                        <span id="pm-tf" class="text-[11px] px-muted"></span>
+                    </div>
+                    <h3 id="vd-head" class="text-xl sm:text-3xl font-bold px-strong mt-1 leading-tight">Scrutinising…</h3>
+                    <p id="vd-why" class="text-[12px] px-dim mt-1 max-w-xl">Running every strategy on the latest closed candle.</p>
+                    <div class="flex items-center gap-4 mt-3 text-[12px] flex-wrap">
+                        <span><span class="px-muted">Conviction</span> <b id="vd-conv" class="px-num px-strong">—</b></span>
+                        <span><span class="px-muted">Agree</span> <b id="vd-agree-n" class="px-num px-up">0</b></span>
+                        <span><span class="px-muted">Against</span> <b id="vd-against-n" class="px-num px-down">0</b></span>
+                        <span><span class="px-muted">Voting</span> <b id="vd-voting" class="px-num px-strong">0</b></span>
+                    </div>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-3 lg:w-[460px] xl:w-[580px]">
+                <div class="rounded-xl p-3" style="background:var(--px-panel-2)"><p class="text-[11px] px-muted">Live price</p><p id="pm-price" class="px-num text-[17px] font-semibold px-strong mt-0.5">—</p></div>
+                <div class="rounded-xl p-3" style="background:var(--px-panel-2)"><p class="text-[11px] px-muted">Entry coach</p><p class="mt-1" id="vd-coach">—</p></div>
+                <div class="rounded-xl p-3" style="background:var(--px-panel-2)"><p class="text-[11px] px-muted">Setup quality</p><p id="vd-quality" class="px-num text-[17px] font-semibold px-strong mt-0.5">—</p></div>
+                <div class="rounded-xl p-3" style="background:var(--px-panel-2)"><p class="text-[11px] px-muted">Next news</p><p id="vd-next" class="text-[12px] font-semibold px-strong mt-0.5 leading-tight">—</p></div>
+            </div>
+        </div>
+
+        <div>
+            <div class="flex items-center justify-between text-[11px] mb-1.5"><span class="px-up font-semibold">Bullish weight <b id="tug-up" class="px-num">0</b></span><span class="px-muted hidden sm:inline">who is pulling which way</span><span class="px-down font-semibold"><b id="tug-dn" class="px-num">0</b> Bearish weight</span></div>
+            <div class="tug"><span id="tug-a" style="background:var(--px-up);width:0"></span><span id="tug-n" style="background:var(--px-line);width:100%"></span><span id="tug-b" style="background:var(--px-down);width:0"></span></div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                <div><p class="text-[11px] px-muted mb-1">Agree with the call</p><div class="chips" id="vd-agree"></div></div>
+                <div><p class="text-[11px] px-muted mb-1">Against the call</p><div class="chips" id="vd-against"></div></div>
+            </div>
+        </div>
+
+        <div id="vd-todo" class="todo">
+            <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
+                <p class="text-[11px] font-bold uppercase tracking-wider px-muted"><i class="fa-solid fa-user-graduate mr-1.5"></i>What to do now <span id="vd-coach-tf" class="normal-case font-semibold"></span></p>
+                <span class="text-[11px] px-muted" id="vd-rr"></span>
+            </div>
+            <p id="vd-instr" class="text-[13px] px-strong leading-snug">—</p>
+            <div class="plan4 mt-3" id="vd-plan"></div>
+            <div class="flex gap-2 mt-3 flex-wrap">
+                <a id="vd-mo" href="#" class="px-btn px-btn-primary"><i class="fa-solid fa-bolt text-[11px]"></i><span>Open in Market Overview</span></a>
+                <button type="button" id="vd-story-btn" class="px-btn px-btn-ghost"><i class="fa-solid fa-book-open text-[11px]"></i><span>Coach's reasoning</span></button>
+            </div>
+            <div id="vd-story" class="mt-3 space-y-1.5 text-[12px] px-dim leading-relaxed" hidden></div>
+        </div>
+    </section>
+
+    <!-- ═══ GROUPS ═══ -->
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3" id="grp-sum">
+        <div class="px-skel h-16"></div><div class="px-skel h-16"></div><div class="px-skel h-16"></div><div class="px-skel h-16"></div><div class="px-skel h-16"></div>
+    </div>
+
+    <!-- ═══ CHART + LIQUIDITY LADDER ═══ -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 items-start">
+        <section class="px-card lg:col-span-8 overflow-hidden">
+            <div class="px-card-h flex-wrap">
+                <span class="px-card-t"><i class="fa-solid fa-chart-column px-muted text-[12px]"></i><span id="pm-chart-title">Chart</span></span>
+                <div class="px-seg" id="pm-tfs"></div>
+            </div>
+            <div class="flex flex-wrap gap-1.5 px-4 pt-3" id="pm-layers"></div>
+            <div id="pm-chart-wrap" class="relative mt-2"><div id="pm-chart" class="absolute inset-0"></div></div>
+        </section>
+        <section class="px-card lg:col-span-4 overflow-hidden">
+            <div class="px-card-h">
+                <span class="px-card-t"><i class="fa-solid fa-droplet px-muted text-[12px]"></i>Liquidity &amp; level map</span>
+                <span class="text-[11px] px-muted">ATR away</span>
+            </div>
+            <div class="lad" id="pm-ladder"><div class="p-4"><div class="px-skel h-40"></div></div></div>
+            <p class="text-[11px] px-muted px-4 py-3" style="border-top:1px solid var(--px-line-soft)">Stops rest beyond equal highs / lows and yesterday's high / low. Price is often pulled to them, and a quick wick through them (a sweep) is a classic reversal signal.</p>
+        </section>
+    </div>
+
+    <!-- ═══ STRATEGY BOARD ═══ -->
+    <section>
+        <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <div>
+                <h3 class="text-[14px] font-semibold px-strong">Every strategy's vote</h3>
+                <p class="text-[11px] px-muted" id="pm-read-at"></p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-[11px] px-muted" id="sb-n"></span>
+                <button type="button" id="sb-all" class="px-btn px-btn-ghost sm">All on</button>
+            </div>
+        </div>
+        <div id="pm-board"><div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3"><div class="px-skel h-28"></div><div class="px-skel h-28"></div><div class="px-skel h-28"></div></div></div>
+        <p class="text-[11px] px-muted mt-3">Switch a strategy off if you don't trade it: the score, verdict and agreement update instantly. Your choice is remembered on this device.</p>
+    </section>
+
+    <!-- ═══ FUNDAMENTALS + STRENGTH ═══ -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 items-start">
+        <section class="px-card lg:col-span-7 p-4">
+            <div class="flex items-center justify-between mb-2 gap-2">
+                <h4 class="text-[13px] font-semibold px-strong"><i class="fa-solid fa-landmark px-muted mr-1.5"></i>Fundamentals</h4>
+                <span class="text-[11px] px-muted" id="fd-src"></span>
+            </div>
+            <p class="text-[12px] px-dim" id="fd-text">—</p>
+            <div id="fd-scores" class="mt-3"></div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                <div><p class="text-[11px] font-bold uppercase tracking-wider px-muted mb-1">Released · actual vs forecast</p><div id="fd-released"></div></div>
+                <div><p class="text-[11px] font-bold uppercase tracking-wider px-muted mb-1">Coming up · next 24 h</p><div id="fd-upcoming"></div></div>
+            </div>
+        </section>
+        <section class="px-card lg:col-span-5 p-4">
+            <div class="flex items-center justify-between mb-2">
+                <h4 class="text-[13px] font-semibold px-strong"><i class="fa-solid fa-table-cells px-muted mr-1.5"></i>Currency strength</h4>
+                <span class="text-[11px] px-muted">from every scanned pair</span>
+            </div>
+            <div id="pm-strength"><div class="px-skel h-40"></div></div>
+        </section>
+    </div>
+
+    <!-- ═══ MODELS ═══ -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4" id="pm-models">
+        <div class="px-skel h-56"></div><div class="px-skel h-56"></div><div class="px-skel h-56"></div><div class="px-skel h-56"></div>
+    </div>
+
+    <!-- ═══ SESSIONS ═══ -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5">
+        <section class="px-card p-4">
+            <div class="flex items-center justify-between mb-2">
+                <h4 class="text-[13px] font-semibold px-strong"><i class="fa-solid fa-globe px-muted mr-1.5"></i>Trading sessions</h4>
+                <span class="px-num text-[11px] px-muted" id="pm-utc">—</span>
+            </div>
+            <div id="pm-sessions"></div>
+            <p class="text-[12px] mt-2" id="pm-liq"></p>
+        </section>
+        <section class="px-card p-4">
+            <div class="flex items-center justify-between mb-2">
+                <h4 class="text-[13px] font-semibold px-strong"><i class="fa-solid fa-layer-group px-muted mr-1.5"></i>Multi-timeframe &amp; session levels</h4>
+            </div>
+            <div class="mtf" id="pm-mtf"></div>
+            <div class="grid grid-cols-2 gap-2 mt-3" id="pm-slv"></div>
+        </section>
+    </div>
+
+    <!-- ═══ ALL MARKETS ═══ -->
+    <section class="px-card overflow-hidden">
+        <div class="px-card-h">
+            <span class="px-card-t"><i class="fa-solid fa-list px-muted text-[12px]"></i>Every market</span>
+            <span class="text-[11px] px-muted" id="pm-count"></span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-[12px]">
+                <thead><tr class="px-muted text-left text-[11px]">
+                    <th class="px-[10px] py-2 font-medium">Market</th><th class="px-[10px] py-2 font-medium">Signal</th><th class="px-[10px] py-2 font-medium text-right">Score</th>
+                    <th class="px-[10px] py-2 font-medium">Entry coach</th><th class="px-[10px] py-2 font-medium text-right">Quality</th>
+                    <th class="px-[10px] py-2 font-medium text-right">Model up</th><th class="px-[10px] py-2 font-medium"></th>
+                </tr></thead>
+                <tbody id="pm-table"><tr><td colspan="7" class="p-4"><div class="px-skel h-24"></div></td></tr></tbody>
+            </table>
+        </div>
+    </section>
+
+    <p class="text-[11px] leading-relaxed px-muted">Every vote is computed from real, closed candles and the live economic calendar. Strategies disagree by design: the verdict shows the balance, not a certainty. The trained model only votes when it beat the simple baseline on candles it never saw. This is not financial advice; always use a stop loss.</p>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const PX = window.PX;
+    const $ = id => document.getElementById(id);
+    const XHR = { headers: { 'X-Requested-With': 'XMLHttpRequest' } };
+    const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+    const esc = s => (window.escapeHtml ? escapeHtml(s) : String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]));
+    const pct = v => v == null ? '—' : Math.round(v * 100) + '%';
+    const signed = (v, d = 0) => v == null ? '—' : (v > 0 ? '+' : '') + v.toFixed(d);
+    const STYLE_NAMES = { scalp: 'Scalp', intraday: 'Intraday', swing: 'Swing' };
+    const STATE_LABEL = { READY: 'Entry ready', IN_ZONE: 'In zone', WAIT_PULLBACK: 'Pulling back', EXTENDED: 'Extended', MISSED: 'Missed', INVALID: 'Broken', NO_TREND: 'No trend' };
+    const STATE_ORDER = { READY: 0, IN_ZONE: 1, WAIT_PULLBACK: 2, EXTENDED: 3, MISSED: 4, INVALID: 5, NO_TREND: 6 };
+    const ACTION_LABEL = { ENTER: 'ENTER', GET_READY: 'GET READY', WAIT_PULLBACK: 'WAIT', WATCH: 'WATCH', CONFLICT: 'CONFLICT', WAIT_NEWS: 'NEWS', STAND_ASIDE: 'STAND ASIDE' };
+    const MO = $('scr-root').dataset.mo || '/market-overview/';
+
+    const qs = new URLSearchParams(location.search);
+    let style = 'intraday', sym = null, scan = {}, data = null, chartTf = null, loading = false;
+    try { style = localStorage.getItem('ai-style') || 'intraday'; } catch (e) {}
+    if (STYLE_NAMES[qs.get('style')]) style = qs.get('style');
+    const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+    const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v == null ? d : v; } catch (e) { return d; } };
+    let off = new Set(load('scr-off', []));
+    const LAYERS = [
+        { k: 'liq', label: 'Liquidity', color: '#a78bfa' }, { k: 'ob', label: 'Order blocks', color: '#38bdf8' },
+        { k: 'fvg', label: 'Fair value gaps', color: '#f0b90b' }, { k: 'fib', label: 'Fibonacci zone', color: '#22d3ee' },
+        { k: 'sr', label: 'Support / resistance', color: '#8b93a7' }, { k: 'plan', label: 'Coach plan', color: '#16c784' },
+    ];
+    let layers = new Set(load('scr-layers', ['liq', 'ob', 'fib', 'plan']));
+    const KIND_COLOR = { liquidity: '#a78bfa', session: '#c084fc', orderblock: '#38bdf8', fvg: '#f0b90b', fib: '#22d3ee', sr: '#8b93a7', swing: '#64748b', range: '#94a3b8' };
+
+    const ago = s => { s = Math.max(0, s); return s < 60 ? `${Math.round(s)}s` : s < 3600 ? `${Math.round(s / 60)}m` : s < 86400 ? `${Math.round(s / 3600)}h` : `${Math.round(s / 86400)}d`; };
+    const inMin = m => { const h = Math.floor(m / 60), r = Math.round(m % 60); return h ? `${h}h ${r}m` : `${r}m`; };
+    const f = v => v == null ? '—' : PX.fmt(sym, v);
+    function coachChip(c) {
+        if (!c) return '<span class="cs cs-NO_TREND">—</span>';
+        const p = c.side && c.retrace != null ? ` · ${Math.round(Math.max(0, c.retrace) * 100)}%` : '';
+        const arrow = c.side ? `<i class="fa-solid fa-arrow-${c.side === 'BUY' ? 'up' : 'down'}"></i>` : '';
+        return `<span class="cs cs-${c.state}" title="${esc(c.instruction || '')}">${arrow}${STATE_LABEL[c.state] || c.state}${p}</span>`;
+    }
+    const moLink = s => `${MO}?symbol=${encodeURIComponent(s)}&style=${style}`;
+
+    // fetch JSON and say exactly what went wrong (404 = route missing, 500 = server error, login page = session expired)
+    async function getJSON(url) {
+        try {
+            const r = await fetch(url, XHR);
+            const type = r.headers.get('content-type') || '';
+            if (r.redirected && /login/.test(r.url)) return { error: 'session expired, log in again' };
+            if (!type.includes('json')) return { error: r.status === 404 ? 'HTTP 404, this endpoint is not installed on the server' : `HTTP ${r.status}, the server returned an error page (check the server log)` };
+            const d = await r.json();
+            if (!r.ok || d.success === false) return { error: d.error || `HTTP ${r.status}` };
+            return d;
+        } catch (e) { return { error: `network error (${e.message})` }; }
+    }
+
+    // ── verdict (same rule as chart_scanner.scrutiny_verdict, recomputed when strategies are switched off) ──
+    function verdict() {
+        const strats = data.scrutiny.strategies, coach = data.scrutiny.coach, block = data.fundamentals && data.fundamentals.block;
+        const used = strats.filter(x => x.vote != null && !off.has(x.key));
+        const den = used.reduce((a, x) => a + x.weight, 0) || 1;
+        const score = used.reduce((a, x) => a + x.weight * x.vote, 0) / den * 100;
+        const sign = score >= 0 ? 1 : -1;
+        const agree = used.filter(x => x.vote * sign >= 0.2), against = used.filter(x => x.vote * sign <= -0.2);
+        const conviction = Math.round(Math.min(100, Math.abs(score) * (0.6 + 0.8 * agree.length / Math.max(1, used.length))));
+        const side = sign > 0 ? 'BUY' : 'SELL', bull = sign > 0 ? 'Bullish' : 'Bearish', verb = sign > 0 ? 'Buy' : 'Sell';
+        const st = coach && coach.state, cs = coach && coach.side;
+        let action, headline;
+        if (Math.abs(score) < 12) [action, headline] = ['STAND_ASIDE', 'No edge: the strategies cancel out'];
+        else if (block) [action, headline] = ['WAIT_NEWS', `${bull} lean, but wait for the news`];
+        else if (cs && cs !== side) [action, headline] = ['CONFLICT', `${bull} lean against the chart's trend: higher risk`];
+        else if (st === 'READY') [action, headline] = ['ENTER', `${verb}: entry confirmed`];
+        else if (st === 'IN_ZONE') [action, headline] = ['GET_READY', `${verb} setup in the zone: wait for confirmation`];
+        else if (st === 'WAIT_PULLBACK' || st === 'EXTENDED') [action, headline] = ['WAIT_PULLBACK', `${bull}: wait for the pullback`];
+        else if (st === 'MISSED') [action, headline] = ['WAIT_PULLBACK', `${bull}: the last entry was missed, wait for the next`];
+        else [action, headline] = ['WATCH', `${bull} lean without a clean structure`];
+        const upW = used.filter(x => x.vote > 0).reduce((a, x) => a + x.weight * x.vote, 0);
+        const dnW = used.filter(x => x.vote < 0).reduce((a, x) => a - x.weight * x.vote, 0);
+        return { score, side, conviction, action, headline, agree, against, used, upW, dnW, den };
+    }
+
+    // ── loading ──────────────────────────────────────
+    async function loadAll() {
+        if (loading) return;
+        loading = true;
+        const btn = $('pm-refresh');
+        btn.querySelector('i').classList.add('spin');
+        const a = await getJSON(`/api/ai-scan/?style=${style}`);
+        scan = {};
+        if (a.error) {
+            $('pm-table').innerHTML = `<tr><td colspan="7" class="p-4 px-muted">Market list unavailable (/api/ai-scan/: ${esc(a.error)}).</td></tr>`;
+        } else (a.results || []).filter(r => r.ok).forEach(r => { scan[r.symbol] = r; });
+        fillSymbols();
+        if (!sym) {
+            const want = (qs.get('symbol') || '').toUpperCase();
+            const last = load('pm-symbol', null);
+            sym = want || (scan[last] ? last : null) || Object.keys(scan)[0] || 'XAUUSD';
+        }
+        renderTable();
+        await select(sym);
+        btn.querySelector('i').classList.remove('spin');
+        loading = false;
+    }
+
+    async function select(s, quiet) {
+        sym = s;
+        store('pm-symbol', s);
+        if (![...$('pm-symbol').options].some(o => o.value === s)) $('pm-symbol').insertAdjacentHTML('afterbegin', `<option value="${esc(s)}">${esc(s)}</option>`);
+        $('pm-symbol').value = s;
+        $('pm-open-mo').href = moLink(s);
+        $('vd-mo').href = moLink(s);
+        history.replaceState(null, '', `?symbol=${encodeURIComponent(s)}&style=${style}`);
+        renderTable();
+        if (!quiet) {
+            $('vd-head').textContent = 'Scrutinising…';
+            $('vd-why').textContent = `Running every strategy on ${s}.`;
+            document.querySelectorAll('#pm-board .sp, #grp-sum > *').forEach(el => el.style.opacity = '.5');
+        }
+        const d = await getJSON(`/api/ai-scrutiny/${encodeURIComponent(s)}/?style=${style}`);
+        if (s !== sym) return;
+        if (d.error) {
+            data = null;
+            $('vd-head').textContent = 'Scrutiny unavailable';
+            $('vd-why').textContent = `/api/ai-scrutiny/: ${d.error}`;
+            $('pm-board').innerHTML = `<div class="px-card p-4 text-[12px] px-dim">${esc(d.error)}</div>`;
+            return;
+        }
+        data = d;
+        if (scan[s]) Object.assign(scan[s], { coach: d.result.coach, signal: d.result.signal, score: d.result.score });
+        renderAll();
+    }
+
+    function renderAll() {
+        renderVerdict(); renderGroups(); renderBoard(); renderLadder(); renderTfTabs(); renderLayers(); drawChart();
+        renderFund(); renderStrength(); renderModels(); renderMtf(); renderTable();
+    }
+
+    function fillSymbols() {
+        const sel = $('pm-symbol');
+        const groups = { metal: 'Metals & Oil', energy: 'Metals & Oil', forex: 'Forex', crypto: 'Crypto' };
+        const by = {};
+        Object.keys(scan).forEach(s => { const g = groups[scan[s].kind] || 'Other'; (by[g] = by[g] || []).push(s); });
+        sel.innerHTML = Object.entries(by).map(([g, list]) => `<optgroup label="${g}">${list.map(s => `<option value="${s}">${s}</option>`).join('')}</optgroup>`).join('');
+        if (sym) sel.value = sym;
+    }
+
+    // ── verdict hero ─────────────────────────────────
+    function renderVerdict() {
+        const v = verdict(), r = data.result, sc = data.scrutiny, c = sc.coach, fd = data.fundamentals || {};
+        $('pm-sym').textContent = `${sym} · ${r.name || ''}`;
+        $('pm-tf').textContent = `${STYLE_NAMES[style]} · ${sc.main_tf.toUpperCase()} chart`;
+        const strong = Math.abs(v.score) >= 12;
+        const col = !strong ? css('--px-mute') : v.side === 'BUY' ? css('--px-up') : css('--px-down');
+        $('pm-ring').style.stroke = col;
+        $('pm-ring').style.strokeDashoffset = 326.7 * (1 - Math.min(100, Math.abs(v.score) * 1.6) / 100);
+        $('pm-ring-v').textContent = signed(v.score);
+        $('vd-action').className = 'tag ' + v.action;
+        $('vd-action').textContent = ACTION_LABEL[v.action];
+        $('vd-head').innerHTML = strong ? `<span style="color:${col}">${esc(v.headline.split(':')[0])}</span>${v.headline.includes(':') ? ':' + esc(v.headline.slice(v.headline.indexOf(':') + 1)) : ''}` : esc(v.headline);
+        const why = [];
+        const top = arr => arr.slice().sort((a, b) => Math.abs(b.vote * b.weight) - Math.abs(a.vote * a.weight)).slice(0, 3).map(x => x.name.split(' (')[0].toLowerCase());
+        if (v.agree.length) why.push(`Led by ${top(v.agree).join(', ')}.`);
+        if (v.against.length) why.push(`Opposed by ${top(v.against).join(', ')}.`);
+        if (off.size) why.push(`${off.size} strateg${off.size > 1 ? 'ies' : 'y'} switched off.`);
+        $('vd-why').textContent = why.join(' ') || 'The strategies are evenly split.';
+        $('vd-conv').textContent = v.conviction + '/100';
+        $('vd-agree-n').textContent = v.agree.length; $('vd-against-n').textContent = v.against.length; $('vd-voting').textContent = v.used.length;
+        const chip = (x, cls) => `<span class="chip ${cls}" title="${esc(x.text)}"><i class="fa-solid ${x.icon}"></i>${esc(x.name.split(' (')[0])}</span>`;
+        $('vd-agree').innerHTML = v.agree.map(x => chip(x, v.side === 'BUY' ? 'up' : 'down')).join('') || '<span class="text-[11px] px-muted">none</span>';
+        $('vd-against').innerHTML = v.against.map(x => chip(x, v.side === 'BUY' ? 'down' : 'up')).join('') || '<span class="text-[11px] px-muted">none</span>';
+        const tot = v.upW + v.dnW || 1, a = v.upW / v.den * 100, b = v.dnW / v.den * 100;
+        $('tug-a').style.width = a + '%'; $('tug-b').style.width = b + '%'; $('tug-n').style.width = Math.max(0, 100 - a - b) + '%';
+        $('tug-up').textContent = Math.round(v.upW / tot * 100) + '%'; $('tug-dn').textContent = Math.round(v.dnW / tot * 100) + '%';
+        livePrice();
+        $('vd-coach').innerHTML = coachChip(c);
+        $('vd-quality').textContent = c && c.side ? c.quality + '/100' : '—';
+        $('vd-quality').style.color = !c || !c.side ? '' : c.quality >= 75 ? 'var(--px-up)' : c.quality >= 50 ? 'var(--px-accent)' : 'var(--px-down)';
+        const nx = (fd.upcoming || [])[0];
+        $('vd-next').innerHTML = !fd.applies ? '<span class="px-muted">Not news-driven</span>' : nx ? `<span class="imp ${nx.impact}"></span>${esc(nx.currency)} ${esc(nx.event)} <span class="px-muted">in ${inMin(nx.minutes)}</span>` : '<span class="px-muted">Nothing big in 24 h</span>';
+        const nb = $('vd-news'), blk = fd.block;
+        nb.hidden = !blk;
+        if (blk) nb.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i><span><b>${esc(blk.currency)} ${esc(blk.event)}</b> ${blk.minutes > 0 ? `in ${inMin(blk.minutes)}` : `released ${inMin(-blk.minutes)} ago`}. High-impact news makes spreads jump and stops slip: stay flat until 15 minutes after the release, then re-run the scrutiny.</span>`;
+        // what to do now (the Market Overview entry coach + the verdict)
+        $('vd-todo').className = 'todo ' + v.action;
+        $('vd-coach-tf').textContent = c ? `· ${c.tf.toUpperCase()} entry coach` : '';
+        const p = c && c.plan;
+        const extra = { CONFLICT: ' The strategies lean the other way to the chart\'s trend: wait until they line up, or trade smaller.', WAIT_NEWS: ' Wait for the news first.', STAND_ASIDE: ' The strategies cancel out: no trade is a position too.' }[v.action] || '';
+        $('vd-instr').textContent = ((c && c.instruction) || 'No entry-coach reading.') + extra;
+        $('vd-rr').textContent = p ? `${p.order} order · reward:risk ${p.rr} · stop ${p.risk_atr} ATR` : '';
+        $('vd-plan').innerHTML = p ? [['Entry', p.entry, 'px-strong'], ['Stop loss', p.sl, 'px-down'], ['Target 1', p.tp1, 'px-up'], ['Target 2', p.tp2, 'px-up']]
+            .map(([k, val, cl]) => `<div><p class="text-[11px] px-muted">${k}</p><p class="px-num text-[14px] font-semibold ${cl}">${f(val)}</p></div>`).join('') : '';
+        $('vd-story').innerHTML = c && c.story ? c.story.map(s => `<p>• ${esc(s)}</p>`).join('') : '';
+        $('vd-mo').querySelector('span').textContent = p && (v.action === 'ENTER' || v.action === 'GET_READY') ? `${p.side === 'BUY' ? 'Buy' : 'Sell'} ${sym} in Market Overview` : 'Open in Market Overview';
+        $('pm-read-at').textContent = `Read on the last closed ${sc.main_tf.toUpperCase()} candle · ${new Date(sc.analysed_at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    }
+    function livePrice() {
+        if (!sym) return;
+        const q = PX.quotes && PX.quotes[sym];
+        $('pm-price').textContent = f(q ? q.bid : data ? data.scrutiny.price : (scan[sym] && scan[sym].price));
+    }
+
+    // ── groups + board ───────────────────────────────
+    const dirOf = v => v == null ? null : v >= 0.2 ? 'up' : v <= -0.2 ? 'down' : 'flat';
+    function renderGroups() {
+        const strats = data.scrutiny.strategies;
+        $('grp-sum').innerHTML = data.groups.map(g => {
+            const xs = strats.filter(x => x.group === g && x.vote != null && !off.has(x.key));
+            const den = xs.reduce((a, x) => a + x.weight, 0);
+            const v = den ? xs.reduce((a, x) => a + x.weight * x.vote, 0) / den : null;
+            const d = dirOf(v);
+            return `<button type="button" class="grp" data-g="${esc(g)}"><p class="text-[11px] px-muted truncate">${esc(g)}</p>
+                <p class="text-[15px] font-bold mt-0.5 ${d === 'up' ? 'px-up' : d === 'down' ? 'px-down' : 'px-dim'}">${v == null ? 'No vote' : d === 'up' ? 'Bullish' : d === 'down' ? 'Bearish' : 'Neutral'}
+                <span class="px-num text-[11px] font-semibold">${v == null ? '' : signed(v * 100)}</span></p>
+                <div class="vbar" style="margin-top:6px">${v == null ? '' : `<span style="${v >= 0 ? 'left:50%' : 'right:50%'};width:${Math.abs(v) * 50}%;background:${v >= 0 ? 'var(--px-up)' : 'var(--px-down)'}"></span>`}</div></button>`;
+        }).join('');
+        $('grp-sum').querySelectorAll('.grp').forEach(b => b.addEventListener('click', () => {
+            const el = document.querySelector(`#pm-board [data-gh="${CSS.escape(b.dataset.g)}"]`);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }));
+    }
+    function renderBoard() {
+        const strats = data.scrutiny.strategies;
+        const on = strats.filter(x => !off.has(x.key)).length;
+        $('sb-n').textContent = `${on}/${strats.length} on`;
+        $('pm-board').innerHTML = data.groups.map(g => {
+            const xs = strats.filter(x => x.group === g);
+            return `<div class="grp-h" data-gh="${esc(g)}"><p class="text-[11px] font-bold uppercase tracking-wider px-muted">${esc(g)}</p></div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">${xs.map(card).join('')}</div>`;
+        }).join('');
+        $('pm-board').querySelectorAll('[data-sw]').forEach(b => b.addEventListener('click', () => {
+            const k = b.dataset.sw;
+            off.has(k) ? off.delete(k) : off.add(k);
+            store('scr-off', [...off]);
+            renderVerdict(); renderGroups(); renderBoard();
+        }));
+    }
+    function card(x) {
+        const isOff = off.has(x.key), d = dirOf(x.vote);
+        let state, bar = '';
+        if (x.vote == null) state = '<span class="px-muted">No vote</span>';
+        else {
+            state = `<span class="${d === 'up' ? 'px-up' : d === 'down' ? 'px-down' : 'px-dim'}">${d === 'up' ? 'Bullish' : d === 'down' ? 'Bearish' : 'Neutral'} <span class="px-num">${signed(x.vote, 2)}</span></span>`;
+            bar = `<div class="vbar"><span style="${x.vote >= 0 ? 'left:50%' : 'right:50%'};width:${Math.abs(x.vote) * 50}%;background:${x.vote >= 0 ? 'var(--px-up)' : 'var(--px-down)'}"></span></div>`;
+        }
+        return `<div class="sp ${isOff ? 'off' : ''} ${d === 'up' ? 'up' : d === 'down' ? 'down' : ''}">
+            <div class="hd"><span class="ic"><i class="fa-solid ${x.icon}"></i></span>
+                <div class="min-w-0 flex-1"><p class="text-[13px] font-semibold px-strong leading-tight">${esc(x.name)}</p>
+                    <p class="text-[10px] px-muted">weight ${x.weight} · confidence ${pct(x.conf)}${isOff ? ' · off' : ''}</p></div>
+                <button type="button" class="sw ${isOff ? '' : 'on'}" data-sw="${x.key}" aria-pressed="${!isOff}" aria-label="Include ${esc(x.name)}"></button></div>
+            <div class="flex items-center justify-between mt-2 text-[11px] font-semibold">${state}</div>
+            ${bar}<p class="text-[12px] px-dim mt-2 leading-snug">${esc(x.text)}</p>
+            ${(x.details || []).map(t => `<p class="det">${esc(t)}</p>`).join('')}</div>`;
+    }
+
+    // ── liquidity ladder ─────────────────────────────
+    function renderLadder() {
+        const sc = data.scrutiny, atr = sc.atr || 1;
+        const q = PX.quotes && PX.quotes[sym], price = q ? q.bid : sc.price;
+        const rows = sc.levels.filter(l => Math.abs(l.price - price) <= 12 * atr).map(l => ({ ...l, dist: (l.price - price) / atr }));
+        const idx = rows.findIndex(l => l.price < price);
+        const now = { now: true, price, label: 'Price now' };
+        if (idx < 0) rows.push(now); else rows.splice(idx, 0, now);
+        $('pm-ladder').innerHTML = rows.map(l => l.now
+            ? `<div class="lad-row now"><span class="d" style="background:var(--px-accent)"></span><span>Price now</span><span class="px-num">${f(l.price)}</span><span></span></div>`
+            : `<div class="lad-row"><span class="d" style="background:${KIND_COLOR[l.kind] || '#8b93a7'}"></span><span class="truncate ${l.kind === 'liquidity' ? 'px-strong font-semibold' : 'px-dim'}">${esc(l.label)}</span>
+               <span class="px-num px-strong">${f(l.price)}</span><span class="px-num text-right ${l.dist > 0 ? 'px-up' : 'px-down'}">${signed(l.dist, 1)}</span></div>`).join('')
+            || '<p class="p-4 text-[12px] px-muted">No levels found.</p>';
+    }
+
+    // ── chart ────────────────────────────────────────
+    function renderTfTabs() {
+        const ch = data.result.charts || {};
+        const order = ['5m', '15m', '1h', '4h', '1d'];
+        if (!chartTf || !ch[chartTf]) chartTf = data.result.main_tf;
+        $('pm-tfs').innerHTML = Object.keys(ch).sort((a, b) => order.indexOf(a) - order.indexOf(b))
+            .map(tf => `<button data-tf="${tf}" class="${tf === chartTf ? 'on' : ''}">${tf.toUpperCase()}</button>`).join('');
+        $('pm-tfs').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { chartTf = b.dataset.tf; renderTfTabs(); drawChart(); }));
+    }
+    function renderLayers() {
+        $('pm-layers').innerHTML = LAYERS.map(l => `<button type="button" class="lyr ${layers.has(l.k) ? 'on' : ''}" data-l="${l.k}"><span class="d" style="background:${l.color}"></span>${l.label}</button>`).join('');
+        $('pm-layers').querySelectorAll('.lyr').forEach(b => b.addEventListener('click', () => {
+            layers.has(b.dataset.l) ? layers.delete(b.dataset.l) : layers.add(b.dataset.l);
+            store('scr-layers', [...layers]); renderLayers(); drawChart();
+        }));
+    }
+    let chart, candles, e20, e50, lines = [];
+    function chartOpts() {
+        return {
+            layout: { background: { type: 'solid', color: 'transparent' }, textColor: css('--px-mute'), fontFamily: 'Inter, sans-serif', fontSize: 11 },
+            grid: { vertLines: { color: css('--px-line-soft') }, horzLines: { color: css('--px-line-soft') } },
+            rightPriceScale: { borderColor: css('--px-line') }, timeScale: { borderColor: css('--px-line'), timeVisible: true, secondsVisible: false, rightOffset: 6 }, crosshair: { mode: 0 },
+        };
+    }
+    function drawChart() {
+        if (!data || !data.result.charts || !window.LightweightCharts) return;
+        const c = data.result.charts[chartTf];
+        if (!c) return;
+        if (!chart) {
+            chart = LightweightCharts.createChart($('pm-chart'), Object.assign({ autoSize: true }, chartOpts()));
+            candles = chart.addCandlestickSeries({ upColor: css('--px-up'), downColor: css('--px-down'), borderVisible: false, wickUpColor: css('--px-up'), wickDownColor: css('--px-down') });
+            e20 = chart.addLineSeries({ color: '#f0b90b', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+            e50 = chart.addLineSeries({ color: '#60a5fa', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+            window.addEventListener('themeChanged', () => { chart.applyOptions(chartOpts()); drawChart(); });
+        }
+        const sc = data.scrutiny, atr = sc.atr || 1, price = sc.price, near = p => p != null && Math.abs(p - price) <= 8 * atr;
+        const dg = PX.digits(sym);
+        $('pm-chart-title').textContent = `${sym} · ${chartTf.toUpperCase()}`;
+        candles.applyOptions({ priceFormat: { type: 'price', precision: dg, minMove: Math.pow(10, -dg) } });
+        candles.setData(c.candles); e20.setData(c.ema20); e50.setData(c.ema50);
+        candles.setMarkers(c.markers || []);
+        lines.forEach(l => candles.removePriceLine(l)); lines = [];
+        const add = (p, color, title, st = 2, w = 1) => { if (near(p)) lines.push(candles.createPriceLine({ price: p, color, lineWidth: w, lineStyle: st, axisLabelVisible: true, title })); };
+        if (layers.has('sr')) c.levels.forEach(l => add(l.price, '#8b93a7', `${l.kind === 'resistance' ? 'R' : 'S'}×${l.touches}`, 1));
+        if (layers.has('liq')) sc.levels.filter(l => l.kind === 'liquidity' || l.kind === 'session').forEach(l => add(l.price, KIND_COLOR[l.kind], shortLabel(l.label), 3));
+        if (layers.has('ob')) sc.zones.order_blocks.forEach(o => { const col = o.side === 'bull' ? '#38bdf8' : '#f472b6'; add(o.hi, col, `${o.side === 'bull' ? 'Bull' : 'Bear'} OB`, 0); add(o.lo, col, '', 0); });
+        if (layers.has('fvg')) sc.zones.fvgs.forEach(g => { add(g.hi, '#f0b90b', 'FVG', 1); add(g.lo, '#f0b90b', '', 1); });
+        const co = sc.coach;
+        if (layers.has('fib') && co && co.fib) {
+            add(co.fib.zone[0], '#22d3ee', '38.2%', 2); add(co.fib.golden[0], '#22d3ee', '50%', 0); add(co.fib.golden[1], '#22d3ee', '61.8%', 0); add(co.fib.zone[1], '#22d3ee', '78.6%', 2);
+        }
+        if (layers.has('plan') && co && co.plan) { const p = co.plan; add(p.entry, css('--px-accent'), 'Entry', 0, 2); add(p.sl, css('--px-down'), 'SL', 2); add(p.tp1, css('--px-up'), 'TP1', 2); add(p.tp2, css('--px-up'), 'TP2', 3); }
+        const n = c.candles.length;
+        chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - 120), to: n + 6 });
+    }
+    const shortLabel = s => s.replace('Previous day ', 'PD ').replace('Asian session ', 'Asia ').replace(/ \((buy|sell) stops\)/, '').replace('Equal highs', 'EQH').replace('Equal lows', 'EQL');
+
+    // ── fundamentals + strength ──────────────────────
+    function renderFund() {
+        const fd = data.fundamentals || {};
+        $('fd-text').textContent = fd.text || '—';
+        $('fd-src').textContent = fd.source ? `${fd.source}${fd.stale ? ' · cached' : ''}` : '';
+        const sc = fd.scores || {};
+        $('fd-scores').innerHTML = Object.entries(sc).map(([cur, v]) => `<div class="str"><span class="px-num font-bold px-strong">${cur}</span><div class="track"><span style="${v >= 0 ? 'left:50%' : 'right:50%'};width:${Math.abs(v) * 50}%;background:${v >= 0 ? 'var(--px-up)' : 'var(--px-down)'}"></span></div>
+            <span class="px-num text-right ${v > 0 ? 'px-up' : v < 0 ? 'px-down' : 'px-dim'}">${signed(v, 2)}</span></div>`).join('');
+        const row = (e, right) => `<div class="ev"><span class="px-num px-muted">${right}</span><span class="font-bold px-strong">${esc(e.currency)}</span><span class="truncate"><span class="imp ${e.impact}"></span>${esc(e.event)}</span>`;
+        $('fd-released').innerHTML = (fd.released || []).map(e => row(e, ago(-e.minutes * 60) + ' ago') +
+            `<span class="text-right"><span class="px-num">${esc(e.actual)}</span> <span class="px-muted text-[10px]">vs ${esc(e.forecast ?? e.previous ?? '—')}</span> <span class="chip ${e.effect === 'bullish' ? 'up' : e.effect === 'bearish' ? 'down' : ''}">${e.effect}</span></span></div>`).join('')
+            || `<p class="text-[12px] px-muted">${fd.applies === false ? '—' : 'No released data with a forecast.'}</p>`;
+        $('fd-upcoming').innerHTML = (fd.upcoming || []).map(e => row(e, 'in ' + inMin(e.minutes)) +
+            `<span class="text-right px-num text-[11px] px-muted">${e.forecast != null ? 'f ' + esc(e.forecast) : ''}</span></div>`).join('')
+            || `<p class="text-[12px] px-muted">${fd.applies === false ? '—' : 'No high or medium impact events.'}</p>`;
+    }
+    function renderStrength() {
+        const rows = Object.entries(data.strength || {}).sort((a, b) => b[1] - a[1]);
+        if (!rows.length) { $('pm-strength').innerHTML = '<p class="text-[12px] px-muted">Builds up as the scanner analyses the forex pairs (run a scan in Market Overview).</p>'; return; }
+        const max = Math.max(30, ...rows.map(r => Math.abs(r[1])));
+        const base = data.fundamentals && data.fundamentals.currencies || [];
+        $('pm-strength').innerHTML = rows.map(([cur, v]) => `<div class="str"><span class="px-num font-bold ${base.includes(cur) ? 'px-strong' : 'px-dim'}">${cur}</span><div class="track"><span style="${v >= 0 ? 'left:50%' : 'right:50%'};width:${Math.abs(v) / max * 50}%;background:${v >= 0 ? 'var(--px-up)' : 'var(--px-down)'}"></span></div>
+            <span class="px-num text-right ${v > 0 ? 'px-up' : v < 0 ? 'px-down' : 'px-dim'}">${signed(v)}</span></div>`).join('');
+    }
+
+    // ── models ───────────────────────────────────────
+    function predTag(v, up, down) { return v == null ? '<span class="tag SIDE">NO DATA</span>' : v >= up ? '<span class="tag UP">UP</span>' : v <= down ? '<span class="tag DOWN">DOWN</span>' : '<span class="tag SIDE">SIDEWAYS</span>'; }
+    function renderModels() {
+        const d = data.result;
+        const m = d.model || {}, b = d.backtest || {};
+        const tfs = d.timeframes || [], main = tfs.find(t => t.tf === d.main_tf) || {}, higher = tfs[tfs.length - 1] || {};
+        const counts = m.trained && m.test_accuracy > m.baseline + 0.01;
+        const card = (icon, name, sub, pred, rows, foot) => `<div class="mdl">
+            <div class="flex items-center gap-2.5"><span class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:var(--px-accent-soft);color:var(--px-accent)"><i class="fa-solid ${icon} text-[13px]"></i></span>
+                <div class="min-w-0"><p class="text-[13px] font-semibold px-strong">${name}</p><p class="text-[10px] px-muted">${sub}</p></div></div>
+            <div class="pred">${pred}</div>${rows}<p class="text-[11px] px-muted leading-snug">${foot}</p></div>`;
+        const meter = (v, col) => `<div class="meter"><span style="width:${Math.max(2, Math.min(100, v))}%;background:${col}"></span></div>`;
+        const scoreCol = v => v > 15 ? 'var(--px-up)' : v < -15 ? 'var(--px-down)' : 'var(--px-mute)';
+        $('pm-models').innerHTML = [
+            card('fa-brain', 'Trained model', 'Logistic regression on this market', m.trained
+                ? `${predTag(m.prob_up - 0.5, 0.05, -0.05)}<p class="px-num text-xl font-bold px-strong mt-1.5">${pct(m.prob_up)}</p><p class="text-[10px] px-muted">chance of +1.5 ATR before −1.5 ATR</p>`
+                : '<span class="tag SIDE">NOT TRAINED</span>',
+                m.trained ? `<div class="kv"><span class="k">Accuracy on unseen bars</span><span class="v ${counts ? 'px-up' : ''}">${pct(m.test_accuracy)}</span></div>
+                    <div class="kv"><span class="k">Baseline to beat</span><span class="v">${pct(m.baseline)}</span></div>
+                    <div class="kv"><span class="k">Trained / tested on</span><span class="v">${m.samples - m.test_samples} / ${m.test_samples}</span></div>` : '',
+                m.trained ? (counts ? 'Beat the baseline out-of-sample, so it gets a vote.' : 'Did not beat the baseline on unseen bars, so it gets no vote.') : 'Not enough labelled history yet.'),
+            card('fa-chart-line', 'Chart-reading score', `${(d.main_tf || '').toUpperCase()} chart, 12 checks`,
+                `${predTag(main.score, 15, -15)}<p class="px-num text-xl font-bold mt-1.5" style="color:${scoreCol(main.score)}">${signed(main.score || 0)}</p><p class="text-[10px] px-muted">−100 strong sell · +100 strong buy</p>`,
+                meter(50 + (main.score || 0) / 2, scoreCol(main.score)) + (d.reasons || []).slice(0, 3).map(x => `<p class="text-[11px] px-dim leading-snug">• ${esc(x.text)}</p>`).join(''),
+                'Trend, EMA 200, MACD, RSI, structure, stochastic, Bollinger, pattern, levels, breakout and divergence.'),
+            card('fa-layer-group', 'Higher-timeframe trend', `${(higher.tf || '').toUpperCase()} chart`,
+                `${predTag(higher.score, 15, -15)}<p class="px-num text-xl font-bold mt-1.5" style="color:${scoreCol(higher.score)}">${signed(higher.score || 0)}</p><p class="text-[10px] px-muted">the bigger picture</p>`,
+                meter(50 + (higher.score || 0) / 2, scoreCol(higher.score)) + tfs.map(t => `<div class="kv"><span class="k">${t.tf.toUpperCase()}${t.tf === d.main_tf ? ' (main)' : ''}</span><span class="v" style="color:${scoreCol(t.score)}">${signed(t.score)}</span></div>`).join(''),
+                'Trades against the higher timeframe need extra confirmation.'),
+            card('fa-flask', 'Backtest of the signal rule', `last ${b.bars || '—'} ${(d.main_tf || '').toUpperCase()} candles`,
+                b.trades ? `<span class="tag ${b.avg_r > 0 ? 'UP' : 'DOWN'}">${b.avg_r > 0 ? 'PROFITABLE' : 'LOSING'}</span><p class="px-num text-xl font-bold px-strong mt-1.5">${pct(b.win_rate)}</p><p class="text-[10px] px-muted">win rate · ${b.trades} trades</p>`
+                    : '<span class="tag SIDE">NO TRADES</span>',
+                b.trades ? `<div class="kv"><span class="k">Average result</span><span class="v ${b.avg_r > 0 ? 'px-up' : 'px-down'}">${signed(b.avg_r, 2)}R</span></div>
+                    <div class="kv"><span class="k">Profit factor</span><span class="v">${b.profit_factor == null ? '—' : b.profit_factor.toFixed(2)}</span></div>` : '',
+                '1.5 ATR stop, 1.5R target. At 1.5R about 40% wins breaks even.'),
+        ].join('');
+    }
+    function renderMtf() {
+        const tfs = data.result.timeframes || [];
+        $('pm-mtf').innerHTML = tfs.map(t => {
+            const a = Math.min(1, Math.abs(t.score) / 100), up = t.score > 15, dn = t.score < -15;
+            const bg = up ? `rgba(22,199,132,${0.08 + a * 0.3})` : dn ? `rgba(234,57,67,${0.08 + a * 0.3})` : 'var(--px-panel-2)';
+            return `<div style="background:${bg}"><p class="text-[11px] font-bold px-dim">${t.tf.toUpperCase()}${t.tf === data.result.main_tf ? ' ·' : ''}</p>
+                <p class="text-lg ${up ? 'px-up' : dn ? 'px-down' : 'px-muted'}"><i class="fa-solid ${up ? 'fa-arrow-trend-up' : dn ? 'fa-arrow-trend-down' : 'fa-minus'}"></i></p>
+                <p class="px-num text-[12px] font-semibold px-strong">${signed(t.score)}</p></div>`;
+        }).join('');
+        const s = data.scrutiny.sessions || {};
+        const items = [['Previous day high', s.pdh], ['Previous day low', s.pdl], ['Asian high', s.asia_hi], ['Asian low', s.asia_lo]].filter(x => x[1] != null);
+        $('pm-slv').innerHTML = items.map(([k, v]) => `<div class="rounded-lg p-2.5" style="background:var(--px-panel-2)"><p class="text-[11px] px-muted">${k}</p><p class="px-num text-[13px] font-semibold px-strong">${f(v)}</p></div>`).join('');
+    }
+
+    // ── sessions (real UTC clock) ────────────────────
+    const SESS = [['Sydney', 21, 6], ['Tokyo', 0, 9], ['London', 7, 16], ['New York', 12, 21]];
+    function renderSessions() {
+        const now = new Date(), h = now.getUTCHours() + now.getUTCMinutes() / 60, wd = now.getUTCDay();
+        const weekend = wd === 6 || (wd === 0 && h < 21) || (wd === 5 && h >= 21);
+        $('pm-utc').textContent = now.toISOString().slice(11, 16) + ' UTC';
+        const isOpen = (a, b) => !weekend && (a < b ? (h >= a && h < b) : (h >= a || h < b));
+        $('pm-sessions').innerHTML = SESS.map(([n, a, b]) => {
+            const open = isOpen(a, b), bg = open ? 'var(--px-up)' : 'var(--px-line)';
+            const seg = a < b ? `<span style="left:${a / 24 * 100}%;width:${(b - a) / 24 * 100}%;background:${bg}"></span>`
+                : `<span style="left:${a / 24 * 100}%;width:${(24 - a) / 24 * 100}%;background:${bg}"></span><span style="left:0;width:${b / 24 * 100}%;background:${bg}"></span>`;
+            return `<div class="sess"><span class="px-strong font-semibold">${n}</span><div class="track">${seg}<div class="now" style="left:${h / 24 * 100}%"></div></div>
+                <span class="text-right text-[11px] font-semibold ${open ? 'px-up' : 'px-muted'}">${open ? 'Open' : 'Closed'}</span></div>`;
+        }).join('');
+        const openN = SESS.filter(([, a, b]) => isOpen(a, b)).map(s => s[0]);
+        $('pm-liq').innerHTML = weekend ? '<span class="px-down font-semibold">Forex closed for the weekend.</span> Crypto still trades.'
+            : openN.includes('London') && openN.includes('New York') ? '<span class="px-up font-semibold">London–New York overlap:</span> highest liquidity of the day; sweeps of the Asian range are common.'
+            : openN.length ? `<span class="px-strong font-semibold">${openN.join(' + ')}</span> open.` : '<span class="px-dim">Between sessions: thin liquidity.</span>';
+    }
+
+    // ── all markets ──────────────────────────────────
+    function renderTable() {
+        const syms = Object.keys(scan);
+        $('pm-count').textContent = `${syms.length} markets · ${STYLE_NAMES[style]}`;
+        if (!syms.length) return;
+        const rank = s => { const c = scan[s].coach; return (c ? STATE_ORDER[c.state] ?? 9 : 9) * 1000 - (c && c.quality || 0); };
+        $('pm-table').innerHTML = syms.sort((a, b) => rank(a) - rank(b)).map(s => {
+            const r = scan[s], m = r.model || {}, c = r.coach;
+            return `<tr class="mt-row ${s === sym ? 'sel' : ''}" data-s="${s}">
+                <td><span class="font-semibold px-strong">${s}</span></td>
+                <td><span class="tag ${r.signal}">${r.signal}</span></td>
+                <td class="text-right px-num ${r.score > 15 ? 'px-up' : r.score < -15 ? 'px-down' : 'px-dim'}">${signed(r.score)}</td>
+                <td>${coachChip(c)}</td>
+                <td class="text-right px-num px-strong">${c && c.side ? c.quality : '—'}</td>
+                <td class="text-right px-num px-strong">${m.trained ? pct(m.prob_up) : '—'}</td>
+                <td class="text-right"><a href="${moLink(s)}" class="px-muted text-[11px]" title="Open in Market Overview" onclick="event.stopPropagation()"><i class="fa-solid fa-arrow-up-right-from-square"></i></a></td></tr>`;
+        }).join('');
+        $('pm-table').querySelectorAll('tr[data-s]').forEach(tr => tr.addEventListener('click', () => { select(tr.dataset.s); window.scrollTo({ top: 0, behavior: 'smooth' }); }));
+    }
+
+    // ── controls ─────────────────────────────────────
+    $('pm-style').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.style === style));
+    $('pm-style').addEventListener('click', e => {
+        const b = e.target.closest('button[data-style]'); if (!b || b.dataset.style === style) return;
+        style = b.dataset.style;
+        try { localStorage.setItem('ai-style', style); } catch (er) {}
+        $('pm-style').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+        chartTf = null; loadAll();
+    });
+    $('pm-symbol').addEventListener('change', e => { chartTf = null; select(e.target.value); });
+    $('pm-refresh').addEventListener('click', () => loadAll());
+    $('sb-all').addEventListener('click', () => { off = new Set(); store('scr-off', []); if (data) { renderVerdict(); renderGroups(); renderBoard(); } });
+    $('vd-story-btn').addEventListener('click', () => { $('vd-story').hidden = !$('vd-story').hidden; });
+    window.addEventListener('px:quotes', () => { livePrice(); });
+
+    renderSessions();
+    setInterval(renderSessions, 30000);
+    setInterval(() => { if (!document.hidden && sym && !loading) select(sym, true); }, 120000);
+    loadAll();
+})();
+</script>
+{% endblock %}

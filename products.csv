@@ -1,0 +1,22 @@
+import os
+import sys
+
+# ==============================================================================
+# ZTMPYTHONANYWHERE WSGI CONFIGURATION FOR DJANGO
+# Project: deriv-trading-bot
+# ==============================================================================
+
+# 1. Add your project directory to the system path.
+# This ensures Python can import your project's modules (like 'manage.py', 'project.settings', etc.)
+project_home = u'/home/elpatreoaifxbinary/deriv-trading-bot'
+if project_home not in sys.path:
+    sys.path.append(project_home)
+
+# 2. Set the environment variable pointing to your project's settings module.
+# Based on your file structure, 'project' is the folder that holds settings.py.
+os.environ['DJANGO_SETTINGS_MODULE'] = 'project.settings'
+
+# 3. Serve Django via WSGI.
+# This loads the Django application object required by the web server.
+from django.core.wsgi import get_wsgi_application
+application = get_wsgi_application()

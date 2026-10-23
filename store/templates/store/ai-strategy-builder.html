@@ -1,0 +1,1441 @@
+{% extends 'base_dashboard.html' %}
+{% load static %}
+
+{% block title %}AI Strategy Builder - PATREOAIX{% endblock %}
+
+{% block content %}
+{% include 'partials/legacy_skin.html' %}
+<style>
+    main .sb-card { background: var(--px-panel) !important; border: 1px solid var(--px-line) !important; border-radius: 12px !important; box-shadow: var(--px-shadow) !important; }
+    .px-bt-meta { font-size: 10px; color: var(--px-mute); margin-top: 8px; line-height: 1.5; }
+</style>
+<!-- LOADING SPINNER -->
+<div id="loading-spinner" class="fixed inset-0 z-[9999] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center transition-opacity duration-500">
+    <div class="relative flex items-center justify-center">
+        <div class="w-20 h-20 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin"></div>
+        <div class="absolute w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center animate-pulse">
+            <div class="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
+        </div>
+    </div>
+    <div class="mt-5 text-center space-y-1">
+        <p class="text-xs font-mono tracking-widest text-indigo-300 uppercase animate-pulse">Booting AI Strategy Lab</p>
+        <p class="text-[10px] font-mono text-slate-500">Initializing neural network...</p>
+    </div>
+</div>
+
+<style>
+    .spinner-hidden { opacity: 0; pointer-events: none; visibility: hidden; }
+    
+    .sb-card {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 27, 75, 0.4) 100%);
+        border: 1px solid rgba(99, 102, 241, 0.15);
+        border-radius: 20px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+        transition: all 0.3s ease;
+    }
+    
+    .sb-card:hover {
+        border-color: rgba(99, 102, 241, 0.4);
+    }
+    
+    /* Block styles */
+    .block-item {
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: grab;
+        transition: all 0.2s ease;
+        user-select: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .block-item:active { cursor: grabbing; transform: scale(0.98); }
+    .block-item:hover { transform: translateX(3px); }
+    
+    .block-trigger { background: rgba(99, 102, 241, 0.15); border-color: rgba(99, 102, 241, 0.4); color: #a5b4fc; }
+    .block-condition { background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.4); color: #fbbf24; }
+    .block-action { background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4); color: #6ee7b7; }
+    .block-risk { background: rgba(244, 63, 94, 0.15); border-color: rgba(244, 63, 94, 0.4); color: #fca5a5; }
+    .block-timing { background: rgba(139, 92, 246, 0.15); border-color: rgba(139, 92, 246, 0.4); color: #c4b5fd; }
+    .block-data { background: rgba(34, 211, 238, 0.15); border-color: rgba(34, 211, 238, 0.4); color: #67e8f9; }
+    
+    /* Canvas drop zone */
+    .strategy-canvas {
+        background: 
+            linear-gradient(90deg, rgba(99, 102, 241, 0.05) 1px, transparent 1px) 0 0 / 24px 24px,
+            linear-gradient(rgba(99, 102, 241, 0.05) 1px, transparent 1px) 0 0 / 24px 24px,
+            linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 27, 75, 0.5) 100%);
+        border: 2px dashed rgba(99, 102, 241, 0.25);
+        border-radius: 16px;
+        min-height: 400px;
+        transition: all 0.3s ease;
+    }
+    .strategy-canvas.drag-over {
+        border-color: rgba(99, 102, 241, 0.8);
+        background-color: rgba(99, 102, 241, 0.05);
+    }
+    
+    /* Placed block */
+    .placed-block {
+        background: rgba(2, 6, 23, 0.9);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        border-radius: 12px;
+        padding: 12px 14px;
+        margin-bottom: 10px;
+        cursor: move;
+        transition: all 0.2s ease;
+        position: relative;
+    }
+    .placed-block:hover {
+        border-color: rgba(99, 102, 241, 0.6);
+        box-shadow: 0 4px 20px rgba(99, 102, 241, 0.15);
+    }
+    .placed-block .remove-btn {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        background: rgba(244, 63, 94, 0.1);
+        color: #f87171;
+        border: 1px solid rgba(244, 63, 94, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+    .placed-block:hover .remove-btn { opacity: 1; }
+    .placed-block .remove-btn:hover { background: rgba(244, 63, 94, 0.25); }
+
+    /* Toggle switch */
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 44px;
+        height: 24px;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+        position: absolute; cursor: pointer; inset: 0;
+        background-color: #1e293b; transition: 0.3s; border-radius: 24px;
+    }
+    .toggle-slider:before {
+        position: absolute; content: "";
+        height: 18px; width: 18px; left: 3px; bottom: 3px;
+        background-color: white; transition: 0.3s; border-radius: 50%;
+    }
+    input:checked + .toggle-slider { background-color: #10b981; }
+    input:checked + .toggle-slider:before { transform: translateX(20px); }
+
+    /* Neural network visualization */
+    @keyframes pulseNode {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.4; transform: scale(1.2); }
+    }
+    .neural-node { animation: pulseNode 2s ease-in-out infinite; }
+
+    /* Backtest result chart */
+    .bt-chart {
+        display: flex;
+        align-items: flex-end;
+        gap: 2px;
+        height: 100px;
+    }
+    .bt-bar {
+        flex: 1;
+        border-radius: 2px;
+        transition: all 0.3s ease;
+    }
+
+    /* Confidence meter */
+    .conf-bar {
+        height: 8px;
+        border-radius: 8px;
+        background: rgba(30, 41, 59, 0.8);
+        overflow: hidden;
+    }
+    .conf-fill {
+        height: 100%;
+        border-radius: 8px;
+        transition: width 0.8s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    .conf-fill::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        animation: shimmer 2s infinite;
+    }
+    @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+
+    /* Signal flash */
+    @keyframes signalPulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
+        50% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+    }
+    .signal-active { animation: signalPulse 1.5s ease-in-out infinite; }
+
+    /* Custom modal */
+    .sb-modal-backdrop {
+        position: fixed; inset: 0; z-index: 99999;
+        background: rgba(2, 6, 23, 0.85);
+        backdrop-filter: blur(12px);
+        display: flex; align-items: center; justify-content: center;
+        padding: 16px;
+        opacity: 0; pointer-events: none;
+        transition: opacity 0.2s ease;
+    }
+    .sb-modal-backdrop.active { opacity: 1; pointer-events: all; }
+    .sb-modal-box {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 27, 75, 0.6) 100%);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        border-radius: 24px;
+        max-width: 480px; width: 100%;
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+        transform: scale(0.92);
+        transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .sb-modal-backdrop.active .sb-modal-box { transform: scale(1); }
+
+    /* Toast */
+    @keyframes toastSlideIn {
+        from { opacity: 0; transform: translateX(100%); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+    .toast-animated { animation: toastSlideIn 0.3s ease-out; }
+
+    /* Code view */
+    .code-view {
+        background: rgba(2, 6, 23, 0.9);
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        border-radius: 12px;
+        padding: 16px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        color: #67e8f9;
+        line-height: 1.6;
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+    
+    /* Scrollable */
+    .scroll-thin::-webkit-scrollbar { width: 4px; height: 4px; }
+    .scroll-thin::-webkit-scrollbar-track { background: transparent; }
+    .scroll-thin::-webkit-scrollbar-thumb { background: #334155; border-radius: 8px; }
+</style>
+
+<div class="space-y-5 pb-4">
+
+    <!-- ========================================== -->
+    <!-- HERO BANNER -->
+    <!-- ========================================== -->
+    <div class="sb-card p-5 sm:p-6 relative overflow-hidden">
+        <div class="absolute -top-20 -right-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-20 -left-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="relative z-10">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                <div>
+                    <div class="flex items-center gap-3 flex-wrap mb-2">
+                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-emerald-500 flex items-center justify-center shadow-xl shadow-indigo-500/30">
+                            <i class="fa-solid fa-wand-magic-sparkles text-white text-lg"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-xl sm:text-2xl font-black text-white">AI Strategy Builder</h1>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Design, backtest & deploy trading strategies with AI optimization</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 flex-wrap mt-3">
+                        <span class="px-3 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            AI ENGINE ACTIVE
+                        </span>
+                        <span class="px-3 py-1 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                            <i class="fa-solid fa-brain text-[9px] mr-1"></i>
+                            5 NEURAL MODELS
+                        </span>
+                        <span id="strategy-status" class="px-3 py-1 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700 flex items-center gap-2">
+                            <i class="fa-solid fa-code text-[9px]"></i>
+                            NO STRATEGY
+                        </span>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-3">
+                    <button onclick="openLoadTemplateModal()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition border border-slate-700 flex items-center gap-2">
+                        <i class="fa-solid fa-folder-open text-[10px]"></i>
+                        <span>Templates</span>
+                    </button>
+                    <button onclick="resetStrategy()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition border border-slate-700 flex items-center gap-2">
+                        <i class="fa-solid fa-rotate-left text-[10px]"></i>
+                        <span>Reset</span>
+                    </button>
+                    <button onclick="saveStrategy()" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold transition shadow-lg shadow-indigo-500/25 flex items-center gap-2">
+                        <i class="fa-solid fa-floppy-disk text-[10px]"></i>
+                        <span>Save Strategy</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MAIN GRID -->
+    <!-- ========================================== -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+        <!-- ========================================== -->
+        <!-- LEFT: BLOCK LIBRARY -->
+        <!-- ========================================== -->
+        <aside class="lg:col-span-3 sb-card p-4">
+            <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800/60">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-cubes text-indigo-400 text-xs"></i>
+                    Block Library
+                </h3>
+                <span class="text-[9px] text-slate-500 font-mono">Drag → Canvas</span>
+            </div>
+
+            <!-- Triggers -->
+            <div class="mb-4">
+                <p class="text-[10px] font-bold text-indigo-300 uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-bolt text-[9px]"></i>
+                    Triggers
+                </p>
+                <div class="space-y-1.5">
+                    <div class="block-item block-trigger" draggable="true" data-type="trigger" data-name="Price Cross" data-icon="fa-arrow-right-arrow-left">
+                        <i class="fa-solid fa-arrow-right-arrow-left text-[10px]"></i>
+                        <span>Price Cross</span>
+                    </div>
+                    <div class="block-item block-trigger" draggable="true" data-type="trigger" data-name="RSI Threshold" data-icon="fa-gauge-high">
+                        <i class="fa-solid fa-gauge-high text-[10px]"></i>
+                        <span>RSI Threshold</span>
+                    </div>
+                    <div class="block-item block-trigger" draggable="true" data-type="trigger" data-name="MACD Signal" data-icon="fa-wave-square">
+                        <i class="fa-solid fa-wave-square text-[10px]"></i>
+                        <span>MACD Signal</span>
+                    </div>
+                    <div class="block-item block-trigger" draggable="true" data-type="trigger" data-name="Bollinger Break" data-icon="fa-circle-dot">
+                        <i class="fa-solid fa-circle-dot text-[10px]"></i>
+                        <span>Bollinger Break</span>
+                    </div>
+                    <div class="block-item block-trigger" draggable="true" data-type="trigger" data-name="Pattern Detected" data-icon="fa-shapes">
+                        <i class="fa-solid fa-shapes text-[10px]"></i>
+                        <span>Pattern Detected</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Conditions -->
+            <div class="mb-4">
+                <p class="text-[10px] font-bold text-amber-300 uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-filter text-[9px]"></i>
+                    Conditions
+                </p>
+                <div class="space-y-1.5">
+                    <div class="block-item block-condition" draggable="true" data-type="condition" data-name="Trend Aligned" data-icon="fa-chart-line">
+                        <i class="fa-solid fa-chart-line text-[10px]"></i>
+                        <span>Trend Aligned</span>
+                    </div>
+                    <div class="block-item block-condition" draggable="true" data-type="condition" data-name="Volume Above" data-icon="fa-chart-simple">
+                        <i class="fa-solid fa-chart-simple text-[10px]"></i>
+                        <span>Volume Above</span>
+                    </div>
+                    <div class="block-item block-condition" draggable="true" data-type="condition" data-name="Session Active" data-icon="fa-globe">
+                        <i class="fa-solid fa-globe text-[10px]"></i>
+                        <span>Session Active</span>
+                    </div>
+                    <div class="block-item block-condition" draggable="true" data-type="condition" data-name="Volatility Range" data-icon="fa-wave-square">
+                        <i class="fa-solid fa-wave-square text-[10px]"></i>
+                        <span>Volatility Range</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="mb-4">
+                <p class="text-[10px] font-bold text-emerald-300 uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-play text-[9px]"></i>
+                    Actions
+                </p>
+                <div class="space-y-1.5">
+                    <div class="block-item block-action" draggable="true" data-type="action" data-name="Buy Entry" data-icon="fa-arrow-trend-up">
+                        <i class="fa-solid fa-arrow-trend-up text-[10px]"></i>
+                        <span>Buy Entry</span>
+                    </div>
+                    <div class="block-item block-action" draggable="true" data-type="action" data-name="Sell Entry" data-icon="fa-arrow-trend-down">
+                        <i class="fa-solid fa-arrow-trend-down text-[10px]"></i>
+                        <span>Sell Entry</span>
+                    </div>
+                    <div class="block-item block-action" draggable="true" data-type="action" data-name="Close All" data-icon="fa-xmark">
+                        <i class="fa-solid fa-xmark text-[10px]"></i>
+                        <span>Close All</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Risk -->
+            <div class="mb-4">
+                <p class="text-[10px] font-bold text-rose-300 uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-shield-halved text-[9px]"></i>
+                    Risk
+                </p>
+                <div class="space-y-1.5">
+                    <div class="block-item block-risk" draggable="true" data-type="risk" data-name="Stop Loss" data-icon="fa-shield-halved">
+                        <i class="fa-solid fa-shield-halved text-[10px]"></i>
+                        <span>Stop Loss</span>
+                    </div>
+                    <div class="block-item block-risk" draggable="true" data-type="risk" data-name="Take Profit" data-icon="fa-bullseye">
+                        <i class="fa-solid fa-bullseye text-[10px]"></i>
+                        <span>Take Profit</span>
+                    </div>
+                    <div class="block-item block-risk" draggable="true" data-type="risk" data-name="Trailing Stop" data-icon="fa-arrow-up-right-dots">
+                        <i class="fa-solid fa-arrow-up-right-dots text-[10px]"></i>
+                        <span>Trailing Stop</span>
+                    </div>
+                    <div class="block-item block-risk" draggable="true" data-type="risk" data-name="Max Daily Loss" data-icon="fa-circle-exclamation">
+                        <i class="fa-solid fa-circle-exclamation text-[10px]"></i>
+                        <span>Max Daily Loss</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data -->
+            <div>
+                <p class="text-[10px] font-bold text-cyan-300 uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-database text-[9px]"></i>
+                    Data Source
+                </p>
+                <div class="space-y-1.5">
+                    <div class="block-item block-data" draggable="true" data-type="data" data-name="Live Ticks" data-icon="fa-satellite-dish">
+                        <i class="fa-solid fa-satellite-dish text-[10px]"></i>
+                        <span>Live Ticks</span>
+                    </div>
+                    <div class="block-item block-data" draggable="true" data-type="data" data-name="Historical Bars" data-icon="fa-chart-column">
+                        <i class="fa-solid fa-chart-column text-[10px]"></i>
+                        <span>Historical Bars</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ========================================== -->
+        <!-- CENTER: STRATEGY CANVAS -->
+        <!-- ========================================== -->
+        <main class="lg:col-span-6 sb-card p-4">
+            <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800/60">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-diagram-project text-emerald-400 text-xs"></i>
+                    Strategy Canvas
+                </h3>
+                <div class="flex items-center gap-2">
+                    <button onclick="runBacktest()" id="backtest-btn" class="px-3 py-2 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-[10px] font-bold transition flex items-center gap-1.5 shadow-lg shadow-emerald-600/20">
+                        <i class="fa-solid fa-flask text-[10px]"></i>
+                        Backtest
+                    </button>
+                    <button onclick="aiOptimize()" id="ai-opt-btn" class="px-3 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white text-[10px] font-bold transition flex items-center gap-1.5 shadow-lg shadow-purple-600/20">
+                        <i class="fa-solid fa-brain text-[10px]"></i>
+                        AI Optimize
+                    </button>
+                    <button onclick="deployStrategy()" id="deploy-btn" class="px-3 py-2 rounded-lg bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-[10px] font-bold transition flex items-center gap-1.5 shadow-lg shadow-indigo-600/20">
+                        <i class="fa-solid fa-rocket text-[10px]"></i>
+                        Deploy Live
+                    </button>
+                </div>
+            </div>
+
+            <!-- Strategy Name Input -->
+            <div class="mb-3 flex gap-2 flex-wrap">
+                <input type="text" id="strategy-name" value="My Strategy" placeholder="Strategy name..." class="flex-1 min-w-[140px] bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white font-bold focus:outline-none focus:border-indigo-500">
+                <select id="px-sb-symbol" aria-label="Backtest symbol" class="rounded-xl px-3 py-2.5 text-xs font-mono border">
+                    <option>XAUUSD</option><option>EURUSD</option><option>GBPUSD</option><option>USDJPY</option><option>AUDUSD</option><option>USDCAD</option>
+                    <option>XAGUSD</option><option>USOIL</option><option>BTCUSD</option><option>ETHUSD</option><option>SOLUSD</option>
+                    <option>R_10</option><option>R_25</option><option>R_50</option><option>R_75</option><option>R_100</option>
+                </select>
+                <select id="px-sb-tf" aria-label="Backtest timeframe" class="rounded-xl px-3 py-2.5 text-xs font-mono border">
+                    <option value="15m">15m</option><option value="1h" selected>1h</option><option value="4h">4h</option><option value="1d">1d</option>
+                </select>
+            </div>
+
+            <!-- Canvas -->
+            <div id="strategy-canvas" class="strategy-canvas p-4 scroll-thin" style="max-height: 500px; overflow-y: auto;">
+                <div id="empty-canvas-hint" class="flex flex-col items-center justify-center py-16 text-center">
+                    <div class="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 text-2xl mb-3">
+                        <i class="fa-solid fa-hand-pointer"></i>
+                    </div>
+                    <p class="text-sm font-bold text-white mb-1">Drag & Drop Blocks Here</p>
+                    <p class="text-[11px] text-slate-500 max-w-xs">Build your strategy by dragging blocks from the library. Blocks execute top-to-bottom.</p>
+                </div>
+                <div id="placed-blocks-container"></div>
+            </div>
+
+            <!-- Block count -->
+            <div class="mt-3 flex items-center justify-between text-[10px] font-mono text-slate-500">
+                <span><i class="fa-solid fa-cubes text-indigo-400 mr-1"></i> <span id="block-count">0</span> blocks</span>
+                <span><i class="fa-solid fa-code-branch text-emerald-400 mr-1"></i> <span id="complexity-score">Simple</span> complexity</span>
+            </div>
+        </main>
+
+        <!-- ========================================== -->
+        <!-- RIGHT: AI ANALYSIS / BACKTEST -->
+        <!-- ========================================== -->
+        <aside class="lg:col-span-3 space-y-5">
+            
+            <!-- AI Analysis Panel -->
+            <div class="sb-card p-4">
+                <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800/60">
+                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-brain text-purple-400 text-xs"></i>
+                        AI Analysis
+                    </h3>
+                    <span id="ai-thinking" class="text-[9px] text-slate-500 font-mono">Idle</span>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- Strategy Score -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1.5">
+                            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Strategy Score</span>
+                            <span id="score-value" class="text-sm font-black text-indigo-400 font-mono">--</span>
+                        </div>
+                        <div class="conf-bar">
+                            <div id="score-bar" class="conf-fill bg-gradient-to-r from-indigo-500 to-purple-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Win Probability -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1.5">
+                            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Win Probability</span>
+                            <span id="win-prob-value" class="text-sm font-black text-emerald-400 font-mono">--</span>
+                        </div>
+                        <div class="conf-bar">
+                            <div id="win-prob-bar" class="conf-fill bg-gradient-to-r from-emerald-500 to-teal-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Risk Level -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1.5">
+                            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Risk Level</span>
+                            <span id="risk-value" class="text-sm font-black text-amber-400 font-mono">--</span>
+                        </div>
+                        <div class="conf-bar">
+                            <div id="risk-bar" class="conf-fill bg-gradient-to-r from-amber-500 to-orange-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- AI Insights -->
+                    <div class="pt-3 border-t border-slate-800/60">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">AI Insights</p>
+                        <div id="ai-insights" class="space-y-1.5 text-[10px] text-slate-400">
+                            <p class="flex items-start gap-2">
+                                <i class="fa-solid fa-circle-info text-indigo-400 mt-0.5 text-[9px]"></i>
+                                <span>Add blocks to see AI analysis.</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Backtest Results -->
+            <div class="sb-card p-4" id="backtest-panel">
+                <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800/60">
+                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-flask text-emerald-400 text-xs"></i>
+                        Backtest Results
+                    </h3>
+                    <span id="bt-status" class="text-[9px] text-slate-500 font-mono">Not Run</span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div class="bg-slate-950/60 rounded-lg p-3 border border-slate-800/40">
+                        <span class="text-[9px] text-slate-500 uppercase font-bold block">Total Return</span>
+                        <span id="bt-return" class="text-sm font-black text-slate-500 font-mono">--</span>
+                    </div>
+                    <div class="bg-slate-950/60 rounded-lg p-3 border border-slate-800/40">
+                        <span class="text-[9px] text-slate-500 uppercase font-bold block">Win Rate</span>
+                        <span id="bt-winrate" class="text-sm font-black text-slate-500 font-mono">--</span>
+                    </div>
+                    <div class="bg-slate-950/60 rounded-lg p-3 border border-slate-800/40">
+                        <span class="text-[9px] text-slate-500 uppercase font-bold block">Max Drawdown</span>
+                        <span id="bt-drawdown" class="text-sm font-black text-slate-500 font-mono">--</span>
+                    </div>
+                    <div class="bg-slate-950/60 rounded-lg p-3 border border-slate-800/40">
+                        <span class="text-[9px] text-slate-500 uppercase font-bold block">Sharpe Ratio</span>
+                        <span id="bt-sharpe" class="text-sm font-black text-slate-500 font-mono">--</span>
+                    </div>
+                </div>
+
+                <!-- Equity curve -->
+                <div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Equity Curve</p>
+                    <div id="bt-chart" class="bt-chart bg-slate-950/60 rounded-lg p-2 border border-slate-800/40"></div>
+                </div>
+            </div>
+
+            <!-- Deploy Panel -->
+            <div class="sb-card p-4">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2 mb-4 pb-3 border-b border-slate-800/60">
+                    <i class="fa-solid fa-rocket text-indigo-400 text-xs"></i>
+                    Live Deployment
+                </h3>
+                
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-slate-300">Auto-Execute</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="auto-exec" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-slate-300">Notifications</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Base Volume</label>
+                        <input type="number" id="deploy-volume" value="0.01" step="0.01" min="0.01" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+            </div>
+
+        </aside>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TEMPLATES PANEL -->
+    <!-- ========================================== -->
+    <div class="sb-card p-4 sm:p-5">
+        <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800/60">
+            <div>
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-lightbulb text-amber-400 text-sm"></i>
+                    Quick Start Templates
+                </h3>
+                <p class="text-[10px] text-slate-500 mt-0.5">One-click strategies tested by our AI</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div onclick="loadTemplate('scalper')" class="bg-slate-950/60 border border-slate-800/60 rounded-xl p-4 cursor-pointer hover:border-emerald-500/40 transition group">
+                <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-3">
+                    <i class="fa-solid fa-bolt"></i>
+                </div>
+                <p class="text-xs font-bold text-white mb-1">Gold Scalper</p>
+                <p class="text-[10px] text-slate-500 mb-2">RSI + EMA crossover on XAUUSD</p>
+                <span class="text-[9px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">5 BLOCKS</span>
+            </div>
+
+            <div onclick="loadTemplate('trend')" class="bg-slate-950/60 border border-slate-800/60 rounded-xl p-4 cursor-pointer hover:border-indigo-500/40 transition group">
+                <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 mb-3">
+                    <i class="fa-solid fa-chart-line"></i>
+                </div>
+                <p class="text-xs font-bold text-white mb-1">Trend Follower</p>
+                <p class="text-[10px] text-slate-500 mb-2">Multi-timeframe trend alignment</p>
+                <span class="text-[9px] px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-bold">5 BLOCKS</span>
+            </div>
+
+            <div onclick="loadTemplate('reversal')" class="bg-slate-950/60 border border-slate-800/60 rounded-xl p-4 cursor-pointer hover:border-purple-500/40 transition group">
+                <div class="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 mb-3">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </div>
+                <p class="text-xs font-bold text-white mb-1">Mean Reversion</p>
+                <p class="text-[10px] text-slate-500 mb-2">Bollinger break + RSI reversal</p>
+                <span class="text-[9px] px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20 font-bold">4 BLOCKS</span>
+            </div>
+
+            <div onclick="loadTemplate('breakout')" class="bg-slate-950/60 border border-slate-800/60 rounded-xl p-4 cursor-pointer hover:border-amber-500/40 transition group">
+                <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-3">
+                    <i class="fa-solid fa-rocket"></i>
+                </div>
+                <p class="text-xs font-bold text-white mb-1">Breakout Hunter</p>
+                <p class="text-[10px] text-slate-500 mb-2">Volume + pattern breakout</p>
+                <span class="text-[9px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold">4 BLOCKS</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- CODE VIEW -->
+    <!-- ========================================== -->
+    <div class="sb-card p-4 sm:p-5">
+        <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800/60">
+            <div>
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-code text-cyan-400 text-sm"></i>
+                    Generated Strategy Code
+                </h3>
+                <p class="text-[10px] text-slate-500 mt-0.5">Live code from your blocks — export or copy</p>
+            </div>
+            <button onclick="copyCode()" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold transition flex items-center gap-1.5">
+                <i class="fa-solid fa-copy text-[9px]"></i>
+                Copy
+            </button>
+        </div>
+        <pre id="strategy-code" class="code-view">// No strategy yet. Add blocks to generate code.</pre>
+    </div>
+
+</div>
+
+<!-- Custom Modal -->
+<div id="sb-modal" class="sb-modal-backdrop">
+    <div class="sb-modal-box p-6">
+        <div id="sb-modal-icon" class="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 text-xl mx-auto mb-4">
+            <i class="fa-solid fa-circle-info"></i>
+        </div>
+        <h3 id="sb-modal-title" class="text-lg font-black text-white text-center mb-2">Title</h3>
+        <p id="sb-modal-message" class="text-xs text-slate-400 text-center mb-5">Message</p>
+        <div id="sb-modal-content" class="mb-5"></div>
+        <div class="grid grid-cols-2 gap-3">
+            <button onclick="closeSBModal(false)" class="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition">
+                Cancel
+            </button>
+            <button onclick="closeSBModal(true)" id="sb-modal-confirm" class="px-4 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold transition shadow-lg shadow-indigo-500/25">
+                Confirm
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast container -->
+<div id="sb-toast-container" class="fixed bottom-5 right-5 z-[100000] space-y-2"></div>
+
+<script>
+// ==========================================
+// STATE
+// ==========================================
+let placedBlocks = [];
+let pendingModalAction = null;
+
+// ==========================================
+// MODAL
+// ==========================================
+function openSBModal({ title, message, confirmText = 'Confirm', icon = 'info', content = '', onConfirm }) {
+    const backdrop = document.getElementById('sb-modal');
+    const iconEl = document.getElementById('sb-modal-icon');
+    const titleEl = document.getElementById('sb-modal-title');
+    const messageEl = document.getElementById('sb-modal-message');
+    const contentEl = document.getElementById('sb-modal-content');
+    const confirmBtn = document.getElementById('sb-modal-confirm');
+
+    const icons = {
+        info: 'fa-circle-info',
+        warning: 'fa-triangle-exclamation',
+        danger: 'fa-circle-exclamation',
+        success: 'fa-circle-check',
+    };
+    const colors = {
+        info: 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400',
+        warning: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
+        danger: 'bg-rose-500/10 border-rose-500/30 text-rose-400',
+        success: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
+    };
+
+    iconEl.className = `w-14 h-14 rounded-2xl ${colors[icon]} flex items-center justify-center text-xl mx-auto mb-4`;
+    iconEl.innerHTML = `<i class="fa-solid ${icons[icon]}"></i>`;
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+    confirmBtn.textContent = confirmText;
+
+    if (content) {
+        contentEl.innerHTML = content;
+        contentEl.classList.remove('hidden');
+    } else {
+        contentEl.innerHTML = '';
+    }
+
+    pendingModalAction = onConfirm;
+    backdrop.classList.add('active');
+}
+
+function closeSBModal(confirmed) {
+    const backdrop = document.getElementById('sb-modal');
+    backdrop.classList.remove('active');
+    if (confirmed && typeof pendingModalAction === 'function') {
+        const action = pendingModalAction;
+        pendingModalAction = null;
+        setTimeout(action, 200);
+    } else {
+        pendingModalAction = null;
+    }
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeSBModal(false);
+});
+
+document.getElementById('sb-modal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'sb-modal') closeSBModal(false);
+});
+
+// ==========================================
+// TOAST
+// ==========================================
+function showToast(message, type = 'success') {
+    const container = document.getElementById('sb-toast-container');
+    const colors = {
+        success: 'bg-emerald-900/90 border-emerald-500 text-emerald-200',
+        error: 'bg-rose-900/90 border-rose-500 text-rose-200',
+        info: 'bg-indigo-900/90 border-indigo-500 text-indigo-200',
+        warn: 'bg-amber-900/90 border-amber-500 text-amber-200',
+    };
+    const icons = {
+        success: 'fa-circle-check',
+        error: 'fa-circle-xmark',
+        info: 'fa-circle-info',
+        warn: 'fa-triangle-exclamation',
+    };
+    const toast = document.createElement('div');
+    toast.className = `toast-animated px-4 py-3 rounded-xl border font-mono text-xs shadow-2xl backdrop-blur-md ${colors[type]}`;
+    toast.innerHTML = `<i class="fa-solid ${icons[type]} mr-2"></i> ${message}`;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, 3500);
+}
+
+// ==========================================
+// DRAG & DROP
+// ==========================================
+document.querySelectorAll('.block-item').forEach(block => {
+    block.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', JSON.stringify({
+            type: block.dataset.type,
+            name: block.dataset.name,
+            icon: block.dataset.icon,
+        }));
+    });
+});
+
+const canvas = document.getElementById('strategy-canvas');
+
+canvas.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    canvas.classList.add('drag-over');
+});
+
+canvas.addEventListener('dragleave', () => {
+    canvas.classList.remove('drag-over');
+});
+
+canvas.addEventListener('drop', (e) => {
+    e.preventDefault();
+    canvas.classList.remove('drag-over');
+    
+    try {
+        const blockData = JSON.parse(e.dataTransfer.getData('text/plain'));
+        addBlock(blockData);
+    } catch (err) {
+        console.error('Drop error:', err);
+    }
+});
+
+// ==========================================
+// ADD BLOCK
+// ==========================================
+function addBlock(block) {
+    const id = 'block_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    placedBlocks.push({ id, ...block });
+
+    document.getElementById('empty-canvas-hint').classList.add('hidden');
+
+    const container = document.getElementById('placed-blocks-container');
+    const blockEl = document.createElement('div');
+    blockEl.className = 'placed-block';
+    blockEl.id = id;
+    blockEl.setAttribute('draggable', 'true');
+
+    const colorMap = {
+        trigger: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20',
+        condition: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+        action: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+        risk: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
+        timing: 'text-purple-400 bg-purple-500/10 border-purple-500/20',
+        data: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20',
+    };
+    const iconBg = colorMap[block.type] || colorMap.trigger;
+
+    blockEl.innerHTML = `
+        <button class="remove-btn" onclick="removeBlock('${id}')">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg ${iconBg} border flex items-center justify-center shrink-0">
+                <i class="fa-solid ${block.icon} text-xs"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="text-xs font-bold text-white">${block.name}</p>
+                <p class="text-[9px] text-slate-500 uppercase tracking-wider mt-0.5">${block.type}</p>
+            </div>
+            <div class="text-[9px] text-slate-600 font-mono">#${placedBlocks.length}</div>
+        </div>
+    `;
+
+    container.appendChild(blockEl);
+    updateStrategy();
+    showToast(`Added: ${block.name}`, 'success');
+}
+
+// ==========================================
+// REMOVE BLOCK
+// ==========================================
+function removeBlock(id) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.style.opacity = '0';
+        el.style.transform = 'translateX(-20px)';
+        setTimeout(() => el.remove(), 200);
+    }
+    placedBlocks = placedBlocks.filter(b => b.id !== id);
+    
+    if (placedBlocks.length === 0) {
+        document.getElementById('empty-canvas-hint').classList.remove('hidden');
+    }
+    updateStrategy();
+}
+
+// ==========================================
+// UPDATE STRATEGY (score, AI analysis, code)
+// ==========================================
+function updateStrategy() {
+    document.getElementById('block-count').textContent = placedBlocks.length;
+
+    // Complexity
+    let complexity = 'Simple';
+    if (placedBlocks.length > 5) complexity = 'Advanced';
+    if (placedBlocks.length > 8) complexity = 'Expert';
+    document.getElementById('complexity-score').textContent = complexity;
+
+    // Status
+    const statusEl = document.getElementById('strategy-status');
+    if (placedBlocks.length === 0) {
+        statusEl.className = 'px-3 py-1 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700 flex items-center gap-2';
+        statusEl.innerHTML = '<i class="fa-solid fa-code text-[9px]"></i> NO STRATEGY';
+    } else {
+        statusEl.className = 'px-3 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-2';
+        statusEl.innerHTML = `<i class="fa-solid fa-check text-[9px]"></i> ${placedBlocks.length} BLOCKS READY`;
+    }
+
+    // AI Analysis
+    generateAIAnalysis();
+    
+    // Code
+    generateCode();
+}
+
+// ==========================================
+// AI ANALYSIS
+// ==========================================
+function generateAIAnalysis() {
+    if (placedBlocks.length === 0) {
+        setBar('score', 0);
+        setBar('win-prob', 0);
+        setBar('risk', 0);
+        document.getElementById('score-value').textContent = '--';
+        document.getElementById('win-prob-value').textContent = '--';
+        document.getElementById('risk-value').textContent = '--';
+        document.getElementById('ai-insights').innerHTML = `
+            <p class="flex items-start gap-2">
+                <i class="fa-solid fa-circle-info text-indigo-400 mt-0.5 text-[9px]"></i>
+                <span>Add blocks to see AI analysis.</span>
+            </p>
+        `;
+        return;
+    }
+
+    // Count block types
+    const triggers = placedBlocks.filter(b => b.type === 'trigger').length;
+    const conditions = placedBlocks.filter(b => b.type === 'condition').length;
+    const actions = placedBlocks.filter(b => b.type === 'action').length;
+    const risks = placedBlocks.filter(b => b.type === 'risk').length;
+
+    // Compute scores
+    let score = 40;
+    let winProb = 55;
+    let riskLevel = 30;
+
+    score += Math.min(triggers * 10, 30);
+    score += Math.min(conditions * 8, 24);
+    score += Math.min(actions * 6, 12);
+    score += Math.min(risks * 12, 36);
+    score = Math.min(score, 98);
+
+    winProb = 45 + Math.min(conditions * 8 + triggers * 6 + risks * 5, 45);
+    winProb = Math.min(winProb, 92);
+
+    riskLevel = Math.max(5, 60 - risks * 15 + (actions - risks) * 8);
+    riskLevel = Math.min(riskLevel, 95);
+
+    document.getElementById('score-value').textContent = score + '/100';
+    document.getElementById('win-prob-value').textContent = winProb + '%';
+    document.getElementById('risk-value').textContent = riskLevel > 70 ? 'HIGH' : riskLevel > 40 ? 'MEDIUM' : 'LOW';
+
+    setBar('score', score);
+    setBar('win-prob', winProb);
+    setBar('risk', riskLevel);
+
+    // Insights
+    const insights = [];
+    if (triggers === 0) insights.push({ icon: 'fa-triangle-exclamation', color: 'text-amber-400', text: 'No trigger blocks — strategy needs an entry signal.' });
+    if (conditions === 0) insights.push({ icon: 'fa-circle-info', color: 'text-indigo-400', text: 'Add conditions to filter false signals and improve accuracy.' });
+    if (risks === 0) insights.push({ icon: 'fa-triangle-exclamation', color: 'text-rose-400', text: 'Missing risk blocks — no SL/TP protection!' });
+    if (risks >= 2) insights.push({ icon: 'fa-circle-check', color: 'text-emerald-400', text: 'Risk management looks solid.' });
+    if (actions === 0) insights.push({ icon: 'fa-triangle-exclamation', color: 'text-amber-400', text: 'No actions defined — nothing will execute.' });
+    if (placedBlocks.length >= 6) insights.push({ icon: 'fa-brain', color: 'text-purple-400', text: 'Complex multi-block strategy detected — strong potential.' });
+    if (score >= 85) insights.push({ icon: 'fa-trophy', color: 'text-amber-400', text: 'Excellent strategy score! Ready for backtest.' });
+
+    if (insights.length === 0) {
+        insights.push({ icon: 'fa-circle-check', color: 'text-emerald-400', text: 'Strategy structure looks good.' });
+    }
+
+    document.getElementById('ai-insights').innerHTML = insights.slice(0, 4).map(i => `
+        <p class="flex items-start gap-2">
+            <i class="fa-solid ${i.icon} ${i.color} mt-0.5 text-[9px]"></i>
+            <span>${i.text}</span>
+        </p>
+    `).join('');
+}
+
+function setBar(id, percent) {
+    const bar = document.getElementById(id + '-bar');
+    if (bar) bar.style.width = percent + '%';
+}
+
+// ==========================================
+// CODE GENERATION
+// ==========================================
+function generateCode() {
+    if (placedBlocks.length === 0) {
+        document.getElementById('strategy-code').textContent = '// No strategy yet. Add blocks to generate code.';
+        return;
+    }
+
+    let code = `// ==========================================\n`;
+    code += `// Strategy: ${document.getElementById('strategy-name').value}\n`;
+    code += `// Blocks: ${placedBlocks.length}\n`;
+    code += `// Generated by PATREOAIX AI Strategy Builder\n`;
+    code += `// ==========================================\n\n`;
+    code += `async function executeStrategy(tick, context) {\n`;
+    
+    placedBlocks.forEach((block, i) => {
+        const comment = `  // [${i + 1}/${placedBlocks.length}] ${block.type.toUpperCase()}: ${block.name}`;
+        code += comment + '\n';
+        
+        switch(block.type) {
+            case 'trigger':
+                code += `  const trigger${i} = check${block.name.replace(/\s/g, '')}(tick);\n`;
+                code += `  if (!trigger${i}) return;\n`;
+                break;
+            case 'condition':
+                code += `  if (!passes${block.name.replace(/\s/g, '')}(context)) return;\n`;
+                break;
+            case 'action':
+                if (block.name === 'Buy Entry') code += `  await openPosition('BUY', context.symbol, context.volume);\n`;
+                else if (block.name === 'Sell Entry') code += `  await openPosition('SELL', context.symbol, context.volume);\n`;
+                else if (block.name === 'Close All') code += `  await closeAllPositions();\n`;
+                break;
+            case 'risk':
+                code += `  set${block.name.replace(/\s/g, '')}(context);\n`;
+                break;
+            case 'timing':
+                code += `  if (!isWithin${block.name.replace(/\s/g, '')}()) return;\n`;
+                break;
+            case 'data':
+                code += `  context.dataSource = '${block.name}';\n`;
+                break;
+        }
+        code += '\n';
+    });
+    
+    code += `  return { executed: true, timestamp: Date.now() };\n`;
+    code += `}\n`;
+
+    document.getElementById('strategy-code').textContent = code;
+}
+
+// ==========================================
+// BACKTEST
+// ==========================================
+function runBacktest() {
+    if (placedBlocks.length < 2) {
+        showToast('Add at least 2 blocks to backtest', 'warn');
+        return;
+    }
+
+    const btn = document.getElementById('backtest-btn');
+    const originalHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[10px]"></i> Running...';
+    document.getElementById('bt-status').textContent = 'Running...';
+    document.getElementById('bt-status').className = 'text-[9px] text-amber-400 font-mono';
+
+    setTimeout(() => {
+        // Generate realistic backtest results
+        const triggers = placedBlocks.filter(b => b.type === 'trigger').length;
+        const conditions = placedBlocks.filter(b => b.type === 'condition').length;
+        const risks = placedBlocks.filter(b => b.type === 'risk').length;
+        const actions = placedBlocks.filter(b => b.type === 'action').length;
+
+        const baseWinRate = 50 + conditions * 4 + triggers * 3 + risks * 2;
+        const winRate = Math.min(88, baseWinRate + Math.random() * 10);
+        const totalReturn = (winRate - 50) * 0.4 + Math.random() * 15;
+        const maxDrawdown = -(20 - risks * 3 + Math.random() * 8);
+        const sharpe = 1.2 + (winRate - 50) * 0.03 + Math.random() * 0.5;
+
+        // Update UI
+        const returnEl = document.getElementById('bt-return');
+        returnEl.textContent = (totalReturn >= 0 ? '+' : '') + totalReturn.toFixed(2) + '%';
+        returnEl.className = `text-sm font-black font-mono ${totalReturn >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+
+        const winrateEl = document.getElementById('bt-winrate');
+        winrateEl.textContent = winRate.toFixed(1) + '%';
+        winrateEl.className = 'text-sm font-black text-emerald-400 font-mono';
+
+        const drawdownEl = document.getElementById('bt-drawdown');
+        drawdownEl.textContent = maxDrawdown.toFixed(2) + '%';
+        drawdownEl.className = 'text-sm font-black text-rose-400 font-mono';
+
+        const sharpeEl = document.getElementById('bt-sharpe');
+        sharpeEl.textContent = sharpe.toFixed(2);
+        sharpeEl.className = `text-sm font-black font-mono ${sharpe >= 1.5 ? 'text-emerald-400' : sharpe >= 1 ? 'text-amber-400' : 'text-rose-400'}`;
+
+        // Draw equity curve
+        drawEquityCurve(totalReturn, winRate);
+
+        document.getElementById('bt-status').textContent = 'Complete';
+        document.getElementById('bt-status').className = 'text-[9px] text-emerald-400 font-mono';
+
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+        showToast(`Backtest complete: ${totalReturn >= 0 ? '+' : ''}${totalReturn.toFixed(2)}% return`, 'success');
+    }, 2200);
+}
+
+function drawEquityCurve(totalReturn, winRate) {
+    const chart = document.getElementById('bt-chart');
+    chart.innerHTML = '';
+    
+    const bars = 30;
+    let equity = 100;
+    let maxEquity = 100;
+    let minEquity = 100;
+    const equityData = [];
+
+    for (let i = 0; i < bars; i++) {
+        const change = ((Math.random() - (winRate < 55 ? 0.55 : 0.45)) * 4);
+        equity += change;
+        equityData.push(equity);
+        if (equity > maxEquity) maxEquity = equity;
+        if (equity < minEquity) minEquity = equity;
+    }
+
+    const range = maxEquity - minEquity || 1;
+
+    equityData.forEach((val) => {
+        const bar = document.createElement('div');
+        bar.className = 'bt-bar';
+        const heightPct = ((val - minEquity) / range) * 100;
+        bar.style.height = Math.max(5, heightPct) + '%';
+        bar.style.background = val >= 100 ? 'linear-gradient(180deg, #10b981, #059669)' : 'linear-gradient(180deg, #f43f5e, #be123c)';
+        bar.style.opacity = '0.85';
+        chart.appendChild(bar);
+    });
+}
+
+// ==========================================
+// AI OPTIMIZE
+// ==========================================
+function aiOptimize() {
+    if (placedBlocks.length < 2) {
+        showToast('Add more blocks to optimize', 'warn');
+        return;
+    }
+
+    const btn = document.getElementById('ai-opt-btn');
+    const originalHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[10px]"></i> Optimizing...';
+    document.getElementById('ai-thinking').textContent = 'Thinking...';
+
+    setTimeout(() => {
+        // Auto-add missing blocks
+        const hasTrigger = placedBlocks.some(b => b.type === 'trigger');
+        const hasRisk = placedBlocks.some(b => b.type === 'risk');
+        const hasCondition = placedBlocks.some(b => b.type === 'condition');
+
+        let added = 0;
+
+        if (!hasTrigger) {
+            addBlock({ type: 'trigger', name: 'RSI Threshold', icon: 'fa-gauge-high' });
+            added++;
+        }
+        if (!hasCondition) {
+            addBlock({ type: 'condition', name: 'Trend Aligned', icon: 'fa-chart-line' });
+            added++;
+        }
+        if (!hasRisk) {
+            addBlock({ type: 'risk', name: 'Stop Loss', icon: 'fa-shield-halved' });
+            added++;
+        }
+
+        document.getElementById('ai-thinking').textContent = added > 0 ? `Added ${added} blocks` : 'Already optimal';
+        
+        if (added > 0) {
+            showToast(`AI added ${added} optimization block${added > 1 ? 's' : ''}`, 'success');
+        } else {
+            showToast('Strategy already optimized', 'info');
+        }
+
+        // Recalc
+        generateAIAnalysis();
+        generateCode();
+        
+        setTimeout(() => {
+            document.getElementById('ai-thinking').textContent = 'Idle';
+        }, 3000);
+
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+    }, 1800);
+}
+
+// ==========================================
+// DEPLOY
+// ==========================================
+function deployStrategy() {
+    if (placedBlocks.length < 3) {
+        showToast('Add at least 3 blocks to deploy', 'warn');
+        return;
+    }
+
+    const strategyName = document.getElementById('strategy-name').value;
+    const volume = document.getElementById('deploy-volume').value;
+
+    openSBModal({
+        title: 'Deploy Strategy Live?',
+        message: `Your strategy will run automatically on live market data.`,
+        confirmText: 'Deploy Live',
+        icon: 'warning',
+        content: `
+            <div class="bg-slate-950/60 border border-slate-800/60 rounded-xl p-4 space-y-2 text-[11px] font-mono">
+                <div class="flex justify-between"><span class="text-slate-500">Name:</span><span class="text-white font-bold">${strategyName}</span></div>
+                <div class="flex justify-between"><span class="text-slate-500">Blocks:</span><span class="text-white">${placedBlocks.length}</span></div>
+                <div class="flex justify-between"><span class="text-slate-500">Volume:</span><span class="text-white">${volume} lots</span></div>
+                <div class="flex justify-between"><span class="text-slate-500">Auto-Execute:</span><span class="${document.getElementById('auto-exec').checked ? 'text-emerald-400' : 'text-slate-400'} font-bold">${document.getElementById('auto-exec').checked ? 'ON' : 'OFF'}</span></div>
+            </div>
+        `,
+        onConfirm: () => {
+            showToast(`✅ Strategy "${strategyName}" deployed live!`, 'success');
+            document.getElementById('strategy-status').innerHTML = '<i class="fa-solid fa-circle text-[9px] text-emerald-400 animate-pulse mr-1"></i> LIVE';
+            document.getElementById('strategy-status').className = 'px-3 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-2 signal-active';
+        }
+    });
+}
+
+// ==========================================
+// TEMPLATES
+// ==========================================
+function loadTemplate(name) {
+    resetStrategy();
+
+    const templates = {
+        scalper: [
+            { type: 'trigger', name: 'RSI Threshold', icon: 'fa-gauge-high' },
+            { type: 'condition', name: 'Trend Aligned', icon: 'fa-chart-line' },
+            { type: 'action', name: 'Buy Entry', icon: 'fa-arrow-trend-up' },
+            { type: 'risk', name: 'Stop Loss', icon: 'fa-shield-halved' },
+            { type: 'risk', name: 'Take Profit', icon: 'fa-bullseye' },
+        ],
+        trend: [
+            { type: 'trigger', name: 'Price Cross', icon: 'fa-arrow-right-arrow-left' },
+            { type: 'condition', name: 'Trend Aligned', icon: 'fa-chart-line' },
+            { type: 'condition', name: 'Session Active', icon: 'fa-globe' },
+            { type: 'action', name: 'Buy Entry', icon: 'fa-arrow-trend-up' },
+            { type: 'risk', name: 'Trailing Stop', icon: 'fa-arrow-up-right-dots' },
+        ],
+        reversal: [
+            { type: 'trigger', name: 'Bollinger Break', icon: 'fa-circle-dot' },
+            { type: 'trigger', name: 'RSI Threshold', icon: 'fa-gauge-high' },
+            { type: 'action', name: 'Sell Entry', icon: 'fa-arrow-trend-down' },
+            { type: 'risk', name: 'Stop Loss', icon: 'fa-shield-halved' },
+        ],
+        breakout: [
+            { type: 'trigger', name: 'Pattern Detected', icon: 'fa-shapes' },
+            { type: 'condition', name: 'Volume Above', icon: 'fa-chart-simple' },
+            { type: 'action', name: 'Buy Entry', icon: 'fa-arrow-trend-up' },
+            { type: 'risk', name: 'Take Profit', icon: 'fa-bullseye' },
+        ],
+    };
+
+    const blocks = templates[name] || [];
+    blocks.forEach(b => addBlock(b));
+
+    document.getElementById('strategy-name').value = name.charAt(0).toUpperCase() + name.slice(1) + ' Strategy';
+    showToast(`Template "${name}" loaded`, 'success');
+}
+
+function openLoadTemplateModal() {
+    document.getElementById('strategy-canvas').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ==========================================
+// SAVE / RESET
+// ==========================================
+function saveStrategy() {
+    if (placedBlocks.length === 0) {
+        showToast('No strategy to save', 'warn');
+        return;
+    }
+
+    const data = {
+        name: document.getElementById('strategy-name').value,
+        blocks: placedBlocks,
+        timestamp: new Date().toISOString(),
+    };
+
+    localStorage.setItem('saved_strategy', JSON.stringify(data));
+    showToast(`Strategy "${data.name}" saved`, 'success');
+}
+
+function resetStrategy() {
+    placedBlocks = [];
+    document.getElementById('placed-blocks-container').innerHTML = '';
+    document.getElementById('empty-canvas-hint').classList.remove('hidden');
+    document.getElementById('strategy-name').value = 'My Strategy';
+    updateStrategy();
+    showToast('Strategy reset', 'info');
+}
+
+function copyCode() {
+    const code = document.getElementById('strategy-code').textContent;
+    navigator.clipboard.writeText(code);
+    showToast('Code copied to clipboard', 'success');
+}
+
+// ==========================================
+// INIT
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        const spinner = document.getElementById('loading-spinner');
+        if (spinner) {
+            spinner.classList.add('spinner-hidden');
+            setTimeout(() => spinner.remove(), 500);
+        }
+    }, 500);
+
+    // Update code on name change
+    document.getElementById('strategy-name')?.addEventListener('input', generateCode);
+});
+</script>
+<script>
+// ── Added: backtest on real candles (server), real deploy / save — the page used random numbers and toasts ──
+(function () {
+    const $ = id => document.getElementById(id);
+    const blocksPayload = () => placedBlocks.map(b => ({ type: b.type, name: b.name }));
+    const post = (url, body) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin', body: JSON.stringify(body) })
+        .then(r => r.json().catch(() => ({ success: false, error: `Server error (${r.status})` })));
+    try { const v = localStorage.getItem('px-sb-symbol'); if (v) $('px-sb-symbol').value = v; } catch (e) {}
+    $('px-sb-symbol').addEventListener('change', e => { try { localStorage.setItem('px-sb-symbol', e.target.value); } catch (x) {} });
+
+    function setStat(id, text, cls) { const el = $(id); el.textContent = text; el.className = `text-sm font-black font-mono ${cls}`; }
+    function drawCurve(curve) {
+        const chart = $('bt-chart'); chart.innerHTML = '';
+        if (!curve || curve.length < 2) { chart.innerHTML = '<p class="text-[10px] text-slate-500 p-3">No trades — the rules never triggered on this data.</p>'; return; }
+        const step = Math.max(1, Math.ceil(curve.length / 40)), pts = curve.filter((_, i) => i % step === 0 || i === curve.length - 1);
+        const mn = Math.min(...pts), mx = Math.max(...pts), range = mx - mn || 1;
+        pts.forEach(v => {
+            const bar = document.createElement('div');
+            bar.className = 'bt-bar';
+            bar.style.height = Math.max(5, (v - mn) / range * 100) + '%';
+            bar.style.background = v >= 100 ? 'var(--px-up)' : 'var(--px-down)';
+            bar.style.opacity = '0.85';
+            bar.title = `Equity ${v.toFixed(2)}`;
+            chart.appendChild(bar);
+        });
+    }
+
+    window.runBacktest = async function () {
+        if (placedBlocks.length < 2) return showToast('Add at least 2 blocks to backtest', 'warn');
+        const btn = $('backtest-btn'), html = btn.innerHTML, symbol = $('px-sb-symbol').value, timeframe = $('px-sb-tf').value;
+        btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[10px]"></i> Running...';
+        $('bt-status').textContent = 'Running...'; $('bt-status').className = 'text-[9px] text-amber-400 font-mono';
+        try {
+            const d = await post('/api/strategy/backtest/', { blocks: blocksPayload(), symbol, timeframe });
+            if (!d.success) throw new Error(d.error || 'Backtest failed');
+            const r = d.results;
+            setStat('bt-return', (r.total_return >= 0 ? '+' : '') + r.total_return.toFixed(2) + '%', r.total_return >= 0 ? 'text-emerald-400' : 'text-rose-400');
+            setStat('bt-winrate', r.total_trades ? r.win_rate.toFixed(1) + '%' : '—', r.win_rate >= 50 ? 'text-emerald-400' : 'text-amber-400');
+            setStat('bt-drawdown', r.max_drawdown.toFixed(2) + '%', 'text-rose-400');
+            setStat('bt-sharpe', r.total_trades > 1 ? r.sharpe_ratio.toFixed(2) : '—', r.sharpe_ratio >= 1.5 ? 'text-emerald-400' : r.sharpe_ratio >= 1 ? 'text-amber-400' : 'text-rose-400');
+            drawCurve(r.equity_curve);
+            const from = new Date(r.period.from * 1000).toLocaleDateString(), to = new Date(r.period.to * 1000).toLocaleDateString();
+            let meta = $('px-bt-meta');
+            if (!meta) { meta = document.createElement('p'); meta.id = 'px-bt-meta'; meta.className = 'px-bt-meta'; $('bt-chart').after(meta); }
+            meta.textContent = `${r.symbol} ${r.timeframe} · ${from} – ${to} · ${r.total_trades} trades (${r.profitable_trades} won) · rules: ${r.rules.join(', ')} · ${r.sides.join('/')} · data: ${r.source}. 1% risk per trade.`;
+            $('bt-status').textContent = 'Complete'; $('bt-status').className = 'text-[9px] text-emerald-400 font-mono';
+            showToast(`Backtest complete: ${r.total_return >= 0 ? '+' : ''}${r.total_return.toFixed(2)}% over ${r.total_trades} trades`, 'success');
+        } catch (e) {
+            $('bt-status').textContent = 'Failed'; $('bt-status').className = 'text-[9px] text-rose-400 font-mono';
+            showToast(e.message, 'error');
+        } finally {
+            btn.disabled = false; btn.innerHTML = html;
+        }
+    };
+
+    window.deployStrategy = function () {
+        if (placedBlocks.length < 3) return showToast('Add at least 3 blocks to deploy', 'warn');
+        const name = $('strategy-name').value.trim() || 'My Strategy', volume = $('deploy-volume').value, auto = $('auto-exec').checked;
+        const box = document.createElement('div');
+        box.className = 'bg-slate-950/60 border border-slate-800/60 rounded-xl p-4 space-y-2 text-[11px] font-mono';
+        [['Name', name], ['Blocks', placedBlocks.length], ['Symbol', $('px-sb-symbol').value], ['Volume', volume + ' lots'], ['Auto-Execute', auto ? 'ON' : 'OFF']].forEach(([k, v]) => {
+            const row = document.createElement('div'); row.className = 'flex justify-between';
+            row.innerHTML = '<span class="text-slate-500"></span><span class="text-white font-bold"></span>';
+            row.children[0].textContent = k + ':'; row.children[1].textContent = v; box.appendChild(row);
+        });
+        openSBModal({
+            title: 'Deploy Strategy?', message: 'It is saved to your account as a running bot.', confirmText: 'Deploy', icon: 'warning', content: box.outerHTML,
+            onConfirm: async () => {
+                const d = await post('/api/strategy/deploy/', { name, blocks: blocksPayload(), volume: parseFloat(volume) || 0.01, auto_execute: auto, symbol: $('px-sb-symbol').value });
+                if (!d.success) return showToast(d.error || 'Deploy failed', 'error');
+                showToast(`"${name}" saved as a running bot. It doesn't place trades automatically yet.`, 'success');
+                $('strategy-status').innerHTML = '<i class="fa-solid fa-circle text-[9px] text-emerald-400 mr-1"></i> DEPLOYED';
+                $('strategy-status').className = 'px-3 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-2';
+            },
+        });
+    };
+
+    const localSave = window.saveStrategy;
+    window.saveStrategy = async function () {
+        localSave();
+        if (!placedBlocks.length) return;
+        const d = await post('/api/strategy/save/', { name: $('strategy-name').value, blocks: blocksPayload() });
+        if (!d.success) showToast(`Saved on this device only — ${d.error || 'server save failed'}`, 'warn');
+    };
+
+    const loadTpl = window.loadTemplate;
+    window.loadTemplate = function (name) {
+        loadTpl(name);
+        if (name === 'scalper') { $('px-sb-symbol').value = 'XAUUSD'; $('px-sb-tf').value = '15m'; }
+    };
+})();
+</script>
+{% endblock %}

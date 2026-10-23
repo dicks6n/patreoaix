@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="flex items-center justify-center min-h-[80vh] px-4">
+    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+        <div class="text-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-800">M-Pesa Deposit</h2>
+            <p class="text-sm text-gray-500">Enter your details to initiate an STK push prompt.</p>
+        </div>
+
+        <form id="depositForm" class="space-y-4">
+            {% csrf_token %}
+            <div>
+                <label for="phone" class="block text-sm font-medium text-gray-700">Phone Number</label>
+                <input type="text" id="phone" name="phone" placeholder="2547XXXXXXXX" required
+                    class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-green-500 focus:border-green-500">
+            </div>
+
+            <div>
+                <label for="amount" class="block text-sm font-medium text-gray-700">Amount (KES)</label>
+                <input type="number" id="amount" name="amount" placeholder="100" min="1" required
+                    class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-green-500 focus:border-green-500">
+            </div>
+
+            <button type="submit" id="submitBtn"
+                class="w-full bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 transition duration-200">
+                Pay with M-Pesa
+            </button>
+        </form>
+
+        <div id="statusMessage" class="mt-4 text-center text-sm font-medium hidden"></div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('depositForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        
+        const submitBtn = document.getElementById('submitBtn');
+        const statusMessage = document.getElementById('statusMessage');
+        const phone = document.getElementById('phone').value;
+        const amount = document.getElementById('amount').value;
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Processing...';
+        statusMessage.classList.remove('hidden', 'text-green-600', 'text-red-600');
+        statusMessage.classList.add('text-blue-600');
+        statusMessage.textContent = 'Sending STK push request to your phone... Check your device.';
+
+        try {
+            const response = await fetch("{% url 'request_deposit' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ phone: phone, amount: amount })
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                statusMessage.classList.remove('text-blue-600');
+                statusMessage.classList.add('text-green-600');
+                statusMessage.textContent = 'STK Push sent successfully! Enter your M-Pesa PIN to complete.';
+            } else {
+                statusMessage.classList.remove('text-blue-600');
+                statusMessage.classList.add('text-red-600');
+                statusMessage.textContent = data.error || 'Failed to initiate payment. Please try again.';
+            }
+        } catch (error) {
+            statusMessage.classList.remove('text-blue-600');
+            statusMessage.classList.add('text-red-600');
+            statusMessage.textContent = 'A network error occurred. Please check your connection.';
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Pay with M-Pesa';
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+    {# Stand-alone shell for the MT5 terminal: no site styles, fonts or header — only what the terminal needs #}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#000000">
+    <meta name="color-scheme" content="dark">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PATREOAIX">
+    <meta name="format-detection" content="telephone=no">
+    <title>{% block title %}PATREOAIX Trader{% endblock %}</title>
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="{% static 'store/img/icons/apple-touch-icon.png' %}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'store/img/icons/favicon-32.png' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; height: 100%; background: #000; color: #fff; }
+        button, input, select, textarea { font: inherit; color: inherit; }
+        button { background: none; border: 0; padding: 0; cursor: pointer; }
+        a { color: inherit; text-decoration: none; }
+        img, svg, canvas, video { display: block; max-width: 100%; }
+    </style>
+    <script>
+        (function () {
+            var app = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+            if (app) {
+                document.documentElement.classList.add('px-app');
+                document.cookie = 'px_pwa=1; path=/; max-age=31536000; samesite=lax';
+            }
+        })();
+    </script>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <main>{% block content %}{% endblock %}</main>
+    {% block extra_js %}{% endblock %}
+    <script>
+        if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+            window.addEventListener('load', function () { navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {}); });
+        }
+    </script>
+</body>
+</html>

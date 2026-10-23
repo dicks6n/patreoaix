@@ -1,0 +1,289 @@
+{% extends 'base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Referrals - PATREOAIX{% endblock %}
+
+{% block content %}
+{% include 'partials/legacy_skin.html' %}
+<div class="max-w-6xl mx-auto py-6 px-4 space-y-6 pb-24 md:pb-6">
+
+    <!-- HERO -->
+    <div class="trade-card p-6 relative overflow-hidden">
+        <div class="absolute -top-16 -right-16 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="relative">
+            <div class="flex items-center gap-3 mb-5">
+                <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
+                    <i class="fa-solid fa-user-group text-emerald-400 text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-black text-white">Referral Program</h1>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Earn lifetime rewards by inviting traders</p>
+                </div>
+            </div>
+
+            <!-- REFERRAL LINK + COPY -->
+            <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4">
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                    Your Unique Referral Link
+                </span>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <input type="text" id="ref-link" readonly value="{{ referral_link }}"
+                           class="flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-indigo-300 font-mono focus:outline-none">
+                    <button onclick="copyRefLink()" id="copy-btn"
+                            class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition flex items-center gap-1.5 whitespace-nowrap">
+                        <i class="fa-regular fa-copy text-[10px]"></i>
+                        <span id="copy-text">Copy</span>
+                    </button>
+                </div>
+                <div class="flex items-center justify-between mt-3 flex-wrap gap-2">
+                    <p class="text-[10px] text-slate-500">
+                        Referral Code: <span class="text-emerald-400 font-mono font-black text-xs">{{ referral_code }}</span>
+                    </p>
+                    <div class="flex items-center gap-2">
+                        <a href="https://wa.me/?text=Join%20me%20on%20PATREOAIX!%20{{ referral_link|urlencode }}"
+                           target="_blank"
+                           class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 hover:bg-emerald-500/20 transition">
+                            <i class="fa-brands fa-whatsapp text-sm"></i>
+                        </a>
+                        <a href="https://t.me/share/url?url={{ referral_link|urlencode }}"
+                           target="_blank"
+                           class="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 hover:bg-sky-500/20 transition">
+                            <i class="fa-brands fa-telegram text-sm"></i>
+                        </a>
+                        <a href="https://twitter.com/intent/tweet?url={{ referral_link|urlencode }}&text=Join%20me%20on%20PATREOAIX"
+                           target="_blank"
+                           class="w-8 h-8 rounded-lg bg-slate-700/40 border border-slate-600/30 flex items-center justify-center text-slate-300 hover:bg-slate-700/60 transition">
+                            <i class="fa-brands fa-x-twitter text-sm"></i>
+                        </a>
+                        <button type="button" id="px-ref-share" onclick="pxShareRef()" title="Share"
+                                class="hidden w-8 h-8 rounded-lg bg-slate-700/40 border border-slate-600/30 items-center justify-center text-slate-300 hover:bg-slate-700/60 transition">
+                            <i class="fa-solid fa-share-nodes text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- STATS -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="trade-card p-4">
+            <span class="text-[10px] text-slate-500 uppercase font-bold block">Total Referrals</span>
+            <span class="text-xl font-black text-white font-mono mt-1 block">{{ total_referrals }}</span>
+            <span class="text-[10px] text-slate-500 mt-1 block">
+                {{ active_referrals }} active · {{ pending_referrals }} pending
+            </span>
+        </div>
+        <div class="trade-card p-4">
+            <span class="text-[10px] text-slate-500 uppercase font-bold block">Total Earned</span>
+            <span class="text-xl font-black text-emerald-400 font-mono mt-1 block">${{ total_earnings|floatformat:2 }}</span>
+        </div>
+        <div class="trade-card p-4">
+            <span class="text-[10px] text-slate-500 uppercase font-bold block">Pending Payout</span>
+            <span class="text-xl font-black text-amber-400 font-mono mt-1 block">${{ pending_earnings|floatformat:2 }}</span>
+        </div>
+        <div class="trade-card p-4">
+            <span class="text-[10px] text-slate-500 uppercase font-bold block">Withdrawn</span>
+            <span class="text-xl font-black text-slate-400 font-mono mt-1 block">${{ withdrawn_earnings|floatformat:2 }}</span>
+        </div>
+    </div>
+
+    <!-- WITHDRAW BUTTON -->
+    {% if pending_earnings > 0 %}
+    <div class="trade-card p-4 bg-gradient-to-r from-emerald-900/30 to-indigo-900/30 border border-emerald-500/30">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+                    <i class="fa-solid fa-hand-holding-dollar"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-bold text-white">You have ${{ pending_earnings|floatformat:2 }} ready to withdraw</p>
+                    <p class="text-[10px] text-slate-400">Transfer to your Exchange balance instantly</p>
+                </div>
+            </div>
+            <button onclick="withdrawEarnings()"
+                    class="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-5 py-2.5 rounded-xl text-xs transition shadow-lg shadow-emerald-900/30">
+                <i class="fa-solid fa-arrow-down-to-line mr-1"></i> Withdraw Now
+            </button>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- TIER REWARD RATES -->
+    <div class="trade-card overflow-hidden">
+        <div class="p-5 border-b border-slate-800">
+            <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                <i class="fa-solid fa-percent text-indigo-400 text-xs"></i>
+                Referral Reward Rates
+            </h3>
+            <p class="text-[10px] text-slate-500 mt-0.5">Earn this % of every subscription payment your referrals make</p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-800">
+            {% for r in tier_rates %}
+            <div class="p-5 text-center">
+                <span class="text-[10px] text-slate-500 uppercase font-bold block">{{ r.tier }}</span>
+                <span class="text-3xl font-black text-emerald-400 font-mono mt-1 block">{{ r.reward_percent }}%</span>
+                <span class="text-[10px] text-slate-500 mt-1 block">per subscription</span>
+            </div>
+            {% empty %}
+            <div class="p-5 text-center text-slate-500 text-xs col-span-3">No reward rates configured yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- REFERRED USERS -->
+    <div class="trade-card overflow-hidden">
+        <div class="p-5 border-b border-slate-800 flex items-center justify-between">
+            <div>
+                <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-users text-emerald-400 text-xs"></i>
+                    Your Referrals
+                </h3>
+                <p class="text-[10px] text-slate-500 mt-0.5">People who signed up with your code</p>
+            </div>
+            <span class="text-[10px] font-mono font-bold px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300">
+                {{ referrals|length }} total
+            </span>
+        </div>
+
+        {% if referrals %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs font-mono">
+                <thead class="bg-slate-950 text-slate-400 uppercase text-[10px] border-b border-slate-800">
+                    <tr>
+                        <th class="p-3">User</th>
+                        <th class="p-3">Status</th>
+                        <th class="p-3">Reward Earned</th>
+                        <th class="p-3 text-right">Joined</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/40">
+                    {% for r in referrals %}
+                    <tr class="hover:bg-slate-800/20 transition">
+                        <td class="p-3 font-bold text-white">{{ r.referred_user.username }}</td>
+                        <td class="p-3">
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full
+                                {% if r.status == 'ACTIVE' %}bg-emerald-500/10 text-emerald-400 border border-emerald-500/20
+                                {% elif r.status == 'PENDING' %}bg-amber-500/10 text-amber-400 border border-amber-500/20
+                                {% else %}bg-slate-500/10 text-slate-400 border border-slate-600/20{% endif %}">
+                                {{ r.status }}
+                            </span>
+                        </td>
+                        <td class="p-3 font-bold text-emerald-400">${{ r.total_reward|floatformat:2 }}</td>
+                        <td class="p-3 text-right text-slate-500 text-[10px]">{{ r.created_at|date:"M d, Y" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-12 text-center">
+            <div class="w-14 h-14 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center mx-auto mb-3 text-slate-600">
+                <i class="fa-solid fa-user-plus text-lg"></i>
+            </div>
+            <p class="text-xs font-bold text-white">No referrals yet</p>
+            <p class="text-[11px] text-slate-500 mt-1">Share your link to start earning</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- REWARD HISTORY -->
+    {% if rewards %}
+    <div class="trade-card overflow-hidden">
+        <div class="p-5 border-b border-slate-800">
+            <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                <i class="fa-solid fa-receipt text-indigo-400 text-xs"></i>
+                Recent Rewards
+            </h3>
+        </div>
+        <div class="divide-y divide-slate-800/40">
+            {% for rw in rewards %}
+            <div class="p-4 flex items-center justify-between hover:bg-slate-800/20 transition">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-xs">
+                        <i class="fa-solid fa-gift"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-white">
+                            {{ rw.referral.referred_user.username }} subscribed to {{ rw.tier }}
+                        </p>
+                        <p class="text-[10px] text-slate-500 mt-0.5">
+                            {{ rw.percent }}% · {{ rw.created_at|date:"M d, H:i" }}
+                        </p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm font-black text-emerald-400 font-mono">+${{ rw.amount|floatformat:2 }}</p>
+                    <p class="text-[9px] text-slate-500 uppercase font-bold">{{ rw.status }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<style>
+    .trade-card {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 27, 75, 0.4) 100%);
+        border: 1px solid rgba(99, 102, 241, 0.15);
+        border-radius: 20px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+    }
+</style>
+
+<script>
+const CSRF_TOKEN = '{{ csrf_token }}';
+
+function copyRefLink() {
+    const input = document.getElementById('ref-link');
+    input.select();
+    input.setSelectionRange(0, 99999);
+
+    navigator.clipboard.writeText(input.value).then(() => {
+        document.getElementById('copy-text').textContent = 'Copied!';
+        const btn = document.getElementById('copy-btn');
+        btn.classList.add('bg-emerald-600');
+        btn.classList.remove('bg-indigo-600');
+        setTimeout(() => {
+            document.getElementById('copy-text').textContent = 'Copy';
+            btn.classList.remove('bg-emerald-600');
+            btn.classList.add('bg-indigo-600');
+        }, 2000);
+    });
+}
+
+async function withdrawEarnings() {
+    if (!confirm('Transfer all pending referral earnings to your Exchange balance?')) return;
+
+    try {
+        const res = await fetch('/referrals/withdraw/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': CSRF_TOKEN },
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            (window.showMarketToast ? showMarketToast(`✅ $${data.amount.toFixed(2)} moved to your Exchange balance.`, 'success') : alert(`✅ $${data.amount.toFixed(2)} moved to your Exchange balance.`));
+            setTimeout(() => window.location.reload(), 1200);
+        } else {
+            (window.showMarketToast ? showMarketToast(`❌ ${data.error}`, 'error') : alert(`❌ ${data.error}`));
+        }
+    } catch (err) {
+        (window.showMarketToast ? showMarketToast('Network error. Please try again.', 'error') : alert('Network error. Please try again.'));
+    }
+}
+
+// ── Added: phone share sheet (shown only where the browser supports it) ──
+if (navigator.share) {
+    const b = document.getElementById('px-ref-share');
+    if (b) { b.classList.remove('hidden'); b.classList.add('flex'); }
+}
+function pxShareRef() {
+    const url = document.getElementById('ref-link').value;
+    navigator.share({ title: 'PATREOAIX', text: 'Join me on PATREOAIX!', url }).catch(() => {});
+}
+</script>
+{% endblock %}

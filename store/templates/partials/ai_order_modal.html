@@ -1,0 +1,44 @@
+<!-- ═══ ORDER MODAL ═══ -->
+<div id="order-modal" class="px-modal hidden" role="dialog" aria-modal="true" aria-labelledby="om-title">
+    <div class="px-card w-full max-w-md relative max-h-[92vh] overflow-y-auto">
+        <div class="px-card-h">
+            <div>
+                <h3 id="om-title" class="text-[15px] font-semibold px-strong">Place order</h3>
+                <p class="text-[11px] px-muted">Market execution with stop loss and take profit</p>
+            </div>
+            <button type="button" onclick="closeOrder()" class="header-icon-btn" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-4 space-y-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2"><span id="om-sym" class="font-semibold px-strong">—</span><span id="om-sig" class="sig">—</span></div>
+                <span class="text-[12px] px-muted">Price <span id="om-price" class="px-num px-strong font-semibold">—</span></span>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <label class="block"><span class="block text-[12px] px-dim mb-1.5">Stop loss</span><input id="om-sl" type="number" step="any" class="px-input w-full px-num"></label>
+                <label class="block"><span class="block text-[12px] px-dim mb-1.5">Take profit</span><input id="om-tp" type="number" step="any" class="px-input w-full px-num"></label>
+            </div>
+            <div>
+                <span class="block text-[12px] px-dim mb-1.5">Risk per trade <span class="px-muted">(of equity <span id="om-equity" class="px-num">—</span>)</span></span>
+                <div class="grid grid-cols-4 gap-2" id="om-risk">
+                    <button type="button" class="risk-btn" data-r="0.5">0.5%</button><button type="button" class="risk-btn on" data-r="1">1%</button><button type="button" class="risk-btn" data-r="2">2%</button><button type="button" class="risk-btn" data-r="3">3%</button>
+                </div>
+            </div>
+            <div>
+                <span class="block text-[12px] px-dim mb-1.5">Volume (lots)</span>
+                <div class="flex items-center gap-2">
+                    <button type="button" class="header-icon-btn" onclick="stepLots(-1)" aria-label="Less"><i class="fa-solid fa-minus"></i></button>
+                    <input id="om-lots" type="number" min="0.01" step="0.01" value="0.01" class="px-input flex-1 text-center px-num font-semibold" style="font-size:16px">
+                    <button type="button" class="header-icon-btn" onclick="stepLots(1)" aria-label="More"><i class="fa-solid fa-plus"></i></button>
+                </div>
+            </div>
+            <div class="rounded-lg p-3 space-y-1.5 text-[12px]" style="background:var(--px-panel-2);border:1px solid var(--px-line-soft)">
+                <div class="flex justify-between"><span class="px-dim">Margin required</span><span id="om-margin" class="px-num px-strong font-semibold">—</span></div>
+                <div class="flex justify-between"><span class="px-dim">Loss if stop loss hits</span><span id="om-loss" class="px-num px-down font-semibold">—</span></div>
+                <div class="flex justify-between"><span class="px-dim">Profit if take profit hits</span><span id="om-profit" class="px-num px-up font-semibold">—</span></div>
+                <div class="flex justify-between"><span class="px-dim">Reward : risk</span><span id="om-rr" class="px-num px-strong font-semibold">—</span></div>
+            </div>
+            <p id="om-warn" class="hidden text-[12px] rounded-lg p-2.5" style="background:var(--px-down-soft);color:var(--px-down)"></p>
+            <button id="om-confirm" type="button" class="px-btn px-btn-primary w-full" style="height:44px"><i class="fa-solid fa-bolt text-[11px]"></i><span>Confirm order</span></button>
+        </div>
+    </div>
+</div>

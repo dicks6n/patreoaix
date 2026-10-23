@@ -1,0 +1,59 @@
+{% comment %}
+Site skin for pages built before the redesign: maps their cards, panels, inputs and accent
+   gradients onto the shared design tokens. Visual only — no markup or behaviour depends on it.
+   Include once inside the content block.
+{% endcomment %}
+<style>
+    #loading-spinner { background: color-mix(in srgb, var(--px-bg) 92%, transparent) !important; }
+    main .trade-card, main .funded-card, main .digits-card, main .digits-card-amber, main .digits-card-blue,
+    main .bg-cardBg, main .rounded-2xl.bg-slate-900, main .rounded-2xl.bg-slate-900\/80, main .rounded-3xl.bg-slate-900 {
+        background: var(--px-panel) !important;
+        border: 1px solid var(--px-line) !important;
+        border-radius: 12px !important;
+        box-shadow: var(--px-shadow) !important;
+        -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+    }
+    main .digits-card-amber::before { display: none; }
+    main .rounded-3xl { border-radius: 12px; }
+    main .rounded-2xl { border-radius: 12px; }
+    main .rounded-xl { border-radius: 9px; }
+    main .font-black { font-weight: 700; }
+    /* inner panels */
+    main .bg-slate-950, main .bg-slate-950\/40, main .bg-slate-950\/50, main .bg-slate-950\/60, main .bg-slate-950\/70, main .bg-slate-950\/80,
+    main .bg-slate-900\/60, main .stat-block, main .metric-tile, main .bg-\[\#090d16\] {
+        background-color: var(--px-panel-2) !important;
+    }
+    main .bg-slate-800, main .bg-slate-800\/60, main .bg-slate-800\/80 { background-color: var(--px-hover) !important; }
+    main [class*="border-slate-8"], main [class*="border-slate-7"], main [class*="border-indigo-500\/1"], main [class*="border-indigo-500\/2"],
+    main [class*="border-indigo-500\/3"], main [class*="border-indigo-8"], main [class*="border-amber-8"], main [class*="border-blue-8"],
+    main .divide-slate-800\/60 > *, main .divide-slate-800\/40 > * { border-color: var(--px-line) !important; }
+    main .bg-gradient-to-r.from-indigo-950\/60 { background: var(--px-panel) !important; border-color: var(--px-line) !important; }
+    /* section header bars (indigo/emerald gradients) → quiet panel headers */
+    main .bg-gradient-to-r.from-indigo-600.via-purple-600, main .bg-gradient-to-r.from-emerald-600.via-teal-600 {
+        background: var(--px-panel-2) !important; border-bottom: 1px solid var(--px-line);
+    }
+    main .bg-gradient-to-r.from-indigo-600.via-purple-600 *, main .bg-gradient-to-r.from-emerald-600.via-teal-600 * { color: var(--px-text) !important; }
+    main .bg-gradient-to-r.from-emerald-600.via-teal-600 p { color: var(--px-dim) !important; }
+    /* primary buttons → site accent */
+    main .bg-gradient-to-r.from-indigo-600.to-purple-600, main .bg-indigo-600, main .bg-gradient-to-r.from-amber-600 {
+        background: var(--px-accent) !important; color: var(--px-accent-ink) !important; box-shadow: none !important;
+    }
+    main .bg-gradient-to-r.from-indigo-600.to-purple-600 *, main .bg-indigo-600 * { color: var(--px-accent-ink) !important; }
+    main .bg-indigo-600:hover, main .bg-gradient-to-r.from-indigo-600.to-purple-600:hover { filter: brightness(1.06); }
+    main .text-indigo-400, main .text-indigo-300, main .text-amber-400, main .text-amber-300 { color: var(--px-accent) !important; }
+    main .text-slate-300, main .text-slate-400 { color: var(--px-dim); }
+    main .text-slate-500 { color: var(--px-mute); }
+    main .text-brandGreen { color: var(--px-up) !important; }
+    /* form controls */
+    main input:not([type=checkbox]):not([type=radio]):not([type=range]), main select, main textarea {
+        background-color: var(--px-panel-2) !important; border-color: var(--px-line) !important; color: var(--px-text) !important;
+    }
+    main input:focus, main select:focus, main textarea:focus { border-color: var(--px-accent) !important; outline: none; }
+    main table thead tr { background: var(--px-panel-2) !important; }
+    main tbody tr:hover { background: var(--px-hover) !important; }
+    /* helpers used by the additions on these pages */
+    .px-chip-btn { cursor: pointer; border-radius: 6px; padding: 1px 4px; transition: background-color .12s ease; }
+    .px-chip-btn:hover { background: var(--px-accent-soft); }
+    tr.px-next-row td { background: var(--px-accent-soft) !important; }
+    tr.px-past-row td { opacity: .5; }
+</style>

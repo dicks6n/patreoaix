@@ -1,0 +1,648 @@
+{% extends 'base_dashboard.html' %}
+{% load static %}
+
+{% block title %}My Portfolio - PATREOAIX{% endblock %}
+
+{% block content %}
+{% include 'partials/legacy_skin.html' %}
+<!-- ========================================== -->
+<!-- LOADING SPINNER -->
+<!-- ========================================== -->
+<div id="loading-spinner" class="fixed inset-0 z-[9999] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center transition-opacity duration-500">
+    <div class="relative flex items-center justify-center">
+        <div class="w-20 h-20 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin"></div>
+        <div class="absolute w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center animate-pulse">
+            <div class="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
+        </div>
+    </div>
+    <div class="mt-5 text-center space-y-1">
+        <p class="text-xs font-mono tracking-widest text-indigo-300 uppercase animate-pulse">Loading Portfolio</p>
+        <p class="text-[10px] font-mono text-slate-500">Syncing live positions & balances...</p>
+    </div>
+</div>
+
+<style>
+    .spinner-hidden { opacity: 0; pointer-events: none; visibility: hidden; }
+    
+    .portfolio-card {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 27, 75, 0.4) 100%);
+        border: 1px solid rgba(99, 102, 241, 0.15);
+        border-radius: 20px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+    }
+    
+    @media (max-width: 640px) {
+        .portfolio-card { border-radius: 16px; }
+    }
+    
+    .pnl-positive { color: #22c55e !important; }
+    .pnl-negative { color: #ef4444 !important; }
+    
+    .asset-icon {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+    
+    .asset-gold { background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); color: #f59e0b; }
+    .asset-fx { background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); color: #3b82f6; }
+    .asset-crypto { background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); color: #f59e0b; }
+    .asset-synthetic { background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.3); color: #8b5cf6; }
+    .asset-index { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; }
+    
+    .metric-card {
+        background: rgba(15, 23, 42, 0.8);
+        border: 1px solid rgba(99, 102, 241, 0.15);
+        border-radius: 16px;
+        padding: 16px;
+        transition: all 0.2s ease;
+    }
+    
+    .metric-card:hover {
+        border-color: rgba(99, 102, 241, 0.3);
+        transform: translateY(-1px);
+    }
+    
+    .holdings-row:hover {
+        background: rgba(30, 41, 59, 0.4);
+    }
+    
+    .price-flash-up { animation: flashUp 0.4s ease; }
+    .price-flash-down { animation: flashDown 0.4s ease; }
+    @keyframes flashUp { 0%,100% { color: #22c55e; } 50% { color: #86efac; transform: scale(1.05); } }
+    @keyframes flashDown { 0%,100% { color: #ef4444; } 50% { color: #fca5a5; transform: scale(1.05); } }
+</style>
+
+<div class="space-y-5 pb-4">
+
+    <!-- ========================================== -->
+    <!-- HEADER BANNER -->
+    <!-- ========================================== -->
+    <div class="portfolio-card p-5 sm:p-6 relative overflow-hidden">
+        <div class="absolute -top-20 -right-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-20 -left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="relative z-10">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                <!-- Left: Title & Description -->
+                <div class="min-w-0">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-indigo-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                            <i class="fa-solid fa-briefcase text-white text-lg"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-xl sm:text-2xl font-black text-white">Portfolio</h1>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Manage your holdings & track real-time performance</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Balance & Live Badge -->
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    <div class="bg-slate-950/70 border border-slate-800/60 rounded-2xl px-4 py-3 text-center sm:text-right min-w-[140px]">
+                        <span class="text-[10px] text-slate-500 uppercase font-bold tracking-wider block">Total Value</span>
+                        <span id="portfolio-total" class="text-xl font-black text-emerald-400 font-mono leading-none mt-1 block">
+                            ${{ available_balance|default:"0.00" }}
+                        </span>
+                    </div>
+                    <div id="ws-badge" class="bg-amber-500/10 border border-amber-500/20 rounded-2xl px-4 py-3 flex items-center justify-center gap-2">
+                        <span id="ws-dot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                        <span id="ws-text" class="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Connecting</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- KEY METRICS GRID -->
+    <!-- ========================================== -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <!-- Total Profit -->
+        <div class="metric-card">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total Profit</span>
+                <div class="w-7 h-7 rounded-lg {% if total_profit >= 0 %}bg-emerald-500/10 border-emerald-500/20 text-emerald-400{% else %}bg-rose-500/10 border-rose-500/20 text-rose-400{% endif %} border flex items-center justify-center">
+                    <i class="fa-solid fa-chart-line text-[10px]"></i>
+                </div>
+            </div>
+            <div class="text-xl sm:text-2xl font-black font-mono {% if total_profit >= 0 %}text-emerald-400{% else %}text-rose-400{% endif %}">
+                {% if total_profit >= 0 %}+{% endif %}${{ total_profit|default:"0.00" }}
+            </div>
+            <span class="text-[10px] text-slate-500 font-mono mt-1 block">
+                {% if total_profit >= 0 %}▲ Net gain{% else %}▼ Net loss{% endif %}
+            </span>
+        </div>
+
+        <!-- Available Balance -->
+        <div class="metric-card">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Available</span>
+                <div class="w-7 h-7 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                    <i class="fa-solid fa-wallet text-[10px]"></i>
+                </div>
+            </div>
+            <div class="text-xl sm:text-2xl font-black font-mono text-white">
+                ${{ available_balance|default:"0.00" }}
+            </div>
+            <span class="text-[10px] text-slate-500 font-mono mt-1 block">Ready to trade</span>
+        </div>
+
+        <!-- Unrealized PnL -->
+        <div class="metric-card">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Open PnL</span>
+                <div class="w-7 h-7 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center">
+                    <i class="fa-solid fa-bolt text-[10px]"></i>
+                </div>
+            </div>
+            <div class="text-xl sm:text-2xl font-black font-mono {% if unrealized_pnl >= 0 %}text-emerald-400{% else %}text-rose-400{% endif %}">
+                {% if unrealized_pnl >= 0 %}+{% endif %}${{ unrealized_pnl|default:"0.00" }}
+            </div>
+            <span class="text-[10px] text-slate-500 font-mono mt-1 block">Floating positions</span>
+        </div>
+
+        <!-- Active Assets -->
+        <div class="metric-card">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Assets</span>
+                <div class="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center">
+                    <i class="fa-solid fa-layer-group text-[10px]"></i>
+                </div>
+            </div>
+            <div class="text-xl sm:text-2xl font-black font-mono text-white">
+                {{ active_assets_count|default:"0" }}
+            </div>
+            <span class="text-[10px] text-slate-500 font-mono mt-1 block">Across markets</span>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ASSET HOLDINGS SECTION -->
+    <!-- ========================================== -->
+    <div class="portfolio-card p-4 sm:p-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-4 border-b border-slate-800/60">
+            <div>
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-coins text-amber-400 text-sm"></i>
+                    Asset Holdings
+                </h3>
+                <p class="text-[11px] text-slate-400 mt-0.5">Live valuation updated every tick</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="toggleView('cards')" id="btn-view-cards" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[10px] font-bold transition">
+                    <i class="fa-solid fa-grip text-[9px] mr-1"></i> Cards
+                </button>
+                <button onclick="toggleView('table')" id="btn-view-table" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white text-[10px] font-bold transition border border-slate-700">
+                    <i class="fa-solid fa-list text-[9px] mr-1"></i> Table
+                </button>
+            </div>
+        </div>
+
+        <!-- Cards View (default) -->
+        <div id="holdings-cards-view" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for holding in holdings %}
+                <div class="bg-slate-950/60 border border-slate-800/60 rounded-xl p-4 hover:border-indigo-500/40 transition-all holdings-card" 
+                     data-symbol="{{ holding.symbol }}"
+                     data-amount="{{ holding.amount }}"
+                     data-avg-price="{{ holding.avg_price|default:'0' }}">
+                    <!-- Header Row -->
+                    <div class="flex items-start justify-between mb-3">
+                        <div class="flex items-center gap-3">
+                            <div class="asset-icon 
+                                {% if 'XAU' in holding.symbol or 'GOLD' in holding.symbol %}asset-gold
+                                {% elif 'BTC' in holding.symbol or 'ETH' in holding.symbol %}asset-crypto
+                                {% elif 'R_' in holding.symbol or 'HZ' in holding.symbol %}asset-synthetic
+                                {% elif 'SPX' in holding.symbol or 'DJI' in holding.symbol or 'NAS' in holding.symbol %}asset-index
+                                {% else %}asset-fx{% endif %}">
+                                {% if 'XAU' in holding.symbol or 'GOLD' in holding.symbol %}
+                                    <i class="fa-solid fa-coins"></i>
+                                {% elif 'BTC' in holding.symbol %}
+                                    <i class="fa-brands fa-bitcoin"></i>
+                                {% elif 'ETH' in holding.symbol %}
+                                    <i class="fa-brands fa-ethereum"></i>
+                                {% elif 'R_' in holding.symbol or 'HZ' in holding.symbol %}
+                                    <i class="fa-solid fa-wave-square"></i>
+                                {% elif 'SPX' in holding.symbol or 'DJI' in holding.symbol or 'NAS' in holding.symbol %}
+                                    <i class="fa-solid fa-chart-pie"></i>
+                                {% else %}
+                                    <i class="fa-solid fa-money-bill-transfer"></i>
+                                {% endif %}
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-sm font-bold text-white truncate">{{ holding.symbol }}</p>
+                                <p class="text-[10px] text-slate-500 font-mono">{{ holding.amount }} units</p>
+                            </div>
+                        </div>
+                        <span class="text-[9px] font-bold px-2 py-0.5 rounded-md
+                            {% if holding.pnl >= 0 %}bg-emerald-500/10 text-emerald-400 border border-emerald-500/20
+                            {% else %}bg-rose-500/10 text-rose-400 border border-rose-500/20{% endif %}">
+                            {% if holding.pnl >= 0 %}▲{% else %}▼{% endif %} {% widthratio holding.pnl holding.avg_price 100 %}%
+                        </span>
+                    </div>
+
+                    <!-- Metrics Grid -->
+                    <div class="grid grid-cols-2 gap-3 mb-3">
+                        <div class="bg-slate-900/60 rounded-lg p-2.5 border border-slate-800/40">
+                            <span class="text-[9px] text-slate-500 uppercase font-bold tracking-wider block">Avg Price</span>
+                            <span class="text-sm font-bold text-white font-mono mt-0.5 block">
+                                ${{ holding.avg_price|default:"0.00" }}
+                            </span>
+                        </div>
+                        <div class="bg-slate-900/60 rounded-lg p-2.5 border border-slate-800/40">
+                            <span class="text-[9px] text-slate-500 uppercase font-bold tracking-wider block">Current</span>
+                            <span class="text-sm font-bold text-white font-mono mt-0.5 block current-price" 
+                                  data-symbol="{{ holding.symbol }}">
+                                ${{ holding.current_value|default:"0.00" }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- PnL Row -->
+                    <div class="bg-slate-900/40 rounded-lg p-3 border border-slate-800/40 flex items-center justify-between">
+                        <span class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">P&L</span>
+                        <span class="text-base font-black font-mono {% if holding.pnl >= 0 %}text-emerald-400{% else %}text-rose-400{% endif %} position-pnl">
+                            {% if holding.pnl >= 0 %}+{% endif %}${{ holding.pnl|default:"0.00" }}
+                        </span>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="col-span-full bg-slate-950/40 border border-slate-800/60 rounded-2xl p-12 text-center space-y-3">
+                    <div class="w-16 h-16 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center mx-auto text-slate-500 text-2xl">
+                        <i class="fa-solid fa-inbox"></i>
+                    </div>
+                    <div class="space-y-1">
+                        <h5 class="text-base font-bold text-white">No holdings yet</h5>
+                        <p class="text-xs text-slate-500 max-w-md mx-auto">Start trading to see your assets appear here with live valuations.</p>
+                    </div>
+                    <a href="{% url 'trade' %}" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition shadow-lg shadow-emerald-600/20 mt-2">
+                        <i class="fa-solid fa-bolt text-[10px]"></i> Start Trading
+                    </a>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Table View (hidden by default) -->
+        <div id="holdings-table-view" class="hidden overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800 font-semibold">
+                    <tr>
+                        <th class="py-3 px-3">Asset</th>
+                        <th class="py-3 px-3">Amount</th>
+                        <th class="py-3 px-3">Avg Price</th>
+                        <th class="py-3 px-3">Current Value</th>
+                        <th class="py-3 px-3 text-right">P&L</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/50 font-mono text-slate-200">
+                    {% for holding in holdings %}
+                    <tr class="hover:bg-slate-800/30 transition-colors">
+                        <td class="py-3 px-3 font-bold flex items-center gap-2 text-white">
+                            <span class="w-2 h-2 rounded-full {% if holding.pnl >= 0 %}bg-emerald-400{% else %}bg-rose-400{% endif %}"></span>
+                            {{ holding.symbol }}
+                        </td>
+                        <td class="py-3 px-3 text-slate-300">{{ holding.amount }}</td>
+                        <td class="py-3 px-3 text-slate-400">${{ holding.avg_price|default:"0.00" }}</td>
+                        <td class="py-3 px-3 font-bold text-white current-price" data-symbol="{{ holding.symbol }}">${{ holding.current_value|default:"0.00" }}</td>
+                        <td class="py-3 px-3 text-right font-bold {% if holding.pnl >= 0 %}text-emerald-400{% else %}text-rose-400{% endif %} position-pnl">
+                            {% if holding.pnl >= 0 %}+{% endif %}${{ holding.pnl|default:"0.00" }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="py-12 text-center text-slate-500 text-sm">
+                            No active asset holdings found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Added: live MT5 account and open positions -->
+    <div class="portfolio-card p-5" id="px-live">
+        <div class="flex items-center justify-between gap-3 mb-4 flex-wrap">
+            <div>
+                <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-chart-column text-emerald-400 text-xs"></i> Live MT5 Positions</h3>
+                <p class="text-[10px] text-slate-500 mt-0.5">Your open trades, priced from the live feed</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <span id="px-live-upd" class="text-[10px] text-slate-500 font-mono">Loading…</span>
+                <a href="{% url 'mt5_terminal' %}" class="text-[11px] font-bold text-emerald-400 hover:underline">Open terminal <i class="fa-solid fa-arrow-right text-[9px]"></i></a>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+            <div class="metric-card"><span class="text-[10px] text-slate-400 font-bold uppercase block">Equity</span><span id="px-live-equity" class="text-base font-black font-mono text-white">—</span></div>
+            <div class="metric-card"><span class="text-[10px] text-slate-400 font-bold uppercase block">Floating P/L</span><span id="px-live-float" class="text-base font-black font-mono text-white">—</span></div>
+            <div class="metric-card"><span class="text-[10px] text-slate-400 font-bold uppercase block">Free Margin</span><span id="px-live-free" class="text-base font-black font-mono text-white">—</span></div>
+            <div class="metric-card"><span class="text-[10px] text-slate-400 font-bold uppercase block">Margin Level</span><span id="px-live-ml" class="text-base font-black font-mono text-white">—</span></div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800 font-semibold">
+                    <tr><th class="py-2 px-3">Symbol</th><th class="py-2 px-3">Type</th><th class="py-2 px-3">Volume</th><th class="py-2 px-3">Entry</th><th class="py-2 px-3">Price</th><th class="py-2 px-3 text-right">P/L</th></tr>
+                </thead>
+                <tbody id="px-live-rows" class="divide-y divide-slate-800/50 font-mono text-slate-200">
+                    <tr><td colspan="6" class="py-8 text-center text-slate-500">Loading positions…</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- QUICK ACTION CARDS -->
+    <!-- ========================================== -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <a href="{% url 'trade' %}" class="portfolio-card p-4 flex items-center gap-4 hover:border-emerald-500/40 transition group">
+            <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-lg group-hover:scale-110 transition">
+                <i class="fa-solid fa-chart-line"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="text-sm font-bold text-white">Open Trade</p>
+                <p class="text-[10px] text-slate-500 mt-0.5">Execute a new position</p>
+            </div>
+            <i class="fa-solid fa-chevron-right text-slate-500 group-hover:text-emerald-400 transition text-[10px]"></i>
+        </a>
+
+        <a href="{% url 'trade_history' %}" class="portfolio-card p-4 flex items-center gap-4 hover:border-indigo-500/40 transition group">
+            <div class="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 text-lg group-hover:scale-110 transition">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="text-sm font-bold text-white">Trade History</p>
+                <p class="text-[10px] text-slate-500 mt-0.5">View past performance</p>
+            </div>
+            <i class="fa-solid fa-chevron-right text-slate-500 group-hover:text-indigo-400 transition text-[10px]"></i>
+        </a>
+
+        <a href="{% url 'funding_deposit' %}" class="portfolio-card p-4 flex items-center gap-4 hover:border-amber-500/40 transition group">
+            <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 text-lg group-hover:scale-110 transition">
+                <i class="fa-solid fa-wallet"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="text-sm font-bold text-white">Deposit Funds</p>
+                <p class="text-[10px] text-slate-500 mt-0.5">Add to your balance</p>
+            </div>
+            <i class="fa-solid fa-chevron-right text-slate-500 group-hover:text-amber-400 transition text-[10px]"></i>
+        </a>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // ==========================================
+    // VIEW TOGGLE (Cards vs Table)
+    // ==========================================
+    function toggleView(view) {
+        const cardsView = document.getElementById('holdings-cards-view');
+        const tableView = document.getElementById('holdings-table-view');
+        const btnCards = document.getElementById('btn-view-cards');
+        const btnTable = document.getElementById('btn-view-table');
+
+        if (view === 'cards') {
+            cardsView.classList.remove('hidden');
+            tableView.classList.add('hidden');
+            btnCards.className = 'px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[10px] font-bold transition';
+            btnTable.className = 'px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white text-[10px] font-bold transition border border-slate-700';
+        } else {
+            cardsView.classList.add('hidden');
+            tableView.classList.remove('hidden');
+            btnTable.className = 'px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[10px] font-bold transition';
+            btnCards.className = 'px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white text-[10px] font-bold transition border border-slate-700';
+        }
+    }
+
+    // ==========================================
+    // LIVE PRICE UPDATES
+    // ==========================================
+    const portfolioPrices = {};
+    
+    // Init prices from holdings
+    document.querySelectorAll('.holdings-card').forEach(card => {
+        const symbol = card.getAttribute('data-symbol');
+        const currentPrice = card.querySelector('.current-price');
+        if (symbol && currentPrice) {
+            const price = parseFloat(currentPrice.textContent.replace('$', '').replace(/,/g, ''));
+            if (!isNaN(price)) portfolioPrices[symbol] = price;
+        }
+    });
+
+    // Symbol mapping to Deriv WS
+    const SYMBOL_MAP = {
+        'XAUUSD': 'frxXAUUSD',
+        'XAU/USD': 'frxXAUUSD',
+        'GOLD': 'frxXAUUSD',
+        'BTCUSD': 'cryBTCUSD',
+        'BTC/USD': 'cryBTCUSD',
+        'ETHUSD': 'cryETHUSD',
+        'ETH/USD': 'cryETHUSD',
+        'EURUSD': 'frxEURUSD',
+        'EUR/USD': 'frxEURUSD',
+        'GBPUSD': 'frxGBPUSD',
+        'GBP/USD': 'frxGBPUSD',
+        'USDJPY': 'frxUSDJPY',
+        'USD/JPY': 'frxUSDJPY',
+        'R_100': 'R_100',
+        'R_75': 'R_75',
+        'R_50': 'R_50',
+        'R_10': 'R_10',
+    };
+
+    let ws = null;
+    let wsReconnectTimer = null;
+
+    function updateWSBadge(status) {
+        const badge = document.getElementById('ws-badge');
+        const dot = document.getElementById('ws-dot');
+        const text = document.getElementById('ws-text');
+        if (!badge || !dot || !text) return;
+
+        if (status === 'connected') {
+            badge.className = 'bg-emerald-500/10 border border-emerald-500/20 rounded-2xl px-4 py-3 flex items-center justify-center gap-2';
+            dot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+            text.className = 'text-[10px] font-bold text-emerald-400 uppercase tracking-wider';
+            text.textContent = 'Live';
+        } else if (status === 'connecting') {
+            badge.className = 'bg-amber-500/10 border border-amber-500/20 rounded-2xl px-4 py-3 flex items-center justify-center gap-2';
+            dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+            text.className = 'text-[10px] font-bold text-amber-400 uppercase tracking-wider';
+            text.textContent = 'Connecting';
+        } else {
+            badge.className = 'bg-rose-500/10 border border-rose-500/20 rounded-2xl px-4 py-3 flex items-center justify-center gap-2';
+            dot.className = 'w-2 h-2 rounded-full bg-rose-400';
+            text.className = 'text-[10px] font-bold text-rose-400 uppercase tracking-wider';
+            text.textContent = 'Offline';
+        }
+    }
+
+    function connectPortfolioWS() {
+        if (ws && ws.readyState === WebSocket.OPEN) return;
+        
+        updateWSBadge('connecting');
+        
+        try {
+            ws = new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=1089');
+        } catch (e) {
+            updateWSBadge('disconnected');
+            scheduleWSReconnect();
+            return;
+        }
+
+        ws.onopen = () => {
+            console.log('✅ Portfolio WS connected');
+            updateWSBadge('connected');
+            
+            // Subscribe to all symbols in portfolio
+            const symbols = Object.keys(portfolioPrices)
+                .map(s => SYMBOL_MAP[s.toUpperCase()] || null)
+                .filter(Boolean);
+            
+            if (symbols.length === 0) {
+                // Fallback: subscribe to some defaults
+                symbols.push('frxXAUUSD', 'cryBTCUSD', 'R_100');
+            }
+
+            ws.send(JSON.stringify({ forget_all: 'ticks' }));
+            setTimeout(() => {
+                symbols.forEach(s => {
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ ticks: s, subscribe: 1 }));
+                    }
+                });
+            }, 200);
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.msg_type === 'tick' && data.tick) {
+                    handleTick(data.tick);
+                }
+            } catch (e) {
+                console.error('WS parse error:', e);
+            }
+        };
+
+        ws.onclose = () => {
+            console.log('⚠️ Portfolio WS disconnected');
+            updateWSBadge('disconnected');
+            scheduleWSReconnect();
+        };
+
+        ws.onerror = () => {
+            updateWSBadge('disconnected');
+        };
+    }
+
+    function scheduleWSReconnect() {
+        if (wsReconnectTimer) clearTimeout(wsReconnectTimer);
+        wsReconnectTimer = setTimeout(connectPortfolioWS, 3000);
+    }
+
+    function handleTick(tick) {
+        const derivSymbol = tick.symbol;
+        const price = parseFloat(tick.quote);
+        if (isNaN(price)) return;
+
+        // Find internal symbol
+        const internalSymbol = Object.keys(portfolioPrices).find(
+            s => SYMBOL_MAP[s.toUpperCase()] === derivSymbol
+        );
+
+        if (!internalSymbol) return;
+
+        const oldPrice = portfolioPrices[internalSymbol] || price;
+        portfolioPrices[internalSymbol] = price;
+
+        // Update all matching current-price elements
+        document.querySelectorAll(`.current-price[data-symbol="${internalSymbol}"]`).forEach(el => {
+            const decimals = price >= 1000 ? 2 : price >= 1 ? 4 : 6;
+            el.textContent = `$${price.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
+            
+            el.classList.remove('price-flash-up', 'price-flash-down');
+            if (price > oldPrice) el.classList.add('price-flash-up');
+            else if (price < oldPrice) el.classList.add('price-flash-down');
+            
+            setTimeout(() => el.classList.remove('price-flash-up', 'price-flash-down'), 400);
+        });
+    }
+
+    // ==========================================
+    // INITIALIZE
+    // ==========================================
+    document.addEventListener('DOMContentLoaded', () => {
+        connectPortfolioWS();
+
+        // Hide spinner
+        setTimeout(() => {
+            const spinner = document.getElementById('loading-spinner');
+            if (spinner) {
+                spinner.classList.add('spinner-hidden');
+                setTimeout(() => spinner.remove(), 500);
+            }
+        }, 400);
+    });
+</script>
+<script>
+    // ── Added: live MT5 positions + account figures (same endpoints as the terminal) ──
+    (function () {
+        const $ = id => document.getElementById(id);
+        const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const money = v => (v < 0 ? '-$' : '$') + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const price = (sym, v) => (window.PX && PX.fmt) ? PX.fmt(sym, v) : Number(v).toFixed(v >= 100 ? 2 : 5);
+        const tone = (el, v) => { el.style.color = v > 0 ? 'var(--px-up)' : v < 0 ? 'var(--px-down)' : ''; };
+
+        async function load() {
+            try {
+                const [m, p] = await Promise.all([
+                    fetch('/api/mt5/metrics/', { credentials: 'same-origin' }).then(r => r.json()),
+                    fetch('/api/open-positions/', { credentials: 'same-origin' }).then(r => r.json()),
+                ]);
+                if (!m.success || !p.success) throw new Error('bad response');
+                $('px-live-equity').textContent = money(m.equity);
+                $('px-live-float').textContent = (m.floating_pnl > 0 ? '+' : '') + money(m.floating_pnl);
+                tone($('px-live-float'), m.floating_pnl);
+                $('px-live-free').textContent = money(m.free_margin);
+                $('px-live-ml').textContent = m.margin_level != null ? m.margin_level.toFixed(0) + '%' : '—';
+                if (m.margin_call) $('px-live-ml').style.color = 'var(--px-down)';
+                const total = $('portfolio-total');
+                if (total) total.textContent = money(m.equity);
+                const openCard = [...document.querySelectorAll('.metric-card')].find(c => /Open PnL/i.test(c.querySelector('span')?.textContent || ''));
+                const openVal = openCard && openCard.querySelector('.text-xl');
+                if (openVal) {
+                    openVal.textContent = (m.floating_pnl >= 0 ? '+' : '') + money(m.floating_pnl);
+                    openVal.classList.remove('text-emerald-400', 'text-rose-400');
+                    openVal.classList.add(m.floating_pnl >= 0 ? 'text-emerald-400' : 'text-rose-400');
+                }
+                const rows = p.positions || [];
+                $('px-live-rows').innerHTML = rows.length ? rows.map(r => `
+                    <tr>
+                        <td class="py-2.5 px-3 font-bold text-white">${esc(r.symbol)}</td>
+                        <td class="py-2.5 px-3" style="color:${r.direction === 'BUY' ? 'var(--px-up)' : 'var(--px-down)'}">${esc(r.direction)}</td>
+                        <td class="py-2.5 px-3">${Number(r.volume).toFixed(2)}</td>
+                        <td class="py-2.5 px-3 text-slate-400">${esc(price(r.symbol, r.entry))}</td>
+                        <td class="py-2.5 px-3">${esc(price(r.symbol, r.current_price))}</td>
+                        <td class="py-2.5 px-3 text-right font-bold" style="color:${r.pnl >= 0 ? 'var(--px-up)' : 'var(--px-down)'}">${r.pnl >= 0 ? '+' : ''}${money(r.pnl)}</td>
+                    </tr>`).join('')
+                    : '<tr><td colspan="6" class="py-8 text-center text-slate-500">No open positions.</td></tr>';
+                $('px-live-upd').textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            } catch (e) {
+                $('px-live-upd').textContent = 'Live data unavailable';
+                if ($('px-live-rows').textContent.includes('Loading')) {
+                    $('px-live-rows').innerHTML = '<tr><td colspan="6" class="py-8 text-center text-slate-500">Could not load positions.</td></tr>';
+                }
+            }
+        }
+        load();
+        setInterval(() => { if (!document.hidden) load(); }, 5000);
+    })();
+</script>
+{% endblock %}

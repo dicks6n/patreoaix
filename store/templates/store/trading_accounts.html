@@ -1,0 +1,182 @@
+{% extends 'base_dashboard.html' %}
+
+{% block title %}Trading & Exchange Accounts - PATREOAIX{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto py-6 px-4 space-y-6 pb-24 md:pb-6">
+
+    <!-- Header & Combined Total Balance (Synchronized Live with Dashboard WebSocket) -->
+    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-slate-800">
+        <div>
+            <h2 class="text-xl font-bold text-white tracking-wide">Trading & Exchange Accounts</h2>
+            <p class="text-xs text-slate-400 mt-0.5">Manage your main exchange wallet, broker trading accounts, and internal transfers</p>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 px-5 py-3 rounded-2xl flex items-center gap-4 shadow-xl">
+            <div>
+                <span class="block text-[10px] uppercase font-bold tracking-wider text-slate-500 font-mono">Total Net Balance</span>
+                <span id="total-balance-display" class="text-xl font-black text-emerald-400 font-mono">${{ total_balance|default:"0.00" }}</span>
+            </div>
+            <a href="{% url 'account_leverage' %}" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow flex items-center gap-1.5 cursor-pointer">
+                <i class="fa-solid fa-sliders text-[11px]"></i> Leverage
+            </a>
+        </div>
+    </div>
+
+    <!-- Split Account Breakdown Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 font-mono">
+        <!-- Exchange Balance Card (Main) -->
+        <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex items-center justify-between shadow-xl">
+            <div>
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">Exchange Account (Main)</span>
+                <span id="exchange-balance-display" class="text-2xl font-black text-white">${{ exchange_balance|default:"0.00" }}</span>
+            </div>
+            <div class="w-10 h-10 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex items-center justify-center text-indigo-400 font-bold text-xs">EX</div>
+        </div>
+
+        <!-- Trading Balance Card -->
+        <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex items-center justify-between shadow-xl">
+            <div>
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">Trading Account Aggregate</span>
+                <span id="trading-balance-display" class="text-2xl font-black text-emerald-400">${{ trading_balance|default:"0.00" }}</span>
+            </div>
+            <div class="w-10 h-10 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-center text-emerald-400 font-bold text-xs">TR</div>
+        </div>
+    </div>
+
+    <!-- Grid Layout: Active Trading Accounts & Internal Transfer Form -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left 2 Columns: Active Trading Accounts Table -->
+        <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                <h3 class="text-sm font-bold text-white uppercase tracking-wider font-mono">Broker Trading Accounts</h3>
+                <span class="text-xs text-slate-400 font-mono">Active Terminals</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs font-mono">
+                    <thead class="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800 font-semibold">
+                        <tr>
+                            <th class="py-3 px-3">Account ID</th>
+                            <th class="py-3 px-3">Type</th>
+                            <th class="py-3 px-3">Balance</th>
+                            <th class="py-3 px-3">Leverage</th>
+                            <th class="py-3 px-3 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/80">
+                        {% for account in trading_accounts %}
+                        <tr class="hover:bg-slate-800/40 transition-colors">
+                            <td class="py-3.5 px-3 font-bold text-white">{{ account.id }}</td>
+                            <td class="py-3.5 px-3 text-slate-300">{{ account.type }}</td>
+                            <td class="py-3.5 px-3 text-emerald-400 font-bold">${{ account.balance }}</td>
+                            <td class="py-3.5 px-3 text-slate-300">1:{{ account.leverage }}</td>
+                            <td class="py-3.5 px-3 text-right font-sans">
+                                <a href="{% url 'crypto_deposit' %}" class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] transition shadow cursor-pointer">
+                                    Deposit
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-6 text-slate-500 font-sans">No trading accounts found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Right Column: Internal Transfer Between Exchange & Trading -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+            <div class="pb-3 border-b border-slate-800">
+                <h3 class="text-sm font-bold text-white uppercase tracking-wider font-mono">Internal Transfer</h3>
+                <p class="text-[11px] text-slate-400 mt-0.5">Move funds instantly between Exchange and Trading</p>
+            </div>
+            <form method="POST" action="{% url 'transfer_between_accounts' %}" class="space-y-4 text-xs font-mono">
+                {% csrf_token %}
+                <div>
+                    <label class="block text-slate-400 font-bold uppercase mb-1.5">From Account</label>
+                    <select name="source_type" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:outline-none focus:border-indigo-500 cursor-pointer" required>
+                        <option id="source-exchange-option" value="EXCHANGE">Exchange Account (${{ exchange_balance|default:"0.00" }})</option>
+                        <option id="source-trading-option" value="TRADING">Trading Account (${{ trading_balance|default:"0.00" }})</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-slate-400 font-bold uppercase mb-1.5">To Account</label>
+                    <select name="target_type" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:outline-none focus:border-indigo-500 cursor-pointer" required>
+                        <option id="target-trading-option" value="TRADING">Trading Account (${{ trading_balance|default:"0.00" }})</option>
+                        <option id="target-exchange-option" value="EXCHANGE">Exchange Account (${{ exchange_balance|default:"0.00" }})</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-slate-400 font-bold uppercase mb-1.5">Amount (USD)</label>
+                    <input type="number" step="0.01" name="amount" placeholder="0.00" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:outline-none focus:border-indigo-500" required>
+                </div>
+                <button type="submit" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition shadow-lg cursor-pointer">
+                    Transfer Funds
+                </button>
+            </form>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const socketUrl = `${wsProtocol}//${window.location.host}/ws/trading/`;
+
+        function connectTradingSocket() {
+            const tradingSocket = new WebSocket(socketUrl);
+
+            tradingSocket.onopen = function () {
+                tradingSocket.send(JSON.stringify({ 'action': 'get_account_balance' }));
+            };
+
+            tradingSocket.onmessage = function (e) {
+                try {
+                    const data = JSON.parse(e.data);
+                    if (data.type === 'account_info' && data.data) {
+                        updateAccountBalances(data.data);
+                    }
+                } catch (err) { console.error("Parse error:", err); }
+            };
+
+            tradingSocket.onclose = function () {
+                setTimeout(connectTradingSocket, 3000);
+            };
+        }
+
+        function updateAccountBalances(accountData) {
+            const rawBalance = parseFloat(accountData.balance !== undefined ? accountData.balance : 0.00);
+            const exchangeBal = parseFloat(accountData.exchange_balance !== undefined ? accountData.exchange_balance : rawBalance);
+            const tradingBal = parseFloat(accountData.trading_balance !== undefined ? accountData.trading_balance : 0.00);
+            const totalBal = exchangeBal + tradingBal;
+
+            const format = (val) => `$${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+            const totalEl = document.getElementById("total-balance-display");
+            const exchangeEl = document.getElementById("exchange-balance-display");
+            const tradingEl = document.getElementById("trading-balance-display");
+            
+            const sourceEx = document.getElementById("source-exchange-option");
+            const sourceTr = document.getElementById("source-trading-option");
+            const targetTr = document.getElementById("target-trading-option");
+            const targetEx = document.getElementById("target-exchange-option");
+
+            if (totalEl) totalEl.innerText = format(totalBal);
+            if (exchangeEl) exchangeEl.innerText = format(exchangeBal);
+            if (tradingEl) tradingEl.innerText = format(tradingBal);
+
+            if (sourceEx) sourceEx.innerText = `Exchange Account (${format(exchangeBal)})`;
+            if (sourceTr) sourceTr.innerText = `Trading Account (${format(tradingBal)})`;
+            if (targetTr) targetTr.innerText = `Trading Account (${format(tradingBal)})`;
+            if (targetEx) targetEx.innerText = `Exchange Account (${format(exchangeBal)})`;
+        }
+
+        connectTradingSocket();
+    });
+</script>
+{% endblock %}

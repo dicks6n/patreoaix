@@ -1,0 +1,105 @@
+{% extends 'base_dashboard.html' %}
+
+{% block content %}
+<div class="space-y-6 pb-12">
+
+    <!-- ========================================== -->
+    <!-- 🧠 AI PATTERN DETECTION HERO BANNER -->
+    <!-- ========================================== -->
+    <div class="bg-gradient-to-r from-slate-900 via-indigo-950/80 to-slate-900 border border-indigo-500/30 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
+        <div class="absolute -top-12 -right-12 w-56 h-56 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+            <div>
+                <div class="flex items-center gap-3">
+                    <h2 class="text-xl font-black text-white tracking-wide">AI Pattern Detection</h2>
+                    <span class="px-3 py-1 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-2 font-mono">
+                        <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span> 
+                        XAUUSD / Gold Engine
+                    </span>
+                </div>
+                <p class="text-xs text-slate-400 mt-1">Advanced machine learning candlestick pattern recognition & live asset analysis</p>
+            </div>
+        </div>
+    </div>
+
+    {% if is_gold %}
+        <!-- ========================================== -->
+        <!-- 🪙 ACTIVE ASSET VERIFIED BANNER -->
+        <!-- ========================================== -->
+        <div class="bg-slate-900/80 border border-slate-800/80 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 text-lg">
+                    <i class="fa-solid fa-coins"></i>
+                </div>
+                <div>
+                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Active Asset Verified</span>
+                    <h6 class="text-sm font-bold text-white font-mono mt-0.5">{{ asset_name }}</h6>
+                </div>
+            </div>
+            <span class="px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5 font-mono">
+                <i class="fa-solid fa-check-circle text-[10px]"></i> Live Analysis Active
+            </span>
+        </div>
+
+        <!-- Section Header -->
+        <div class="flex items-center justify-between pt-2">
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Detected Candlestick Signals</h3>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 📊 PATTERN CARDS GRID -->
+        <!-- ========================================== -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for item in patterns %}
+            <div class="bg-slate-900/80 border border-slate-800/80 rounded-2xl p-5 shadow-xl relative overflow-hidden flex flex-col justify-between">
+                <div>
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl {% if item.bias == 'Bullish' %}bg-emerald-500/10 border border-emerald-500/20 text-emerald-400{% elif item.bias == 'Bearish' %}bg-rose-500/10 border border-rose-500/20 text-rose-400{% else %}bg-slate-800 border border-slate-700 text-slate-400{% endif %} flex items-center justify-center text-lg">
+                                {% if item.bias == 'Bullish' %}
+                                    <i class="fa-solid fa-arrow-trend-up"></i>
+                                {% elif item.bias == 'Bearish' %}
+                                    <i class="fa-solid fa-arrow-trend-down"></i>
+                                {% else %}
+                                    <i class="fa-solid fa-arrows-left-right"></i>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-bold text-white font-mono">{{ item.pattern }}</h3>
+                                <span class="text-[11px] text-slate-400 mt-0.5 block">Candlestick Signal</span>
+                            </div>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold {% if item.bias == 'Bullish' %}bg-emerald-500/10 text-emerald-400 border border-emerald-500/20{% elif item.bias == 'Bearish' %}bg-rose-500/10 text-rose-400 border border-rose-500/20{% else %}bg-slate-800 text-slate-300 border border-slate-700{% endif %} font-mono">
+                            {{ item.bias }}
+                        </span>
+                    </div>
+
+                    <div class="mt-4 p-3 bg-slate-950/60 border border-slate-800/80 rounded-xl">
+                        <span class="text-[10px] text-slate-400 font-medium block uppercase tracking-wider mb-1">Signal Description</span>
+                        <p class="text-xs text-slate-200 font-sans leading-relaxed">{{ item.signal }}</p>
+                    </div>
+                </div>
+
+                <div class="mt-5 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-circle-dot text-[8px] text-indigo-400 animate-pulse"></i> Real-time Feed</span>
+                    <span class="text-indigo-300 font-bold">Gold Engine</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <!-- ========================================== -->
+        <!-- ⚠️ EMPTY STATE CARD -->
+        <!-- ========================================== -->
+        <div class="bg-slate-900/80 border border-slate-800/80 rounded-2xl p-12 text-center shadow-xl relative overflow-hidden">
+            <div class="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 text-2xl mx-auto mb-4 shadow-inner">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 class="text-base font-bold text-white mb-1">No Gold Feed Detected</h3>
+            <p class="text-xs text-slate-400 max-w-md mx-auto">The analysis engine is currently scanning, but no valid XAUUSD/Gold stream is active.</p>
+        </div>
+    {% endif %}
+
+</div>
+{% endblock %}

@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PATREOAIX - Pro Trading AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-[#070b12] text-slate-100 font-sans min-h-screen flex">
+
+    <!-- Sidebar Navigation -->
+    <aside class="w-64 bg-[#0a0f1d] border-r border-slate-800/70 flex flex-col justify-between shrink-0 hidden md:flex">
+        <div class="p-6">
+            <!-- Brand Logo -->
+            <div class="flex items-center gap-3 mb-8">
+                <div class="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-lg">
+                    S
+                </div>
+                <div>
+                    <h2 class="font-bold tracking-wider text-sm leading-tight text-white">PATREOAIX</h2>
+                    <p class="text-[10px] text-slate-400 font-semibold tracking-widest uppercase">PRO TRADING AI</p>
+                </div>
+            </div>
+
+            <!-- Main Menu -->
+            <div class="space-y-6">
+                <div>
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-3">MAIN MENU</p>
+                    <nav class="space-y-1">
+                        <a href="{% url 'home' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-800/60 text-emerald-400 font-semibold text-xs border border-slate-700/50">
+                            <i class="fa-solid fa-chart-pie w-4"></i> Overview
+                        </a>
+                        <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs transition">
+                            <i class="fa-solid fa-chart-line w-4"></i> Market Analysis
+                        </a>
+                        <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs transition">
+                            <i class="fa-solid fa-signal w-4"></i> Candlestick Signals
+                        </a>
+                        <a href="{% url 'ai_prediction_models' %}" class="flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs transition">
+                            <div class="flex items-center gap-3">
+                                <i class="fa-solid fa-brain w-4"></i> AI Models
+                            </div>
+                            <span class="px-1.5 py-0.5 rounded text-[9px] bg-indigo-500/20 text-indigo-400 font-bold">AI</span>
+                        </a>
+                        <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs transition">
+                            <i class="fa-solid fa-book w-4"></i> Trade Journal
+                        </a>
+                    </nav>
+                </div>
+
+                <div>
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-3">SYSTEM</p>
+                    <nav class="space-y-1">
+                        <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs transition">
+                            <i class="fa-solid fa-gear w-4"></i> Settings
+                        </a>
+                        <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/40 text-xs transition">
+                            <i class="fa-solid fa-circle-question w-4"></i> Help & API Docs
+                        </a>
+                    </nav>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Profile Footer -->
+        <div class="p-4 border-t border-slate-800/70 bg-[#070b12]/50 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center font-bold text-xs text-emerald-400">
+                    {{ user.username|default:"CA"|slice:":2"|upper }}
+                </div>
+                <div>
+                    <p class="text-xs font-bold text-slate-200">{{ user.username|default:"Trader" }}</p>
+                    <p class="text-[10px] text-emerald-400 font-medium">Pro Plan Active</p>
+                </div>
+            </div>
+            <a href="{% url 'logout' %}" class="text-slate-500 hover:text-slate-300 text-xs">
+                <i class="fa-solid fa-right-from-bracket"></i>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="flex-1 flex flex-col min-w-0">
+        
+        <!-- Header -->
+        <header class="border-b border-slate-800/70 bg-[#0a0f1d] px-8 py-4 flex items-center justify-between gap-4">
+            <!-- Search Bar -->
+            <div class="relative max-w-md w-full">
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                <input type="text" placeholder="Search signals, models, pairs..." class="w-full bg-[#070b12] border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-slate-700">
+            </div>
+
+            <div class="flex items-center gap-3">
+                <div id="ws-header-status" class="px-3 py-1.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> MARKETS OPEN
+                </div>
+                <button class="w-9 h-9 rounded-xl bg-[#070b12] border border-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition">
+                    <i class="fa-regular fa-bell text-xs"></i>
+                </button>
+                <a href="{% url 'ai_prediction_models' %}" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition flex items-center gap-2 shadow-lg shadow-emerald-500/20">
+                    <i class="fa-solid fa-bolt"></i> AI Signals
+                </a>
+            </div>
+        </header>
+
+        <!-- Body Dashboard Content -->
+        <main class="flex-1 p-8 space-y-6 overflow-y-auto">
+
+            <!-- Hero Section: Live Deriv Engine Stream -->
+            <section class="bg-[#0a0f1d] border border-slate-800/80 rounded-2xl p-6 shadow-xl">
+                
+                <!-- Section Header Controls -->
+                <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 border-b border-slate-800/60 pb-6">
+                    <div>
+                        <div class="flex items-center gap-3">
+                            <h2 class="text-xl font-bold text-white tracking-wide">Live Deriv Engine Stream</h2>
+                            <span id="hero-status-badge" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> LIVE CONNECTED
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-1">Streaming real-time ticks & instantaneous AI trade execution signals</p>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-3">
+                        <!-- Asset Selector -->
+                        <select id="asset-select" class="bg-[#070b12] border border-slate-800 rounded-xl px-4 py-2 text-xs font-semibold text-slate-200 focus:outline-none focus:border-indigo-500">
+                            <option value="Volatility 100 Index">Volatility 100 Index</option>
+                            <option value="Volatility 75 Index">Volatility 75 Index</option>
+                            <option value="Volatility 50 Index">Volatility 50 Index</option>
+                            <option value="Gold / USD (XAU)">Gold / USD (XAU)</option>
+                        </select>
+
+                        <!-- Predict Button -->
+                        <button id="btn-predict" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition flex items-center gap-2 shadow-lg shadow-indigo-600/20">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Predict
+                        </button>
+
+                        <!-- Connect Account Button -->
+                        <a href="{% url 'connect_deriv' %}" class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs transition flex items-center gap-2 shadow-lg shadow-red-600/20">
+                            <i class="fa-solid fa-plug"></i> Connect Account
+                        </a>
+
+                        <!-- Deposit Button -->
+                        <button class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition flex items-center gap-2">
+                            <i class="fa-solid fa-wallet"></i> Deposit
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 5 Data Display Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                    
+                    <!-- Card 1: Deriv Balance -->
+                    <div class="bg-[#070b12] border border-slate-800/80 rounded-xl p-4">
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">DERIV BALANCE</p>
+                        <p id="hero-deriv-balance" class="text-lg font-bold text-slate-100 font-mono">Loading...</p>
+                    </div>
+
+                    <!-- Card 2: Asset -->
+                    <div class="bg-[#070b12] border border-slate-800/80 rounded-xl p-4">
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">ASSET</p>
+                        <p id="hero-asset-name" class="text-sm font-bold text-indigo-400 truncate">Volatility 100 Index</p>
+                    </div>
+
+                    <!-- Card 3: Live Price -->
+                    <div class="bg-[#070b12] border border-slate-800/80 rounded-xl p-4">
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">LIVE PRICE</p>
+                        <p id="hero-live-price" class="text-lg font-bold text-emerald-400 font-mono">$----</p>
+                    </div>
+
+                    <!-- Card 4: Last Digit -->
+                    <div class="bg-[#070b12] border border-slate-800/80 rounded-xl p-4">
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">LAST DIGIT</p>
+                        <p id="hero-last-digit" class="text-lg font-bold text-amber-400 font-mono">-</p>
+                    </div>
+
+                    <!-- Card 5: AI Signal -->
+                    <div class="bg-[#070b12] border border-slate-800/80 rounded-xl p-4">
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">AI SIGNAL</p>
+                        <span id="hero-ai-signal" class="text-xs font-bold text-slate-400 bg-slate-800/50 px-2 py-1 rounded">WAITING (--%)</span>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- Secondary Stat Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Secondary Balance Card -->
+                <div class="bg-[#0a0f1d] border border-slate-800/80 rounded-2xl p-6 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-slate-400">Deriv Balance</p>
+                        <h3 id="secondary-deriv-balance" class="text-2xl font-bold text-white font-mono mt-1">$0.00</h3>
+                    </div>
+                    <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-xl">
+                        <i class="fa-solid fa-wallet"></i>
+                    </div>
+                </div>
+
+                <!-- Model Engine Card -->
+                <div class="bg-[#0a0f1d] border border-slate-800/80 rounded-2xl p-6 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-slate-400">Model Engine</p>
+                        <h3 class="text-lg font-bold text-white mt-1 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Gradient Boosting
+                        </h3>
+                    </div>
+                    <div class="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 text-xl">
+                        <i class="fa-solid fa-brain"></i>
+                    </div>
+                </div>
+
+                <!-- Auto-Trade Filter Card -->
+                <div class="bg-[#0a0f1d] border border-slate-800/80 rounded-2xl p-6 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-slate-400">Auto-Trade Filter</p>
+                        <h3 class="text-lg font-bold text-amber-400 font-mono mt-1">&ge; 62.0% Confidence</h3>
+                    </div>
+                    <div class="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 text-xl">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Predictions Table -->
+            <section class="bg-[#0a0f1d] border border-slate-800/80 rounded-2xl p-6 shadow-xl">
+                <div class="mb-6">
+                    <h3 class="text-lg font-bold text-white">Recent Predictions</h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Latest AI-generated market predictions streaming in real time</p>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead>
+                            <tr class="text-slate-400 border-b border-slate-800/80 uppercase font-semibold text-[11px] tracking-wider">
+                                <th class="py-3 px-4">SYMBOL / ASSET</th>
+                                <th class="py-3 px-4">AI PREDICTION</th>
+                                <th class="py-3 px-4">CONFIDENCE</th>
+                                <th class="py-3 px-4">LAST PRICE (DIGIT)</th>
+                                <th class="py-3 px-4">TIMESTAMP</th>
+                                <th class="py-3 px-4 text-right">QUICK ACTION</th>
+                            </tr>
+                        </thead>
+                        <tbody id="predictions-tbody">
+                            <!-- Loading Placeholder -->
+                            <tr id="table-loading-row">
+                                <td colspan="6" class="py-12 text-center text-slate-500">
+                                    <div class="flex items-center justify-center gap-3">
+                                        <i class="fa-solid fa-circle-notch animate-spin text-indigo-400 text-lg"></i>
+                                        <span>Connecting to live stream...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Footer -->
+        <footer class="border-t border-slate-800/70 bg-[#0a0f1d] px-8 py-4 flex items-center justify-between text-xs text-slate-500">
+            <p>&copy; 2026 PATREOAIX. All technical predictions generated by algorithmic ML models.</p>
+            <div class="flex items-center gap-4">
+                <a href="#" class="hover:text-slate-400 transition">Privacy</a>
+                <a href="#" class="hover:text-slate-400 transition">Terms</a>
+                <a href="#" class="hover:text-slate-400 transition">API</a>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Client WebSocket Integration JavaScript -->
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        const socketUrl = wsProtocol + window.location.host + '/ws/trading/';
+
+        // DOM Element Handlers
+        const heroBadge = document.getElementById('hero-status-badge');
+        const heroDerivBalance = document.getElementById('hero-deriv-balance');
+        const secondaryDerivBalance = document.getElementById('secondary-deriv-balance');
+        const heroAssetName = document.getElementById('hero-asset-name');
+        const heroLivePrice = document.getElementById('hero-live-price');
+        const heroLastDigit = document.getElementById('hero-last-digit');
+        const heroAiSignal = document.getElementById('hero-ai-signal');
+        
+        const predictionsTbody = document.getElementById('predictions-tbody');
+        const tableLoadingRow = document.getElementById('table-loading-row');
+        const assetSelect = document.getElementById('asset-select');
+        const predictBtn = document.getElementById('btn-predict');
+
+        let socket = null;
+
+        // Global function called when "Trade Now" / "Quick Action" is pressed
+        window.triggerDerivTrade = function(symbol, contractType) {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                alert("WebSocket connection is offline!");
+                return;
+            }
+
+            // Ensure Digit contract options automatically route to Volatility Indices
+            let tradeSymbol = symbol;
+            if (contractType.startsWith('DIGIT') && symbol.includes('frx')) {
+                tradeSymbol = 'R_100';
+            }
+
+            const confirmTrade = confirm(`Execute real trade on Deriv?\n\nContract: ${contractType}\nAsset: ${tradeSymbol}\nStake: $10.00 USD`);
+            if (confirmTrade) {
+                socket.send(JSON.stringify({
+                    'action': 'execute_trade',
+                    'symbol': tradeSymbol,
+                    'contract_type': contractType,
+                    'stake': 10.0
+                }));
+            }
+        };
+
+        function connectWebSocket() {
+            socket = new WebSocket(socketUrl);
+
+            socket.onopen = function () {
+                if (heroBadge) {
+                    heroBadge.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5";
+                    heroBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> LIVE CONNECTED';
+                }
+
+                // Request initial prediction stream for selected asset
+                const initialSymbol = assetSelect ? assetSelect.value : 'Volatility 100 Index';
+                socket.send(JSON.stringify({
+                    'action': 'predict_even_odd',
+                    'symbol': initialSymbol
+                }));
+            };
+
+            socket.onmessage = function (e) {
+                try {
+                    const data = JSON.parse(e.data);
+
+                    if (data.type === 'stream_update') {
+                        const acc = data.account_data || {};
+                        const res = data.result || {};
+
+                        // 1. Update Deriv Balance
+                        const formattedBalance = '$' + (acc.balance || '10,000.00') + ' ' + (acc.currency || 'USD');
+                        if (heroDerivBalance) heroDerivBalance.innerText = formattedBalance;
+                        if (secondaryDerivBalance) secondaryDerivBalance.innerText = formattedBalance;
+
+                        // 2. Update Live Price & Digit
+                        if (heroAssetName) heroAssetName.innerText = res.display_symbol || res.symbol || 'Volatility 100 Index';
+                        if (heroLivePrice) heroLivePrice.innerText = '$' + (res.last_price || '0.00');
+                        if (heroLastDigit) heroLastDigit.innerText = res.last_digit !== undefined ? res.last_digit : '-';
+
+                        // 3. Update AI Signal Card
+                        if (heroAiSignal) {
+                            const isEven = res.predicted_contract === 'DIGITEVEN';
+                            heroAiSignal.innerText = `${res.signal || 'BUY (EVEN)'} (${res.confidence || '60.0%'})`;
+                            heroAiSignal.className = isEven 
+                                ? "text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded"
+                                : "text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded";
+                        }
+
+                        // 4. Update Recent Predictions Table
+                        addPredictionRow(res);
+                    } 
+                    else if (data.type === 'trade_result') {
+                        const res = data.result;
+                        if (res.success) {
+                            alert(`🚀 Trade Placed on Deriv!\n\nContract ID: ${res.contract_id}\nTransaction ID: ${res.transaction_id}\nBuy Price: $${res.buy_price}\nBalance Remaining: $${res.balance_after}`);
+                        } else {
+                            alert(`⚠️ Deriv Trade Error:\n${res.error}`);
+                        }
+                    }
+                } catch (err) {
+                    console.error("❌ JS Parsing Error:", err);
+                }
+            };
+
+            socket.onclose = function () {
+                if (heroBadge) {
+                    heroBadge.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1.5";
+                    heroBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span> RECONNECTING';
+                }
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+
+        function addPredictionRow(res) {
+            if (!predictionsTbody) return;
+
+            // Remove loading row if present
+            if (tableLoadingRow && tableLoadingRow.parentNode) {
+                tableLoadingRow.remove();
+            }
+
+            const isEven = res.predicted_contract === 'DIGITEVEN';
+            const now = new Date().toLocaleTimeString();
+
+            const row = document.createElement('tr');
+            row.className = 'border-b border-slate-800/60 hover:bg-slate-900/40 transition font-mono';
+
+            row.innerHTML = `
+                <td class="py-3 px-4 font-sans font-bold text-slate-200">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full ${isEven ? 'bg-emerald-400' : 'bg-indigo-400'}"></span>
+                        ${res.display_symbol || res.symbol}
+                    </div>
+                </td>
+                <td class="py-3 px-4">
+                    <span class="px-2 py-0.5 rounded ${isEven ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'} font-bold">
+                        ${res.predicted_contract}
+                    </span>
+                </td>
+                <td class="py-3 px-4 text-emerald-400 font-bold">${res.confidence}</td>
+                <td class="py-3 px-4 text-slate-200 font-bold">$${res.last_price} <span class="text-indigo-400">(${res.last_digit})</span></td>
+                <td class="py-3 px-4 text-slate-400 font-sans text-[11px]">${now}</td>
+                <td class="py-3 px-4 text-right font-sans">
+                    <button onclick="triggerDerivTrade('${res.symbol}', '${res.predicted_contract}')" class="px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] transition shadow-md shadow-indigo-600/20">
+                        Trade Now
+                    </button>
+                </td>
+            `;
+
+            predictionsTbody.insertBefore(row, predictionsTbody.firstChild);
+            
+            // Limit table to 8 recent rows
+            if (predictionsTbody.children.length > 8) {
+                predictionsTbody.removeChild(predictionsTbody.lastChild);
+            }
+        }
+
+        // Trigger manual prediction on button click
+        if (predictBtn) {
+            predictBtn.addEventListener('click', function() {
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    const selectedSymbol = assetSelect ? assetSelect.value : 'Volatility 100 Index';
+                    socket.send(JSON.stringify({
+                        'action': 'predict_even_odd',
+                        'symbol': selectedSymbol
+                    }));
+                }
+            });
+        }
+
+        // Change asset live on dropdown select
+        if (assetSelect) {
+            assetSelect.addEventListener('change', function() {
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    socket.send(JSON.stringify({
+                        'action': 'predict_even_odd',
+                        'symbol': assetSelect.value
+                    }));
+                }
+            });
+        }
+
+        connectWebSocket();
+    });
+    </script>
+</body>
+</html>

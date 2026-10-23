@@ -1,0 +1,820 @@
+{% extends 'base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Dashboard · PATREOAIX{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block extra_head %}
+<style>
+    .px-card { background: var(--px-panel); border: 1px solid var(--px-line); border-radius: 12px; box-shadow: var(--px-shadow); }
+    .px-card-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--px-line); }
+    .px-card-t { font-size: 13px; font-weight: 600; color: var(--px-text); display: flex; align-items: center; gap: 8px; }
+    .px-label { font-size: 11px; font-weight: 500; color: var(--px-mute); text-transform: uppercase; letter-spacing: .08em; }
+    .px-num { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+    .px-muted { color: var(--px-mute); }
+    .px-dim { color: var(--px-dim); }
+    .px-strong { color: var(--px-text); }
+
+    .px-seg { display: inline-flex; padding: 3px; border-radius: 8px; background: var(--px-panel-2); border: 1px solid var(--px-line); gap: 2px; }
+    .px-seg button { height: 26px; padding: 0 10px; border-radius: 6px; font-size: 12px; font-weight: 600; color: var(--px-dim); white-space: nowrap; }
+    .px-seg button:hover { color: var(--px-text); }
+    .px-seg button.on { background: var(--px-panel); color: var(--px-text); box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+    html.light .px-seg button.on { box-shadow: 0 1px 2px rgba(16,24,40,.08); border: 1px solid var(--px-line); }
+
+    .px-stat { padding: 12px 14px; border-radius: 10px; background: var(--px-panel-2); border: 1px solid var(--px-line-soft); }
+    .px-action { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 6px; border-radius: 10px; background: var(--px-panel-2); border: 1px solid var(--px-line-soft); font-size: 12px; font-weight: 600; color: var(--px-text); transition: background-color .12s ease, border-color .12s ease; }
+    .px-action:hover { background: var(--px-hover); border-color: var(--px-line); }
+    .px-action i { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 14px; background: var(--px-accent-soft); color: var(--px-accent); }
+
+    .px-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .px-table th { text-align: right; font-size: 11px; font-weight: 500; color: var(--px-mute); padding: 10px 16px; white-space: nowrap; border-bottom: 1px solid var(--px-line); }
+    .px-table th:first-child, .px-table td:first-child { text-align: left; }
+    .px-table td { text-align: right; padding: 11px 16px; border-bottom: 1px solid var(--px-line-soft); white-space: nowrap; color: var(--px-text); }
+    .px-table tbody tr { transition: background-color .1s ease; }
+    .px-table tbody tr:hover { background: var(--px-hover); }
+    .px-table tbody tr:last-child td { border-bottom: 0; }
+    .px-table tr.clickable { cursor: pointer; }
+
+    .px-sym { display: flex; align-items: center; gap: 10px; }
+    .px-sym-ic { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; letter-spacing: .02em; flex-shrink: 0; }
+    .k-forex  { background: rgba(59,130,246,.12);  color: #60a5fa; }
+    .k-metal  { background: rgba(240,185,11,.12);  color: var(--px-accent); }
+    .k-energy { background: rgba(249,115,22,.12);  color: #fb923c; }
+    .k-crypto { background: rgba(139,92,246,.13);  color: #a78bfa; }
+    html.light .k-forex { color: #2563eb; } html.light .k-energy { color: #ea580c; } html.light .k-crypto { color: #7c3aed; }
+
+    .px-chg { display: inline-block; min-width: 70px; padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; text-align: center; }
+    .px-chg.px-up { background: var(--px-up-soft); } .px-chg.px-down { background: var(--px-down-soft); } .px-chg.px-flat { background: var(--px-panel-2); }
+
+    .px-range { position: relative; width: 110px; height: 4px; border-radius: 4px; background: var(--px-line); display: inline-block; vertical-align: middle; }
+    .px-range > span { position: absolute; top: -3px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: var(--px-text); border: 2px solid var(--px-panel); }
+
+    @keyframes flashUp { from { background: var(--px-up-soft); } to { background: transparent; } }
+    @keyframes flashDown { from { background: var(--px-down-soft); } to { background: transparent; } }
+    .flash-up { animation: flashUp .8s ease-out; } .flash-down { animation: flashDown .8s ease-out; }
+
+    .px-bar { height: 6px; border-radius: 6px; background: var(--px-line); overflow: hidden; }
+    .px-bar > span { display: block; height: 100%; border-radius: 6px; transition: width .4s ease, background-color .4s ease; }
+
+    .px-session { display: grid; grid-template-columns: 74px 1fr 64px; align-items: center; gap: 10px; font-size: 12px; }
+    .px-track { position: relative; height: 6px; border-radius: 6px; background: var(--px-line-soft); }
+    .px-track .w { position: absolute; top: 0; bottom: 0; border-radius: 6px; background: var(--px-mute); opacity: .35; }
+    .px-track .w.on { background: var(--px-up); opacity: .75; }
+    .px-track .now { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--px-accent); border-radius: 2px; }
+
+    .px-empty { padding: 36px 16px; text-align: center; color: var(--px-mute); font-size: 12px; }
+    .px-empty i { display: block; font-size: 20px; margin-bottom: 8px; opacity: .7; }
+
+    .px-skel { background: linear-gradient(90deg, var(--px-panel-2), var(--px-hover), var(--px-panel-2)); background-size: 200% 100%; animation: skel 1.2s ease-in-out infinite; border-radius: 6px; }
+    @keyframes skel { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+    .px-modal { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0,0,0,.6); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+    .px-modal.hidden { display: none; }
+    .px-input { width: 100%; height: 42px; padding: 0 12px; border-radius: 8px; background: var(--px-panel-2) !important; border: 1px solid var(--px-line) !important; color: var(--px-text) !important; font-size: 13px; outline: none; }
+    .px-input:focus { border-color: var(--px-accent) !important; }
+
+    #px-chart-wrap { min-height: 380px; }
+    @media (max-width: 640px) { #px-chart-wrap { min-height: 290px; } }
+    .blur-balance { filter: blur(8px); user-select: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-4 lg:space-y-5">
+
+    <!-- Greeting -->
+    <div class="flex items-end justify-between gap-3 flex-wrap">
+        <div>
+            <p class="text-[13px] px-muted" id="px-greet">Welcome back</p>
+            <h2 class="text-xl sm:text-2xl font-semibold px-strong tracking-tight">{{ user.first_name|default:user.username }}</h2>
+        </div>
+        {% if not trading_enabled %}
+        <span class="px-pill" style="color:var(--px-down);border-color:var(--px-down-soft)"><i class="fa-solid fa-circle-pause text-[10px]"></i>Trading is paused by the platform</span>
+        {% endif %}
+    </div>
+
+    <!-- ═══ ROW 1 · PORTFOLIO + ACCOUNT HEALTH ═══ -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5">
+
+        <section class="px-card lg:col-span-8 p-4 sm:p-5">
+            <div class="flex items-start justify-between gap-4">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2">
+                        <span class="px-label">Total portfolio value</span>
+                        <button type="button" onclick="toggleBalanceVisibility()" class="px-muted hover:opacity-80" aria-label="Hide balances">
+                            <i id="px-eye" class="fa-regular fa-eye text-[12px]"></i>
+                        </button>
+                    </div>
+                    <div class="mt-1.5 flex items-baseline gap-3 flex-wrap">
+                        <span class="px-num text-3xl sm:text-4xl font-semibold px-strong tracking-tight" data-balance id="px-grand" data-v="{{ grand_total|default:0|stringformat:'s' }}">${{ grand_total|floatformat:2 }}</span>
+                        <span class="text-sm font-medium px-dim">USD</span>
+                    </div>
+                    <p class="mt-1.5 text-[13px] px-dim">
+                        Floating P/L <span id="px-float" class="px-num font-semibold">—</span>
+                        <span class="px-muted mx-1.5">·</span>
+                        Equity <span id="px-equity-inline" class="px-num font-semibold px-strong" data-balance>—</span>
+                    </p>
+                </div>
+                <span class="hidden sm:block shrink-0"><a href="{% url 'portfolio' %}" class="px-btn px-btn-ghost sm">Portfolio <i class="fa-solid fa-arrow-right text-[10px]"></i></a></span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mt-5">
+                <div class="px-stat">
+                    <div class="flex items-center justify-between"><span class="text-[12px] px-dim">Exchange wallet</span><i class="fa-solid fa-wallet text-[11px] px-muted"></i></div>
+                    <p class="px-num text-lg font-semibold px-strong mt-1" data-balance data-v="{{ exchange_balance|default:0|stringformat:'s' }}">${{ exchange_balance|floatformat:2 }}</p>
+                </div>
+                <div class="px-stat">
+                    <div class="flex items-center justify-between"><span class="text-[12px] px-dim">Trading account</span><i class="fa-solid fa-chart-column text-[11px] px-muted"></i></div>
+                    <p class="px-num text-lg font-semibold px-strong mt-1" data-balance data-v="{{ trading_balance|default:0|stringformat:'s' }}">${{ trading_balance|floatformat:2 }}</p>
+                </div>
+                <div class="px-stat">
+                    <div class="flex items-center justify-between"><span class="text-[12px] px-dim">Connected brokers</span><i class="fa-solid fa-building-columns text-[11px] px-muted"></i></div>
+                    <p class="px-num text-lg font-semibold px-strong mt-1" data-balance data-v="{{ broker_total|default:0|stringformat:'s' }}">${{ broker_total|floatformat:2 }}</p>
+                    <p class="text-[10px] px-muted mt-0.5">Real accounts only — demo not counted</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-4 gap-2.5 mt-3">
+                <a href="{% url 'funding_deposit' %}" class="px-action"><i class="fa-solid fa-arrow-down"></i>Deposit</a>
+                <button type="button" onclick="openModal('withdrawal-modal')" class="px-action"><i class="fa-solid fa-arrow-up"></i>Withdraw</button>
+                <a href="{% url 'transfer_between_accounts' %}" class="px-action"><i class="fa-solid fa-right-left"></i>Transfer</a>
+                <a href="{% url 'trade' %}" class="px-action"><i class="fa-solid fa-chart-line"></i>Trade</a>
+            </div>
+        </section>
+
+        <section class="px-card lg:col-span-4 flex flex-col">
+            <div class="px-card-h">
+                <span class="px-card-t"><i class="fa-solid fa-heart-pulse px-muted text-[12px]"></i>Account health</span>
+                <span id="px-health-tag" class="px-pill sm">—</span>
+            </div>
+            <div class="p-4 space-y-4 flex-1">
+                <div>
+                    <div class="flex items-center justify-between text-[12px]">
+                        <span class="px-dim">Margin level</span>
+                        <span id="px-ml" class="px-num font-semibold px-strong">—</span>
+                    </div>
+                    <div class="px-bar mt-2"><span id="px-ml-bar" style="width:0%"></span></div>
+                    <div class="flex justify-between mt-1.5 text-[10px] px-muted px-num">
+                        <span id="px-so">Stop-out —</span><span id="px-mc">Margin call —</span>
+                    </div>
+                </div>
+                <dl class="grid grid-cols-2 gap-x-4 gap-y-3 text-[12px]">
+                    <div><dt class="px-dim">Balance</dt><dd id="px-m-balance" class="px-num font-semibold px-strong mt-0.5" data-balance>—</dd></div>
+                    <div><dt class="px-dim">Equity</dt><dd id="px-m-equity" class="px-num font-semibold px-strong mt-0.5" data-balance>—</dd></div>
+                    <div><dt class="px-dim">Used margin</dt><dd id="px-m-margin" class="px-num font-semibold px-strong mt-0.5">—</dd></div>
+                    <div><dt class="px-dim">Free margin</dt><dd id="px-m-free" class="px-num font-semibold px-strong mt-0.5">—</dd></div>
+                    <div><dt class="px-dim">Open positions</dt><dd id="px-m-count" class="px-num font-semibold px-strong mt-0.5">—</dd></div>
+                    <div><dt class="px-dim">Swap</dt><dd id="px-m-swap" class="px-num font-semibold px-strong mt-0.5">—</dd></div>
+                </dl>
+            </div>
+        </section>
+    </div>
+
+    <!-- ═══ ROW 2 · CHART + MOVERS / SESSIONS ═══ -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5">
+
+        <section class="px-card lg:col-span-8 overflow-hidden flex flex-col">
+            <div class="px-card-h flex-wrap">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="px-sym">
+                        <span id="px-c-ic" class="px-sym-ic k-metal">XAU</span>
+                        <div class="leading-tight">
+                            <select id="px-c-sym" class="bg-transparent font-semibold text-[14px] px-strong outline-none cursor-pointer pr-1" style="border:0;background:transparent!important;height:auto;padding:0"></select>
+                            <p class="text-[11px] px-muted" id="px-c-name">Gold</p>
+                        </div>
+                    </div>
+                    <div class="hidden sm:block pl-3 ml-1" style="border-left:1px solid var(--px-line)">
+                        <p class="px-num text-[17px] font-semibold px-strong" id="px-c-last">—</p>
+                        <p class="text-[12px] px-num" id="px-c-chg">—</p>
+                    </div>
+                </div>
+                <div class="px-seg" id="px-c-tf">
+                    <button data-tf="15m">15m</button><button data-tf="1h" class="on">1H</button><button data-tf="4h">4H</button><button data-tf="1d">1D</button><button data-tf="1w">1W</button>
+                </div>
+            </div>
+            <div class="sm:hidden flex items-baseline gap-3 px-4 pt-3">
+                <p class="px-num text-[17px] font-semibold px-strong" id="px-c-last-m">—</p>
+                <p class="text-[12px] px-num" id="px-c-chg-m">—</p>
+            </div>
+            <div class="grid grid-cols-3 gap-px text-[11px] px-4 pt-3">
+                <div><span class="px-muted">24h high</span> <span class="px-num px-strong" id="px-c-hi">—</span></div>
+                <div><span class="px-muted">24h low</span> <span class="px-num px-strong" id="px-c-lo">—</span></div>
+                <div class="text-right"><span class="px-muted">Spread</span> <span class="px-num px-strong" id="px-c-spr">—</span></div>
+            </div>
+            <div class="relative flex-1 mt-2" id="px-chart-wrap">
+                <div id="px-chart" class="absolute inset-0"></div>
+                <div id="px-chart-msg" class="hidden absolute inset-0 flex items-center justify-center text-xs px-muted"></div>
+            </div>
+        </section>
+
+        <div class="lg:col-span-4 grid grid-cols-1 gap-4 lg:gap-5 content-start">
+            <section class="px-card">
+                <div class="px-card-h">
+                    <span class="px-card-t"><i class="fa-solid fa-fire px-muted text-[12px]"></i>Top movers · 24h</span>
+                    <div class="px-seg" id="px-mv-seg"><button data-m="up" class="on">Gainers</button><button data-m="down">Losers</button></div>
+                </div>
+                <div id="px-movers" class="py-1">
+                    <div class="p-4 space-y-3"><div class="px-skel h-5"></div><div class="px-skel h-5"></div><div class="px-skel h-5"></div></div>
+                </div>
+            </section>
+
+            <section class="px-card">
+                <div class="px-card-h">
+                    <span class="px-card-t"><i class="fa-solid fa-globe px-muted text-[12px]"></i>Market sessions</span>
+                    <span class="text-[11px] px-muted px-num" id="px-sess-now"></span>
+                </div>
+                <div class="p-4 space-y-3.5" id="px-sessions"></div>
+            </section>
+        </div>
+    </div>
+
+    <!-- ═══ ROW 3 · MARKETS ═══ -->
+    <section class="px-card overflow-hidden">
+        <div class="px-card-h flex-wrap">
+            <span class="px-card-t"><i class="fa-solid fa-list px-muted text-[12px]"></i>Markets</span>
+            <div class="px-seg overflow-x-auto no-scrollbar max-w-full" id="px-mk-seg">
+                <button data-k="all" class="on">All</button><button data-k="forex">Forex</button><button data-k="metal">Metals</button><button data-k="energy">Energy</button><button data-k="crypto">Crypto</button>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="px-table">
+                <thead>
+                    <tr>
+                        <th>Instrument</th>
+                        <th>Bid</th>
+                        <th class="hidden sm:table-cell">Ask</th>
+                        <th class="hidden md:table-cell">Spread</th>
+                        <th>24h</th>
+                        <th class="hidden lg:table-cell">24h range</th>
+                        <th class="hidden md:table-cell" style="text-align:center">Last 24h</th>
+                        <th class="hidden xl:table-cell">Source</th>
+                        <th class="hidden sm:table-cell"></th>
+                    </tr>
+                </thead>
+                <tbody id="px-markets">
+                    <tr><td colspan="9"><div class="px-skel h-6 my-1"></div><div class="px-skel h-6 my-2"></div><div class="px-skel h-6 my-1"></div></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- ═══ ROW 4 · POSITIONS + HISTORY ═══ -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5">
+        <section class="px-card lg:col-span-7 overflow-hidden">
+            <div class="px-card-h">
+                <span class="px-card-t"><i class="fa-solid fa-layer-group px-muted text-[12px]"></i>Open positions <span id="px-pos-count" class="px-pill sm px-num">0</span></span>
+                <a href="{% url 'mt5_terminal' %}" class="text-[12px] font-semibold" style="color:var(--px-accent)">Terminal <i class="fa-solid fa-arrow-right text-[10px]"></i></a>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="px-table">
+                    <thead><tr><th>Symbol</th><th>Type</th><th class="hidden sm:table-cell">Volume</th><th class="hidden md:table-cell">Open</th><th>Current</th><th>Profit</th></tr></thead>
+                    <tbody id="px-positions"><tr><td colspan="6"><div class="px-skel h-6 my-1"></div></td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="px-card lg:col-span-5 overflow-hidden">
+            <div class="px-card-h">
+                <span class="px-card-t"><i class="fa-solid fa-clock-rotate-left px-muted text-[12px]"></i>Closed this week</span>
+                <span class="text-[12px] px-num font-semibold" id="px-week-pnl">—</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="px-table">
+                    <thead><tr><th>Symbol</th><th class="hidden sm:table-cell">Closed</th><th>Volume</th><th>Profit</th></tr></thead>
+                    <tbody id="px-history"><tr><td colspan="4"><div class="px-skel h-6 my-1"></div></td></tr></tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- ═══ ROW 5 · BROKERS + ACTIVITY ═══ -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5">
+        <section class="px-card lg:col-span-7 overflow-hidden">
+            <div class="px-card-h">
+                <span class="px-card-t"><i class="fa-solid fa-building-columns px-muted text-[12px]"></i>Linked accounts</span>
+                <div class="flex items-center gap-2">
+                    {% if broker_accounts %}<button type="button" id="bk-sync-all" class="px-btn px-btn-ghost sm" title="Refresh all balances"><i class="fa-solid fa-rotate text-[10px]"></i>Sync</button>{% endif %}
+                    <button type="button" onclick="openModal('connect-modal')" class="px-btn px-btn-ghost sm"><i class="fa-solid fa-plus text-[10px]"></i>Connect</button>
+                </div>
+            </div>
+            {% if broker_accounts %}
+            <div>
+                {% for b in broker_accounts %}
+                <div class="flex items-center gap-3 px-4 py-3" style="border-bottom:1px solid var(--px-line-soft)" data-bk="{{ b.account_id }}">
+                    <span class="px-sym-ic" style="{% if b.broker == 'DERIV' %}background:rgba(255,68,79,.12);color:#ff444f{% elif b.broker == 'BINANCE' %}background:rgba(240,185,11,.12);color:#f0b90b{% else %}background:var(--px-panel-2);color:var(--px-dim){% endif %};border:1px solid var(--px-line)">{% if b.broker == 'DERIV' %}<i class="fa-solid fa-d"></i>{% elif b.broker == 'BINANCE' %}<i class="fa-brands fa-bitcoin"></i>{% else %}{{ b.broker|slice:":3" }}{% endif %}</span>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-[13px] font-semibold px-strong truncate flex items-center gap-1.5">{{ b.label }}
+                            {% if b.broker == 'DERIV' %}<span class="text-[9px] font-bold px-1.5 py-0.5 rounded" style="{% if b.is_demo %}background:var(--px-accent-soft);color:var(--px-accent){% else %}background:var(--px-up-soft);color:var(--px-up){% endif %}">{{ b.kind }}</span>{% endif %}
+                        </p>
+                        <p class="text-[11px] px-muted truncate">
+                            {% if b.account_number %}#{{ b.account_number }} · {% endif %}
+                            {% if b.error %}<span class="px-down" title="{{ b.error }}">{{ b.error|truncatechars:90 }}</span>
+                            {% elif b.synced_at %}Synced {{ b.synced_at|timesince }} ago{% else %}Not synced yet{% endif %}
+                        </p>
+                    </div>
+                    <div class="text-right">
+                        <p class="px-num text-[13px] font-semibold px-strong" data-balance>{{ b.balance|floatformat:2 }} {{ b.currency }}</p>
+                        <p class="text-[10px] font-semibold {% if b.is_stale or b.error %}px-down{% else %}px-up{% endif %}">
+                            {% if b.error %}Error{% elif b.is_stale %}Stale{% else %}Live{% endif %}
+                        </p>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <button type="button" class="header-icon-btn" data-bk-sync="{{ b.account_id }}" title="Refresh balance" aria-label="Refresh balance" style="width:28px;height:28px"><i class="fa-solid fa-rotate text-[10px]"></i></button>
+                        <button type="button" class="header-icon-btn" data-bk-off="{{ b.account_id }}" data-bk-name="{{ b.label }} {{ b.account_number }}" title="Disconnect" aria-label="Disconnect" style="width:28px;height:28px"><i class="fa-solid fa-link-slash text-[10px]"></i></button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="px-empty"><i class="fa-solid fa-link-slash"></i>No broker or exchange accounts linked yet.</div>
+            {% endif %}
+            {% if binance_connected %}
+            <p class="px-4 py-2.5 text-[11px] px-muted" style="border-top:1px solid var(--px-line-soft)"><i class="fa-solid fa-circle-check px-up mr-1"></i>Binance account connected</p>
+            {% endif %}
+        </section>
+
+        <section class="px-card lg:col-span-5 overflow-hidden">
+            <div class="px-card-h">
+                <span class="px-card-t"><i class="fa-regular fa-bell px-muted text-[12px]"></i>Recent activity</span>
+                <button type="button" onclick="toggleNotificationDropdown(); event.stopPropagation();" class="text-[12px] font-semibold" style="color:var(--px-accent)">View all</button>
+            </div>
+            {% if notifications %}
+            <div>
+                {% for n in notifications %}
+                <div class="flex gap-3 px-4 py-3" style="border-bottom:1px solid var(--px-line-soft)">
+                    <span class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style="background:var(--px-panel-2);border:1px solid var(--px-line)">
+                        <i class="fa-solid {{ n.icon|default:'fa-bell' }} text-[11px]" style="color:var(--px-accent)"></i>
+                    </span>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex justify-between gap-2">
+                            <p class="text-[12px] font-semibold px-strong truncate">{{ n.title }}</p>
+                            <span class="text-[10px] px-muted shrink-0">{{ n.created_at|date:"M d, H:i" }}</span>
+                        </div>
+                        <p class="text-[11px] px-dim line-clamp-2 mt-0.5">{{ n.message }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="px-empty"><i class="fa-regular fa-bell-slash"></i>Nothing here yet.</div>
+            {% endif %}
+        </section>
+    </div>
+</div>
+
+<!-- ═══ MODALS ═══ -->
+<div id="connect-modal" class="px-modal hidden" role="dialog" aria-modal="true" aria-labelledby="connect-title">
+    <div class="px-card w-full max-w-md p-5 relative">
+        <button onclick="closeModal('connect-modal')" class="absolute top-4 right-4 px-muted" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+        <h3 id="connect-title" class="text-base font-semibold px-strong">Connect an account</h3>
+        <div class="px-seg mt-3" id="cn-tabs" role="tablist">
+            <button type="button" data-cn="deriv" class="on">Deriv</button>
+            <button type="button" data-cn="binance">Binance</button>
+            <button type="button" data-cn="other">Other</button>
+        </div>
+
+        <div data-cn-panel="deriv" class="mt-4 space-y-3">
+            <p class="text-[12px] px-dim">Sign in with Deriv and we'll link <b class="px-strong">both your demo and real accounts</b> and show their live balances. We only read balances — nothing is traded.</p>
+            <a href="{% url 'connect_deriv' %}" class="px-btn w-full" style="height:44px;background:#ff444f;color:#fff"><i class="fa-solid fa-right-to-bracket text-[12px]"></i>Sign in with Deriv</a>
+            <details class="text-[12px]">
+                <summary class="cursor-pointer px-dim">Or paste a Deriv token</summary>
+                <form method="POST" action="{% url 'connect_deriv_token' %}" class="space-y-2 mt-2">
+                    {% csrf_token %}
+                    <input type="password" name="token" required placeholder="Personal Access Token (pat_…) or API token" class="px-input px-num w-full" autocomplete="off">
+                    <p class="text-[11px] px-muted">Create one in your Deriv account under API tokens / Personal Access Tokens with read access.</p>
+                    <button type="submit" class="px-btn px-btn-ghost w-full">Link with token</button>
+                </form>
+            </details>
+        </div>
+
+        <div data-cn-panel="binance" class="mt-4 space-y-3 hidden">
+            <p class="text-[12px] px-dim">Shows your Binance Spot wallet value (stablecoins + coins at live prices). Read-only.</p>
+            <form method="POST" action="{% url 'connect_binance' %}" class="space-y-3">
+                {% csrf_token %}
+                <div>
+                    <label class="block text-[12px] px-dim mb-1.5">API Key</label>
+                    <input type="text" name="api_key" required class="px-input px-num w-full" autocomplete="off" spellcheck="false">
+                </div>
+                <div>
+                    <label class="block text-[12px] px-dim mb-1.5">Secret Key</label>
+                    <input type="password" name="api_secret" required class="px-input px-num w-full" autocomplete="off">
+                </div>
+                <button type="submit" class="px-btn px-btn-primary w-full" style="height:44px">Connect Binance</button>
+            </form>
+            <ol class="text-[11px] px-muted list-decimal pl-4 space-y-0.5">
+                <li>Binance → Profile → API Management → Create API (system generated).</li>
+                <li>Tick <b>Enable Reading</b> only. Leave trading and withdrawals off.</li>
+                <li>If you restrict by IP, add this server's IP address.</li>
+            </ol>
+        </div>
+
+        <div data-cn-panel="other" class="hidden">
+        <p class="text-[12px] px-dim mt-4">Link a broker account using its account ID and an API token.</p>
+        <form method="POST" action="{% url 'connect_broker' %}" class="space-y-3 mt-4">
+            {% csrf_token %}
+            <div>
+                <label class="block text-[12px] px-dim mb-1.5">Account ID</label>
+                <input type="text" name="account_number" placeholder="e.g. CR123456" required class="px-input px-num">
+            </div>
+            <div>
+                <label class="block text-[12px] px-dim mb-1.5">API token</label>
+                <input type="password" name="server_or_token" placeholder="Paste API token" class="px-input px-num" autocomplete="off">
+            </div>
+            <button type="submit" class="px-btn px-btn-primary w-full" style="height:44px">Save &amp; link account</button>
+        </form>
+        </div>
+    </div>
+</div>
+
+<div id="withdrawal-modal" class="px-modal hidden" role="dialog" aria-modal="true" aria-labelledby="wd-title">
+    <div class="px-card w-full max-w-md p-5 relative">
+        <button onclick="closeModal('withdrawal-modal')" class="absolute top-4 right-4 px-muted" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+        <h3 id="wd-title" class="text-base font-semibold px-strong">Withdraw funds</h3>
+        <p class="text-[12px] px-dim mt-1">Available in exchange wallet: <span class="px-num px-strong">${{ exchange_balance|floatformat:2 }}</span></p>
+        <form method="POST" action="{% url 'request_withdrawal' %}" class="space-y-3 mt-4">
+            {% csrf_token %}
+            <input type="hidden" name="method" value="Crypto">
+            <div>
+                <label class="block text-[12px] px-dim mb-1.5">Amount (USDT)</label>
+                <input type="number" name="amount" min="0" step="0.01" placeholder="0.00" required class="px-input px-num">
+            </div>
+            <div>
+                <label class="block text-[12px] px-dim mb-1.5">Wallet address</label>
+                <input type="text" name="wallet_address" placeholder="USDT address" required class="px-input px-num" autocomplete="off">
+            </div>
+            <button type="submit" class="px-btn px-btn-primary w-full" style="height:44px">Submit withdrawal</button>
+            {% if kyc_status != 'APPROVED' %}<p class="text-[11px] px-muted text-center">Withdrawals require completed KYC.</p>{% endif %}
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const PX = window.PX;
+    const $ = id => document.getElementById(id);
+    const XHR = { headers: { 'X-Requested-With': 'XMLHttpRequest' } };
+    const ORDER = ['XAUUSD', 'XAGUSD', 'USOIL', 'UKOIL', 'EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'USDCAD', 'USDCHF', 'NZDUSD', 'EURGBP', 'EURJPY', 'GBPJPY', 'BTCUSD', 'ETHUSD', 'SOLUSD', 'BNBUSD', 'XRPUSD'];
+    const abbr = s => s.replace('USD', '').slice(0, 3) || s.slice(0, 3);
+    const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+    // ── greeting ─────────────────────────────────────
+    const h = new Date().getHours();
+    $('px-greet').textContent = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+
+    // ── balances: format + privacy toggle ────────────
+    document.querySelectorAll('[data-v]').forEach(el => { const v = parseFloat(el.dataset.v); if (!isNaN(v)) el.textContent = PX.money(v); });
+    let hidden = false;
+    try { hidden = localStorage.getItem('px-hide-bal') === '1'; } catch (e) {}
+    function applyHidden() {
+        document.querySelectorAll('[data-balance]').forEach(el => el.classList.toggle('blur-balance', hidden));
+        $('px-eye').className = hidden ? 'fa-regular fa-eye-slash text-[12px]' : 'fa-regular fa-eye text-[12px]';
+    }
+    window.toggleBalanceVisibility = function () {
+        hidden = !hidden;
+        try { localStorage.setItem('px-hide-bal', hidden ? '1' : '0'); } catch (e) {}
+        applyHidden();
+    };
+    applyHidden();
+
+    // ── modals ───────────────────────────────────────
+    window.openModal = id => { $(id).classList.remove('hidden'); document.body.style.overflow = 'hidden'; };
+    window.closeModal = id => { $(id).classList.add('hidden'); document.body.style.overflow = ''; };
+    document.querySelectorAll('.px-modal').forEach(m => m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); }));
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.px-modal:not(.hidden)').forEach(m => closeModal(m.id)); });
+
+    // ── linked accounts: connect tabs, sync, disconnect ──
+    const CSRF_BK = '{{ csrf_token }}';
+    document.querySelectorAll('#cn-tabs [data-cn]').forEach(b => b.addEventListener('click', () => {
+        document.querySelectorAll('#cn-tabs [data-cn]').forEach(x => x.classList.toggle('on', x === b));
+        document.querySelectorAll('[data-cn-panel]').forEach(p => p.classList.toggle('hidden', p.dataset.cnPanel !== b.dataset.cn));
+    }));
+    async function bkPost(url) {
+        const r = await fetch(url, { method: 'POST', headers: { 'X-CSRFToken': CSRF_BK, 'X-Requested-With': 'XMLHttpRequest' } });
+        return r.json();
+    }
+    document.querySelectorAll('[data-bk-sync]').forEach(b => b.addEventListener('click', async () => {
+        const i = b.querySelector('i'); i.classList.add('fa-spin');
+        try {
+            const d = await bkPost(`/api/broker/${b.dataset.bkSync}/sync/`);
+            if (window.showMarketToast) showMarketToast(d.success ? `Balance updated: ${Number(d.balance).toFixed(2)} ${d.currency}` : (d.error || 'Sync failed'), d.success ? 'success' : 'error');
+            setTimeout(() => location.reload(), 600);
+        } catch (e) { i.classList.remove('fa-spin'); }
+    }));
+    document.querySelectorAll('[data-bk-off]').forEach(b => b.addEventListener('click', async () => {
+        if (!confirm(`Disconnect ${b.dataset.bkName}?`)) return;
+        const d = await bkPost(`/api/broker/${b.dataset.bkOff}/disconnect/`);
+        if (d.success) b.closest('[data-bk]').remove();
+    }));
+    const syncAll = $('bk-sync-all');
+    if (syncAll) syncAll.addEventListener('click', async () => {
+        syncAll.querySelector('i').classList.add('fa-spin');
+        try { await fetch('/api/broker-balances/?sync=1', XHR); } catch (e) {}
+        location.reload();
+    });
+
+    // ── account health (/api/mt5/metrics/) ───────────
+    async function loadMetrics() {
+        if (document.hidden) return;
+        try {
+            const d = await (await fetch('/api/mt5/metrics/', XHR)).json();
+            if (!d.success) return;
+            const fl = d.floating_pnl;
+            $('px-float').textContent = (fl > 0 ? '+' : '') + PX.money(fl);
+            $('px-float').className = 'px-num font-semibold ' + PX.tone(fl);
+            $('px-equity-inline').textContent = PX.money(d.equity);
+            $('px-m-balance').textContent = PX.money(d.balance);
+            $('px-m-equity').textContent = PX.money(d.equity);
+            $('px-m-margin').textContent = PX.money(d.margin_used);
+            $('px-m-free').textContent = PX.money(d.free_margin);
+            $('px-m-count').textContent = d.position_count;
+            $('px-m-swap').textContent = PX.money(d.swap);
+            $('px-so').textContent = `Stop-out ${d.stop_out_level}%`;
+            $('px-mc').textContent = `Margin call ${d.margin_call_level}%`;
+            const tag = $('px-health-tag'), bar = $('px-ml-bar');
+            if (d.margin_level == null) {
+                $('px-ml').textContent = 'No margin used';
+                bar.style.width = '100%'; bar.style.background = 'var(--px-up)';
+                tag.textContent = 'Healthy'; tag.style.color = 'var(--px-up)';
+            } else {
+                const ml = d.margin_level;
+                $('px-ml').textContent = ml.toLocaleString('en-US', { maximumFractionDigits: 2 }) + '%';
+                // bar: stop-out → 0%, 5× the margin-call level → full
+                const full = d.margin_call_level * 5;
+                const w = Math.max(2, Math.min(100, (ml - d.stop_out_level) / (full - d.stop_out_level) * 100));
+                const danger = ml <= d.margin_call_level, warn = ml <= d.margin_call_level * 2;
+                bar.style.width = w + '%';
+                bar.style.background = danger ? 'var(--px-down)' : warn ? '#f59e0b' : 'var(--px-up)';
+                tag.textContent = danger ? 'Margin call' : warn ? 'Watch margin' : 'Healthy';
+                tag.style.color = danger ? 'var(--px-down)' : warn ? '#f59e0b' : 'var(--px-up)';
+            }
+        } catch (e) {}
+    }
+
+    // ── chart (lightweight-charts v4, /api/candles/) ─
+    let chart, series, cSym = 'XAUUSD', cTf = '1h', lastBar = null, cReq = 0;
+    const TF_SEC = { '15m': 900, '1h': 3600, '4h': 14400, '1d': 86400, '1w': 604800 };
+    const symSel = $('px-c-sym');
+    symSel.innerHTML = ORDER.map(s => `<option value="${s}" style="background:var(--px-panel)">${s}</option>`).join('');
+    function chartColors() {
+        return {
+            layout: { background: { type: 'solid', color: 'transparent' }, textColor: css('--px-mute'), fontFamily: 'Inter, sans-serif', fontSize: 11 },
+            grid: { vertLines: { color: css('--px-line-soft') }, horzLines: { color: css('--px-line-soft') } },
+            rightPriceScale: { borderColor: css('--px-line') },
+            timeScale: { borderColor: css('--px-line'), timeVisible: true, secondsVisible: false, rightOffset: 4 },
+            crosshair: { mode: 0, vertLine: { color: css('--px-mute'), labelBackgroundColor: css('--px-panel-2') }, horzLine: { color: css('--px-mute'), labelBackgroundColor: css('--px-panel-2') } },
+        };
+    }
+    function initChart() {
+        const L = window.LightweightCharts;
+        if (!L) { chartMsg('Chart library failed to load'); return; }
+        chart = L.createChart($('px-chart'), Object.assign({ autoSize: true }, chartColors()));
+        series = chart.addCandlestickSeries({
+            upColor: css('--px-up'), downColor: css('--px-down'), borderVisible: false,
+            wickUpColor: css('--px-up'), wickDownColor: css('--px-down'),
+        });
+        window.addEventListener('themeChanged', () => {
+            chart.applyOptions(chartColors());
+            series.applyOptions({ upColor: css('--px-up'), downColor: css('--px-down'), wickUpColor: css('--px-up'), wickDownColor: css('--px-down') });
+        });
+    }
+    function chartMsg(t) { const m = $('px-chart-msg'); m.textContent = t || ''; m.classList.toggle('hidden', !t); }
+    async function loadCandles() {
+        if (!series) return;
+        const req = ++cReq;
+        const d = PX.digits(cSym);
+        series.applyOptions({ priceFormat: { type: 'price', precision: d, minMove: Math.pow(10, -d) } });
+        chartMsg('Loading…');
+        try {
+            const r = await (await fetch(`/api/candles/?symbol=${cSym}&timeframe=${cTf}`, XHR)).json();
+            if (req !== cReq) return;
+            const bars = (r.candles || []).filter(b => b && b.time).map(b => ({ time: b.time, open: +b.open, high: +b.high, low: +b.low, close: +b.close }));
+            if (!bars.length) { series.setData([]); lastBar = null; chartMsg('No price history available for this market right now'); return; }
+            series.setData(bars);
+            lastBar = Object.assign({}, bars[bars.length - 1]);
+            chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, bars.length - 120), to: bars.length + 3 });
+            chartMsg('');
+        } catch (e) { if (req === cReq) chartMsg('Could not load chart data'); }
+    }
+    function chartHeader() {
+        const k = PX.kind(cSym);
+        $('px-c-ic').className = 'px-sym-ic k-' + k; $('px-c-ic').textContent = abbr(cSym);
+        $('px-c-name').textContent = PX.name(cSym);
+        const q = PX.quotes[cSym], o = PX.overview[cSym], ch = PX.change(cSym);
+        const last = q ? PX.fmt(cSym, q.bid) : '—';
+        const chs = ch == null ? '—' : PX.pct(ch);
+        ['px-c-last', 'px-c-last-m'].forEach(id => $(id).textContent = last);
+        ['px-c-chg', 'px-c-chg-m'].forEach(id => { $(id).textContent = chs; $(id).className = 'text-[12px] px-num ' + PX.tone(ch); });
+        $('px-c-hi').textContent = o && o.high ? PX.fmt(cSym, Math.max(o.high, q ? q.bid : 0)) : '—';
+        $('px-c-lo').textContent = o && o.low ? PX.fmt(cSym, q ? Math.min(o.low, q.bid) : o.low) : '—';
+        $('px-c-spr').textContent = q ? Math.round((q.ask - q.bid) * Math.pow(10, PX.digits(cSym))) + ' pts' : '—';
+    }
+    function liveBar() {
+        const q = PX.quotes[cSym];
+        if (!q || !lastBar || !series) return;
+        const step = TF_SEC[cTf], now = Math.floor((q.time || Date.now()) / 1000);
+        const t = cTf === '1w' ? null : Math.floor(now / step) * step;
+        if (t && t > lastBar.time) {
+            lastBar = { time: t, open: lastBar.close, high: Math.max(lastBar.close, q.bid), low: Math.min(lastBar.close, q.bid), close: q.bid };
+        } else {
+            lastBar.close = q.bid; lastBar.high = Math.max(lastBar.high, q.bid); lastBar.low = Math.min(lastBar.low, q.bid);
+        }
+        series.update(Object.assign({}, lastBar));
+    }
+    symSel.addEventListener('change', () => { cSym = symSel.value; chartHeader(); loadCandles(); });
+    $('px-c-tf').addEventListener('click', e => {
+        const b = e.target.closest('button[data-tf]'); if (!b) return;
+        $('px-c-tf').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+        cTf = b.dataset.tf; loadCandles();
+    });
+    window.pxShowChart = function (s) {
+        cSym = s; symSel.value = s; chartHeader(); loadCandles();
+        $('px-chart').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+
+    // ── markets table ────────────────────────────────
+    let mkKind = 'all';
+    const prevBid = {};
+    function spark(values, up) {
+        if (!values || values.length < 2) return '<span class="px-muted">—</span>';
+        const w = 96, h = 28, mn = Math.min(...values), mx = Math.max(...values), r = mx - mn || 1;
+        const pts = values.map((v, i) => `${(i / (values.length - 1) * w).toFixed(1)},${(h - 2 - (v - mn) / r * (h - 4)).toFixed(1)}`).join(' ');
+        const c = up ? 'var(--px-up)' : 'var(--px-down)';
+        return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline fill="none" stroke="${c}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" points="${pts}"/></svg>`;
+    }
+    function buildMarkets() {
+        const rows = ORDER.filter(s => mkKind === 'all' || PX.kind(s) === mkKind);
+        $('px-markets').innerHTML = rows.map(s => `
+            <tr class="clickable" data-s="${s}">
+                <td><div class="px-sym"><span class="px-sym-ic k-${PX.kind(s)}">${abbr(s)}</span>
+                    <div class="leading-tight"><p class="font-semibold px-strong">${s}</p><p class="text-[11px] px-muted">${PX.name(s)}</p></div></div></td>
+                <td class="px-num" data-f="bid">—</td>
+                <td class="px-num hidden sm:table-cell" data-f="ask">—</td>
+                <td class="px-num px-dim hidden md:table-cell" data-f="spr">—</td>
+                <td><span class="px-chg px-num px-flat" data-f="chg">—</span></td>
+                <td class="hidden lg:table-cell" data-f="rng"></td>
+                <td class="hidden md:table-cell" style="text-align:center" data-f="spk"></td>
+                <td class="hidden xl:table-cell text-[11px] px-muted" data-f="src">—</td>
+                <td class="hidden sm:table-cell"><a href="{% url 'trade' %}" class="px-btn px-btn-ghost xs" onclick="event.stopPropagation()">Trade</a></td>
+            </tr>`).join('');
+        $('px-markets').querySelectorAll('tr[data-s]').forEach(tr => tr.addEventListener('click', () => pxShowChart(tr.dataset.s)));
+        updateMarkets(true);
+    }
+    function updateMarkets(full) {
+        $('px-markets').querySelectorAll('tr[data-s]').forEach(tr => {
+            const s = tr.dataset.s, q = PX.quotes[s], o = PX.overview[s];
+            const f = n => tr.querySelector(`[data-f="${n}"]`);
+            if (q) {
+                const bidEl = f('bid');
+                if (prevBid[s] != null && q.bid !== prevBid[s]) {
+                    bidEl.classList.remove('flash-up', 'flash-down'); void bidEl.offsetWidth;
+                    bidEl.classList.add(q.bid > prevBid[s] ? 'flash-up' : 'flash-down');
+                }
+                prevBid[s] = q.bid;
+                bidEl.textContent = PX.fmt(s, q.bid);
+                f('ask').textContent = PX.fmt(s, q.ask);
+                f('spr').textContent = Math.round((q.ask - q.bid) * Math.pow(10, PX.digits(s)));
+            }
+            const ch = PX.change(s), c = f('chg');
+            c.textContent = ch == null ? '—' : PX.pct(ch);
+            c.className = 'px-chg px-num ' + PX.tone(ch);
+            if (o && o.high && o.low) {
+                const last = q ? q.bid : o.prev_close;
+                const hi = Math.max(o.high, last), lo = Math.min(o.low, last);
+                const pos = hi > lo ? (last - lo) / (hi - lo) * 100 : 50;
+                f('rng').innerHTML = `<div class="inline-flex items-center gap-2 text-[11px] px-num px-muted"><span>${PX.fmt(s, lo)}</span><span class="px-range"><span style="left:${pos.toFixed(1)}%"></span></span><span>${PX.fmt(s, hi)}</span></div>`;
+            }
+            if (full && o) {
+                f('spk').innerHTML = spark(o.spark, (ch == null ? o.change_pct : ch) >= 0);
+                f('src').textContent = o.source || '—';
+            }
+        });
+    }
+    $('px-mk-seg').addEventListener('click', e => {
+        const b = e.target.closest('button[data-k]'); if (!b) return;
+        $('px-mk-seg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+        mkKind = b.dataset.k; buildMarkets();
+    });
+
+    // ── top movers ───────────────────────────────────
+    let mvMode = 'up';
+    function renderMovers() {
+        const list = ORDER.map(s => ({ s, ch: PX.change(s) })).filter(x => x.ch != null);
+        if (!list.length) return;
+        list.sort((a, b) => mvMode === 'up' ? b.ch - a.ch : a.ch - b.ch);
+        const top = list.slice(0, 5);
+        const max = Math.max(...list.map(x => Math.abs(x.ch))) || 1;
+        $('px-movers').innerHTML = top.map(x => {
+            const q = PX.quotes[x.s];
+            return `<button type="button" class="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-[var(--px-hover)]" onclick="pxShowChart('${x.s}')">
+                <span class="px-sym-ic k-${PX.kind(x.s)}">${abbr(x.s)}</span>
+                <span class="flex-1 min-w-0"><span class="block text-[13px] font-semibold px-strong">${x.s}</span>
+                    <span class="block mt-1 h-1 rounded" style="background:var(--px-line-soft)"><span class="block h-1 rounded" style="width:${(Math.abs(x.ch) / max * 100).toFixed(0)}%;background:${x.ch >= 0 ? 'var(--px-up)' : 'var(--px-down)'}"></span></span></span>
+                <span class="text-right"><span class="block px-num text-[12px] px-strong">${q ? PX.fmt(x.s, q.bid) : '—'}</span>
+                    <span class="block px-num text-[11px] font-semibold ${PX.tone(x.ch)}">${PX.pct(x.ch)}</span></span>
+            </button>`;
+        }).join('');
+    }
+    $('px-mv-seg').addEventListener('click', e => {
+        const b = e.target.closest('button[data-m]'); if (!b) return;
+        $('px-mv-seg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+        mvMode = b.dataset.m; renderMovers();
+    });
+
+    // ── sessions (real local hours, DST-aware via Intl) ─
+    const SESSIONS = [
+        ['Sydney', 'Australia/Sydney', 7, 16], ['Tokyo', 'Asia/Tokyo', 9, 18],
+        ['London', 'Europe/London', 8, 17], ['New York', 'America/New_York', 8, 17],
+    ];
+    function zoneParts(tz, d) {
+        const p = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', minute: 'numeric', weekday: 'short', hourCycle: 'h23' }).formatToParts(d);
+        const g = t => (p.find(x => x.type === t) || {}).value;
+        return { h: +g('hour'), m: +g('minute'), wd: g('weekday') };
+    }
+    function utcOffsetH(tz, d) {
+        const z = zoneParts(tz, d);
+        let off = z.h + z.m / 60 - (d.getUTCHours() + d.getUTCMinutes() / 60);
+        if (off > 14) off -= 24; if (off < -12) off += 24;
+        return off;
+    }
+    function renderSessions() {
+        const d = new Date(), nowU = d.getUTCHours() + d.getUTCMinutes() / 60;
+        $('px-sess-now').textContent = d.toISOString().substr(11, 5) + ' UTC';
+        $('px-sessions').innerHTML = SESSIONS.map(([name, tz, o, c]) => {
+            const z = zoneParts(tz, d), off = utcOffsetH(tz, d);
+            const weekday = !['Sat', 'Sun'].includes(z.wd);
+            const open = weekday && z.h >= o && z.h < c;
+            let s = ((o - off) % 24 + 24) % 24, e = s + (c - o);
+            const segs = e <= 24 ? [[s, e]] : [[s, 24], [0, e - 24]];
+            const bars = segs.map(([a, b]) => `<span class="w ${open ? 'on' : ''}" style="left:${a / 24 * 100}%;width:${(b - a) / 24 * 100}%"></span>`).join('');
+            const local = String(z.h).padStart(2, '0') + ':' + String(z.m).padStart(2, '0');
+            return `<div class="px-session">
+                <span class="font-semibold px-strong">${name}</span>
+                <span class="px-track">${bars}<span class="now" style="left:${nowU / 24 * 100}%"></span></span>
+                <span class="text-right text-[11px] font-semibold ${open ? 'px-up' : 'px-muted'}">${open ? 'Open' : 'Closed'} <span class="px-num font-normal px-muted">${local}</span></span>
+            </div>`;
+        }).join('') + `<p class="text-[10px] px-muted pt-1">Bars show each session's hours in UTC; the marker is now. Crypto trades 24/7.</p>`;
+    }
+
+    // ── positions + history ──────────────────────────
+    async function loadPositions() {
+        if (document.hidden) return;
+        try {
+            const d = await (await fetch('/api/open-positions/', XHR)).json();
+            if (!d.success) return;
+            $('px-pos-count').textContent = d.count;
+            if (!d.positions.length) {
+                $('px-positions').innerHTML = `<tr><td colspan="6"><div class="px-empty"><i class="fa-solid fa-inbox"></i>No open positions</div></td></tr>`;
+                return;
+            }
+            $('px-positions').innerHTML = d.positions.map(p => `
+                <tr>
+                    <td><span class="font-semibold">${escapeHtml(p.symbol)}</span><span class="block text-[10px] px-muted px-num">#${p.ticket}</span></td>
+                    <td><span class="text-[11px] font-bold uppercase ${p.direction.toLowerCase() === 'buy' ? 'px-up' : 'px-down'}">${escapeHtml(p.direction)}</span></td>
+                    <td class="px-num hidden sm:table-cell">${p.volume.toFixed(2)}</td>
+                    <td class="px-num px-dim hidden md:table-cell">${PX.fmt(p.symbol, p.entry)}</td>
+                    <td class="px-num">${PX.fmt(p.symbol, p.current_price)}</td>
+                    <td class="px-num font-semibold ${PX.tone(p.pnl)}">${(p.pnl > 0 ? '+' : '') + PX.money(p.pnl)}</td>
+                </tr>`).join('');
+        } catch (e) {}
+    }
+    async function loadHistory() {
+        try {
+            const d = await (await fetch('/api/mt5/history/?period=week', XHR)).json();
+            if (!d.success) return;
+            const closed = (d.positions || []).filter(p => p.closed_at).slice(0, 8);
+            const total = (d.positions || []).reduce((a, p) => a + (p.pnl || 0) + (p.swap || 0) + (p.commission || 0), 0);
+            $('px-week-pnl').textContent = (d.positions || []).length ? (total > 0 ? '+' : '') + PX.money(total) : '';
+            $('px-week-pnl').className = 'text-[12px] px-num font-semibold ' + PX.tone(total);
+            if (!closed.length) {
+                $('px-history').innerHTML = `<tr><td colspan="4"><div class="px-empty"><i class="fa-solid fa-receipt"></i>No trades closed this week</div></td></tr>`;
+                return;
+            }
+            $('px-history').innerHTML = closed.map(p => {
+                const net = p.pnl + (p.swap || 0) + (p.commission || 0);
+                return `<tr>
+                    <td><span class="font-semibold">${escapeHtml(p.symbol)}</span> <span class="text-[10px] font-bold uppercase ${p.is_buy ? 'px-up' : 'px-down'}">${p.is_buy ? 'buy' : 'sell'}</span></td>
+                    <td class="px-num px-dim text-[12px] hidden sm:table-cell">${escapeHtml(p.closed_at)}</td>
+                    <td class="px-num">${p.volume.toFixed(2)}</td>
+                    <td class="px-num font-semibold ${PX.tone(net)}">${(net > 0 ? '+' : '') + PX.money(net)}</td>
+                </tr>`;
+            }).join('');
+        } catch (e) {}
+    }
+
+    // ── wire up ──────────────────────────────────────
+    initChart();
+    chartHeader(); loadCandles();
+    buildMarkets(); renderSessions();
+    loadMetrics(); loadPositions(); loadHistory();
+    setInterval(loadMetrics, 3000);
+    setInterval(loadPositions, 3000);
+    setInterval(loadHistory, 30000);
+    setInterval(renderSessions, 30000);
+    window.addEventListener('px:quotes', () => { updateMarkets(false); chartHeader(); liveBar(); renderMovers(); });
+    window.addEventListener('px:overview', () => { updateMarkets(true); chartHeader(); renderMovers(); });
+    if (Object.keys(PX.overview).length) { updateMarkets(true); renderMovers(); }
+})();
+</script>
+{% endblock %}

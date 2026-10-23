@@ -1,0 +1,261 @@
+{% comment %}
+AI setup panel behaviour. Needs partials/ai_setup_panel.html and partials/ai_order_modal.html on the page.
+   window.AISetup.show(symbol, style, {quiet, preview}) loads and renders one market; 'ai:detail' fires with the result.
+{% endcomment %}
+<script>
+window.AISetup = (function () {
+    const PX = window.PX;
+    const $ = id => document.getElementById(id);
+    const XHR = { headers: { 'X-Requested-With': 'XMLHttpRequest' } };
+    const CSRF = '{{ csrf_token }}';
+    const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+    const abbr = s => s.replace('USD', '').slice(0, 3) || s.slice(0, 3);
+    let cur = null, curStyle = 'intraday', detail = null, chartTf = null;
+
+    async function loadDetail(sym, quiet, preview) {
+        $('ai-detail-empty') && $('ai-detail-empty').classList.add('hidden');
+        $('ai-detail-body').classList.remove('hidden');
+        if (preview && !quiet) header(preview);
+        if (!quiet) { $('d-why').innerHTML = '<div class="px-skel h-24"></div>'; $('d-stats').innerHTML = '<div class="px-skel h-24"></div>'; }
+        try {
+            const d = await (await fetch(`/api/ai-scan/${sym}/?style=${curStyle}`, XHR)).json();
+            if (sym !== cur) return;
+            if (!d.success) throw new Error(d.error || 'failed');
+            detail = d.result;
+            window.dispatchEvent(new CustomEvent('ai:detail', { detail }));
+            header(detail);
+            if (!chartTf || !detail.charts[chartTf]) chartTf = detail.main_tf;
+            renderTfTabs(); drawChart(); renderPlan(); renderWhy(); renderStatsBox();
+        } catch (e) {
+            $('d-why').innerHTML = `<p class="text-[12px] px-muted">${escapeHtml(e.message || 'Could not analyse this market right now.')}</p>`;
+            $('d-stats').innerHTML = '';
+        }
+    }
+
+    function header(r) {
+        $('d-ic').className = 'sym-ic k-' + r.kind; $('d-ic').textContent = abbr(r.symbol);
+        $('d-sym').textContent = r.symbol;
+        $('d-name').textContent = `${r.name || ''} · ${({ scalp: 'Scalp', intraday: 'Intraday', swing: 'Swing' })[curStyle]} · ${(r.main_tf || '').toUpperCase()} chart`;
+        $('d-sig').className = 'sig ' + r.signal; $('d-sig').textContent = r.signal;
+        $('d-conf').textContent = r.confidence + '/100';
+        livePrice();
+    }
+    function livePrice() {
+        if (!cur) return;
+        const q = PX.quotes[cur];
+        $('d-price').textContent = PX.fmt(cur, q ? q.bid : (detail && detail.price));
+    }
+
+    function renderTfTabs() {
+        const order = ['5m', '15m', '1h', '4h', '1d'];
+        const tfs = Object.keys(detail.charts).sort((a, b) => order.indexOf(a) - order.indexOf(b));
+        $('d-tfs').innerHTML = tfs.map(tf => {
+            const sc = detail.charts[tf].score;
+            const c = sc > 15 ? 'var(--px-up)' : sc < -15 ? 'var(--px-down)' : 'var(--px-mute)';
+            return `<button data-tf="${tf}" class="${tf === chartTf ? 'on' : ''}">${tf.toUpperCase()}${tf === detail.main_tf ? ' ·' : ''} <span class="px-num" style="color:${c}">${sc > 0 ? '+' : ''}${Math.round(sc)}</span></button>`;
+        }).join('');
+        $('d-tfs').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { chartTf = b.dataset.tf; renderTfTabs(); drawChart(); }));
+    }
+
+    // ── chart ────────────────────────────────────────
+    let chart, candles, e20, e50, lines = [];
+    function chartColors() {
+        return {
+            layout: { background: { type: 'solid', color: 'transparent' }, textColor: css('--px-mute'), fontFamily: 'Inter, sans-serif', fontSize: 11 },
+            grid: { vertLines: { color: css('--px-line-soft') }, horzLines: { color: css('--px-line-soft') } },
+            rightPriceScale: { borderColor: css('--px-line') },
+            timeScale: { borderColor: css('--px-line'), timeVisible: true, secondsVisible: false, rightOffset: 6 },
+            crosshair: { mode: 0 },
+        };
+    }
+    function ensureChart() {
+        if (chart || !window.LightweightCharts) return !!chart;
+        chart = LightweightCharts.createChart($('ai-chart'), Object.assign({ autoSize: true }, chartColors()));
+        candles = chart.addCandlestickSeries({ upColor: css('--px-up'), downColor: css('--px-down'), borderVisible: false, wickUpColor: css('--px-up'), wickDownColor: css('--px-down') });
+        e20 = chart.addLineSeries({ color: '#f0b90b', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+        e50 = chart.addLineSeries({ color: '#60a5fa', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+        window.addEventListener('themeChanged', () => {
+            chart.applyOptions(chartColors());
+            candles.applyOptions({ upColor: css('--px-up'), downColor: css('--px-down'), wickUpColor: css('--px-up'), wickDownColor: css('--px-down') });
+            drawChart();
+        });
+        return true;
+    }
+    function drawChart() {
+        if (!detail || !ensureChart()) return;
+        const c = detail.charts[chartTf];
+        const d = PX.digits(detail.symbol);
+        candles.applyOptions({ priceFormat: { type: 'price', precision: d, minMove: Math.pow(10, -d) } });
+        candles.setData(c.candles);
+        e20.setData(c.ema20); e50.setData(c.ema50);
+        candles.setMarkers(c.markers.map(m => Object.assign({}, m, { color: m.color === '#16c784' ? css('--px-up') : m.color === '#ea3943' ? css('--px-down') : m.color })));
+        lines.forEach(l => candles.removePriceLine(l)); lines = [];
+        const add = (price, color, title, style = 2, width = 1) => { if (price != null) lines.push(candles.createPriceLine({ price, color, lineWidth: width, lineStyle: style, axisLabelVisible: true, title })); };
+        c.levels.forEach(l => add(l.price, css('--px-mute'), `${l.kind === 'resistance' ? 'R' : 'S'}×${l.touches}`, 1));
+        const p = detail.plan || detail.watch;
+        if (p) {
+            const faint = !detail.plan;
+            add(p.entry, faint ? css('--px-mute') : css('--px-accent'), faint ? 'watch' : 'Entry', 0, 2);
+            add(p.sl, css('--px-down'), 'SL', 2, faint ? 1 : 2);
+            add(p.tp1, css('--px-up'), 'TP1', 2, faint ? 1 : 2);
+            add(p.tp2, css('--px-up'), 'TP2', 3);
+        }
+        const n = c.candles.length;
+        chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - 120), to: n + 6 });
+    }
+
+    // ── plan / reasons / stats ───────────────────────
+    function renderPlan() {
+        const p = detail.plan || detail.watch;
+        const live = detail.plan;
+        $('d-plan-title').textContent = live ? `${detail.signal === 'BUY' ? 'Buy' : 'Sell'} plan` : `No trade yet · leaning ${(detail.lean || '').toLowerCase()}`;
+        $('d-plan-note').textContent = p ? `Stop = ${p.risk_atr} × ATR` : '';
+        if (!p) { $('d-plan').innerHTML = ''; $('d-plan-extra').textContent = ''; return; }
+        const f = v => PX.fmt(detail.symbol, v);
+        $('d-plan').innerHTML = `
+            <div><div class="k">${live ? 'Entry (market)' : 'Would enter near'}</div><div class="v">${f(p.entry)}</div></div>
+            <div><div class="k">Stop loss</div><div class="v px-down">${f(p.sl)}</div></div>
+            <div><div class="k">Take profit 1 · ${p.rr}R</div><div class="v px-up">${f(p.tp1)}</div></div>
+            <div><div class="k">Take profit 2</div><div class="v px-up">${f(p.tp2)}</div></div>`;
+        const bits = [];
+        if (p.pullback_entry) bits.push(`Better price: wait for a pullback to the 20 EMA near ${f(p.pullback_entry)}.`);
+        if (p.risk_per_lot_usd) bits.push(`Risk per 1 lot: ${PX.money(p.risk_per_lot_usd)}.`);
+        if (!live) bits.push('Signals are not aligned enough to trade. The levels show where it would set up.');
+        $('d-plan-extra').textContent = bits.join(' ');
+        $('d-trade').disabled = !live;
+        $('d-trade').style.opacity = live ? '' : '.5';
+        $('d-trade').querySelector('span').textContent = live ? `${detail.signal === 'BUY' ? 'Buy' : 'Sell'} ${detail.symbol}` : 'No trade signal';
+    }
+    function renderWhy() {
+        const items = detail.reasons;
+        const max = Math.max(4, ...items.map(r => Math.abs(r.impact)));
+        $('d-why').innerHTML = items.map(r => {
+            const w = Math.abs(r.impact) / max * 50;
+            const pos = r.impact >= 0;
+            const bar = r.impact ? `<span style="${pos ? 'left:50%' : 'right:50%'};width:${w}%;background:${pos ? 'var(--px-up)' : 'var(--px-down)'}"></span>` : '';
+            return `<div class="why"><span class="px-dim">${escapeHtml(r.text)}</span><span class="bar"><span style="left:50%;width:1px;background:var(--px-line)"></span>${bar}</span></div>`;
+        }).join('');
+    }
+    function pct(v) { return v == null ? '—' : Math.round(v * 100) + '%'; }
+    function renderStatsBox() {
+        const m = detail.model || {}, b = detail.backtest || {};
+        const rows = [];
+        if (m.trained) {
+            const edge = m.test_accuracy - m.baseline;
+            rows.push(`<div class="flex justify-between"><span class="px-dim">Model accuracy (unseen data)</span><span class="px-num font-semibold ${edge > 0.02 ? 'px-up' : 'px-strong'}">${pct(m.test_accuracy)}</span></div>
+                <p class="text-[11px] px-muted -mt-1">Trained on ${m.samples - m.test_samples} past setups, tested on the last ${m.test_samples}. Always guessing the more common outcome would score ${pct(m.baseline)}.</p>`);
+            rows.push(`<div class="flex justify-between"><span class="px-dim">Chance of +1.5 ATR before −1.5 ATR</span><span class="px-num font-semibold px-strong">${pct(m.prob_up)}</span></div>`);
+        } else {
+            rows.push('<p class="px-muted">Not enough history to train the model on this market.</p>');
+        }
+        if (b.trades) {
+            rows.push(`<div class="flex justify-between"><span class="px-dim">Backtest win rate</span><span class="px-num font-semibold ${b.win_rate >= 0.45 ? 'px-up' : 'px-strong'}">${pct(b.win_rate)}</span></div>
+                <div class="flex justify-between"><span class="px-dim">Trades · avg result</span><span class="px-num px-strong">${b.trades} · ${b.avg_r >= 0 ? '+' : ''}${b.avg_r.toFixed(2)}R</span></div>
+                <div class="flex justify-between"><span class="px-dim">Profit factor</span><span class="px-num px-strong">${b.profit_factor == null ? '—' : b.profit_factor.toFixed(2)}</span></div>
+                <p class="text-[11px] px-muted -mt-1">This signal rule replayed over the last ${b.bars} ${detail.main_tf} candles with a 1.5 ATR stop and 1.5R target. At 1.5R, about 40% wins breaks even.</p>`);
+        }
+        rows.push(`<div class="flex justify-between"><span class="px-dim">RSI · ADX</span><span class="px-num px-strong">${detail.rsi} · ${detail.adx}</span></div>`);
+        rows.push(`<div class="flex justify-between"><span class="px-dim">Data</span><span class="px-strong">${escapeHtml(detail.source || '—')} · ${new Date(detail.analysed_at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></div>`);
+        $('d-stats').innerHTML = rows.join('');
+    }
+
+    // ── order ticket ─────────────────────────────────
+    let equity = null, riskPct = 1, om = null;
+    async function loadEquity() {
+        try { const d = await (await fetch('/api/mt5/metrics/', XHR)).json(); if (d.success) equity = d.equity; } catch (e) {}
+    }
+    function openOrder() {
+        if (!detail || !detail.plan) return;
+        const p = detail.plan;
+        om = { symbol: detail.symbol, side: detail.signal, entry: p.entry, sl0: p.sl, rpl: p.risk_per_lot_usd, mpl: p.margin_per_lot_usd, min: p.volume_min || 0.01 };
+        $('om-sym').textContent = om.symbol;
+        $('om-sig').className = 'sig ' + om.side; $('om-sig').textContent = om.side;
+        $('om-sl').value = p.sl; $('om-tp').value = p.tp1;
+        $('om-sl').step = $('om-tp').step = Math.pow(10, -PX.digits(om.symbol));
+        $('om-warn').classList.add('hidden');
+        $('order-modal').classList.remove('hidden');
+        loadEquity().then(() => { $('om-equity').textContent = PX.money(equity); suggestLots(); });
+        orderPrice();
+    }
+    window.closeOrder = () => $('order-modal').classList.add('hidden');
+    function currentPrice() {
+        const q = PX.quotes[om.symbol];
+        return q ? (om.side === 'BUY' ? q.ask : q.bid) : om.entry;
+    }
+    function riskPerLot() {
+        const sl = parseFloat($('om-sl').value);
+        if (!om.rpl || !sl) return null;
+        return om.rpl * Math.abs(currentPrice() - sl) / Math.abs(om.entry - om.sl0);
+    }
+    function suggestLots() {
+        const rpl = riskPerLot();
+        if (!rpl || !equity) return;
+        const lots = Math.max(om.min, Math.floor(equity * riskPct / 100 / rpl * 100) / 100);
+        $('om-lots').value = lots.toFixed(2);
+        preview();
+    }
+    window.stepLots = dir => { $('om-lots').value = Math.max(om.min, (parseFloat($('om-lots').value) || 0) + dir * 0.01).toFixed(2); preview(); };
+    function orderPrice() { if (om) $('om-price').textContent = PX.fmt(om.symbol, currentPrice()); }
+    function preview() {
+        if (!om) return;
+        const lots = parseFloat($('om-lots').value) || 0, sl = parseFloat($('om-sl').value), tp = parseFloat($('om-tp').value), px = currentPrice();
+        const rpl = riskPerLot();
+        const loss = rpl ? rpl * lots : null;
+        const profit = rpl && tp ? rpl / Math.abs(px - sl) * Math.abs(tp - px) * lots : null;
+        $('om-margin').textContent = om.mpl ? PX.money(om.mpl * lots) : '—';
+        $('om-loss').textContent = loss != null ? '-' + PX.money(loss) : '—';
+        $('om-profit').textContent = profit != null ? '+' + PX.money(profit) : '—';
+        $('om-rr').textContent = sl && tp ? (Math.abs(tp - px) / Math.abs(px - sl)).toFixed(2) : '—';
+        const warn = $('om-warn'), msgs = [];
+        if (om.side === 'BUY' && (sl >= px || tp <= px)) msgs.push('For a buy, the stop loss must be below the price and the take profit above it.');
+        if (om.side === 'SELL' && (sl <= px || tp >= px)) msgs.push('For a sell, the stop loss must be above the price and the take profit below it.');
+        if (equity && loss && loss / equity > 0.05) msgs.push(`This risks ${(loss / equity * 100).toFixed(1)}% of your equity.`);
+        warn.textContent = msgs.join(' ');
+        warn.classList.toggle('hidden', !msgs.length);
+    }
+    $('om-risk').addEventListener('click', e => {
+        const b = e.target.closest('.risk-btn'); if (!b) return;
+        riskPct = +b.dataset.r;
+        $('om-risk').querySelectorAll('.risk-btn').forEach(x => x.classList.toggle('on', x === b));
+        suggestLots();
+    });
+    ['om-lots', 'om-sl', 'om-tp'].forEach(id => $(id).addEventListener('input', preview));
+    $('om-sl').addEventListener('change', suggestLots);
+    $('om-confirm').addEventListener('click', async () => {
+        const btn = $('om-confirm');
+        btn.disabled = true; btn.querySelector('span').textContent = 'Sending…';
+        try {
+            const r = await fetch('/trade/execute/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF, 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({ symbol: om.symbol, contract_type: om.side, volume: parseFloat($('om-lots').value), sl: parseFloat($('om-sl').value), tp: parseFloat($('om-tp').value) }),
+            });
+            const d = await r.json();
+            if (!d.success) throw new Error(d.error || d.message || 'Order rejected');
+            closeOrder();
+            showMarketToast(`${d.order_type} ${d.volume} ${d.symbol} opened at ${PX.fmt(d.symbol, d.entry)} · ticket ${d.ticket_id}`, 'success');
+        } catch (e) {
+            const w = $('om-warn'); w.textContent = e.message; w.classList.remove('hidden');
+        }
+        btn.disabled = false; btn.querySelector('span').textContent = 'Confirm order';
+    });
+    $('order-modal').addEventListener('click', e => { if (e.target.id === 'order-modal') closeOrder(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('order-modal').classList.contains('hidden')) { e.stopImmediatePropagation(); closeOrder(); } }, true);
+    $('d-trade').addEventListener('click', openOrder);
+    $('d-refresh').addEventListener('click', () => cur && loadDetail(cur));
+    window.addEventListener('px:quotes', () => {
+        livePrice();
+        if (om && !$('order-modal').classList.contains('hidden')) { orderPrice(); preview(); }
+    });
+
+    return {
+        show(sym, style, opts = {}) {
+            if (style && style !== curStyle) chartTf = null;
+            cur = sym; curStyle = style || curStyle;
+            return loadDetail(sym, !!opts.quiet, opts.preview);
+        },
+        current: () => detail,
+        symbol: () => cur,
+    };
+})();
+</script>

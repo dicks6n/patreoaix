@@ -1,0 +1,316 @@
+{% extends 'base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Live Chart - PATREOAIX{% endblock %}
+
+{% block content %}
+<!-- LOADING SPINNER -->
+<div id="loading-spinner" class="fixed inset-0 z-[9999] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center transition-opacity duration-500">
+    <div class="relative flex items-center justify-center">
+        <div class="w-20 h-20 rounded-full border-4 border-amber-500/20 border-t-amber-500 animate-spin"></div>
+        <div class="absolute w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center animate-pulse">
+            <div class="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
+        </div>
+    </div>
+    <div class="mt-5 text-center space-y-1">
+        <p class="text-xs font-mono tracking-widest text-amber-300 uppercase animate-pulse">Loading Live Chart</p>
+        <p class="text-[10px] font-mono text-slate-500">Connecting to Binance feed...</p>
+    </div>
+</div>
+
+<style>
+    .spinner-hidden { opacity: 0; pointer-events: none; visibility: hidden; }
+
+    .chart-card {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(69, 26, 3, 0.4) 100%);
+        border: 1px solid rgba(217, 119, 6, 0.25);
+        border-radius: 20px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .price-flash-up { color: #10b981 !important; animation: flashUp 0.3s ease; }
+    .price-flash-down { color: #ef4444 !important; animation: flashDown 0.3s ease; }
+    @keyframes flashUp { 0%{transform:scale(1);} 50%{transform:scale(1.05); color:#86efac;} 100%{transform:scale(1);} }
+    @keyframes flashDown { 0%{transform:scale(1);} 50%{transform:scale(1.05); color:#fca5a5;} 100%{transform:scale(1);} }
+
+    .status-dot { width:8px; height:8px; border-radius:50%; background:#f59e0b; transition:background 0.3s; }
+    .status-dot.live { background:#10b981; animation: pulseDot 2s infinite; }
+    .status-dot.error { background:#ef4444; }
+    @keyframes pulseDot { 0%,100%{opacity:1; box-shadow:0 0 0 0 rgba(16,185,129,0.5);} 50%{opacity:0.7; box-shadow:0 0 0 8px rgba(16,185,129,0);} }
+
+    #chart-container { height: 520px; width: 100%; border-radius: 12px; overflow: hidden; }
+    @media (max-width: 768px) { #chart-container { height: 380px; } }
+</style>
+
+<script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+
+<div class="space-y-4 pb-4">
+
+    <!-- HEADER -->
+    <div class="chart-card p-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-lg sm:text-xl font-black text-white tracking-tight flex items-center gap-2">
+                    <span class="text-xl">📈</span>
+                    Live Chart · BTC/USDT
+                </h1>
+                <p class="text-[11px] text-slate-400 mt-1">Real-time Binance feed · Entry lines from your Trade model</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/80 border border-amber-700/30">
+                    <span id="ws-dot" class="status-dot"></span>
+                    <span id="ws-status" class="text-[10px] font-mono font-bold text-slate-400">Connecting...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row sm:items-center gap-4 mt-4 pt-4 border-t border-amber-800/30">
+            <div>
+                <span class="text-[10px] uppercase font-bold tracking-wider text-amber-200/70 block">Last Price</span>
+                <h2 id="last-price" class="text-3xl font-black font-mono text-white mt-0.5">$—.—</h2>
+            </div>
+            <div class="flex-1"></div>
+            <div class="flex items-center gap-2">
+                <button id="btn-buy"
+                    class="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm transition shadow-lg shadow-emerald-600/25 active:scale-95 flex items-center gap-2">
+                    <i class="fa-solid fa-arrow-trend-up"></i> BUY
+                </button>
+                <button id="btn-sell"
+                    class="px-5 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-sm transition shadow-lg shadow-rose-600/25 active:scale-95 flex items-center gap-2">
+                    <i class="fa-solid fa-arrow-trend-down"></i> SELL
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHART -->
+    <div class="chart-card p-4">
+        <div id="chart-container"></div>
+    </div>
+
+    <!-- OPEN POSITIONS -->
+    <div class="chart-card p-5">
+        <div class="flex items-center justify-between mb-3 pb-3 border-b border-amber-800/30">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                Open Positions
+            </h3>
+            <span class="text-[10px] font-mono text-slate-500">
+                <span id="open-count">{{ open_trades|length }}</span> active
+            </span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs font-mono">
+                <thead class="text-[10px] uppercase text-slate-500 border-b border-amber-800/30">
+                    <tr>
+                        <th class="py-2 px-3">Ticket</th>
+                        <th class="py-2 px-3">Symbol</th>
+                        <th class="py-2 px-3">Side</th>
+                        <th class="py-2 px-3">Entry</th>
+                        <th class="py-2 px-3">Stake</th>
+                    </tr>
+                </thead>
+                <tbody id="trades-body" class="divide-y divide-amber-800/20">
+                    {% for t in open_trades %}
+                    <tr data-trade-id="{{ t.id }}" class="hover:bg-amber-950/20 transition">
+                        <td class="py-2 px-3 text-slate-400">#ORD-{{ 8400|add:t.id }}</td>
+                        <td class="py-2 px-3 font-bold text-white">{{ t.asset.symbol|default:"—" }}</td>
+                        <td class="py-2 px-3 {% if t.direction == 'BUY' %}text-emerald-400{% else %}text-rose-400{% endif %} font-bold">{{ t.direction }}</td>
+                        <td class="py-2 px-3 text-white">{{ t.entry_price|floatformat:2 }}</td>
+                        <td class="py-2 px-3 text-amber-300">${{ t.stake|floatformat:2 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr id="empty-trades">
+                        <td colspan="5" class="py-6 text-center text-slate-500">
+                            <i class="fa-solid fa-inbox text-lg mb-2 block"></i>
+                            No open positions yet — click BUY or SELL above
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// 1. CHART
+// ═══════════════════════════════════════════════════════════════════
+const container = document.getElementById('chart-container');
+
+const chart = LightweightCharts.createChart(container, {
+    layout: { background: { color: '#0a0e17' }, textColor: '#94a3b8' },
+    grid: {
+        vertLines: { color: 'rgba(30, 41, 59, 0.5)' },
+        horzLines: { color: 'rgba(30, 41, 59, 0.5)' },
+    },
+    timeScale: { timeVisible: true, secondsVisible: false, borderColor: 'rgba(217, 119, 6, 0.3)' },
+    rightPriceScale: { borderColor: 'rgba(217, 119, 6, 0.3)' },
+    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+});
+
+const candleSeries = chart.addCandlestickSeries({
+    upColor: '#10b981', downColor: '#ef4444',
+    borderUpColor: '#10b981', borderDownColor: '#ef4444',
+    wickUpColor: '#10b981', wickDownColor: '#ef4444',
+});
+
+new ResizeObserver(entries => {
+    const { width, height } = entries[0].contentRect;
+    chart.resize(width, height);
+}).observe(container);
+
+// ═══════════════════════════════════════════════════════════════════
+// 2. CANDLE BUILDER (1-second candles)
+// ═══════════════════════════════════════════════════════════════════
+let currentCandle = null;
+let lastPrice = null;
+const priceBox = document.getElementById('last-price');
+
+function pushTick(price, timeMs) {
+    const timeSec = Math.floor(timeMs / 1000);
+
+    const isUp = lastPrice === null || price >= lastPrice;
+    priceBox.textContent = '$' + price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    priceBox.classList.remove('price-flash-up', 'price-flash-down');
+    if (lastPrice !== null && price !== lastPrice) {
+        priceBox.classList.add(isUp ? 'price-flash-up' : 'price-flash-down');
+        setTimeout(() => priceBox.classList.remove('price-flash-up', 'price-flash-down'), 300);
+    }
+
+    if (!currentCandle || currentCandle.time !== timeSec) {
+        currentCandle = { time: timeSec, open: price, high: price, low: price, close: price };
+    } else {
+        currentCandle.high = Math.max(currentCandle.high, price);
+        currentCandle.low = Math.min(currentCandle.low, price);
+        currentCandle.close = price;
+    }
+    candleSeries.update(currentCandle);
+    lastPrice = price;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 3. WEBSOCKET
+// ═══════════════════════════════════════════════════════════════════
+const wsDot = document.getElementById('ws-dot');
+const wsStatus = document.getElementById('ws-status');
+function setStatus(state, text) { wsDot.className = 'status-dot ' + state; wsStatus.textContent = text; }
+
+let ws = null, reconnectTimer = null;
+function connectWS() {
+    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    ws = new WebSocket(`${proto}://${window.location.host}/ws/live-chart/`);
+    ws.onopen = () => setStatus('', 'Connected');
+    ws.onmessage = (ev) => {
+        try {
+            const msg = JSON.parse(ev.data);
+            if (msg.type === 'status') setStatus('live', msg.message);
+            else if (msg.type === 'tick') pushTick(msg.price, msg.time);
+            else if (msg.type === 'error') setStatus('error', msg.message);
+        } catch (e) {}
+    };
+    ws.onclose = () => {
+        setStatus('error', 'Disconnected · reconnecting');
+        clearTimeout(reconnectTimer);
+        reconnectTimer = setTimeout(connectWS, 3000);
+    };
+    ws.onerror = () => setStatus('error', 'WS error');
+}
+connectWS();
+
+// ═══════════════════════════════════════════════════════════════════
+// 4. ENTRY LINES
+// ═══════════════════════════════════════════════════════════════════
+const activeLines = {};
+
+function drawEntryLine(trade) {
+    if (activeLines[trade.id]) return;
+    const isBuy = trade.direction === 'BUY';
+    const line = candleSeries.createPriceLine({
+        price: trade.entry_price,
+        color: isBuy ? '#10b981' : '#ef4444',
+        lineWidth: 2,
+        lineStyle: LightweightCharts.LineStyle.Dashed,
+        axisLabelVisible: true,
+        title: `${trade.direction} #${trade.id}`,
+    });
+    activeLines[trade.id] = line;
+}
+
+async function loadExistingTrades() {
+    try {
+        const res = await fetch('/api/chart/trades/open/');
+        const data = await res.json();
+        if (data.ok) data.trades.forEach(drawEntryLine);
+    } catch (e) { console.warn(e); }
+}
+loadExistingTrades();
+
+// ═══════════════════════════════════════════════════════════════════
+// 5. PLACE TRADE
+// ═══════════════════════════════════════════════════════════════════
+const tradesBody = document.getElementById('trades-body');
+const openCount = document.getElementById('open-count');
+
+function renderTradeRow(trade) {
+    const emptyRow = document.getElementById('empty-trades');
+    if (emptyRow) emptyRow.remove();
+
+    const tr = document.createElement('tr');
+    tr.dataset.tradeId = trade.id;
+    tr.className = 'hover:bg-amber-950/20 transition';
+    const sideClass = trade.direction === 'BUY' ? 'text-emerald-400' : 'text-rose-400';
+    tr.innerHTML = `
+        <td class="py-2 px-3 text-slate-400">${trade.ticket}</td>
+        <td class="py-2 px-3 font-bold text-white">${trade.symbol}</td>
+        <td class="py-2 px-3 ${sideClass} font-bold">${trade.direction}</td>
+        <td class="py-2 px-3 text-white">${trade.entry_price.toFixed(2)}</td>
+        <td class="py-2 px-3 text-amber-300">$${trade.stake.toFixed(2)}</td>
+    `;
+    tradesBody.prepend(tr);
+    openCount.textContent = tradesBody.querySelectorAll('tr[data-trade-id]').length;
+}
+
+function getCookie(name) {
+    let v = null;
+    if (document.cookie) document.cookie.split(';').forEach(c => {
+        const t = c.trim();
+        if (t.startsWith(name + '=')) v = decodeURIComponent(t.slice(name.length + 1));
+    });
+    return v;
+}
+
+async function placeTrade(direction) {
+    if (lastPrice === null) { alert('Waiting for first price tick…'); return; }
+
+    try {
+        const res = await fetch('/api/chart/trade/place/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify({
+                symbol: 'BTCUSD', direction: direction,
+                entry_price: lastPrice, volume: 0.01,
+            }),
+        });
+        const data = await res.json();
+        if (data.ok) { drawEntryLine(data.trade); renderTradeRow(data.trade); }
+        else alert('Failed: ' + (data.error || 'Unknown'));
+    } catch (e) { alert('Network error: ' + e.message); }
+}
+
+document.getElementById('btn-buy').addEventListener('click', () => placeTrade('BUY'));
+document.getElementById('btn-sell').addEventListener('click', () => placeTrade('SELL'));
+
+// ═══════════════════════════════════════════════════════════════════
+// 6. HIDE SPINNER
+// ═══════════════════════════════════════════════════════════════════
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        const s = document.getElementById('loading-spinner');
+        if (s) { s.classList.add('spinner-hidden'); setTimeout(() => s.remove(), 500); }
+    }, 400);
+});
+</script>
+{% endblock %}

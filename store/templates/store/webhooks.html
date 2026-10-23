@@ -1,0 +1,187 @@
+{% extends 'base_dashboard.html' %}
+
+{% block content %}
+{% include 'partials/legacy_skin.html' %}
+<style>
+    .px-wtab { padding-bottom: 1rem; color: var(--px-mute); border-bottom: 2px solid transparent; }
+    .px-wtab.on { color: var(--px-text); border-color: var(--px-accent); }
+    .px-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+    /* header buttons wrap on phones instead of pushing the page sideways */
+    main .max-w-7xl > .flex.justify-between:first-child { flex-wrap: wrap; gap: 12px; }
+    main .max-w-7xl > .flex.justify-between:first-child > .flex { flex-wrap: wrap; }
+</style>
+<div class="max-w-7xl mx-auto space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h2 class="text-2xl font-bold text-white flex items-center gap-3">
+                Webhook Automations 
+                <span class="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20">{{ active_count }} Active</span>
+            </h2>
+            <p class="text-slate-400 text-sm mt-1">Create and manage webhooks for automated signal delivery</p>
+        </div>
+        <div class="flex gap-3">
+            <button type="button" id="px-wh-filter" class="bg-slate-900 border border-cardBorder px-4 py-2 rounded-lg text-xs font-bold text-slate-300">Filters</button>
+            <button type="button" id="px-wh-export" class="bg-slate-900 border border-cardBorder px-4 py-2 rounded-lg text-xs font-bold text-slate-300">Export</button>
+            <!-- Trigger Modal Button -->
+            <button onclick="openWebhookModal()" class="bg-emerald-500 text-slate-950 px-4 py-2 rounded-lg text-xs font-bold hover:bg-emerald-400">+ New Webhook</button>
+        </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="bg-cardBg border border-cardBorder rounded-2xl p-6">
+            <p class="text-slate-500 text-[10px] uppercase font-bold">Total Webhooks</p>
+            <h4 class="text-xl font-bold text-white mt-1">{{ total_webhooks }}</h4>
+        </div>
+        <div class="bg-cardBg border border-cardBorder rounded-2xl p-6">
+            <p class="text-slate-500 text-[10px] uppercase font-bold">Active Endpoints</p>
+            <h4 class="text-xl font-bold text-white mt-1">{{ active_count }}</h4>
+        </div>
+        {% for label, value in stats_data.items %}{% if label != 'Total Endpoints' %}
+        <div class="bg-cardBg border border-cardBorder rounded-2xl p-6">
+            <p class="text-slate-500 text-[10px] uppercase font-bold">{{ label }}</p>
+            <h4 class="text-xl font-bold text-white mt-1">{% if total_webhooks %}{{ value }}{% else %}—{% endif %}</h4>
+        </div>
+        {% endif %}{% endfor %}
+    </div>
+
+    <div id="px-wh-filterbar" class="hidden flex flex-wrap items-center gap-3">
+        <input type="search" id="px-wh-q" placeholder="Search name or URL" class="bg-slate-950 border border-cardBorder rounded-lg px-3 py-2 text-xs w-64 max-w-full">
+        <label class="text-xs text-slate-400 flex items-center gap-2"><input type="checkbox" id="px-wh-active"> Active only</label>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex gap-8 border-b border-cardBorder text-sm font-semibold">
+        <button type="button" class="px-wtab on" data-t="">Endpoints</button>
+        <button type="button" class="px-wtab" data-t="IN">Incoming</button>
+        <button type="button" class="px-wtab" data-t="OUT">Outgoing</button>
+    </div>
+
+    <!-- Webhook Cards -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {% for webhook in webhooks %}
+        <div class="bg-cardBg border border-cardBorder rounded-2xl p-5 hover:border-slate-600 transition-all px-wh" data-type="{{ webhook.type }}" data-active="{{ webhook.is_active|yesno:'1,0' }}" data-name="{{ webhook.name|lower }} {{ webhook.url|lower }}">
+            <div class="flex justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-slate-900 rounded-lg"><i class="fa-solid fa-chart-line text-emerald-400"></i></div>
+                    <h3 class="font-bold text-white">{{ webhook.name }}</h3>
+                    <span class="px-dot" style="background:{% if webhook.is_active %}var(--px-up){% else %}var(--px-mute){% endif %}" title="{{ webhook.is_active|yesno:'Active,Paused' }}"></span>
+                </div>
+                <span class="text-xs px-2 py-1 rounded bg-slate-800 text-slate-300">{{ webhook.get_type_display }}</span>
+            </div>
+            
+            <div class="bg-slate-950 p-3 rounded-lg border border-cardBorder mb-4 flex justify-between items-center">
+                <code class="text-[10px] text-slate-400">{{ webhook.url|truncatechars:30 }}</code>
+                <button type="button" class="px-wh-copy text-slate-500 hover:text-white" data-url="{{ webhook.url }}" title="Copy URL"><i class="fa-regular fa-copy"></i></button>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2 text-center">
+                <div><p class="text-[10px] text-slate-500">Requests</p><p class="text-sm font-bold">{{ webhook.requests_count }}</p></div>
+                <div><p class="text-[10px] text-slate-500">Success</p><p class="text-sm font-bold text-emerald-400">{% if webhook.requests_count %}{{ webhook.success_rate|floatformat:1 }}%{% else %}—{% endif %}</p></div>
+                <div><p class="text-[10px] text-slate-500">Latency</p><p class="text-sm font-bold">{% if webhook.requests_count %}{{ webhook.latency }}ms{% else %}—{% endif %}</p></div>
+            </div>
+            <div class="flex items-center justify-between mt-4 pt-3 border-t border-cardBorder text-[11px]">
+                <span class="text-slate-500">Added {{ webhook.created_at|date:"M d, Y" }}</span>
+                <a href="{% url 'toggle_webhook' webhook.id %}" class="font-bold {% if webhook.is_active %}text-slate-400 hover:text-white{% else %}text-emerald-400{% endif %}">{% if webhook.is_active %}Pause{% else %}Resume{% endif %}</a>
+            </div>
+            {% if webhook.type == 'IN' %}
+            <p class="text-[10px] text-slate-500 mt-2 leading-relaxed">Send to <code class="text-slate-300">{{ incoming_url }}{{ webhook.name|slugify }}/</code> with header <code class="text-slate-300">X-Webhook-Secret</code>.</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+        
+        <!-- Empty State / Create New Card Trigger -->
+        <div onclick="openWebhookModal()" class="border-2 border-dashed border-cardBorder rounded-2xl p-6 flex flex-col items-center justify-center text-slate-500 cursor-pointer hover:border-emerald-500 transition-all">
+            <i class="fa-solid fa-plus text-2xl mb-2"></i>
+            <p class="text-sm font-bold">Create New Webhook</p>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Popup for Adding Webhook -->
+<div id="webhookModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-cardBorder w-full max-w-md rounded-2xl p-6 space-y-4">
+        <div class="flex justify-between items-center">
+            <h3 class="text-lg font-bold text-white">Create New Webhook Endpoint</h3>
+            <button onclick="closeWebhookModal()" class="text-slate-400 hover:text-white">&times;</button>
+        </div>
+        
+        <form method="POST" action="{% url 'create_webhook' %}" class="space-y-4">
+            {% csrf_token %}
+            <div>
+                <label class="block text-xs font-bold text-slate-400 mb-1">Webhook Name</label>
+                <input type="text" name="name" placeholder="e.g. TradingView Alert" required class="w-full bg-slate-950 border border-cardBorder rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+            </div>
+            
+            <div>
+                <label class="block text-xs font-bold text-slate-400 mb-1">Target URL</label>
+                <input type="url" name="url" placeholder="https://yourdomain.com/endpoint/" required class="w-full bg-slate-950 border border-cardBorder rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-400 mb-1">Webhook Type</label>
+                <select name="type" class="w-full bg-slate-950 border border-cardBorder rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+                    <option value="OUT">Outgoing</option>
+                    <option value="IN">Incoming</option>
+                </select>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-2">
+                <button type="button" onclick="closeWebhookModal()" class="px-4 py-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300">Cancel</button>
+                <button type="submit" class="px-4 py-2 rounded-lg text-xs font-bold bg-emerald-500 text-slate-950 hover:bg-emerald-400">Save Webhook</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openWebhookModal() {
+        document.getElementById('webhookModal').classList.remove('hidden');
+    }
+    function closeWebhookModal() {
+        document.getElementById('webhookModal').classList.add('hidden');
+    }
+
+    // ── Added: tabs, search / active filter, copy, CSV export, Escape / backdrop close ──
+    (function () {
+        const cards = [...document.querySelectorAll('.px-wh')];
+        let tab = '';
+        function apply() {
+            const q = (document.getElementById('px-wh-q').value || '').toLowerCase().trim();
+            const act = document.getElementById('px-wh-active').checked;
+            cards.forEach(c => {
+                c.style.display = (!tab || c.dataset.type === tab) && (!q || c.dataset.name.includes(q)) && (!act || c.dataset.active === '1') ? '' : 'none';
+            });
+        }
+        document.querySelectorAll('.px-wtab').forEach(b => b.addEventListener('click', () => {
+            document.querySelectorAll('.px-wtab').forEach(x => x.classList.toggle('on', x === b));
+            tab = b.dataset.t; apply();
+        }));
+        document.getElementById('px-wh-filter').addEventListener('click', () => {
+            const bar = document.getElementById('px-wh-filterbar');
+            bar.classList.toggle('hidden');
+            if (!bar.classList.contains('hidden')) document.getElementById('px-wh-q').focus();
+        });
+        document.getElementById('px-wh-q').addEventListener('input', apply);
+        document.getElementById('px-wh-active').addEventListener('change', apply);
+        document.querySelectorAll('.px-wh-copy').forEach(b => b.addEventListener('click', () => {
+            navigator.clipboard?.writeText(b.dataset.url).then(() => window.showMarketToast && showMarketToast('URL copied', 'success'));
+        }));
+        document.getElementById('px-wh-export').addEventListener('click', () => {
+            const rows = cards.filter(c => c.style.display !== 'none').map(c => [
+                c.querySelector('h3').textContent.trim(), c.dataset.type, c.querySelector('.px-wh-copy').dataset.url,
+                c.dataset.active === '1' ? 'active' : 'paused', ...[...c.querySelectorAll('.grid p.text-sm')].map(p => p.textContent.trim())]);
+            if (!rows.length) return window.showMarketToast && showMarketToast('Nothing to export', 'info');
+            const csv = [['Name', 'Type', 'URL', 'Status', 'Requests', 'Success', 'Latency'], ...rows]
+                .map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+            a.download = 'webhooks.csv'; a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeWebhookModal(); });
+        document.getElementById('webhookModal').addEventListener('click', e => { if (e.target.id === 'webhookModal') closeWebhookModal(); });
+    })();
+</script>
+{% endblock %}

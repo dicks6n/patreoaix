@@ -1,0 +1,1295 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0b0d12">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>{% block title %}PATREOAIX - AI Trading Platform{% endblock %}</title>
+
+    <!-- Theme must be applied before first paint -->
+    <script>
+        (function () {
+            var t = 'dark';
+            try { t = localStorage.getItem('theme') || 'dark'; } catch (e) {}
+            var h = document.documentElement;
+            h.classList.toggle('light', t === 'light');
+            h.classList.toggle('dark', t !== 'light');
+            h.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+        })();
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#0b0d12',
+                        cardBg: '#12151c',
+                        cardBorder: '#232836',
+                        brandGreen: '#16c784',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* ═══════════════════════════════════════════════════════════ */
+        /* DESIGN TOKENS                                               */
+        /* ═══════════════════════════════════════════════════════════ */
+        :root, html.dark {
+            --px-bg: #0b0d12;
+            --px-panel: #12151c;
+            --px-panel-2: #171b24;
+            --px-hover: #1c212c;
+            --px-line: #232836;
+            --px-line-soft: #1a1e28;
+            --px-text: #e6e8ee;
+            --px-dim: #8b93a7;
+            --px-mute: #5d6578;
+            --px-accent: #f0b90b;
+            --px-accent-ink: #1a1400;
+            --px-accent-soft: rgba(240, 185, 11, 0.12);
+            --px-up: #16c784;
+            --px-down: #ea3943;
+            --px-up-soft: rgba(22, 199, 132, 0.12);
+            --px-down-soft: rgba(234, 57, 67, 0.12);
+            --px-shadow: 0 1px 0 rgba(255, 255, 255, 0.02) inset, 0 8px 24px rgba(0, 0, 0, 0.25);
+
+            /* legacy names used by child pages */
+            --bg-primary: var(--px-bg);
+            --bg-secondary: var(--px-panel);
+            --bg-tertiary: var(--px-panel-2);
+            --text-primary: var(--px-text);
+            --text-secondary: var(--px-dim);
+            --text-muted: var(--px-mute);
+            --border-primary: var(--px-line);
+            --border-secondary: var(--px-line);
+            --accent: var(--px-accent);
+            --success: var(--px-up);
+            --danger: var(--px-down);
+            --warning: #f59e0b;
+        }
+        html.light {
+            --px-bg: #f4f5f7;
+            --px-panel: #ffffff;
+            --px-panel-2: #f7f8fa;
+            --px-hover: #eef0f3;
+            --px-line: #e2e5ea;
+            --px-line-soft: #eceef2;
+            --px-text: #14171f;
+            --px-dim: #5b6475;
+            --px-mute: #8a93a5;
+            --px-accent: #c99400;
+            --px-accent-ink: #ffffff;
+            --px-accent-soft: rgba(201, 148, 0, 0.10);
+            --px-up: #0e9f6e;
+            --px-down: #d92d3a;
+            --px-up-soft: rgba(14, 159, 110, 0.10);
+            --px-down-soft: rgba(217, 45, 58, 0.10);
+            --px-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 16px rgba(16, 24, 40, 0.05);
+        }
+
+        html, body, aside, header, footer, main, nav { transition: background-color .25s ease, color .25s ease, border-color .25s ease; }
+        * { -webkit-tap-highlight-color: transparent; }
+        body {
+            background-color: var(--px-bg) !important;
+            color: var(--px-text);
+            font-family: 'Inter', sans-serif;
+            font-feature-settings: 'cv11', 'ss01';
+            overscroll-behavior-y: none;
+        }
+        .tabular, .font-mono { font-variant-numeric: tabular-nums; }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--px-line); border-radius: 9999px; border: 2px solid var(--px-bg); }
+        ::-webkit-scrollbar-thumb:hover { background: var(--px-mute); }
+
+        /* ═══════════════════════════════════════════════════════════ */
+        /* KEPT FROM THE PREVIOUS LAYOUT (child pages rely on these)   */
+        /* ═══════════════════════════════════════════════════════════ */
+
+        html.light .bg-slate-950,
+        html.light .bg-slate-950\/80,
+        html.light .bg-slate-950\/90,
+        html.light .bg-slate-950\/95,
+        html.light .bg-\[\#020617\],
+        html.light .bg-\[\#0a0e17\] {
+            background-color: #e4eaf2 !important;
+        }
+
+        html.light .bg-slate-900,
+        html.light .bg-slate-900\/80,
+        html.light .bg-slate-900\/50,
+        html.light .bg-slate-900\/90,
+        html.light .bg-slate-900\/95,
+        html.light .bg-slate-950\/60,
+        html.light .bg-slate-950\/70 {
+            background-color: #eef2f7 !important;
+        }
+
+        html.light .bg-slate-800,
+        html.light .bg-slate-800\/50,
+        html.light .bg-slate-800\/60,
+        html.light .bg-slate-800\/80 {
+            background-color: #d8e0ea !important;
+        }
+
+        html.light aside#sidebar {
+            background: linear-gradient(to bottom, #eef2f7, #e4eaf2, #eef2f7) !important;
+            border-right-color: #cbd5e1 !important;
+        }
+
+        html.light aside#sidebar .bg-slate-950\/90 {
+            background-color: rgba(238, 242, 247, 0.95) !important;
+        }
+
+        html.light header {
+            background-color: rgba(238, 242, 247, 0.9) !important;
+            border-bottom-color: #cbd5e1 !important;
+        }
+
+        html.light .digits-card,
+        html.light .digits-card-amber,
+        html.light .digits-card-blue,
+        html.light .funded-card,
+        html.light .risk-card {
+            background: linear-gradient(135deg, #f7f9fc 0%, #eef2f7 100%) !important;
+            border-color: rgba(217, 119, 6, 0.2) !important;
+            box-shadow: 0 4px 24px rgba(15, 30, 51, 0.06) !important;
+        }
+
+        html.light .text-white,
+        html.light .text-slate-100,
+        html.light .text-slate-200 {
+            color: #0f1e33 !important;
+        }
+
+        html.light .text-slate-300,
+        html.light .text-slate-400 {
+            color: #3d5266 !important;
+        }
+
+        html.light .text-slate-500 {
+            color: #7a8a9c !important;
+        }
+
+        html.light .text-emerald-400 { color: #059669 !important; }
+        html.light .text-emerald-300 { color: #10b981 !important; }
+        html.light .text-red-400     { color: #dc2626 !important; }
+        html.light .text-amber-400   { color: #d97706 !important; }
+        html.light .text-amber-300   { color: #d97706 !important; }
+        html.light .text-amber-200   { color: #b45309 !important; }
+        html.light .text-amber-200\/70 { color: #b45309 !important; }
+        html.light .text-indigo-400  { color: #4f46e5 !important; }
+        html.light .text-indigo-300  { color: #4f46e5 !important; }
+        html.light .text-purple-400  { color: #7c3aed !important; }
+        html.light .text-blue-400    { color: #2563eb !important; }
+        html.light .text-blue-300    { color: #2563eb !important; }
+        html.light .text-brandGreen  { color: #00a862 !important; }
+
+        html.light .border-slate-800,
+        html.light .border-slate-800\/60,
+        html.light .border-slate-800\/80,
+        html.light .border-slate-700,
+        html.light .border-slate-700\/60,
+        html.light .border-indigo-500\/20,
+        html.light .border-indigo-500\/30,
+        html.light .border-indigo-500\/40 {
+            border-color: #cbd5e1 !important;
+        }
+
+        html.light input,
+        html.light select,
+        html.light textarea {
+            background-color: #f7f9fc !important;
+            color: #0f1e33 !important;
+            border-color: #b8c4d4 !important;
+        }
+
+        html.light input::placeholder,
+        html.light textarea::placeholder {
+            color: #8f9eb0 !important;
+        }
+
+        html.light .hover\:bg-slate-800:hover,
+        html.light .hover\:bg-slate-800\/50:hover,
+        html.light .hover\:bg-slate-700:hover,
+        html.light .hover\:bg-indigo-950\/40:hover,
+        html.light .hover\:bg-indigo-950\/30:hover {
+            background-color: #d8e0ea !important;
+        }
+
+        html.light .bg-slate-950\/80,
+        html.light .bg-black\/70,
+        html.light .bg-black\/60 {
+            background-color: rgba(15, 30, 51, 0.4) !important;
+        }
+
+        html.light #loading-spinner {
+            background-color: rgba(238, 242, 247, 0.95) !important;
+        }
+
+        html.light ::-webkit-scrollbar-track { background: #eef2f7; }
+        html.light ::-webkit-scrollbar-thumb { background: #b8c4d4; }
+        html.light ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* ═══════════════════════════════════════════════════════════ */
+        /* GLOBAL KYC VERIFICATION BANNER                              */
+        /* ═══════════════════════════════════════════════════════════ */
+        .kyc-banner {
+            position: relative;
+            overflow: hidden;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+                        box-shadow 0.25s ease;
+            animation: kycSlideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .kyc-banner:hover { transform: translateY(-2px); }
+        .kyc-banner:active { transform: translateY(0) scale(0.99); }
+
+        @keyframes kycSlideIn {
+            from { opacity: 0; transform: translateY(-15px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .kyc-banner::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -120%;
+            width: 100%; height: 100%;
+            background: linear-gradient(120deg,
+                transparent 0%,
+                rgba(255,255,255,0.12) 50%,
+                transparent 100%);
+            transition: left 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+        }
+        .kyc-banner:hover::before { left: 120%; }
+
+        .kyc-banner.kyc-pending {
+            background: linear-gradient(135deg,
+                rgba(245, 158, 11, 0.15) 0%,
+                rgba(217, 119, 6, 0.08) 100%);
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.15);
+        }
+        .kyc-banner.kyc-pending:hover {
+            box-shadow: 0 8px 32px rgba(245, 158, 11, 0.35),
+                        0 0 0 1px rgba(245, 158, 11, 0.5);
+        }
+
+        .kyc-banner.kyc-rejected {
+            background: linear-gradient(135deg,
+                rgba(239, 68, 68, 0.15) 0%,
+                rgba(190, 18, 60, 0.08) 100%);
+            border: 1px solid rgba(239, 68, 68, 0.5);
+            box-shadow: 0 4px 20px rgba(239, 68, 68, 0.2);
+            animation: kycSlideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+                       kycPulse 2.5s ease-in-out infinite;
+        }
+        .kyc-banner.kyc-rejected:hover {
+            animation-play-state: paused;
+            box-shadow: 0 8px 32px rgba(239, 68, 68, 0.4),
+                        0 0 0 1px rgba(239, 68, 68, 0.6);
+        }
+
+        .kyc-banner.kyc-required {
+            background: linear-gradient(135deg,
+                rgba(217, 119, 6, 0.18) 0%,
+                rgba(245, 158, 11, 0.08) 100%);
+            border: 1px solid rgba(217, 119, 6, 0.45);
+            box-shadow: 0 4px 20px rgba(217, 119, 6, 0.18);
+            animation: kycSlideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+                       kycPulse 3s ease-in-out infinite;
+        }
+        .kyc-banner.kyc-required:hover {
+            animation-play-state: paused;
+            box-shadow: 0 8px 32px rgba(217, 119, 6, 0.4),
+                        0 0 0 1px rgba(245, 158, 11, 0.55);
+        }
+
+        @keyframes kycPulse {
+            0%, 100% { box-shadow: 0 4px 20px rgba(245, 158, 11, 0.15),
+                                   0 0 0 0 rgba(245, 158, 11, 0.25); }
+            50%      { box-shadow: 0 4px 24px rgba(245, 158, 11, 0.25),
+                                   0 0 0 6px rgba(245, 158, 11, 0); }
+        }
+
+        .kyc-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 10px;
+            border-radius: 8px;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .kyc-badge.kyc-pending {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fcd34d;
+            border: 1px solid rgba(245, 158, 11, 0.4);
+        }
+        .kyc-badge.kyc-rejected {
+            background: rgba(239, 68, 68, 0.15);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+        }
+        .kyc-badge.kyc-required {
+            background: rgba(217, 119, 6, 0.18);
+            color: #fdba74;
+            border: 1px solid rgba(217, 119, 6, 0.45);
+        }
+
+        .kyc-icon-ring {
+            position: relative;
+        }
+        .kyc-icon-ring::after {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 50%;
+            border: 2px solid currentColor;
+            opacity: 0;
+            animation: kycRingPulse 2s ease-out infinite;
+        }
+        @keyframes kycRingPulse {
+            0%   { transform: scale(0.85); opacity: 0.6; }
+            100% { transform: scale(1.4); opacity: 0; }
+        }
+
+        .kyc-dismiss {
+            transition: all 0.2s ease;
+        }
+        .kyc-dismiss:hover {
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+        }
+
+        /* Light mode tweaks */
+        html.light .kyc-banner.kyc-pending {
+            background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%);
+        }
+        html.light .kyc-banner.kyc-rejected {
+            background: linear-gradient(135deg, #fee2e2 0%, #fef2f2 100%);
+        }
+        html.light .kyc-banner.kyc-required {
+            background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%);
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* ═══════════════════════════════════════════════════════════ */
+        /* REUSABLE CARD CLASSES                                       */
+        /* ═══════════════════════════════════════════════════════════ */
+        .digits-card {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 27, 75, 0.4) 100%);
+            border: 1px solid rgba(99, 102, 241, 0.15);
+            border-radius: 20px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+        }
+
+        .digits-card-amber {
+            background: linear-gradient(135deg, rgba(69, 26, 3, 0.4) 0%, rgba(15, 23, 42, 0.95) 50%, rgba(66, 32, 6, 0.4) 100%);
+            border: 1px solid rgba(217, 119, 6, 0.35);
+            border-radius: 20px;
+            box-shadow: 0 4px 30px rgba(217, 119, 6, 0.15);
+            position: relative;
+            overflow: hidden;
+        }
+        .digits-card-amber::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.8), transparent);
+            animation: amberScan 3s linear infinite;
+        }
+        @keyframes amberScan {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .digits-card-blue {
+            background: linear-gradient(135deg, rgba(30, 58, 138, 0.4) 0%, rgba(15, 23, 42, 0.95) 50%, rgba(49, 46, 129, 0.4) 100%);
+            border: 1px solid rgba(59, 130, 246, 0.4);
+            border-radius: 20px;
+            box-shadow: 0 4px 30px rgba(59, 130, 246, 0.15);
+        }
+
+        /* ═══════════════════════════════════════════════════════════ */
+        /* ANIMATIONS                                                  */
+        /* ═══════════════════════════════════════════════════════════ */
+        @keyframes customBlink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.1; }
+        }
+        .animate-blink { animation: customBlink 1s infinite; }
+
+        @keyframes closedPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .animate-closed-pulse { animation: closedPulse 1.5s ease-in-out infinite; }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .trade-log-entry { animation: slideIn 0.3s ease-out; }
+
+        @supports (padding-bottom: env(safe-area-inset-bottom)) {
+            .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+        }
+
+        @media (max-width: 1023px) {
+            body { padding-bottom: 88px; }
+        }
+
+        @media (max-width: 1023px) {
+            #sidebar { transform: translateX(-100%); }
+            #sidebar.open { transform: translateX(0); }
+        }
+
+
+        /* ═══════════════════════════════════════════════════════════ */
+        /* SHELL                                                       */
+        /* ═══════════════════════════════════════════════════════════ */
+        aside#sidebar {
+            background: var(--px-panel) !important;
+            border-right: 1px solid var(--px-line) !important;
+            box-shadow: none;
+        }
+        .px-brand-mark {
+            width: 30px; height: 30px; border-radius: 8px;
+            background: var(--px-accent); color: var(--px-accent-ink);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px;
+        }
+        .px-wordmark { font-weight: 800; letter-spacing: .06em; color: var(--px-text); font-size: 15px; }
+        .px-wordmark b { color: var(--px-accent); font-weight: 800; }
+
+        .nav-section-label {
+            padding: 0 12px; margin-bottom: 6px;
+            font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+            color: var(--px-mute);
+        }
+        .nav-item {
+            position: relative;
+            display: flex; align-items: center; gap: 11px;
+            padding: 8px 12px; border-radius: 8px;
+            font-size: 13px; font-weight: 500;
+            color: var(--px-dim) !important;
+            transition: background-color .12s ease, color .12s ease;
+        }
+        .nav-item i { width: 16px; text-align: center; font-size: 13px; color: var(--px-mute); }
+        .nav-item:hover { color: var(--px-text) !important; background: var(--px-hover); }
+        .nav-item:hover i { color: var(--px-dim); }
+        .nav-item.nav-active { color: var(--px-text) !important; background: var(--px-accent-soft); font-weight: 600; }
+        .nav-item.nav-active i { color: var(--px-accent); }
+        .nav-item.nav-active::before {
+            content: ''; position: absolute; left: -12px; top: 8px; bottom: 8px; width: 3px;
+            border-radius: 0 3px 3px 0; background: var(--px-accent);
+        }
+        .nav-pill {
+            margin-left: auto; font-size: 9px; font-weight: 700; letter-spacing: .06em;
+            padding: 2px 6px; border-radius: 4px; background: var(--px-accent-soft); color: var(--px-accent);
+        }
+
+        header#px-header {
+            background: color-mix(in srgb, var(--px-bg) 86%, transparent) !important;
+            border-bottom: 1px solid var(--px-line) !important;
+            -webkit-backdrop-filter: saturate(160%) blur(12px);
+            backdrop-filter: saturate(160%) blur(12px);
+        }
+        .header-icon-btn {
+            width: 36px; height: 36px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--px-dim); background: transparent; border: 1px solid var(--px-line);
+            font-size: 13px; cursor: pointer; transition: all .12s ease;
+        }
+        .header-icon-btn:hover { color: var(--px-text); background: var(--px-hover); }
+        .header-icon-btn:active { transform: scale(.96); }
+
+        .px-pill {
+            display: inline-flex; align-items: center; gap: 7px;
+            height: 30px; padding: 0 10px; border-radius: 999px;
+            font-size: 11px; font-weight: 600; border: 1px solid var(--px-line); color: var(--px-dim);
+        }
+        .px-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--px-mute); flex-shrink: 0; }
+        .px-dot.live { background: var(--px-up); box-shadow: 0 0 0 3px var(--px-up-soft); }
+        .px-dot.off { background: var(--px-down); box-shadow: 0 0 0 3px var(--px-down-soft); }
+
+        .px-btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            height: 36px; padding: 0 14px; border-radius: 8px;
+            font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+            transition: background-color .12s ease, border-color .12s ease, color .12s ease, transform .08s ease;
+        }
+        .px-btn:active { transform: translateY(1px); }
+        .px-btn-primary { background: var(--px-accent); color: var(--px-accent-ink); }
+        .px-btn-primary:hover { filter: brightness(1.06); }
+        .px-btn-ghost { background: var(--px-panel-2); color: var(--px-text); border: 1px solid var(--px-line); }
+        .px-btn-ghost:hover { background: var(--px-hover); }
+        .px-btn.sm { height: 30px; padding: 0 11px; font-size: 12px; }
+        .px-btn.xs { height: 26px; padding: 0 9px; font-size: 11px; border-radius: 6px; }
+        .px-pill.sm { height: 22px; padding: 0 8px; font-size: 10px; }
+
+        /* dropdown panels */
+        .px-pop {
+            background: var(--px-panel); border: 1px solid var(--px-line);
+            border-radius: 12px; box-shadow: 0 16px 48px rgba(0, 0, 0, .35);
+        }
+        html.light .px-pop { box-shadow: 0 16px 48px rgba(16, 24, 40, .12); }
+
+        /* ticker strip */
+        #px-ticker { background: var(--px-panel); border-bottom: 1px solid var(--px-line); }
+        .px-ticker-track { display: flex; width: max-content; animation: pxTicker 70s linear infinite; }
+        #px-ticker:hover .px-ticker-track { animation-play-state: paused; }
+        @keyframes pxTicker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        .px-tick { display: inline-flex; align-items: baseline; gap: 8px; padding: 0 18px; height: 34px; align-items: center; border-right: 1px solid var(--px-line-soft); font-size: 12px; white-space: nowrap; }
+        .px-tick .s { color: var(--px-dim); font-weight: 600; }
+        .px-tick .p { color: var(--px-text); font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+        .px-tick .c { font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+        @media (prefers-reduced-motion: reduce) { .px-ticker-track { animation: none; } #px-ticker { overflow-x: auto; } }
+
+        .px-up { color: var(--px-up) !important; }
+        .px-down { color: var(--px-down) !important; }
+        .px-flat { color: var(--px-dim) !important; }
+
+        footer#px-footer { background: var(--px-bg) !important; border-top: 1px solid var(--px-line) !important; }
+
+        /* ═══════════════════════════════════════════════════════════ */
+        /* MOBILE BOTTOM BAR (FIXED)                                   */
+        /* ═══════════════════════════════════════════════════════════ */
+        .px-tabbar {
+            background: color-mix(in srgb, var(--px-panel) 94%, transparent);
+            border-top: 1px solid var(--px-line);
+            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px);
+        }
+        .px-tab {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            flex: 1 1 0;
+            max-width: 88px;
+            padding: 4px 0;
+            color: var(--px-mute);
+            font-size: 10px;
+            font-weight: 500;
+            line-height: 1;
+            text-decoration: none;
+            transition: color .15s ease, transform .1s ease;
+        }
+        .px-tab i { font-size: 17px; line-height: 1; }
+        .px-tab:active { transform: scale(0.94); }
+        .px-tab.active { color: var(--px-accent); font-weight: 700; }
+
+        .px-fab {
+            position: absolute;
+            left: 50%;
+            top: -20px;
+            transform: translateX(-50%);
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: var(--px-accent);
+            color: var(--px-accent-ink);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            border: 4px solid var(--px-bg);
+            box-shadow: 0 8px 24px rgba(240, 185, 11, .35);
+            text-decoration: none;
+            transition: transform .1s ease;
+        }
+        .px-fab:active { transform: translateX(-50%) scale(0.94); }
+
+        /* toast */
+        .px-toast {
+            position: fixed; right: 20px; bottom: 20px; z-index: 100000;
+            display: flex; align-items: center; gap: 10px;
+            padding: 12px 14px; border-radius: 10px; font-size: 13px; font-weight: 500;
+            background: var(--px-panel); color: var(--px-text); border: 1px solid var(--px-line);
+            box-shadow: 0 16px 40px rgba(0, 0, 0, .35); transition: opacity .3s ease, transform .3s ease;
+        }
+        .px-toast::before { content: ''; width: 3px; align-self: stretch; border-radius: 3px; background: var(--tone, var(--px-accent)); }
+        @media (max-width: 1023px) {
+            .px-toast { left: 16px; right: 16px; bottom: 96px; }
+        }
+
+        /* notifications list */
+        .px-notif-item { display: flex; gap: 12px; padding: 12px 16px; cursor: pointer; border-bottom: 1px solid var(--px-line-soft); }
+        .px-notif-item:hover { background: var(--px-hover); }
+        .px-notif-item.read { opacity: .6; }
+
+        /* light overrides for the new chrome (beat the generic ones above) */
+        html.light aside#sidebar { background: var(--px-panel) !important; border-right-color: var(--px-line) !important; }
+        html.light header#px-header { background: color-mix(in srgb, var(--px-bg) 86%, transparent) !important; border-bottom-color: var(--px-line) !important; }
+        html.light .nav-item.nav-active { background: var(--px-accent-soft); border: 0; }
+    </style>
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="min-h-screen flex antialiased selection:bg-amber-400 selection:text-black">
+
+    <!-- MOBILE SIDEBAR BACKDROP -->
+    <div id="sidebarBackdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-black/60 z-40 lg:hidden hidden backdrop-blur-sm"></div>
+
+    <!-- ══════════════════ SIDEBAR ══════════════════ -->
+    <aside id="sidebar" class="fixed top-0 bottom-0 left-0 z-50 w-60 flex flex-col transition-transform duration-300 lg:translate-x-0">
+        <div class="h-14 px-5 flex items-center justify-between shrink-0" style="border-bottom:1px solid var(--px-line)">
+            <a href="/" class="flex items-center gap-2.5">
+                <span class="px-brand-mark"><i class="fa-solid fa-chart-line"></i></span>
+                <span class="px-wordmark">PATREO<b>AIX</b></span>
+            </a>
+            <button onclick="toggleSidebar()" class="lg:hidden p-1" style="color:var(--px-dim)" aria-label="Close menu">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <nav class="flex-1 overflow-y-auto no-scrollbar px-3 py-4 space-y-5">
+            <div>
+                <p class="nav-section-label">Trade</p>
+                <div class="space-y-0.5">
+                    <a href="/" class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-table-columns"></i><span>Dashboard</span>
+                    </a>
+                    <a href="{% url 'trade' %}" class="nav-item {% if request.resolver_match.url_name == 'trade' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-chart-column"></i><span>Live Trading</span>
+                    </a>
+                    <a href="{% url 'digits_trading' %}" class="nav-item {% if request.resolver_match.url_name == 'digits_trading' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-bolt"></i><span>AI Signal Generator</span>
+                    </a>
+                    <a href="{% url 'market_overview' %}" class="nav-item {% if request.resolver_match.url_name == 'market_overview' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-earth-americas"></i><span>Market Overview</span>
+                    </a>
+                </div>
+            </div>
+
+            <div>
+                <p class="nav-section-label">AI Intelligence</p>
+                <div class="space-y-0.5">
+                    <a href="{% url 'ai_prediction_models' %}" class="nav-item {% if request.resolver_match.url_name == 'ai_prediction_models' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-brain"></i><span>Prediction Models</span>
+                    </a>
+                    <a href="{% url 'ai_risk_analyzer' %}" class="nav-item {% if request.resolver_match.url_name == 'ai_risk_analyzer' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-shield-halved"></i><span>Risk Analyzer</span>
+                    </a>
+                    <a href="{% url 'ai_trade_journal' %}" class="nav-item {% if request.resolver_match.url_name == 'ai_trade_journal' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-book-open"></i><span>Trade Journal</span>
+                    </a>
+                    <a href="{% url 'ai_strategy_builder' %}" class="nav-item {% if request.resolver_match.url_name == 'ai_strategy_builder' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-diagram-project"></i><span>Strategy Builder</span>
+                    </a>
+                    <a href="{% url 'news_sentiment' %}" class="nav-item {% if request.resolver_match.url_name == 'news_sentiment' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-newspaper"></i><span>News &amp; Sentiment</span>
+                    </a>
+                    <a href="{% url 'economic_calendar' %}" class="nav-item {% if request.resolver_match.url_name == 'economic_calendar' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-calendar-days"></i><span>Economic Calendar</span>
+                    </a>
+                </div>
+            </div>
+
+            <div>
+                <p class="nav-section-label">Portfolio</p>
+                <div class="space-y-0.5">
+                    <a href="{% url 'portfolio' %}" class="nav-item {% if request.resolver_match.url_name == 'portfolio' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-briefcase"></i><span>My Portfolio</span>
+                    </a>
+                    <a href="{% url 'trade_history' %}" class="nav-item {% if request.resolver_match.url_name == 'trade_history' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-clock-rotate-left"></i><span>Trade History</span>
+                    </a>
+                    <a href="{% url 'risk_metrics' %}" class="nav-item {% if request.resolver_match.url_name == 'risk_metrics' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-scale-balanced"></i><span>Risk Metrics</span>
+                    </a>
+                </div>
+            </div>
+
+            <div>
+                <p class="nav-section-label">Automation</p>
+                <div class="space-y-0.5">
+                    <a href="{% url 'bot' %}" class="nav-item {% if request.resolver_match.url_name == 'bot' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-robot"></i><span>Bot Center</span>
+                    </a>
+                    <a href="{% url 'webhooks' %}" class="nav-item {% if request.resolver_match.url_name == 'webhooks' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-code"></i><span>Webhooks</span>
+                    </a>
+                </div>
+            </div>
+
+            <div>
+                <p class="nav-section-label">Account</p>
+                <div class="space-y-0.5">
+                    <a href="{% url 'profile' %}" class="nav-item {% if request.resolver_match.url_name == 'profile' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-user-shield"></i><span>Profile &amp; Security</span>
+                    </a>
+                    <a href="{% url 'referral_dashboard' %}" class="nav-item {% if request.resolver_match.url_name == 'referral_dashboard' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-user-group"></i><span>Referrals</span>
+                    </a>
+                    <a href="{% url 'funded' %}" class="nav-item {% if request.resolver_match.url_name == 'funded' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-credit-card"></i><span>Subscription</span><span class="nav-pill">PRO</span>
+                    </a>
+                    <a href="{% url 'ai_support' %}" class="nav-item {% if request.resolver_match.url_name == 'ai_support' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-circle-question"></i><span>Help Center</span>
+                    </a>
+                    <button onclick="toggleTheme()" type="button" class="w-full nav-item">
+                        <i id="sidebar-theme-icon" class="fa-regular fa-moon"></i><span>Theme</span>
+                        <span id="sidebar-theme-label" class="ml-auto text-[10px] font-mono uppercase" style="color:var(--px-mute)">Dark</span>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <div class="p-3 shrink-0 safe-bottom" style="border-top:1px solid var(--px-line)">
+            <div class="flex items-center gap-2.5 p-2 rounded-lg" style="background:var(--px-panel-2)">
+                <div class="w-8 h-8 rounded-md flex items-center justify-center text-xs font-bold shrink-0" style="background:var(--px-accent-soft);color:var(--px-accent)">
+                    {{ user.username|default:"U"|slice:":2"|upper }}
+                </div>
+                <div class="min-w-0 flex-1">
+                    <p class="text-xs font-semibold truncate" style="color:var(--px-text)">{{ user.get_full_name|default:user.username }}</p>
+                    <p class="text-[11px] truncate" style="color:var(--px-mute)">{{ user.email }}</p>
+                </div>
+                <form method="POST" action="{% url 'logout' %}">
+                    {% csrf_token %}
+                    <button type="submit" title="Log out" class="p-1.5 rounded-md hover:text-rose-400" style="color:var(--px-mute)">
+                        <i class="fa-solid fa-right-from-bracket text-xs"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ══════════════════ MAIN ══════════════════ -->
+    <div class="lg:pl-60 flex-1 flex flex-col min-w-0">
+
+        <header id="px-header" class="h-14 sticky top-0 z-30 px-3 sm:px-4 lg:px-6 flex items-center gap-2 sm:gap-3">
+            <span class="lg:hidden">
+                <button onclick="toggleSidebar()" class="header-icon-btn" aria-label="Open menu">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+            </span>
+            <a href="/" class="lg:hidden flex items-center gap-2">
+                <span class="px-brand-mark" style="width:26px;height:26px;font-size:11px"><i class="fa-solid fa-chart-line"></i></span>
+                <span class="px-wordmark" style="font-size:14px">PATREO<b>AIX</b></span>
+            </a>
+
+            <div class="hidden lg:block min-w-0">
+                <h1 class="text-[15px] font-semibold truncate" style="color:var(--px-text)">{% block page_title %}{% endblock %}</h1>
+            </div>
+
+            <div class="ml-auto flex items-center gap-2">
+                <div class="hidden xl:block">
+                    <div class="px-pill font-mono" title="Coordinated Universal Time">
+                        <i class="fa-regular fa-clock text-[10px]"></i><span id="px-clock">--:--:--</span><span style="color:var(--px-mute)">UTC</span>
+                    </div>
+                </div>
+
+                <div class="hidden md:block">
+                    <div id="market-status-badge" class="px-pill whitespace-nowrap" title="">
+                        <span id="market-status-dot" class="px-dot"></span>
+                        <span id="market-status-text">Checking markets…</span>
+                        <span id="market-status-subtext" class="hidden lg:inline font-mono" style="color:var(--px-mute)"></span>
+                    </div>
+                </div>
+
+                <!-- Terminal shortcut (desktop / tablet only — mobile uses the bottom bar) -->
+                <span class="hidden sm:block">
+                    <a href="{% url 'mt5_terminal' %}" class="header-icon-btn" title="Trading terminal" aria-label="Open trading terminal">
+                        <i class="fa-solid fa-chart-column"></i>
+                    </a>
+                </span>
+
+                <button onclick="toggleTheme()" id="theme-toggle-btn" type="button" class="theme-toggle-btn header-icon-btn" title="Toggle theme" aria-label="Toggle theme">
+                    <i id="theme-icon" class="fa-regular fa-moon"></i>
+                </button>
+
+                <!-- Notifications -->
+                <div class="relative" id="notif-wrapper">
+                    <button id="notif-bell" onclick="toggleNotificationDropdown()" class="relative header-icon-btn" aria-label="Notifications">
+                        <i class="fa-regular fa-bell"></i>
+                        <span id="notif-badge" class="hidden absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center" style="background:var(--px-down);color:#fff;border:2px solid var(--px-bg)">0</span>
+                    </button>
+                    <div id="notif-dropdown" class="hidden px-pop absolute right-0 top-11 w-[380px] max-w-[calc(100vw-24px)] overflow-hidden z-50">
+                        <div class="px-4 py-3 flex items-center justify-between" style="border-bottom:1px solid var(--px-line)">
+                            <div>
+                                <h3 class="text-sm font-semibold" style="color:var(--px-text)">Notifications</h3>
+                                <p class="text-[11px] mt-0.5" style="color:var(--px-mute)" id="notif-subtitle">Loading…</p>
+                            </div>
+                            <button onclick="markAllNotificationsRead()" class="text-[11px] font-semibold" style="color:var(--px-accent)">Mark all read</button>
+                        </div>
+                        <div id="notif-list" class="max-h-[420px] overflow-y-auto">
+                            <div class="p-8 text-center text-xs" style="color:var(--px-mute)"><i class="fa-solid fa-spinner fa-spin"></i></div>
+                        </div>
+                        <a href="{% url 'notification_settings' %}" class="block text-center py-2.5 text-[12px] font-semibold" style="border-top:1px solid var(--px-line);color:var(--px-dim)">
+                            Notification settings <i class="fa-solid fa-arrow-right ml-1 text-[9px]"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Account -->
+                <div class="relative block" id="acct-wrapper">
+                    <button onclick="document.getElementById('acct-menu').classList.toggle('hidden')" class="flex items-center gap-2 h-9 pl-1 pr-2 rounded-lg" style="border:1px solid var(--px-line)">
+                        <span class="w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-bold" style="background:var(--px-accent-soft);color:var(--px-accent)">{{ user.username|default:"U"|slice:":2"|upper }}</span>
+                        <i class="fa-solid fa-chevron-down text-[9px]" style="color:var(--px-mute)"></i>
+                    </button>
+                    <div id="acct-menu" class="hidden px-pop absolute right-0 top-11 w-60 py-1.5 z-50">
+                        <div class="px-4 py-2.5" style="border-bottom:1px solid var(--px-line)">
+                            <p class="text-sm font-semibold truncate" style="color:var(--px-text)">{{ user.get_full_name|default:user.username }}</p>
+                            <p class="text-[11px] truncate" style="color:var(--px-mute)">{{ user.email }}</p>
+                        </div>
+                        <a href="{% url 'profile' %}" class="nav-item mx-1.5 mt-1.5"><i class="fa-solid fa-user-shield"></i>Profile &amp; Security</a>
+                        <a href="{% url 'kyc_status' %}" class="nav-item mx-1.5"><i class="fa-solid fa-id-card"></i>Verification
+                            {% if kyc_status == 'APPROVED' %}<span class="nav-pill" style="background:var(--px-up-soft);color:var(--px-up)">VERIFIED</span>{% endif %}
+                        </a>
+                        <a href="{% url 'funding_deposit' %}" class="nav-item mx-1.5"><i class="fa-solid fa-wallet"></i>Funding</a>
+                        <form method="POST" action="{% url 'logout' %}" class="mx-1.5 mb-1">
+                            {% csrf_token %}
+                            <button type="submit" class="nav-item w-full"><i class="fa-solid fa-right-from-bracket"></i>Log out</button>
+                        </form>
+                    </div>
+                </div>
+
+                <a href="{% url 'digits_trading' %}" class="px-btn px-btn-primary">
+                    <i class="fa-solid fa-bolt text-xs"></i><span class="hidden sm:inline">Trade</span>
+                </a>
+            </div>
+        </header>
+
+        <!-- Live ticker (prices from the platform's own quote feed) -->
+        <div id="px-ticker" class="w-full overflow-hidden" aria-label="Live prices">
+            <div class="px-ticker-track" id="px-ticker-track">
+                <span class="px-tick"><span class="s">Loading prices…</span></span>
+            </div>
+        </div>
+
+        <main class="p-4 sm:p-5 lg:p-6 flex-1 w-full max-w-[1600px] mx-auto">
+            {% if kyc_status and kyc_status != 'APPROVED' %}
+            <div id="kyc-banner"
+                 class="kyc-banner mb-5 {% if kyc_status == 'PENDING' %}kyc-pending{% elif kyc_status == 'REJECTED' %}kyc-rejected{% else %}kyc-required{% endif %} p-4 flex items-center gap-4"
+                 onclick="goToKyc()" role="button" tabindex="0">
+                <div class="kyc-icon-ring shrink-0 w-11 h-11 rounded-xl flex items-center justify-center
+                            {% if kyc_status == 'REJECTED' %}bg-rose-500/20 border border-rose-500/40 text-rose-400{% else %}bg-amber-500/20 border border-amber-500/40 text-amber-400{% endif %}">
+                    {% if kyc_status == 'PENDING' %}<i class="fa-solid fa-hourglass-half text-lg"></i>
+                    {% elif kyc_status == 'REJECTED' %}<i class="fa-solid fa-triangle-exclamation text-lg"></i>
+                    {% else %}<i class="fa-solid fa-id-card text-lg"></i>{% endif %}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                        <span class="kyc-badge {% if kyc_status == 'PENDING' %}kyc-pending{% elif kyc_status == 'REJECTED' %}kyc-rejected{% else %}kyc-required{% endif %}">
+                            {% if kyc_status == 'PENDING' %}<i class="fa-solid fa-clock text-[8px]"></i> Under Review
+                            {% elif kyc_status == 'REJECTED' %}<i class="fa-solid fa-circle-exclamation text-[8px]"></i> Action Required
+                            {% else %}<i class="fa-solid fa-lock text-[8px]"></i> KYC Required{% endif %}
+                        </span>
+                    </div>
+                    <p class="text-sm font-semibold truncate" style="color:var(--px-text)">
+                        {% if kyc_status == 'PENDING' %}Your identity verification is being reviewed
+                        {% elif kyc_status == 'REJECTED' %}Your KYC was rejected — please re-submit
+                        {% else %}Verify your identity to unlock full trading{% endif %}
+                    </p>
+                    <p class="text-[12px] mt-0.5 {% if kyc_status == 'REJECTED' %}hidden sm:block{% endif %}" style="color:var(--px-dim)">
+                        {% if kyc_status == 'PENDING' %}We'll notify you once approved. Withdrawals &amp; funded payouts require KYC.
+                        {% elif kyc_status == 'REJECTED' %}Tap to view the reason and submit fresh documents.
+                        {% else %}Complete KYC in 2 minutes to unlock withdrawals, funded payouts &amp; higher limits.{% endif %}
+                    </p>
+                </div>
+                <i class="fa-solid fa-arrow-right text-sm shrink-0 {% if kyc_status == 'REJECTED' %}text-rose-400{% else %}text-amber-400{% endif %}"></i>
+            </div>
+            {% endif %}
+
+            {% block content %}{% endblock %}
+        </main>
+
+        <footer id="px-footer" class="hidden md:block px-6 py-5 text-[12px]" style="color:var(--px-mute)">
+            <div class="max-w-[1600px] mx-auto flex flex-col gap-3">
+                <div class="flex items-center justify-between gap-4 flex-wrap">
+                    <div class="flex items-center gap-4 flex-wrap">
+                        <span class="flex items-center gap-2"><span id="footer-status-dot" class="px-dot"></span><span id="footer-status-text">Price feed: connecting</span></span>
+                        <span>Data: Binance · TwelveData · Yahoo Finance</span>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <a href="#" class="hover:underline">Privacy</a>
+                        <a href="#" class="hover:underline">Terms</a>
+                        <a href="{% url 'ai_support' %}" class="hover:underline">Support</a>
+                        <span>© {% now "Y" %} PATREOAIX</span>
+                    </div>
+                </div>
+                <p class="leading-relaxed max-w-5xl">
+                    <strong style="color:var(--px-dim)">Risk warning:</strong> CFDs, forex and crypto are leveraged products and carry a high level of risk; you can lose more than your initial deposit.
+                    AI predictions and signals are algorithmic estimates, not financial advice. Past performance does not guarantee future results.
+                </p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- ══════════════════ MOBILE BOTTOM BAR ══════════════════ -->
+    <div class="lg:hidden fixed bottom-0 left-0 right-0 z-50 safe-bottom">
+        <div class="px-tabbar relative px-2 pt-3 pb-2 flex items-end justify-around">
+            <!-- left tabs -->
+            <a href="{% url 'dashboard' %}" class="px-tab {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                <i class="fa-solid fa-house"></i><span>Home</span>
+            </a>
+            <a href="{% url 'market_overview' %}" class="px-tab {% if request.resolver_match.url_name == 'market_overview' %}active{% endif %}">
+                <i class="fa-solid fa-chart-line"></i><span>Markets</span>
+            </a>
+
+            <!-- center spacer for FAB -->
+            <div class="w-14 shrink-0" aria-hidden="true"></div>
+
+            <!-- right tabs -->
+            <a href="{% url 'portfolio' %}" class="px-tab {% if request.resolver_match.url_name == 'portfolio' %}active{% endif %}">
+                <i class="fa-solid fa-briefcase"></i><span>Portfolio</span>
+            </a>
+            <a href="{% url 'profile' %}" class="px-tab {% if request.resolver_match.url_name == 'profile' %}active{% endif %}">
+                <i class="fa-solid fa-user"></i><span>Profile</span>
+            </a>
+
+            <!-- FAB centered over spacer -->
+            <a href="{% url 'trade' %}" class="px-fab" aria-label="Trade">
+                <i class="fa-solid fa-arrow-right-arrow-left"></i>
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // ══════════════════════════════════════════
+        // THEME
+        // ══════════════════════════════════════════
+        function toggleTheme() {
+            const html = document.documentElement;
+            const next = html.classList.contains('dark') ? 'light' : 'dark';
+            html.classList.toggle('light', next === 'light');
+            html.classList.toggle('dark', next === 'dark');
+            html.setAttribute('data-theme', next);
+            try { localStorage.setItem('theme', next); } catch (e) {}
+            updateThemeIcon();
+            window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: next } }));
+        }
+        function updateThemeIcon() {
+            const dark = document.documentElement.classList.contains('dark');
+            const icon = document.getElementById('theme-icon');
+            const sIcon = document.getElementById('sidebar-theme-icon');
+            const sLabel = document.getElementById('sidebar-theme-label');
+            const meta = document.querySelector('meta[name="theme-color"]');
+            if (icon) icon.className = dark ? 'fa-regular fa-moon' : 'fa-regular fa-sun';
+            if (sIcon) sIcon.className = dark ? 'fa-regular fa-moon' : 'fa-regular fa-sun';
+            if (sLabel) sLabel.textContent = dark ? 'Dark' : 'Light';
+            if (meta) meta.setAttribute('content', dark ? '#0b0d12' : '#f4f5f7');
+        }
+        document.addEventListener('DOMContentLoaded', updateThemeIcon);
+
+        // ══════════════════════════════════════════
+        // SIDEBAR + MENUS
+        // ══════════════════════════════════════════
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const backdrop = document.getElementById('sidebarBackdrop');
+            if (window.innerWidth < 1024) {
+                sidebar.classList.toggle('open');
+                sidebar.style.transform = sidebar.classList.contains('open') ? 'translateX(0)' : 'translateX(-100%)';
+            }
+            backdrop.classList.toggle('hidden');
+        }
+        document.querySelectorAll('#sidebar nav a').forEach(a => a.addEventListener('click', () => {
+            if (window.innerWidth < 1024 && document.getElementById('sidebar').classList.contains('open')) toggleSidebar();
+        }));
+        document.addEventListener('click', e => {
+            const pairs = [['notif-wrapper', 'notif-dropdown'], ['acct-wrapper', 'acct-menu']];
+            pairs.forEach(([w, d]) => {
+                const wrap = document.getElementById(w), dd = document.getElementById(d);
+                if (wrap && dd && !wrap.contains(e.target)) dd.classList.add('hidden');
+            });
+        });
+        function setVH() { document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`); }
+        setVH(); window.addEventListener('resize', setVH);
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str == null ? '' : String(str);
+            return div.innerHTML;
+        }
+
+        function showMarketToast(message, type = 'info') {
+            const tone = { success: 'var(--px-up)', error: 'var(--px-down)', info: 'var(--px-accent)' }[type] || 'var(--px-accent)';
+            const icon = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info' }[type] || 'fa-circle-info';
+            const t = document.createElement('div');
+            t.className = 'px-toast';
+            t.style.setProperty('--tone', tone);
+            t.innerHTML = `<i class="fa-solid ${icon}" style="color:${tone}"></i><span>${escapeHtml(message)}</span>`;
+            document.body.appendChild(t);
+            setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateY(8px)'; setTimeout(() => t.remove(), 300); }, 5000);
+        }
+
+        // UTC clock
+        (function tick() {
+            const el = document.getElementById('px-clock');
+            if (el) el.textContent = new Date().toISOString().substr(11, 8);
+            setTimeout(tick, 1000 - (Date.now() % 1000));
+        })();
+
+        // ══════════════════════════════════════════
+        // LIVE MARKET DATA  (shared with child pages)
+        //   PX.quotes   {SYM: {bid, ask, time}}           ← /api/mt5/quotes/   every 2s
+        //   PX.overview {SYM: {change_pct, high, low,      ← /api/market/overview/ every 60s
+        //                      prev_close, spark, source}}
+        //   events: 'px:quotes', 'px:overview' on window
+        // ══════════════════════════════════════════
+        window.PX = (function () {
+            const SYMBOLS = {
+                XAUUSD: ['Gold', 'metal', 2], XAGUSD: ['Silver', 'metal', 3],
+                USOIL: ['WTI Crude', 'energy', 2], UKOIL: ['Brent Crude', 'energy', 2],
+                EURUSD: ['Euro / US Dollar', 'forex', 5], GBPUSD: ['Pound / US Dollar', 'forex', 5],
+                USDJPY: ['US Dollar / Yen', 'forex', 3], AUDUSD: ['Aussie / US Dollar', 'forex', 5],
+                USDCAD: ['US Dollar / Loonie', 'forex', 5], USDCHF: ['US Dollar / Franc', 'forex', 5],
+                NZDUSD: ['Kiwi / US Dollar', 'forex', 5], EURGBP: ['Euro / Pound', 'forex', 5],
+                EURJPY: ['Euro / Yen', 'forex', 3], GBPJPY: ['Pound / Yen', 'forex', 3],
+                BTCUSD: ['Bitcoin', 'crypto', 2], ETHUSD: ['Ethereum', 'crypto', 2],
+                SOLUSD: ['Solana', 'crypto', 2], BNBUSD: ['BNB', 'crypto', 2], XRPUSD: ['XRP', 'crypto', 4],
+            };
+            const TICKER = ['XAUUSD', 'EURUSD', 'GBPUSD', 'USDJPY', 'BTCUSD', 'ETHUSD', 'USOIL', 'XAGUSD', 'AUDUSD', 'SOLUSD', 'USDCAD', 'XRPUSD'];
+            const px = { SYMBOLS, quotes: {}, overview: {}, lastQuoteAt: 0, latency: null, ok: null };
+
+            px.digits = s => (SYMBOLS[s] ? SYMBOLS[s][2] : 5);
+            px.name = s => (SYMBOLS[s] ? SYMBOLS[s][0] : s);
+            px.kind = s => (SYMBOLS[s] ? SYMBOLS[s][1] : 'other');
+            px.fmt = (s, v) => (v == null || isNaN(v)) ? '—' : Number(v).toLocaleString('en-US', { minimumFractionDigits: px.digits(s), maximumFractionDigits: px.digits(s) });
+            px.pct = v => (v == null || isNaN(v)) ? '—' : (v > 0 ? '+' : '') + Number(v).toFixed(2) + '%';
+            px.tone = v => (v > 0 ? 'px-up' : v < 0 ? 'px-down' : 'px-flat');
+            px.money = (v, d = 2) => (v == null || isNaN(v)) ? '—' : (v < 0 ? '-$' : '$') + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+            px.mid = s => { const q = px.quotes[s]; return q ? (q.bid + q.ask) / 2 : null; };
+            // 24h change measured against the live bid when we have one
+            px.change = s => {
+                const o = px.overview[s], q = px.quotes[s];
+                if (!o) return null;
+                if (q && o.prev_close) return (q.bid - o.prev_close) / o.prev_close * 100;
+                return o.change_pct;
+            };
+
+            const all = Object.keys(SYMBOLS).join(',');
+            async function pullQuotes() {
+                if (document.hidden) return;
+                const t0 = performance.now();
+                try {
+                    const r = await fetch(`/api/mt5/quotes/?symbols=${all}`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                    const d = await r.json();
+                    if (!d.success) throw 0;
+                    px.latency = Math.round(performance.now() - t0);
+                    px.quotes = Object.assign(px.quotes, d.quotes || {});
+                    px.lastQuoteAt = Date.now(); px.ok = true;
+                    window.dispatchEvent(new CustomEvent('px:quotes', { detail: px.quotes }));
+                } catch (e) { px.ok = false; }
+                renderTicker(); renderFeedStatus();
+            }
+            async function pullOverview() {
+                if (document.hidden && Object.keys(px.overview).length) return;
+                try {
+                    const r = await fetch('/api/market/overview/', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                    const d = await r.json();
+                    if (!d.success) return;
+                    px.overview = d.symbols || {};
+                    window.dispatchEvent(new CustomEvent('px:overview', { detail: px.overview }));
+                    renderTicker(true);
+                } catch (e) {}
+            }
+
+            let tickerBuilt = false;
+            function renderTicker(rebuild) {
+                const track = document.getElementById('px-ticker-track');
+                if (!track) return;
+                const syms = TICKER.filter(s => px.quotes[s]);
+                if (!syms.length) return;
+                if (!tickerBuilt || rebuild) {
+                    const one = syms.map(s => `<span class="px-tick" data-s="${s}"><span class="s">${s}</span><span class="p"></span><span class="c"></span></span>`).join('');
+                    track.innerHTML = one + one;     // doubled for a seamless loop
+                    tickerBuilt = true;
+                }
+                track.querySelectorAll('.px-tick').forEach(el => {
+                    const s = el.dataset.s, q = px.quotes[s];
+                    if (!q) return;
+                    el.querySelector('.p').textContent = px.fmt(s, q.bid);
+                    const ch = px.change(s), c = el.querySelector('.c');
+                    c.textContent = ch == null ? '' : px.pct(ch);
+                    c.className = 'c ' + px.tone(ch);
+                });
+            }
+            function renderFeedStatus() {
+                const dot = document.getElementById('footer-status-dot');
+                const txt = document.getElementById('footer-status-text');
+                if (!dot || !txt) return;
+                const fresh = px.ok && Date.now() - px.lastQuoteAt < 10000;
+                dot.className = 'px-dot ' + (fresh ? 'live' : 'off');
+                txt.textContent = fresh ? `Price feed live · ${px.latency} ms round-trip` : 'Price feed unavailable — retrying';
+            }
+
+            pullQuotes(); pullOverview();
+            setInterval(pullQuotes, 2000);
+            setInterval(pullOverview, 60000);
+            document.addEventListener('visibilitychange', () => { if (!document.hidden) pullQuotes(); });
+            return px;
+        })();
+
+        // ══════════════════════════════════════════
+        // MARKET STATUS PILL
+        // ══════════════════════════════════════════
+        let lastMarketOpenState = null;
+        async function refreshMarketStatusBadge() {
+            try {
+                const resp = await fetch('/api/market-status/?symbols=XAUUSD,EURUSD,USOIL,BTCUSD', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                const data = await resp.json();
+                if (!data.success || !data.markets) return;
+                const all = Object.values(data.markets);
+                // Crypto trades 24/7, so judge "markets" by the non-crypto symbols
+                const fx = ['XAUUSD', 'EURUSD', 'USOIL'].map(s => data.markets[s]).filter(Boolean);
+                const open = fx.filter(m => m.is_open);
+                const dot = document.getElementById('market-status-dot');
+                const text = document.getElementById('market-status-text');
+                const sub = document.getElementById('market-status-subtext');
+                const badge = document.getElementById('market-status-badge');
+                if (!dot || !text) return;
+                if (open.length) {
+                    dot.className = 'px-dot live';
+                    text.textContent = 'Markets open';
+                    text.className = '';
+                    if (sub) sub.textContent = `${all.filter(m => m.is_open).length}/${all.length}`;
+                    badge.title = 'Forex, metals and energy are trading';
+                } else {
+                    const m = fx[0] || all[0] || {};
+                    const r = (m.reason || 'Market closed').toLowerCase();
+                    const short = /saturday|sunday|friday|weekend/.test(r) ? 'weekend' : /daily/.test(r) ? 'daily break' : /holiday/.test(r) ? 'holiday' : 'closed';
+                    dot.className = 'px-dot off';
+                    text.textContent = `Markets ${short}`;
+                    if (sub) sub.textContent = m.hint ? `· ${m.hint}` : '· crypto open';
+                    badge.title = (m.reason || '') + (m.hint ? ' — ' + m.hint : '');
+                }
+                const xau = data.markets.XAUUSD && data.markets.XAUUSD.is_open;
+                if (lastMarketOpenState === true && xau === false) showMarketToast('Market has closed. Trading paused.', 'error');
+                if (lastMarketOpenState === false && xau === true) showMarketToast('Market has opened. Trading is live.', 'success');
+                if (xau !== undefined) lastMarketOpenState = xau;
+            } catch (e) {}
+        }
+        refreshMarketStatusBadge();
+        setInterval(refreshMarketStatusBadge, 30000);
+
+        // ══════════════════════════════════════════
+        // NOTIFICATIONS
+        // ══════════════════════════════════════════
+        const NOTIF_CSRF = '{{ csrf_token }}';
+        let notifUnread = null;
+        function toggleNotificationDropdown() {
+            const dd = document.getElementById('notif-dropdown');
+            if (!dd) return;
+            dd.classList.toggle('hidden');
+            if (!dd.classList.contains('hidden')) loadNotifications();
+        }
+        async function loadNotifications() {
+            try {
+                const res = await fetch('/api/notifications/', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                const data = await res.json();
+                if (!data.success) return;
+                if (notifUnread !== null && data.unread_count > notifUnread && data.notifications.length) {
+                    showMarketToast(data.notifications[0].title, 'info');
+                }
+                notifUnread = data.unread_count;
+                updateNotifBadge(data.unread_count);
+                renderNotifications(data.notifications);
+            } catch (e) {}
+        }
+        function updateNotifBadge(count) {
+            const badge = document.getElementById('notif-badge');
+            const subtitle = document.getElementById('notif-subtitle');
+            if (!badge) return;
+            badge.textContent = count > 99 ? '99+' : count;
+            badge.classList.toggle('hidden', !(count > 0));
+            if (subtitle) subtitle.textContent = count > 0 ? `${count} unread` : 'All caught up';
+        }
+        function renderNotifications(items) {
+            const list = document.getElementById('notif-list');
+            if (!list) return;
+            if (!items || !items.length) {
+                list.innerHTML = `<div class="p-10 text-center"><i class="fa-regular fa-bell-slash text-xl mb-2" style="color:var(--px-mute)"></i>
+                    <p class="text-xs font-semibold" style="color:var(--px-dim)">No notifications yet</p></div>`;
+                return;
+            }
+            list.innerHTML = items.map(n => `
+                <div class="px-notif-item ${n.is_read ? 'read' : ''}" data-id="${n.id}" data-url="${escapeHtml(n.action_url || '')}">
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style="background:var(--px-panel-2);border:1px solid var(--px-line)">
+                        <i class="fa-solid ${escapeHtml(n.icon || 'fa-bell')} text-xs" style="color:var(--px-accent)"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-start justify-between gap-2">
+                            <p class="text-[12px] font-semibold truncate" style="color:var(--px-text)">${escapeHtml(n.title)}</p>
+                            ${n.is_read ? '' : '<span class="w-2 h-2 rounded-full shrink-0 mt-1" style="background:var(--px-accent)"></span>'}
+                        </div>
+                        <p class="text-[11px] mt-0.5 line-clamp-2" style="color:var(--px-dim)">${escapeHtml(n.message)}</p>
+                        <p class="text-[10px] mt-1 font-mono" style="color:var(--px-mute)">${escapeHtml(n.time_ago)}</p>
+                    </div>
+                </div>`).join('');
+            list.querySelectorAll('.px-notif-item').forEach(el => el.addEventListener('click', () => handleNotificationClick(el.dataset.id, el.dataset.url)));
+        }
+        async function handleNotificationClick(id, url) {
+            try {
+                await fetch(`/api/notifications/${encodeURIComponent(id)}/read/`, { method: 'POST', headers: { 'X-CSRFToken': NOTIF_CSRF } });
+            } catch (e) {}
+            if (url && url.startsWith('/')) window.location.href = url;
+            else loadNotifications();
+        }
+        async function markAllNotificationsRead() {
+            try { await fetch('/api/notifications/read-all/', { method: 'POST', headers: { 'X-CSRFToken': NOTIF_CSRF } }); } catch (e) {}
+            loadNotifications();
+        }
+        // Kept for pages that push a notification client-side
+        function addNotificationDynamically(title, message, link) {
+            const list = document.getElementById('notif-list');
+            const badge = document.getElementById('notif-badge');
+            if (!list || !badge) return;
+            const item = document.createElement('a');
+            item.href = link || '#';
+            item.className = 'px-notif-item trade-log-entry';
+            item.innerHTML = `<div class="min-w-0"><p class="text-[12px] font-semibold" style="color:var(--px-text)">${escapeHtml(title)}</p><p class="text-[11px]" style="color:var(--px-dim)">${escapeHtml(message)}</p></div>`;
+            list.prepend(item);
+            badge.textContent = (parseInt(badge.textContent) || 0) + 1;
+            badge.classList.remove('hidden');
+        }
+        loadNotifications();
+        setInterval(() => { if (!document.hidden) loadNotifications(); }, 30000);
+
+        // ══════════════════════════════════════════
+        // KYC BANNER
+        // ══════════════════════════════════════════
+        function goToKyc() {
+            const status = "{{ kyc_status|default:'MISSING'|escapejs }}";
+            window.location.href = status === 'PENDING' ? "{% url 'kyc_status' %}" : "{% url 'kyc_submit' %}";
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            const banner = document.getElementById('kyc-banner');
+            if (banner) banner.addEventListener('keydown', e => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goToKyc(); }
+            });
+        });
+    </script>
+    <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

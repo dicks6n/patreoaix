@@ -1,0 +1,1241 @@
+{% extends 'base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Funding & Accounts - PATREOAIX{% endblock %}
+
+{% block content %}
+{% include 'partials/legacy_skin.html' %}
+<style>
+    main .funding-card { background: var(--px-panel) !important; border: 1px solid var(--px-line) !important; border-radius: 12px !important; box-shadow: var(--px-shadow) !important; }
+    main .payment-method { background: var(--px-panel-2) !important; border-color: var(--px-line) !important; }
+    main .payment-method:hover { border-color: var(--px-accent) !important; }
+    main .tab-btn.active { background: var(--px-accent) !important; color: var(--px-accent-ink) !important; border-color: var(--px-accent) !important; }
+    main .tab-btn.inactive { background: var(--px-panel-2) !important; color: var(--px-dim) !important; border-color: var(--px-line) !important; }
+    .px-chip { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 8px; background: var(--px-panel-2); color: var(--px-dim); border: 1px solid var(--px-line); }
+    .px-chip.on { background: var(--px-accent); color: var(--px-accent-ink); border-color: var(--px-accent); }
+    /* USDT deposit */
+    .px-qr { width: 216px; padding: 12px; background: #fff; border-radius: 16px; box-shadow: 0 0 0 1px var(--px-line), 0 10px 30px rgba(0,0,0,.25); position: relative; }
+    .px-qr svg { display: block; width: 100%; height: auto; }
+    .px-qr::after { content: ''; position: absolute; inset: -4px; border-radius: 20px; border: 2px solid var(--px-accent); opacity: 0; animation: pxQrPulse 2.8s ease-out infinite; pointer-events: none; }
+    @keyframes pxQrPulse { 0% { opacity: .55; transform: scale(.98); } 100% { opacity: 0; transform: scale(1.05); } }
+    .px-qr-sm { width: 168px; padding: 10px; }
+    .px-qr-sm::after { display: none; }
+    .px-badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: color-mix(in srgb, #26A17B 18%, transparent); color: #26A17B; border: 1px solid color-mix(in srgb, #26A17B 35%, transparent); }
+    .px-badge-dim { background: var(--px-panel-2); color: var(--px-dim); border-color: var(--px-line); }
+    .px-addr { display: flex; align-items: center; gap: 8px; background: var(--px-panel-2); border: 1px solid var(--px-line); border-radius: 10px; padding: 8px 8px 8px 12px; }
+    .px-addr code { flex: 1; min-width: 0; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--px-text); overflow-wrap: anywhere; }
+    .px-copy { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; padding: 7px 12px; border-radius: 8px; background: var(--px-accent); color: var(--px-accent-ink); flex-shrink: 0; }
+    .px-copy.done { background: var(--px-up); color: #fff; }
+    .px-steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+    .px-steps li { display: flex; gap: 10px; align-items: flex-start; font-size: 12px; color: var(--px-dim); }
+    .px-steps b { width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; font-size: 10px; background: var(--px-accent-soft); color: var(--px-accent); }
+    .px-steps strong { color: var(--px-text); }
+    .px-warn { display: flex; gap: 8px; align-items: flex-start; font-size: 11px; color: var(--px-accent); background: var(--px-accent-soft); border-radius: 10px; padding: 10px 12px; }
+    .px-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 18px; border-radius: 12px; font-size: 13px; font-weight: 700; background: var(--px-accent); color: var(--px-accent-ink); }
+    .px-primary:hover { filter: brightness(1.06); }
+    @media (prefers-reduced-motion: reduce) { .px-qr::after { animation: none; } }
+</style>
+<!-- LOADING SPINNER -->
+<div id="loading-spinner" class="fixed inset-0 z-[9999] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center transition-opacity duration-500">
+    <div class="relative flex items-center justify-center">
+        <div class="w-20 h-20 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin"></div>
+        <div class="absolute w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center animate-pulse">
+            <div class="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
+        </div>
+    </div>
+    <div class="mt-5 text-center space-y-1">
+        <p class="text-xs font-mono tracking-widest text-indigo-300 uppercase animate-pulse">Loading Wallet</p>
+        <p class="text-[10px] font-mono text-slate-500">Syncing balances & transactions...</p>
+    </div>
+</div>
+
+<style>
+    .spinner-hidden { opacity: 0; pointer-events: none; visibility: hidden; }
+    
+    .funding-card {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 27, 75, 0.4) 100%);
+        border: 1px solid rgba(99, 102, 241, 0.15);
+        border-radius: 20px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+    }
+    
+    @media (max-width: 640px) {
+        .funding-card { border-radius: 16px; }
+    }
+    
+    .input-field {
+        width: 100%;
+        background: rgba(2, 6, 23, 0.9);
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        border-radius: 12px;
+        padding: 12px 16px;
+        font-size: 13px;
+        color: #ffffff;
+        font-family: 'JetBrains Mono', monospace;
+        transition: all 0.2s ease;
+    }
+    
+    .input-field:focus {
+        outline: none;
+        border-color: rgba(99, 102, 241, 0.6);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+    
+    .input-field::placeholder { color: #64748b; }
+    
+    .tab-btn {
+        padding: 12px 16px;
+        font-size: 12px;
+        font-weight: 700;
+        border-radius: 12px;
+        transition: all 0.2s ease;
+        border: 1px solid transparent;
+        white-space: nowrap;
+    }
+    
+    .tab-btn.active {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white;
+        border-color: rgba(139, 92, 246, 0.5);
+        box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+    }
+    
+    .tab-btn.inactive {
+        background: rgba(15, 23, 42, 0.6);
+        color: #94a3b8;
+        border-color: rgba(51, 65, 85, 0.4);
+    }
+    
+    .tab-btn.inactive:hover {
+        background: rgba(30, 41, 59, 0.8);
+        color: white;
+        border-color: rgba(99, 102, 241, 0.3);
+    }
+    
+    .payment-method {
+        background: rgba(15, 23, 42, 0.7);
+        border: 1px solid rgba(99, 102, 241, 0.15);
+        border-radius: 16px;
+        padding: 16px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+    
+    .payment-method:hover {
+        border-color: rgba(99, 102, 241, 0.4);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(99, 102, 241, 0.15);
+    }
+    
+    .payment-method:active {
+        transform: translateY(0) scale(0.98);
+    }
+    
+    /* Modal animations */
+    @keyframes modalIn {
+        from { opacity: 0; transform: scale(0.95) translateY(10px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .modal-in { animation: modalIn 0.2s ease-out; }
+    
+    /* Hide scrollbar for horizontal tab scroll */
+    .scrollbar-none {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    .scrollbar-none::-webkit-scrollbar { display: none; }
+
+    /* TxID verification card fade */
+    @keyframes verifyIn {
+        from { opacity: 0; transform: translateY(-4px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .verify-card { animation: verifyIn 0.2s ease-out; }
+</style>
+
+<div class="max-w-7xl mx-auto space-y-5 pb-4">
+
+    <!-- ========================================== -->
+    <!-- HEADER BANNER -->
+    <!-- ========================================== -->
+    <div class="funding-card p-5 sm:p-6 relative overflow-hidden">
+        <div class="absolute -top-20 -right-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-20 -left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="relative z-10">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                <div class="flex items-center gap-4">
+                    <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-indigo-600 flex items-center justify-center shadow-xl shadow-emerald-500/20">
+                        <i class="fa-solid fa-wallet text-white text-lg"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h1 class="text-xl sm:text-2xl font-black text-white">Funding & Accounts</h1>
+                        <p class="text-[11px] text-slate-400 mt-0.5">Manage deposits, withdrawals & internal transfers</p>
+                    </div>
+                </div>
+
+                <div class="bg-slate-950/70 border border-slate-800/60 rounded-2xl px-5 py-4 text-center lg:text-right min-w-[180px]">
+                    <span class="text-[10px] text-slate-500 uppercase font-bold tracking-wider block mb-1">Total Net Balance</span>
+                    <span class="text-2xl font-black text-emerald-400 font-mono leading-none block">
+                        ${{ balance|default:"0.00" }}
+                    </span>
+                    <div class="flex items-center justify-center lg:justify-end gap-1.5 mt-2">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span class="text-[9px] text-slate-500 font-mono uppercase">Live Balance</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ACCOUNT BREAKDOWN -->
+    <!-- ========================================== -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        <div class="funding-card p-5 flex items-center justify-between">
+            <div class="min-w-0">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Exchange Account</span>
+                </div>
+                <p class="text-xl sm:text-2xl font-black text-white font-mono leading-none mt-1">
+                    ${{ exchange_balance|default:"0.00" }}
+                </p>
+                <p class="text-[10px] text-slate-500 mt-1.5">Main account · Deposits & withdrawals</p>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
+                <i class="fa-solid fa-building-columns text-lg"></i>
+            </div>
+        </div>
+
+        <div class="funding-card p-5 flex items-center justify-between">
+            <div class="min-w-0">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Trading Account</span>
+                </div>
+                <p class="text-xl sm:text-2xl font-black text-white font-mono leading-none mt-1">
+                    ${{ trading_balance|default:"0.00" }}
+                </p>
+                <p class="text-[10px] text-slate-500 mt-1.5">For live trading operations</p>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
+                <i class="fa-solid fa-chart-line text-lg"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TABS -->
+    <!-- ========================================== -->
+    <div class="scrollbar-none overflow-x-auto">
+        <div class="flex gap-2 min-w-max">
+            <button onclick="switchTab('deposit')" id="tab-deposit" class="tab-btn active flex items-center gap-2">
+                <i class="fa-solid fa-arrow-down text-[10px]"></i>
+                <span>Deposit</span>
+            </button>
+            <button onclick="switchTab('withdrawal')" id="tab-withdrawal" class="tab-btn inactive flex items-center gap-2 relative">
+                <i class="fa-solid fa-arrow-up text-[10px]"></i>
+                <span>Withdraw</span>
+                {% if pending_withdrawals %}
+                    <span class="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-amber-500 text-slate-950 text-[9px] font-black flex items-center justify-center">
+                        {{ pending_withdrawals }}
+                    </span>
+                {% endif %}
+            </button>
+            <button onclick="switchTab('transfer')" id="tab-transfer" class="tab-btn inactive flex items-center gap-2">
+                <i class="fa-solid fa-right-left text-[10px]"></i>
+                <span>Transfer</span>
+            </button>
+            <button onclick="switchTab('history')" id="tab-history" class="tab-btn inactive flex items-center gap-2">
+                <i class="fa-solid fa-clock-rotate-left text-[10px]"></i>
+                <span>History</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 1: DEPOSIT -->
+    <!-- ========================================== -->
+    <div id="content-deposit" class="tab-content space-y-3">
+        <div class="funding-card p-5 sm:p-6">
+            <div class="mb-5 pb-4 border-b border-slate-800/60">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-circle-dollar-to-slot text-emerald-400 text-sm"></i>
+                    Deposit Funds
+                </h3>
+                <p class="text-[11px] text-slate-400 mt-0.5">Add funds to your Exchange account</p>
+            </div>
+
+            {% if mpesa_enabled %}
+            <button type="button" onclick="openMpesaModal()" class="payment-method w-full text-left flex items-center justify-between gap-4 mb-4">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                        <i class="fa-solid fa-mobile-screen text-emerald-400 text-xl"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="text-sm font-bold text-white">M-Pesa</p>
+                        <p class="text-[10px] text-slate-400 mt-0.5">Instant · 10 - 1,900 USD</p>
+                    </div>
+                </div>
+                <i class="fa-solid fa-arrow-right text-[10px] text-emerald-400"></i>
+            </button>
+            {% endif %}
+
+            <!-- USDT (TRC20) deposit -->
+            <div class="px-usdt grid grid-cols-1 md:grid-cols-[auto,1fr] gap-6 items-start">
+                <div class="flex flex-col items-center gap-3">
+                    <div class="px-qr">{% include 'partials/usdt_qr.html' %}</div>
+                    <span class="text-[10px] text-slate-500">Scan with Binance or any TRON wallet</span>
+                </div>
+                <div class="min-w-0 space-y-4">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-base font-bold text-white">Deposit USDT</span>
+                        <span class="px-badge">TRC20 · TRON</span>
+                        <span class="px-badge px-badge-dim">Binance wallet</span>
+                    </div>
+                    <div>
+                        <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1.5">Deposit address</p>
+                        <div class="px-addr">
+                            <code id="px-usdt-address">TTjvfn3jT5BYtV76jC8zgT6CUaWfukSRYA</code>
+                            <button type="button" id="px-usdt-copy" class="px-copy" aria-label="Copy address"><i class="fa-solid fa-copy"></i><span>Copy</span></button>
+                        </div>
+                    </div>
+                    <ol class="px-steps">
+                        <li><b>1</b><span>Send <strong>USDT</strong> on the <strong>TRC20 (TRON)</strong> network to the address above. Minimum $5.</span></li>
+                        <li><b>2</b><span>Copy the transaction hash (TxID) from your wallet once it's sent.</span></li>
+                        <li><b>3</b><span>Paste it below — we check it on the blockchain and credit your Exchange balance.</span></li>
+                    </ol>
+                    <div class="px-warn"><i class="fa-solid fa-triangle-exclamation"></i>
+                        <span>Only USDT on TRC20. Other coins, other networks or NFTs sent here are lost and can't be recovered.</span></div>
+                    <button type="button" onclick="openCryptoModal()" class="px-primary w-full sm:w-auto">
+                        <i class="fa-solid fa-check"></i> I've sent USDT — confirm deposit
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 2: WITHDRAWAL -->
+    <!-- ========================================== -->
+    <div id="content-withdrawal" class="tab-content space-y-3 hidden">
+        <div class="funding-card p-5 sm:p-6 max-w-xl">
+            <div class="mb-5 pb-4 border-b border-slate-800/60">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-money-bill-transfer text-rose-400 text-sm"></i>
+                    Request Withdrawal
+                </h3>
+                <p class="text-[11px] text-slate-400 mt-0.5">Withdrawals process from your Exchange account</p>
+            </div>
+
+            <form method="POST" action="{% url 'request_withdrawal' %}" class="space-y-4">
+                {% csrf_token %}
+                
+                <div>
+                    <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
+                        <i class="fa-solid fa-dollar-sign text-[9px] mr-1.5 text-rose-400"></i>
+                        Amount (USD)
+                    </label>
+                    <input type="number" step="0.01" name="amount" required placeholder="0.00" class="input-field">
+                    <p class="text-[10px] text-slate-500 mt-1.5">
+                        Available: <span class="text-emerald-400 font-bold font-mono">${{ exchange_balance|default:"0.00" }}</span>
+                    </p>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
+                        <i class="fa-solid fa-wallet text-[9px] mr-1.5 text-rose-400"></i>
+                        Withdrawal Method
+                    </label>
+                    <select name="method" class="input-field cursor-pointer">
+                        {% if mpesa_enabled %}<option value="M-Pesa">M-Pesa</option>{% endif %}
+                        <option value="Crypto">USDT (TRC20)</option>
+                        <option value="Bank">Bank Transfer</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
+                        <i class="fa-solid fa-circle-info text-[9px] mr-1.5 text-rose-400"></i>
+                        Destination Details
+                    </label>
+                    <input type="text" name="wallet_address" required placeholder="Phone number / Wallet address / Bank account" class="input-field">
+                </div>
+
+                <button type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-sm transition shadow-lg shadow-rose-600/25 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-paper-plane text-[10px]"></i>
+                    <span>Submit Withdrawal Request</span>
+                </button>
+            </form>
+        </div>
+
+        {% if user_withdrawals %}
+        <div class="funding-card p-5 sm:p-6">
+            <div class="flex items-center justify-between mb-4 pb-4 border-b border-slate-800/60">
+                <div>
+                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-clock-rotate-left text-amber-400 text-xs"></i>
+                        Your Withdrawal Requests
+                    </h3>
+                    <p class="text-[10px] text-slate-400 mt-0.5">Track the status of your recent withdrawals</p>
+                </div>
+                <span class="text-[10px] text-slate-500 font-mono">{{ user_withdrawals|length }} total</span>
+            </div>
+
+            <div class="space-y-2">
+                {% for w in user_withdrawals %}
+                <div class="bg-slate-950/60 border border-slate-800/60 rounded-xl p-4 hover:border-slate-700 transition">
+                    <div class="flex items-start justify-between flex-wrap gap-3">
+                        <div class="flex items-start gap-3 min-w-0 flex-1">
+                            <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0
+                                {% if w.status == 'PENDING' %}bg-amber-500/10 border border-amber-500/30 text-amber-400
+                                {% elif w.status == 'APPROVED' %}bg-emerald-500/10 border border-emerald-500/30 text-emerald-400
+                                {% elif w.status == 'REJECTED' %}bg-rose-500/10 border border-rose-500/30 text-rose-400
+                                {% else %}bg-slate-500/10 border border-slate-500/30 text-slate-400{% endif %}">
+                                <i class="fa-solid 
+                                    {% if w.status == 'PENDING' %}fa-clock
+                                    {% elif w.status == 'APPROVED' %}fa-circle-check
+                                    {% elif w.status == 'REJECTED' %}fa-circle-xmark
+                                    {% else %}fa-hourglass-half{% endif %} text-sm"></i>
+                            </div>
+
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="text-sm font-black text-white font-mono">${{ w.amount|floatformat:2 }}</span>
+                                    <span class="px-2 py-0.5 rounded-md text-[9px] font-bold uppercase
+                                        {% if w.status == 'PENDING' %}bg-amber-500/10 border border-amber-500/30 text-amber-400
+                                        {% elif w.status == 'APPROVED' %}bg-emerald-500/10 border border-emerald-500/30 text-emerald-400
+                                        {% elif w.status == 'REJECTED' %}bg-rose-500/10 border border-rose-500/30 text-rose-400
+                                        {% else %}bg-slate-500/10 border border-slate-500/30 text-slate-400{% endif %}">
+                                        {% if w.status == 'PENDING' %}🟡 Processing
+                                        {% elif w.status == 'APPROVED' %}🟢 Approved
+                                        {% elif w.status == 'REJECTED' %}🔴 Rejected
+                                        {% else %}{{ w.status }}{% endif %}
+                                    </span>
+                                </div>
+
+                                <div class="mt-1.5 flex items-center gap-3 text-[10px] text-slate-500 font-mono flex-wrap">
+                                    <span><i class="fa-solid fa-wallet text-[8px] mr-1"></i>{{ w.payment_method }}</span>
+                                    <span>·</span>
+                                    <span class="truncate max-w-[180px]">{{ w.provider_reference|default:"—" }}</span>
+                                </div>
+
+                                {% if w.admin_notes and w.status == 'REJECTED' %}
+                                <p class="mt-2 text-[10px] text-rose-300/80 bg-rose-500/5 border border-rose-500/20 rounded-lg px-2 py-1.5">
+                                    <i class="fa-solid fa-circle-info text-[9px] mr-1"></i>
+                                    <span>{{ w.admin_notes }}</span>
+                                </p>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="text-right shrink-0">
+                            <p class="text-[10px] text-slate-500 font-mono">{{ w.created_at|date:"M d, H:i" }}</p>
+                            {% if w.reviewed_at %}
+                            <p class="text-[9px] text-slate-600 mt-0.5">
+                                Reviewed: {{ w.reviewed_at|date:"M d, H:i" }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 3: INTERNAL TRANSFER -->
+    <!-- ========================================== -->
+    <div id="content-transfer" class="tab-content space-y-3 hidden">
+        <div class="funding-card p-5 sm:p-6 max-w-xl">
+            <div class="mb-5 pb-4 border-b border-slate-800/60">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-right-left text-indigo-400 text-sm"></i>
+                    Transfer Between Accounts
+                </h3>
+                <p class="text-[11px] text-slate-400 mt-0.5">Move funds between Exchange and Trading accounts</p>
+            </div>
+
+            <form method="POST" action="{% url 'transfer_between_accounts' %}" class="space-y-4">
+                {% csrf_token %}
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
+                            <i class="fa-solid fa-arrow-up-from-bracket text-[9px] mr-1.5 text-indigo-400"></i>
+                            From Account
+                        </label>
+                        <select name="source_type" required class="input-field cursor-pointer">
+                            <option value="EXCHANGE">Exchange Account</option>
+                            <option value="TRADING">Trading Account</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
+                            <i class="fa-solid fa-arrow-down-to-bracket text-[9px] mr-1.5 text-indigo-400"></i>
+                            To Account
+                        </label>
+                        <select name="target_type" required class="input-field cursor-pointer">
+                            <option value="TRADING">Trading Account</option>
+                            <option value="EXCHANGE">Exchange Account</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
+                        <i class="fa-solid fa-dollar-sign text-[9px] mr-1.5 text-indigo-400"></i>
+                        Amount (USD)
+                    </label>
+                    <input type="number" step="0.01" name="amount" required placeholder="0.00" class="input-field">
+                </div>
+
+                <div class="grid grid-cols-4 gap-2">
+                    <button type="button" onclick="setTransferAmount(10)" class="py-2 rounded-lg bg-slate-950/60 border border-slate-800 text-slate-400 hover:text-white hover:border-indigo-500/40 text-[10px] font-bold transition">$10</button>
+                    <button type="button" onclick="setTransferAmount(50)" class="py-2 rounded-lg bg-slate-950/60 border border-slate-800 text-slate-400 hover:text-white hover:border-indigo-500/40 text-[10px] font-bold transition">$50</button>
+                    <button type="button" onclick="setTransferAmount(100)" class="py-2 rounded-lg bg-slate-950/60 border border-slate-800 text-slate-400 hover:text-white hover:border-indigo-500/40 text-[10px] font-bold transition">$100</button>
+                    <button type="button" onclick="setTransferAmount(500)" class="py-2 rounded-lg bg-slate-950/60 border border-slate-800 text-slate-400 hover:text-white hover:border-indigo-500/40 text-[10px] font-bold transition">$500</button>
+                </div>
+
+                <button type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm transition shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-right-left text-[10px]"></i>
+                    <span>Transfer Funds</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 4: HISTORY -->
+    <!-- ========================================== -->
+    <div id="content-history" class="tab-content space-y-3 hidden">
+        <div class="funding-card p-4 sm:p-5">
+            <div class="flex items-center justify-between mb-4 pb-4 border-b border-slate-800/60">
+                <div>
+                    <h3 class="text-base font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-clock-rotate-left text-purple-400 text-sm"></i>
+                        Transaction History
+                    </h3>
+                    <p class="text-[11px] text-slate-400 mt-0.5">All your deposits, withdrawals & transfers</p>
+                </div>
+                <span class="text-[10px] text-slate-500 font-mono">{{ transactions|length }} records</span>
+            </div>
+            {% if transactions %}
+            <div class="flex items-center justify-between gap-2 flex-wrap mb-3" id="px-tx-tools">
+                <div class="flex gap-1.5 flex-wrap">
+                    <button type="button" class="px-chip on" data-f="">All</button>
+                    <button type="button" class="px-chip" data-f="DEPOSIT">Deposits</button>
+                    <button type="button" class="px-chip" data-f="WITHDRAWAL">Withdrawals</button>
+                    <button type="button" class="px-chip" data-f="OTHER">Transfers & other</button>
+                </div>
+                <button type="button" class="px-chip" id="px-tx-csv"><i class="fa-solid fa-download mr-1"></i>CSV</button>
+            </div>
+            {% endif %}
+
+            <div class="hidden sm:block overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead class="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800 font-semibold">
+                        <tr>
+                            <th class="py-3 px-3">Type</th>
+                            <th class="py-3 px-3">Amount</th>
+                            <th class="py-3 px-3">Details</th>
+                            <th class="py-3 px-3 text-right">Date</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/50 font-mono text-slate-200">
+                        {% for tx in transactions %}
+                        <tr class="hover:bg-slate-800/30 transition-colors" data-type="{{ tx.transaction_type }}">
+                            <td class="py-3 px-3">
+                                <span class="px-2.5 py-1 rounded-lg text-[10px] font-bold 
+                                    {% if tx.transaction_type == 'DEPOSIT' %}bg-emerald-500/10 text-emerald-400 border border-emerald-500/20
+                                    {% elif tx.transaction_type == 'WITHDRAWAL' %}bg-rose-500/10 text-rose-400 border border-rose-500/20
+                                    {% else %}bg-indigo-500/10 text-indigo-400 border border-indigo-500/20{% endif %}">
+                                    <i class="fa-solid {% if tx.transaction_type == 'DEPOSIT' %}fa-arrow-down{% elif tx.transaction_type == 'WITHDRAWAL' %}fa-arrow-up{% else %}fa-right-left{% endif %} text-[8px] mr-1"></i>
+                                    {{ tx.get_transaction_type_display|default:tx.transaction_type }}
+                                </span>
+                            </td>
+                            <td class="py-3 px-3 font-bold text-white">${{ tx.amount }}</td>
+                            <td class="py-3 px-3 text-slate-400 text-[11px]">{{ tx.details }}</td>
+                            <td class="py-3 px-3 text-slate-500 text-[10px] text-right">{{ tx.created_at|date:"M d, Y H:i" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="py-12 text-center text-slate-500 text-sm">
+                                <i class="fa-solid fa-inbox text-2xl mb-2 block text-slate-600"></i>
+                                No transaction history yet
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="sm:hidden space-y-2">
+                {% for tx in transactions %}
+                <div class="bg-slate-950/60 border border-slate-800/60 rounded-xl p-3" data-type="{{ tx.transaction_type }}">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="px-2.5 py-1 rounded-lg text-[10px] font-bold 
+                            {% if tx.transaction_type == 'DEPOSIT' %}bg-emerald-500/10 text-emerald-400 border border-emerald-500/20
+                            {% elif tx.transaction_type == 'WITHDRAWAL' %}bg-rose-500/10 text-rose-400 border border-rose-500/20
+                            {% else %}bg-indigo-500/10 text-indigo-400 border border-indigo-500/20{% endif %}">
+                            {{ tx.get_transaction_type_display|default:tx.transaction_type }}
+                        </span>
+                        <span class="text-[10px] text-slate-500 font-mono">{{ tx.created_at|date:"M d, H:i" }}</span>
+                    </div>
+                    <p class="text-base font-black text-white font-mono">${{ tx.amount }}</p>
+                    <p class="text-[10px] text-slate-400 mt-1">{{ tx.details }}</p>
+                </div>
+                {% empty %}
+                <div class="text-center py-12">
+                    <i class="fa-solid fa-inbox text-slate-600 text-2xl mb-2"></i>
+                    <p class="text-xs text-slate-500">No transaction history yet</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MPESA MODAL -->
+<!-- ========================================== -->
+<div id="mpesaModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md hidden p-4">
+    <div class="funding-card w-full max-w-sm p-5 sm:p-6 modal-in overflow-hidden relative">
+        <div class="absolute -top-20 -right-20 w-56 h-56 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="relative">
+            <div class="flex items-center gap-3 mb-5">
+                <div class="w-11 h-11 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                    <i class="fa-solid fa-mobile-screen text-lg"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-white">M-Pesa Deposit</h3>
+                    <p class="text-[10px] text-slate-400 mt-0.5">Instant STK Push to your phone</p>
+                </div>
+            </div>
+
+            <form id="mpesaForm" method="POST" action="{% url 'request_deposit' %}">
+                {% csrf_token %}
+                <input type="hidden" name="method" value="MPESA">
+                
+                <div id="mpesaFormFields" class="space-y-4">
+                    <div>
+                        <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
+                            <i class="fa-solid fa-dollar-sign text-[9px] mr-1.5 text-emerald-400"></i>
+                            Amount (USD)
+                        </label>
+                        <input type="number" name="amount" required placeholder="0.00" class="input-field">
+                        <p class="text-[10px] text-slate-500 mt-1.5">Min: $10 · Max: $1,900{% if usd_kes %} · <span id="px-kes" data-rate="{{ usd_kes }}">1 USD = Ksh {{ usd_kes }}</span>{% endif %}</p>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
+                            <i class="fa-solid fa-phone text-[9px] mr-1.5 text-emerald-400"></i>
+                            Phone Number
+                        </label>
+                        <input type="text" name="phone_number" required placeholder="0712345678" class="input-field">
+                        <p class="text-[10px] text-slate-500 mt-1.5">Safaricom M-Pesa number</p>
+                    </div>
+                </div>
+
+                <div id="mpesaStatusContainer" class="hidden py-6 text-center space-y-4">
+                    <div id="mpesaSpinner" class="flex justify-center">
+                        <div class="w-14 h-14 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin"></div>
+                    </div>
+                    <div id="mpesaStatusIcon" class="hidden text-4xl"></div>
+                    <p id="mpesaStatusText" class="text-sm font-medium text-slate-300">STK Push sent. Please check your phone and enter your M-Pesa PIN.</p>
+                </div>
+
+                <div id="mpesaActionButtons" class="mt-6 flex gap-3">
+                    <button type="submit" id="mpesaSubmitBtn" class="flex-1 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm transition shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-paper-plane text-[10px]"></i>
+                        <span>Pay Now</span>
+                    </button>
+                    <button type="button" onclick="closeMpesaModal()" class="flex-1 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-sm transition">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================== -->
+<!-- CRYPTO MODAL (WITH LIVE TXID VERIFICATION) -->
+<!-- ========================================== -->
+<div id="cryptoModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md hidden p-4">
+    <div class="funding-card w-full max-w-md p-5 sm:p-6 modal-in max-h-[90vh] overflow-y-auto relative">
+        <div class="absolute -top-20 -right-20 w-56 h-56 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="relative">
+            <div class="flex items-center gap-3 mb-5">
+                <div class="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                    <i class="fa-brands fa-bitcoin text-lg"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-white">USDT Deposit</h3>
+                    <p class="text-[10px] text-slate-400 mt-0.5">TRC20 Network · Binance Wallet</p>
+                </div>
+            </div>
+
+            <!-- QR Code -->
+            <div class="flex justify-center mb-5">
+                <div class="px-qr px-qr-sm">{% include 'partials/usdt_qr.html' %}</div>
+            </div>
+
+            <!-- Wallet Address -->
+            <div class="bg-slate-950/60 border border-slate-800/60 rounded-xl p-4 mb-3">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Network</span>
+                    <span class="text-[10px] px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold">TRC20</span>
+                </div>
+                <p class="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">Wallet Address</p>
+                <div class="flex gap-2">
+                    <input type="text" id="cryptoAddress" readonly value="TTjvfn3jT5BYtV76jC8zgT6CUaWfukSRYA" 
+                           class="input-field flex-1 text-[11px] py-2.5">
+                    <button type="button" onclick="copyCryptoAddress()" 
+                            class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] transition shadow-lg shadow-indigo-600/20 flex items-center gap-1.5 shrink-0">
+                        <i class="fa-solid fa-copy text-[9px]"></i>
+                        <span>Copy</span>
+                    </button>
+                </div>
+                <p class="text-[10px] text-amber-300/70 mt-3 leading-relaxed flex items-start gap-1.5">
+                    <i class="fa-solid fa-triangle-exclamation text-[10px] mt-0.5 shrink-0"></i>
+                    <span>Send only USDT on TRC20 network. Other networks will result in permanent loss.</span>
+                </p>
+            </div>
+
+            <!-- DEPOSIT FORM WITH LIVE VERIFICATION -->
+            <form method="POST" action="{% url 'submit_crypto_deposit' %}" id="cryptoDepositForm" class="space-y-4 pt-4 border-t border-slate-800/60">
+                {% csrf_token %}
+                <input type="hidden" name="network" value="TRX">
+                <input type="hidden" name="wallet_address" value="TTjvfn3jT5BYtV76jC8zgT6CUaWfukSRYA">
+
+                <div>
+                    <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
+                        <i class="fa-solid fa-dollar-sign text-[9px] mr-1.5 text-amber-400"></i>
+                        Deposit Amount (USD)
+                    </label>
+                    <input type="number" step="0.01" name="amount" id="cryptoAmountInput" required placeholder="0.00" class="input-field">
+                    <p class="text-[10px] text-slate-500 mt-1.5">Minimum $5.00</p>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
+                        <i class="fa-solid fa-hashtag text-[9px] mr-1.5 text-amber-400"></i>
+                        Blockchain TxID
+                    </label>
+                    <input type="text" name="tx_hash" id="cryptoTxHashInput" required
+                           placeholder="Paste your 64-char transaction hash"
+                           autocomplete="off" spellcheck="false"
+                           class="input-field text-[11px] font-mono">
+
+                    <!-- Live verification box -->
+                    <div id="txidVerificationBox" class="mt-3"></div>
+                </div>
+
+                <div class="flex gap-3 pt-2">
+                    <button type="submit" id="cryptoSubmitBtn"
+                            class="flex-1 py-3 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold text-sm transition shadow-lg shadow-amber-600/25 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-check text-[10px]"></i>
+                        <span>Confirm Deposit</span>
+                    </button>
+                    <button type="button" onclick="closeCryptoModal()"
+                            class="flex-1 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-sm transition">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==========================================
+    // TAB SWITCHING
+    // ==========================================
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.tab-btn').forEach(el => {
+            el.classList.remove('active');
+            el.classList.add('inactive');
+        });
+        document.getElementById('content-' + tabName).classList.remove('hidden');
+        const activeTab = document.getElementById('tab-' + tabName);
+        activeTab.classList.remove('inactive');
+        activeTab.classList.add('active');
+    }
+
+    // ==========================================
+    // QUICK AMOUNTS
+    // ==========================================
+    function setTransferAmount(amount) {
+        const input = document.querySelector('#content-transfer input[name="amount"]');
+        if (input) input.value = amount;
+    }
+
+    // ==========================================
+    // MPESA MODAL
+    // ==========================================
+    function openMpesaModal() {
+        document.getElementById('mpesaModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        resetMpesaForm();
+    }
+
+    function closeMpesaModal() {
+        document.getElementById('mpesaModal').classList.add('hidden');
+        document.body.style.overflow = '';
+        resetMpesaForm();
+    }
+
+    function resetMpesaForm() {
+        document.getElementById('mpesaFormFields').classList.remove('hidden');
+        document.getElementById('mpesaStatusContainer').classList.add('hidden');
+        document.getElementById('mpesaSpinner').classList.remove('hidden');
+        document.getElementById('mpesaStatusIcon').classList.add('hidden');
+        document.getElementById('mpesaStatusIcon').innerHTML = '';
+        document.getElementById('mpesaStatusText').textContent = 'STK Push sent. Please check your phone and enter your M-Pesa PIN.';
+        document.getElementById('mpesaSubmitBtn').style.display = 'flex';
+        document.getElementById('mpesaForm').reset();
+    }
+
+    // ==========================================
+    // CRYPTO MODAL
+    // ==========================================
+    function openCryptoModal() {
+        document.getElementById('cryptoModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        resetCryptoVerification();
+    }
+
+    function closeCryptoModal() {
+        document.getElementById('cryptoModal').classList.add('hidden');
+        document.body.style.overflow = '';
+        resetCryptoVerification();
+    }
+
+    function resetCryptoVerification() {
+        const box = document.getElementById('txidVerificationBox');
+        const input = document.getElementById('cryptoTxHashInput');
+        const amount = document.getElementById('cryptoAmountInput');
+        const btn = document.getElementById('cryptoSubmitBtn');
+
+        if (box) box.innerHTML = '';
+        if (input) input.value = '';
+        if (amount) amount.value = '';
+        if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+
+        window.__txidStatus = 'empty';
+        window.__lastVerifiedHash = null;
+        if (window.__txidVerifyTimeout) clearTimeout(window.__txidVerifyTimeout);
+    }
+
+    function copyCryptoAddress() {
+        const addressInput = document.getElementById('cryptoAddress');
+        addressInput.select();
+        addressInput.setSelectionRange(0, 99999);
+        try {
+            navigator.clipboard.writeText(addressInput.value);
+            showToast('Wallet address copied!', 'success');
+        } catch (err) {
+            document.execCommand('copy');
+            showToast('Wallet address copied!', 'success');
+        }
+    }
+
+    // ==========================================
+    // TOAST
+    // ==========================================
+    function showToast(message, type = 'info') {
+        const colors = {
+            info: 'bg-indigo-900/90 border-indigo-500 text-indigo-200',
+            success: 'bg-emerald-900/90 border-emerald-500 text-emerald-200',
+            warn: 'bg-amber-900/90 border-amber-500 text-amber-200',
+            error: 'bg-rose-900/90 border-rose-500 text-rose-200'
+        };
+        const icons = {
+            info: 'fa-circle-info',
+            success: 'fa-circle-check',
+            warn: 'fa-circle-exclamation',
+            error: 'fa-triangle-exclamation'
+        };
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-5 right-5 z-[10000] px-4 py-3 rounded-xl border font-mono text-xs shadow-2xl backdrop-blur-md transition-all duration-300 ${colors[type]}`;
+        toast.innerHTML = `<i class="fa-solid ${icons[type]} mr-2"></i> ${message}`;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(20px)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    // ==========================================
+    // CRYPTO TXID LIVE VERIFICATION
+    // ==========================================
+    window.__txidStatus = 'empty';
+    window.__lastVerifiedHash = null;
+
+    function getCsrfToken() {
+        const input = document.querySelector('#cryptoDepositForm input[name=csrfmiddlewaretoken]');
+        if (input && input.value) return input.value;
+        const any = document.querySelector('[name=csrfmiddlewaretoken]');
+        return any ? any.value : '';
+    }
+
+    function renderTxidBox(status, data = {}) {
+        const box = document.getElementById('txidVerificationBox');
+        if (!box) return;
+
+        const btn = document.getElementById('cryptoSubmitBtn');
+        const setSubmit = (enabled) => {
+            if (!btn) return;
+            btn.disabled = !enabled;
+            btn.classList.toggle('opacity-50', !enabled);
+            btn.classList.toggle('cursor-not-allowed', !enabled);
+        };
+
+        if (status === 'empty') {
+            box.innerHTML = '';
+            setSubmit(true);
+            return;
+        }
+
+        if (status === 'typing') {
+            box.innerHTML = `
+                <div class="verify-card flex items-center gap-2 text-[10px] text-slate-500 font-mono">
+                    <i class="fa-solid fa-keyboard text-slate-600 text-[10px]"></i>
+                    <span>Keep typing...</span>
+                </div>`;
+            setSubmit(false);
+            return;
+        }
+
+        if (status === 'verifying') {
+            box.innerHTML = `
+                <div class="verify-card rounded-xl bg-blue-950/40 border border-blue-500/40 p-3 flex items-center gap-3">
+                    <div class="relative w-8 h-8 shrink-0">
+                        <div class="absolute inset-0 rounded-full border-2 border-blue-500/20"></div>
+                        <div class="absolute inset-0 rounded-full border-2 border-transparent border-t-blue-400 animate-spin"></div>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="text-[11px] font-black uppercase tracking-widest text-blue-300">Verifying Hash</p>
+                        <p class="text-[10px] text-slate-400 mt-0.5">Checking blockchain & our records...</p>
+                    </div>
+                </div>`;
+            setSubmit(false);
+            return;
+        }
+
+        if (status === 'valid') {
+            const onchain = data.onchain || {};
+            const chainHTML = onchain.amount ? `
+                <div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-emerald-500/20">
+                    <div>
+                        <span class="text-[9px] uppercase text-emerald-500/60 font-bold block">Amount</span>
+                        <span class="text-xs font-black text-emerald-300 font-mono">${onchain.amount} USDT</span>
+                    </div>
+                    <div>
+                        <span class="text-[9px] uppercase text-emerald-500/60 font-bold block">Status</span>
+                        <span class="text-xs font-black text-emerald-300">${onchain.confirmed ? 'Confirmed' : 'Pending'}</span>
+                    </div>
+                </div>` : '';
+
+            box.innerHTML = `
+                <div class="verify-card rounded-xl bg-emerald-950/40 border border-emerald-500/40 p-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center shrink-0">
+                            <i class="fa-solid fa-check text-emerald-400 text-sm"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-[11px] font-black uppercase tracking-widest text-emerald-300">Hash Valid</p>
+                            <p class="text-[10px] text-emerald-200/70 mt-0.5">${data.message || 'Ready to submit'}</p>
+                        </div>
+                    </div>
+                    ${chainHTML}
+                </div>`;
+            setSubmit(true);
+            return;
+        }
+
+        if (status === 'used') {
+            const ex = data.existing || {};
+            const exHTML = ex.amount ? `
+                <div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-amber-500/20">
+                    <div>
+                        <span class="text-[9px] uppercase text-amber-500/60 font-bold block">Previous Amount</span>
+                        <span class="text-xs font-black text-amber-300 font-mono">$${ex.amount}</span>
+                    </div>
+                    <div>
+                        <span class="text-[9px] uppercase text-amber-500/60 font-bold block">Status</span>
+                        <span class="text-xs font-black text-amber-300">${ex.status || 'Pending'}</span>
+                    </div>
+                </div>` : '';
+
+            box.innerHTML = `
+                <div class="verify-card rounded-xl bg-amber-950/40 border border-amber-500/40 p-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/50 flex items-center justify-center shrink-0">
+                            <i class="fa-solid fa-triangle-exclamation text-amber-400 text-sm"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-[11px] font-black uppercase tracking-widest text-amber-300">Hash Already Used</p>
+                            <p class="text-[10px] text-amber-200/70 mt-0.5">${data.message || 'This transaction is already on file'}</p>
+                        </div>
+                    </div>
+                    ${exHTML}
+                </div>`;
+            setSubmit(false);
+            return;
+        }
+
+        // invalid
+        box.innerHTML = `
+            <div class="verify-card rounded-xl bg-rose-950/40 border border-rose-500/40 p-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-rose-500/20 border border-rose-500/50 flex items-center justify-center shrink-0">
+                        <i class="fa-solid fa-xmark text-rose-400 text-sm"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="text-[11px] font-black uppercase tracking-widest text-rose-300">Invalid Hash</p>
+                        <p class="text-[10px] text-rose-200/70 mt-0.5">${data.message || 'Check the hash and try again'}</p>
+                    </div>
+                </div>
+            </div>`;
+        setSubmit(false);
+    }
+
+    async function verifyTxid(hash) {
+        if (window.__lastVerifiedHash === hash) return;
+        window.__lastVerifiedHash = hash;
+        window.__txidStatus = 'verifying';
+        renderTxidBox('verifying');
+
+        try {
+            const resp = await fetch('/api/verify-crypto-txid/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken(),
+                },
+                body: JSON.stringify({ tx_hash: hash, network: 'TRX' }),
+            });
+
+            const data = await resp.json();
+
+            // Guard against race: user might have typed more
+            const input = document.getElementById('cryptoTxHashInput');
+            if (input && input.value.trim() !== hash) return;
+
+            window.__txidStatus = data.status || 'invalid';
+            renderTxidBox(data.status, data);
+        } catch (err) {
+            console.error('Verify error:', err);
+            window.__txidStatus = 'invalid';
+            renderTxidBox('invalid', { message: 'Network error while verifying. Try again.' });
+        }
+    }
+
+    // Attach listeners to the TxID input
+    document.getElementById('cryptoTxHashInput')?.addEventListener('input', (e) => {
+        const hash = e.target.value.trim();
+        window.__lastVerifiedHash = null;
+
+        if (!hash) {
+            window.__txidStatus = 'empty';
+            renderTxidBox('empty');
+            return;
+        }
+
+        if (hash.length < 10) {
+            window.__txidStatus = 'typing';
+            renderTxidBox('typing');
+            return;
+        }
+
+        window.__txidStatus = 'typing';
+        renderTxidBox('typing');
+
+        if (window.__txidVerifyTimeout) clearTimeout(window.__txidVerifyTimeout);
+        window.__txidVerifyTimeout = setTimeout(() => verifyTxid(hash), 500);
+    });
+
+    // Block submit unless hash is valid
+    document.getElementById('cryptoDepositForm')?.addEventListener('submit', (e) => {
+        if (window.__txidStatus !== 'valid') {
+            e.preventDefault();
+            showToast('Please paste a valid, unused TxID before submitting.', 'warn');
+            return false;
+        }
+        const amountInput = document.getElementById('cryptoAmountInput');
+        if (!amountInput.value || parseFloat(amountInput.value) < 5) {
+            e.preventDefault();
+            showToast('Minimum deposit is $5.00', 'warn');
+            return false;
+        }
+    });
+
+    // ==========================================
+    // MPESA FORM SUBMIT
+    // ==========================================
+    document.getElementById('mpesaForm')?.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const form = this;
+        const formData = new FormData(form);
+
+        document.getElementById('mpesaFormFields').classList.add('hidden');
+        document.getElementById('mpesaStatusContainer').classList.remove('hidden');
+        document.getElementById('mpesaSubmitBtn').style.display = 'none';
+
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(response => response.json().catch(() => ({ success: false, error: 'Unexpected server response. Check History before trying again.' })))
+        .then(data => {
+            if (data.success === false || data.status === 'failed') {
+                mpesaResult(false, data.error || data.message || 'Payment could not be started.');
+                return;
+            }
+            document.getElementById('mpesaStatusText').textContent = data.message || 'STK Push sent. Please check your phone and enter your M-Pesa PIN.';
+            if (data.checkout_id) pollMpesa(data.checkout_id, Date.now());
+            else mpesaResult(null, 'Request sent. Your balance updates once M-Pesa confirms.');
+        })
+        .catch(() => mpesaResult(false, 'Network error — the request may not have reached us. Check History before trying again.'));
+    });
+
+    // ── Added: wait for M-Pesa's own confirmation (the callback) before saying anything ──
+    function mpesaResult(ok, text) {
+        document.getElementById('mpesaSpinner').classList.add('hidden');
+        const iconEl = document.getElementById('mpesaStatusIcon');
+        iconEl.classList.remove('hidden');
+        iconEl.innerHTML = ok === true ? '<i class="fa-solid fa-circle-check text-emerald-500"></i>'
+                         : ok === false ? '<i class="fa-solid fa-circle-xmark text-rose-500"></i>'
+                         : '<i class="fa-solid fa-hourglass-half text-amber-400"></i>';
+        document.getElementById('mpesaStatusText').textContent = text;
+        const btn = document.getElementById('mpesaSubmitBtn');
+        if (ok === false) { btn.style.display = 'flex'; document.getElementById('mpesaFormFields').classList.remove('hidden'); }
+        if (ok === true) { showToast('Deposit confirmed!', 'success'); setTimeout(() => window.location.reload(), 2000); }
+    }
+    function pollMpesa(id, started) {
+        fetch(`/api/payment-status/${encodeURIComponent(id)}/`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(r => r.json())
+            .then(d => {
+                if (d.status === 'completed') return mpesaResult(true, 'Payment confirmed by M-Pesa. Reloading…');
+                if (d.status === 'failed') return mpesaResult(false, d.message || 'Payment was cancelled or failed.');
+                if (Date.now() - started > 120000) return mpesaResult(null, 'Still waiting for M-Pesa. If you entered your PIN, your balance updates automatically once it confirms.');
+                setTimeout(() => pollMpesa(id, started), 3000);
+            })
+            .catch(() => setTimeout(() => pollMpesa(id, started), 5000));
+    }
+
+    // ── Added: amount checks against the real balances, live KES, history filter / CSV ──
+    (function () {
+        const bal = { EXCHANGE: parseFloat('{{ exchange_balance|default:0|stringformat:"s" }}') || 0, TRADING: parseFloat('{{ trading_balance|default:0|stringformat:"s" }}') || 0 };
+        const fmt = v => '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const wForm = document.querySelector('form[action="{% url 'request_withdrawal' %}"]');
+        wForm?.addEventListener('submit', e => {
+            const v = parseFloat(wForm.amount.value);
+            if (!(v > 0)) { e.preventDefault(); return showToast('Enter an amount.', 'warn'); }
+            if (v > bal.EXCHANGE) { e.preventDefault(); return showToast(`You have ${fmt(bal.EXCHANGE)} in your Exchange account.`, 'warn'); }
+            if (!confirm(`Withdraw ${fmt(v)} via ${wForm.method.value} to ${wForm.wallet_address.value}?`)) e.preventDefault();
+        });
+        const tForm = document.querySelector('form[action="{% url 'transfer_between_accounts' %}"]');
+        if (tForm) {
+            const max = document.createElement('button');
+            max.type = 'button';
+            max.className = 'py-2 rounded-lg bg-slate-950/60 border border-slate-800 text-slate-400 hover:text-white text-[10px] font-bold transition';
+            max.textContent = 'Max';
+            max.addEventListener('click', () => { tForm.amount.value = bal[tForm.source_type.value].toFixed(2); });
+            const quick = tForm.querySelector('.grid-cols-4');
+            if (quick) { quick.classList.replace('grid-cols-4', 'grid-cols-5'); quick.appendChild(max); }
+            tForm.addEventListener('submit', e => {
+                const v = parseFloat(tForm.amount.value), src = tForm.source_type.value;
+                if (src === tForm.target_type.value) { e.preventDefault(); return showToast('Choose two different accounts.', 'warn'); }
+                if (!(v > 0)) { e.preventDefault(); return showToast('Enter an amount.', 'warn'); }
+                if (v > bal[src]) { e.preventDefault(); return showToast(`Only ${fmt(bal[src])} available in the ${src.toLowerCase()} account.`, 'warn'); }
+            });
+        }
+        const kes = document.getElementById('px-kes');
+        const mAmt = document.querySelector('#mpesaForm input[name=amount]');
+        if (kes && mAmt) {
+            const rate = parseFloat(kes.dataset.rate);
+            mAmt.addEventListener('input', () => {
+                const v = parseFloat(mAmt.value);
+                kes.textContent = v > 0 ? `≈ Ksh ${Math.round(v * rate).toLocaleString()} (1 USD = Ksh ${rate})` : `1 USD = Ksh ${rate}`;
+            });
+        }
+        const tools = document.getElementById('px-tx-tools');
+        if (tools) {
+            const items = () => document.querySelectorAll('#content-history [data-type]');
+            tools.querySelectorAll('[data-f]').forEach(b => b.addEventListener('click', () => {
+                tools.querySelectorAll('[data-f]').forEach(x => x.classList.toggle('on', x === b));
+                const f = b.dataset.f;
+                items().forEach(el => {
+                    const t = (el.dataset.type || '').toUpperCase();
+                    el.style.display = !f || (f === 'OTHER' ? !['DEPOSIT', 'WITHDRAWAL'].includes(t) : t === f) ? '' : 'none';
+                });
+            }));
+            document.getElementById('px-tx-csv').addEventListener('click', () => {
+                const rows = [...document.querySelectorAll('#content-history tbody tr[data-type]')].filter(r => r.style.display !== 'none');
+                const cell = el => el.textContent.replace(/\s+/g, ' ').trim();
+                const csv = [['Type', 'Amount', 'Details', 'Date'], ...rows.map(r => [...r.children].map(cell))]
+                    .map(r => r.map(c => '"' + c.replace(/"/g, '""') + '"').join(',')).join('\n');
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+                a.download = 'transactions.csv'; a.click();
+                setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+            });
+        }
+        // copy the deposit address
+    document.getElementById('px-usdt-copy')?.addEventListener('click', e => {
+        const btn = e.currentTarget, addr = document.getElementById('px-usdt-address').textContent.trim();
+        const done = () => { btn.classList.add('done'); btn.querySelector('span').textContent = 'Copied'; setTimeout(() => { btn.classList.remove('done'); btn.querySelector('span').textContent = 'Copy'; }, 2000); };
+        if (navigator.clipboard) navigator.clipboard.writeText(addr).then(done, () => { copyCryptoAddress(); done(); });
+        else { copyCryptoAddress(); done(); }
+    });
+
+    // open a tab from the URL, e.g. ?tab=withdrawal
+        const tab = new URLSearchParams(location.search).get('tab');
+        if (tab && document.getElementById('content-' + tab)) switchTab(tab);
+    })();
+
+    // ==========================================
+    // ESC + BACKDROP CLOSE
+    // ==========================================
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeMpesaModal();
+            closeCryptoModal();
+        }
+    });
+
+    document.getElementById('mpesaModal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'mpesaModal') closeMpesaModal();
+    });
+
+    document.getElementById('cryptoModal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'cryptoModal') closeCryptoModal();
+    });
+
+    // ==========================================
+    // INIT
+    // ==========================================
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+            const spinner = document.getElementById('loading-spinner');
+            if (spinner) {
+                spinner.classList.add('spinner-hidden');
+                setTimeout(() => spinner.remove(), 500);
+            }
+        }, 400);
+    });
+</script>
+{% endblock %}

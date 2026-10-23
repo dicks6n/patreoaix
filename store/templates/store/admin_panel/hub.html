@@ -1,0 +1,475 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}Admin Hub · PATREOAIX{% endblock %}
+{% block page_title %}Admin Hub{% endblock %}
+{% block message_toasts %}{% endblock %}{# messages are shown inside the hub #}
+
+{% block extra_head %}
+{% include 'partials/admin_styles.html' %}
+<style>
+    .kpi { padding: 14px 16px; }
+    .kpi .k { font-size: 11px; color: var(--px-mute); display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+    .kpi .v { font-size: 19px; font-weight: 700; color: var(--px-text); margin-top: 3px; font-family: 'JetBrains Mono', monospace; }
+    .kpi .s { font-size: 11px; color: var(--px-dim); margin-top: 2px; }
+    .htabs { display: flex; gap: 2px; padding: 3px; border-radius: 10px; background: var(--px-panel-2); border: 1px solid var(--px-line); overflow-x: auto; scrollbar-width: none; }
+    .htabs::-webkit-scrollbar { display: none; }
+    .htabs button { height: 34px; padding: 0 13px; border-radius: 8px; font-size: 12.5px; font-weight: 600; color: var(--px-dim); white-space: nowrap; display: inline-flex; align-items: center; gap: 7px; }
+    .htabs button:hover { color: var(--px-text); }
+    .htabs button.on { background: var(--px-panel); color: var(--px-text); box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+    .htabs .n { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; font-size: 10px; font-weight: 800; background: var(--px-accent); color: #0b0e14; display: inline-flex; align-items: center; justify-content: center; }
+    .htabs .n.z { background: var(--px-line); color: var(--px-dim); }
+    .hpanel { display: none; } .hpanel.on { display: block; }
+    .hc { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--px-line-soft); }
+    .hc:first-child { border-top: 0; }
+    .hc .dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+    .sec-ic { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+    #hub-new { display: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-4 lg:space-y-5">
+
+    <!-- ═══ HEADER ═══ -->
+    <div class="flex flex-col xl:flex-row xl:items-end justify-between gap-4">
+        <div>
+            <h2 class="text-xl sm:text-2xl font-semibold tracking-tight px-strong flex items-center gap-2.5">
+                Admin Hub
+                {% if ov.queue_total %}<span class="pill warn">{{ ov.queue_total }} need action</span>{% else %}<span class="pill ok"><i class="fa-solid fa-check"></i>All clear</span>{% endif %}
+                {% if health_bad %}<span class="pill bad">{{ health_bad }} system warning{{ health_bad|pluralize }}</span>{% endif %}
+            </h2>
+            <p class="text-[13px] mt-1 px-dim">Approvals, users, money, support, broadcasts, signals and system health in one place.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+            <form method="GET" class="relative" role="search">
+                <input type="hidden" name="tab" value="users">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-[11px] px-muted"></i>
+                <input name="q" value="{{ q }}" placeholder="Find user: name, email, phone, ID" class="px-in" style="width:280px;padding-left:30px">
+            </form>
+            <a href="{% url 'admin_payout_queue' %}" class="btn-gh"><i class="fa-solid fa-hand-holding-dollar"></i>Payouts</a>
+            <a href="{% url 'admin_kyc_queue' %}" class="btn-gh"><i class="fa-solid fa-id-card"></i>KYC</a>
+            <a href="{% url 'admin_message_center' %}" class="btn-gh"><i class="fa-solid fa-envelope"></i>Messages</a>
+            <a href="{% url 'admin_copy_signals' %}" class="btn-gh"><i class="fa-solid fa-copy"></i>Copy signals</a>
+            <a href="{% url 'admin_gateway_logs' %}" class="btn-gh"><i class="fa-solid fa-receipt"></i>Gateway logs</a>
+        </div>
+    </div>
+
+    <div id="hub-new" class="ad-flash warning"><i class="fa-solid fa-bell"></i><span id="hub-new-t">New requests arrived.</span><button type="button" onclick="location.reload()" class="btn-gh ml-auto">Reload</button></div>
+
+    {% if messages %}<div class="space-y-2">{% for m in messages %}<div class="ad-flash {{ m.tags }}"><i class="fa-solid {% if m.tags == 'error' %}fa-circle-xmark{% elif m.tags == 'warning' %}fa-triangle-exclamation{% else %}fa-circle-check{% endif %}"></i><span>{{ m }}</span></div>{% endfor %}</div>{% endif %}
+
+    <!-- ═══ KPIs ═══ -->
+    <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
+        <div class="px-card kpi"><div class="k">Users <i class="fa-solid fa-users"></i></div><div class="v">{{ ov.users_total }}</div><div class="s">+{{ ov.users_new_24h }} today · +{{ ov.users_new_7d }} 7d</div></div>
+        <div class="px-card kpi"><div class="k">Exchange wallets <i class="fa-solid fa-wallet"></i></div><div class="v">${{ ov.exchange_total|floatformat:0 }}</div><div class="s">held for users</div></div>
+        <div class="px-card kpi"><div class="k">Trading accounts <i class="fa-solid fa-chart-column"></i></div><div class="v">${{ ov.trading_total|floatformat:0 }}</div><div class="s">{{ ov.open_trades }} open trade{{ ov.open_trades|pluralize }}</div></div>
+        <div class="px-card kpi"><div class="k">Net flow 7d <i class="fa-solid fa-right-left"></i></div><div class="v {% if ov.net_flow_7d < 0 %}px-down{% else %}px-up{% endif %}">${{ ov.net_flow_7d|floatformat:0 }}</div><div class="s">in ${{ ov.dep_7d|floatformat:0 }} · out ${{ ov.wd_7d|floatformat:0 }}</div></div>
+        <div class="px-card kpi"><div class="k">Pending in <i class="fa-solid fa-arrow-down"></i></div><div class="v px-up">${{ ov.pending_in|floatformat:0 }}</div><div class="s">{{ ov.deposits }} deposit{{ ov.deposits|pluralize }}</div></div>
+        <div class="px-card kpi"><div class="k">Pending out <i class="fa-solid fa-arrow-up"></i></div><div class="v px-down">${{ ov.pending_out|floatformat:0 }}</div><div class="s">{{ ov.withdrawals }} withdrawal{{ ov.withdrawals|pluralize }}</div></div>
+        <div class="px-card kpi"><div class="k">Floating P/L <i class="fa-solid fa-chart-line"></i></div><div class="v {% if ov.floating_pnl < 0 %}px-down{% else %}px-up{% endif %}">{% if ov.floating_pnl is not None %}${{ ov.floating_pnl|floatformat:2 }}{% else %}—{% endif %}</div><div class="s">{{ ov.trades_24h }} trades in 24h</div></div>
+        <div class="px-card kpi"><div class="k">Support <i class="fa-solid fa-headset"></i></div><div class="v {% if ov.tickets %}px-down{% endif %}">{{ ov.tickets }}</div><div class="s">open ticket{{ ov.tickets|pluralize }}</div></div>
+    </div>
+
+    <!-- ═══ TABS ═══ -->
+    <div class="htabs" id="htabs" role="tablist">
+        <button data-t="queues"><i class="fa-solid fa-inbox"></i>Queues <span class="n {% if not ov.queue_total %}z{% endif %}" data-c="queue">{{ ov.queue_total }}</span></button>
+        <button data-t="users"><i class="fa-solid fa-user-gear"></i>Users</button>
+        <button data-t="support"><i class="fa-solid fa-headset"></i>Support <span class="n {% if not ov.tickets %}z{% endif %}" data-c="tickets">{{ ov.tickets }}</span></button>
+        <button data-t="broadcast"><i class="fa-solid fa-bullhorn"></i>Broadcast</button>
+        <button data-t="signals"><i class="fa-solid fa-satellite-dish"></i>Signals</button>
+        <button data-t="system"><i class="fa-solid fa-heart-pulse"></i>System {% if health_bad %}<span class="n">{{ health_bad }}</span>{% endif %}</button>
+    </div>
+
+    <!-- ═══════════════ QUEUES ═══════════════ -->
+    <div class="hpanel space-y-4" data-p="queues">
+
+        <!-- Crypto deposits -->
+        <section class="px-card overflow-hidden">
+            <div class="px-card-h">
+                <div class="flex items-center gap-3"><span class="sec-ic" style="background:var(--px-up-soft);color:var(--px-up)"><i class="fa-brands fa-bitcoin"></i></span>
+                    <div><p class="px-card-t">Crypto deposits</p><p class="text-[11px] px-muted">Check the TxID on the explorer before crediting</p></div></div>
+                {% if crypto_pending_count %}<span class="pill warn">{{ crypto_pending_count }} pending · ${{ crypto_pending_total|floatformat:2 }}</span>{% endif %}
+            </div>
+            {% if crypto_deposits %}
+            <div class="overflow-x-auto"><table class="ad-tbl">
+                <thead><tr><th>User</th><th>Amount</th><th>Network</th><th>TxID</th><th>Submitted</th><th class="text-right">Decision</th></tr></thead>
+                <tbody>{% for d in crypto_deposits %}
+                <tr>
+                    <td><div class="flex items-center gap-2.5"><span class="av">{{ d.user.username|slice:":1"|upper }}</span><div><a href="?tab=users&q={{ d.user.username|urlencode }}" class="font-semibold px-strong hover:underline">{{ d.user.username }}</a><p class="text-[11px] px-muted">{{ d.user.email|default:"no email" }}</p></div></div></td>
+                    <td class="px-num font-bold px-up">${{ d.amount|floatformat:2 }}</td>
+                    <td><span class="pill mute">{{ d.network|default:"N/A" }}</span></td>
+                    <td><div class="flex items-center gap-1"><code class="px-num text-[11px] px-dim" title="{{ d.tx_hash }}">{{ d.tx_hash|default:"—"|truncatechars:22 }}</code>{% if d.tx_hash %}<button type="button" class="copy-btn" data-copy="{{ d.tx_hash }}" title="Copy TxID"><i class="fa-regular fa-copy text-[11px]"></i></button>{% endif %}</div>
+                        {% if d.explorer_url %}<a href="{{ d.explorer_url }}" target="_blank" rel="noopener" class="text-[11px] hover:underline" style="color:var(--px-accent)"><i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i> Verify on explorer</a>{% endif %}</td>
+                    <td class="px-num text-[11px] px-dim">{{ d.created_at|date:"M d, H:i" }}</td>
+                    <td class="text-right"><form method="POST" class="inline-flex gap-1.5 hub-act" data-kind="crypto deposit" data-who="{{ d.user.username }}" data-amt="${{ d.amount|floatformat:2 }}">{% csrf_token %}
+                        <input type="hidden" name="action_type" value="crypto"><input type="hidden" name="item_id" value="{{ d.id }}"><input type="hidden" name="admin_notes" value="Verified on blockchain explorer">
+                        <button name="decision" value="reject" class="btn-no"><i class="fa-solid fa-xmark"></i>Reject</button>
+                        <button name="decision" value="approve" class="btn-ok"><i class="fa-solid fa-check"></i>Approve &amp; credit</button></form></td>
+                </tr>{% endfor %}</tbody></table></div>
+            {% else %}<div class="ad-empty"><i class="fa-brands fa-bitcoin"></i>No pending crypto deposits.</div>{% endif %}
+            {% if recent_crypto %}
+            <details class="px-4 py-3" style="border-top:1px solid var(--px-line-soft)"><summary class="text-[12px] px-dim cursor-pointer">Recently reviewed ({{ recent_crypto|length }})</summary>
+                <div class="mt-2 space-y-1">{% for r in recent_crypto %}<div class="flex items-center justify-between text-[12px] py-1"><span><b class="px-strong">@{{ r.user.username }}</b> <span class="px-num px-up">${{ r.amount|floatformat:2 }}</span> <span class="px-muted">{{ r.network }}</span></span><span class="flex items-center gap-2"><span class="px-num text-[11px] px-muted">{{ r.reviewed_at|date:"M d, H:i"|default:"—" }}</span><span class="pill {% if r.status == 'APPROVED' %}ok{% else %}bad{% endif %}">{{ r.status }}</span></span></div>{% endfor %}</div>
+            </details>{% endif %}
+        </section>
+
+        <!-- Fiat deposits -->
+        <section class="px-card overflow-hidden">
+            <div class="px-card-h">
+                <div class="flex items-center gap-3"><span class="sec-ic" style="background:rgba(59,130,246,.12);color:#60a5fa"><i class="fa-solid fa-building-columns"></i></span>
+                    <div><p class="px-card-t">Fiat deposits</p><p class="text-[11px] px-muted">M-Pesa, bank and other methods</p></div></div>
+                <span class="pill mute">{{ pending_deposits|length }} pending</span>
+            </div>
+            {% if pending_deposits %}
+            <div class="overflow-x-auto"><table class="ad-tbl">
+                <thead><tr><th>User</th><th>Amount</th><th>Method</th><th>Reference</th><th>Date</th><th class="text-right">Decision</th></tr></thead>
+                <tbody>{% for d in pending_deposits %}
+                <tr>
+                    <td><div class="flex items-center gap-2.5"><span class="av">{{ d.user.username|slice:":1"|upper }}</span><a href="?tab=users&q={{ d.user.username|urlencode }}" class="font-semibold px-strong hover:underline">{{ d.user.username }}</a></div></td>
+                    <td class="px-num font-bold px-up">${{ d.amount|floatformat:2 }}</td>
+                    <td><span class="pill mute">{{ d.payment_method }}</span></td>
+                    <td class="px-num text-[11px] px-dim">{{ d.provider_reference|default:"—" }}</td>
+                    <td class="px-num text-[11px] px-dim">{{ d.created_at|date:"M d, H:i" }}</td>
+                    <td class="text-right"><form method="POST" class="inline-flex gap-1.5 hub-act" data-kind="deposit" data-who="{{ d.user.username }}" data-amt="${{ d.amount|floatformat:2 }}">{% csrf_token %}
+                        <input type="hidden" name="action_type" value="deposit"><input type="hidden" name="item_id" value="{{ d.id }}"><input type="hidden" name="admin_notes" value="">
+                        <button name="decision" value="reject" class="btn-no"><i class="fa-solid fa-xmark"></i>Reject</button>
+                        <button name="decision" value="approve" class="btn-ok"><i class="fa-solid fa-check"></i>Approve</button></form></td>
+                </tr>{% endfor %}</tbody></table></div>
+            {% else %}<div class="ad-empty"><i class="fa-solid fa-wallet"></i>No pending fiat deposits.</div>{% endif %}
+        </section>
+
+        <!-- Withdrawals -->
+        <section class="px-card overflow-hidden">
+            <div class="px-card-h">
+                <div class="flex items-center gap-3"><span class="sec-ic" style="background:var(--px-accent-soft);color:var(--px-accent)"><i class="fa-solid fa-arrow-up-from-bracket"></i></span>
+                    <div><p class="px-card-t">Withdrawals</p><p class="text-[11px] px-muted">The user's exchange balance is checked again when you approve</p></div></div>
+                {% if pending_withdrawals %}<span class="pill warn">{{ pending_withdrawals|length }} awaiting</span>{% else %}<span class="pill ok">All clear</span>{% endif %}
+            </div>
+            {% if pending_withdrawals %}
+            <div class="overflow-x-auto"><table class="ad-tbl">
+                <thead><tr><th>User</th><th>Amount</th><th>Their balance</th><th>Method</th><th>Destination</th><th>Date</th><th class="text-right">Decision</th></tr></thead>
+                <tbody>{% for w in pending_withdrawals %}
+                <tr>
+                    <td><div class="flex items-center gap-2.5"><span class="av">{{ w.user.username|slice:":1"|upper }}</span><div><a href="?tab=users&q={{ w.user.username|urlencode }}" class="font-semibold px-strong hover:underline">{{ w.user.username }}</a><p class="text-[11px] px-muted">{{ w.user.email|default:"no email" }}</p></div></div></td>
+                    <td class="px-num font-bold px-down">${{ w.amount|floatformat:2 }}</td>
+                    <td>{% if w.can_pay %}<span class="px-num px-strong">${{ w.user_balance|floatformat:2 }}</span>{% else %}<span class="pill bad" title="Approving will be refused"><i class="fa-solid fa-triangle-exclamation"></i>${{ w.user_balance|floatformat:2 }} — short</span>{% endif %}</td>
+                    <td><span class="pill mute">{{ w.payment_method }}</span></td>
+                    <td><div class="flex items-center gap-1"><code class="px-num text-[11px] px-dim" title="{{ w.provider_reference }}">{{ w.provider_reference|default:"—"|truncatechars:30 }}</code>{% if w.provider_reference %}<button type="button" class="copy-btn" data-copy="{{ w.provider_reference }}" title="Copy destination"><i class="fa-regular fa-copy text-[11px]"></i></button>{% endif %}</div></td>
+                    <td class="px-num text-[11px] px-dim">{{ w.created_at|date:"M d, H:i" }}</td>
+                    <td class="text-right"><form method="POST" class="inline-flex gap-1.5 hub-act" data-kind="withdrawal" data-who="{{ w.user.username }}" data-amt="${{ w.amount|floatformat:2 }}">{% csrf_token %}
+                        <input type="hidden" name="action_type" value="withdrawal"><input type="hidden" name="item_id" value="{{ w.id }}"><input type="hidden" name="admin_notes" value="">
+                        <button name="decision" value="reject" class="btn-no"><i class="fa-solid fa-xmark"></i>Reject</button>
+                        <button name="decision" value="approve" class="btn-ok" {% if not w.can_pay %}disabled title="Balance too low"{% endif %}><i class="fa-solid fa-check"></i>Approve &amp; pay</button></form></td>
+                </tr>{% endfor %}</tbody></table></div>
+            {% else %}<div class="ad-empty"><i class="fa-solid fa-check-double"></i>No pending withdrawals.</div>{% endif %}
+        </section>
+
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <!-- KYC -->
+            <section class="px-card overflow-hidden">
+                <div class="px-card-h">
+                    <div class="flex items-center gap-3"><span class="sec-ic" style="background:rgba(139,92,246,.13);color:#a78bfa"><i class="fa-solid fa-id-card"></i></span>
+                        <div><p class="px-card-t">KYC reviews</p><p class="text-[11px] px-muted">Open the documents before verifying</p></div></div>
+                    <span class="pill mute">{{ pending_kyc|length }} pending</span>
+                </div>
+                {% if pending_kyc %}
+                <div class="overflow-x-auto"><table class="ad-tbl">
+                    <thead><tr><th>User</th><th>Document</th><th>Files</th><th class="text-right">Decision</th></tr></thead>
+                    <tbody>{% for k in pending_kyc %}
+                    <tr>
+                        <td><a href="?tab=users&q={{ k.user.username|urlencode }}" class="font-semibold px-strong hover:underline">{{ k.user.username }}</a><p class="text-[11px] px-muted px-num">{{ k.submitted_at|date:"M d, H:i" }}</p></td>
+                        <td><span class="pill mute">{{ k.document_type }}</span>{% if k.document_number or k.id_number %}<p class="text-[11px] px-num px-dim mt-1">{{ k.document_number|default:k.id_number }}</p>{% endif %}</td>
+                        <td class="text-[11px] space-x-2 whitespace-nowrap">
+                            {% if k.document_image %}<a href="{{ k.document_image.url }}" target="_blank" rel="noopener" class="hover:underline" style="color:var(--px-accent)"><i class="fa-regular fa-image"></i> ID</a>{% endif %}
+                            {% if k.selfie_image %}<a href="{{ k.selfie_image.url }}" target="_blank" rel="noopener" class="hover:underline" style="color:var(--px-accent)"><i class="fa-regular fa-face-smile"></i> Selfie</a>{% endif %}
+                            {% if k.document_file %}<a href="{{ k.document_file.url }}" target="_blank" rel="noopener" class="hover:underline" style="color:var(--px-accent)"><i class="fa-regular fa-file"></i> File</a>{% endif %}
+                            {% if not k.document_image and not k.selfie_image and not k.document_file %}<span class="px-muted">No files</span>{% endif %}
+                        </td>
+                        <td class="text-right"><form method="POST" class="inline-flex gap-1.5 hub-act" data-kind="KYC" data-who="{{ k.user.username }}" data-amt="">{% csrf_token %}
+                            <input type="hidden" name="action_type" value="kyc"><input type="hidden" name="item_id" value="{{ k.id }}"><input type="hidden" name="admin_notes" value="">
+                            <button name="decision" value="reject" class="btn-no"><i class="fa-solid fa-xmark"></i></button>
+                            <button name="decision" value="approve" class="btn-ok"><i class="fa-solid fa-check"></i>Verify</button></form></td>
+                    </tr>{% endfor %}</tbody></table></div>
+                {% else %}<div class="ad-empty"><i class="fa-solid fa-id-card"></i>No pending KYC submissions.</div>{% endif %}
+            </section>
+
+            <!-- Funded payouts (the hub handled these but never showed them) -->
+            <section class="px-card overflow-hidden">
+                <div class="px-card-h">
+                    <div class="flex items-center gap-3"><span class="sec-ic" style="background:var(--px-up-soft);color:var(--px-up)"><i class="fa-solid fa-trophy"></i></span>
+                        <div><p class="px-card-t">Funded payouts</p><p class="text-[11px] px-muted">Approving moves the amount to the trader's exchange wallet</p></div></div>
+                    <span class="pill mute">{{ pending_funded_payouts|length }} pending</span>
+                </div>
+                {% if pending_funded_payouts %}
+                <div class="overflow-x-auto"><table class="ad-tbl">
+                    <thead><tr><th>Trader</th><th>Amount</th><th>Month</th><th class="text-right">Decision</th></tr></thead>
+                    <tbody>{% for p in pending_funded_payouts %}
+                    <tr>
+                        <td><a href="?tab=users&q={{ p.user.username|urlencode }}" class="font-semibold px-strong hover:underline">{{ p.user.username }}</a><p class="text-[11px] px-muted">{{ p.payout_percentage }}% of ${{ p.funded_balance_at_request|floatformat:2 }}</p></td>
+                        <td class="px-num font-bold px-up">${{ p.requested_amount|floatformat:2 }}</td>
+                        <td class="px-num text-[11px] px-dim">{{ p.payout_month|date:"M Y" }}</td>
+                        <td class="text-right"><form method="POST" class="inline-flex gap-1.5 hub-act" data-kind="funded payout" data-who="{{ p.user.username }}" data-amt="${{ p.requested_amount|floatformat:2 }}">{% csrf_token %}
+                            <input type="hidden" name="action_type" value="funded_payout"><input type="hidden" name="item_id" value="{{ p.id }}"><input type="hidden" name="admin_notes" value="">
+                            <button name="decision" value="reject" class="btn-no"><i class="fa-solid fa-xmark"></i></button>
+                            <button name="decision" value="approve" class="btn-ok"><i class="fa-solid fa-check"></i>Pay</button></form></td>
+                    </tr>{% endfor %}</tbody></table></div>
+                {% else %}<div class="ad-empty"><i class="fa-solid fa-trophy"></i>No funded payout requests.</div>{% endif %}
+            </section>
+        </div>
+    </div>
+
+    <!-- ═══════════════ USERS ═══════════════ -->
+    <div class="hpanel space-y-4" data-p="users">
+        <section class="px-card p-4">
+            <form method="GET" class="flex gap-2 flex-wrap">
+                <input type="hidden" name="tab" value="users">
+                <input name="q" value="{{ q }}" placeholder="Username, email, name, phone or user ID" class="px-in flex-1" style="min-width:220px" autofocus>
+                <button class="px-btn px-btn-primary"><i class="fa-solid fa-magnifying-glass text-[11px]"></i>Find</button>
+            </form>
+            {% if q and not lookup %}
+                {% if lookup_matches %}
+                <p class="text-[12px] px-dim mt-3">{{ lookup_matches|length }} match{{ lookup_matches|length|pluralize:"es" }}. Pick one:</p>
+                <div class="flex flex-wrap gap-2 mt-2">{% for u in lookup_matches %}<a href="?tab=users&q={{ u.username|urlencode }}" class="btn-gh">{{ u.username }} <span class="px-muted font-normal">{{ u.email }}</span></a>{% endfor %}</div>
+                {% else %}<p class="text-[12px] px-muted mt-3">No user matches "{{ q }}".</p>{% endif %}
+            {% endif %}
+        </section>
+
+        {% if lookup %}{% with u=lookup.user %}
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            <section class="px-card p-4 space-y-3">
+                <div class="flex items-center gap-3">
+                    <span class="av" style="width:44px;height:44px;font-size:16px">{{ u.username|slice:":1"|upper }}</span>
+                    <div class="min-w-0"><p class="text-[15px] font-semibold px-strong truncate">{{ u.get_full_name|default:u.username }}</p><p class="text-[12px] px-dim truncate">@{{ u.username }} · {{ u.email|default:"no email" }}</p></div>
+                </div>
+                <div class="flex flex-wrap gap-1.5">
+                    {% if u.is_active %}<span class="pill ok">Active</span>{% else %}<span class="pill bad">Suspended</span>{% endif %}
+                    {% if u.is_staff %}<span class="pill warn">Staff</span>{% endif %}
+                    <span class="pill mute">{{ lookup.profile.subscription_tier|default:"free"|upper }}</span>
+                    {% if lookup.kyc %}<span class="pill {% if lookup.kyc.status == 'APPROVED' %}ok{% elif lookup.kyc.status == 'REJECTED' %}bad{% else %}warn{% endif %}">KYC {{ lookup.kyc.status }}</span>{% else %}<span class="pill mute">No KYC</span>{% endif %}
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-[12px]">
+                    <div class="rounded-lg p-2.5" style="background:var(--px-panel-2)"><p class="px-muted text-[11px]">Exchange</p><p class="px-num font-semibold px-strong">${{ lookup.exchange|floatformat:2 }}</p></div>
+                    <div class="rounded-lg p-2.5" style="background:var(--px-panel-2)"><p class="px-muted text-[11px]">Trading</p><p class="px-num font-semibold px-strong">${{ lookup.trading|floatformat:2 }}</p></div>
+                    <div class="rounded-lg p-2.5" style="background:var(--px-panel-2)"><p class="px-muted text-[11px]">Deposited</p><p class="px-num font-semibold px-up">${{ lookup.deposited|floatformat:2 }}</p></div>
+                    <div class="rounded-lg p-2.5" style="background:var(--px-panel-2)"><p class="px-muted text-[11px]">Withdrawn</p><p class="px-num font-semibold px-down">${{ lookup.withdrawn|floatformat:2 }}</p></div>
+                </div>
+                <div class="text-[12px] space-y-1">
+                    <div class="flex justify-between"><span class="px-dim">Phone</span><span class="px-num px-strong">{{ lookup.profile.phone_number|default:"—" }}</span></div>
+                    <div class="flex justify-between"><span class="px-dim">Joined</span><span class="px-num px-strong">{{ u.date_joined|date:"M d, Y" }}</span></div>
+                    <div class="flex justify-between"><span class="px-dim">Last login</span><span class="px-num px-strong">{{ u.last_login|date:"M d, H:i"|default:"never" }}</span></div>
+                    <div class="flex justify-between"><span class="px-dim">Linked brokers</span><span class="px-strong">{% for b in lookup.brokers %}{{ b.get_broker_display }} {{ b.account_number }}{% if not forloop.last %}, {% endif %}{% empty %}none{% endfor %}</span></div>
+                </div>
+                <form method="POST" class="hub-confirm" data-confirm="{% if u.is_active %}Suspend @{{ u.username }}? They will not be able to log in.{% else %}Reactivate @{{ u.username }}?{% endif %}">{% csrf_token %}
+                    <input type="hidden" name="action_type" value="user_active"><input type="hidden" name="user_id" value="{{ u.id }}"><input type="hidden" name="q" value="{{ q }}"><input type="hidden" name="tab" value="users">
+                    <button class="{% if u.is_active %}btn-no{% else %}btn-ok{% endif %} w-full justify-center"><i class="fa-solid {% if u.is_active %}fa-user-slash{% else %}fa-user-check{% endif %}"></i>{% if u.is_active %}Suspend account{% else %}Reactivate account{% endif %}</button>
+                </form>
+            </section>
+
+            <section class="px-card p-4 space-y-4">
+                <form method="POST" class="space-y-2 hub-confirm" data-confirm="Apply this balance adjustment to @{{ u.username }}?">{% csrf_token %}
+                    <p class="px-card-t"><i class="fa-solid fa-scale-balanced px-muted"></i>Adjust exchange balance</p>
+                    <input type="hidden" name="action_type" value="adjust"><input type="hidden" name="user_id" value="{{ u.id }}"><input type="hidden" name="q" value="{{ q }}"><input type="hidden" name="tab" value="users">
+                    <div class="grid grid-cols-2 gap-2">
+                        <select name="direction" class="px-sel"><option value="credit">Credit (+)</option><option value="debit">Debit (−)</option></select>
+                        <input name="amount" type="number" step="0.01" min="0.01" placeholder="Amount USD" required class="px-in px-num">
+                    </div>
+                    <input name="reason" placeholder="Reason (shown to the user, kept in the audit trail)" required class="px-in">
+                    <button class="px-btn px-btn-primary w-full">Apply adjustment</button>
+                    <p class="text-[11px] px-muted">Recorded as an ADJUSTMENT transaction. A debit can't take the balance below zero.</p>
+                </form>
+                <form method="POST" class="space-y-2" style="border-top:1px solid var(--px-line-soft);padding-top:14px">{% csrf_token %}
+                    <p class="px-card-t"><i class="fa-regular fa-paper-plane px-muted"></i>Message this user</p>
+                    <input type="hidden" name="action_type" value="notify"><input type="hidden" name="user_id" value="{{ u.id }}"><input type="hidden" name="q" value="{{ q }}"><input type="hidden" name="tab" value="users">
+                    <input name="title" placeholder="Title" required class="px-in">
+                    <textarea name="message" rows="3" placeholder="Message" required class="px-ta"></textarea>
+                    <label class="text-[12px] px-dim flex items-center gap-2"><input type="checkbox" name="sms"> Also send by SMS</label>
+                    <button class="btn-gh w-full justify-center">Send</button>
+                </form>
+            </section>
+
+            <section class="px-card overflow-hidden">
+                <div class="px-card-h"><span class="px-card-t"><i class="fa-solid fa-clock-rotate-left px-muted"></i>History</span></div>
+                <div class="p-4 space-y-4 text-[12px] max-h-[560px] overflow-y-auto">
+                    <div><p class="px-muted text-[11px] font-semibold uppercase mb-1.5">Requests</p>
+                        {% for r in lookup.requests %}<div class="flex justify-between py-1"><span>{{ r.transaction_type }} · {{ r.payment_method }}</span><span class="flex gap-2 items-center"><span class="px-num px-strong">${{ r.amount|floatformat:2 }}</span><span class="pill {% if r.status == 'APPROVED' %}ok{% elif r.status == 'REJECTED' %}bad{% else %}warn{% endif %}">{{ r.status }}</span></span></div>{% empty %}<p class="px-muted">None</p>{% endfor %}</div>
+                    <div><p class="px-muted text-[11px] font-semibold uppercase mb-1.5">Transactions</p>
+                        {% for t in lookup.transactions %}<div class="flex justify-between gap-2 py-1"><span class="truncate" title="{{ t.details }}">{{ t.transaction_type }} <span class="px-muted">{{ t.created_at|date:"M d" }}</span></span><span class="px-num {% if t.amount < 0 or t.transaction_type == 'WITHDRAWAL' %}px-down{% else %}px-up{% endif %}">${{ t.amount|floatformat:2 }}</span></div>{% empty %}<p class="px-muted">None</p>{% endfor %}</div>
+                    <div><p class="px-muted text-[11px] font-semibold uppercase mb-1.5">Open trades</p>
+                        {% for t in lookup.open_trades %}<div class="flex justify-between py-1"><span>{{ t.direction }} {{ t.asset.symbol|default:t.asset }}</span><span class="px-num {% if t.pnl < 0 %}px-down{% else %}px-up{% endif %}">${{ t.pnl|floatformat:2 }}</span></div>{% empty %}<p class="px-muted">None</p>{% endfor %}</div>
+                    <div><p class="px-muted text-[11px] font-semibold uppercase mb-1.5">Tickets</p>
+                        {% for t in lookup.tickets %}<div class="flex justify-between py-1"><span class="truncate">#{{ t.id }} {{ t.subject }}</span><span class="pill {% if t.status == 'Resolved' %}ok{% else %}warn{% endif %}">{{ t.status }}</span></div>{% empty %}<p class="px-muted">None</p>{% endfor %}</div>
+                </div>
+            </section>
+        </div>
+        {% endwith %}{% elif not q %}
+        <div class="ad-empty px-card"><i class="fa-solid fa-user-magnifying-glass"></i>Search for a user to see balances, KYC, requests, trades and tickets, and to adjust, message or suspend them.<br>Usernames in every queue link here too.</div>
+        {% endif %}
+    </div>
+
+    <!-- ═══════════════ SUPPORT ═══════════════ -->
+    <div class="hpanel" data-p="support">
+        <section class="px-card overflow-hidden">
+            <div class="px-card-h"><span class="px-card-t"><i class="fa-solid fa-headset px-muted"></i>Open tickets</span><a href="{% url 'admin_message_center' %}" class="text-[12px] font-semibold" style="color:var(--px-accent)">All tickets →</a></div>
+            {% for t in tickets_open %}
+            <div class="p-4" style="border-top:1px solid var(--px-line-soft)">
+                <div class="flex items-start justify-between gap-3 flex-wrap">
+                    <div class="min-w-0">
+                        <p class="text-[13px] font-semibold px-strong">#{{ t.id }} · {{ t.subject }}</p>
+                        <p class="text-[11px] px-muted mt-0.5">{% if t.user %}<a href="?tab=users&q={{ t.user.username|urlencode }}" class="hover:underline">@{{ t.user.username }}</a>{% else %}Anonymous{% endif %} · {{ t.category }} · {{ t.created_at|date:"M d, H:i" }}</p>
+                    </div>
+                    <span class="pill warn">{{ t.status }}</span>
+                </div>
+                <p class="text-[12.5px] px-dim mt-2 whitespace-pre-line">{{ t.description|truncatechars:600 }}</p>
+                <form method="POST" class="mt-3 flex flex-col sm:flex-row gap-2">{% csrf_token %}
+                    <input type="hidden" name="action_type" value="ticket"><input type="hidden" name="item_id" value="{{ t.id }}"><input type="hidden" name="tab" value="support">
+                    <input name="reply" placeholder="{% if t.user %}Reply to the user (sent as a notification){% else %}Anonymous ticket: no reply possible{% endif %}" class="px-in flex-1" {% if not t.user %}disabled{% endif %}>
+                    <select name="status" class="px-sel sm:w-36"><option value="Open">Keep open</option><option value="Resolved" selected>Resolve</option></select>
+                    <button class="px-btn px-btn-primary">Send</button>
+                </form>
+            </div>
+            {% empty %}<div class="ad-empty"><i class="fa-solid fa-mug-hot"></i>No open tickets.</div>{% endfor %}
+        </section>
+    </div>
+
+    <!-- ═══════════════ BROADCAST ═══════════════ -->
+    <div class="hpanel" data-p="broadcast">
+        <section class="px-card p-4 max-w-2xl">
+            <p class="px-card-t mb-3"><i class="fa-solid fa-bullhorn px-muted"></i>Send a notification to many users</p>
+            <form method="POST" class="space-y-3 hub-confirm" data-confirm="Send this broadcast now?">{% csrf_token %}
+                <input type="hidden" name="action_type" value="broadcast"><input type="hidden" name="tab" value="broadcast">
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="px-lbl">Audience</label><select name="audience" class="px-sel"><option value="all">All active users</option><option value="free">Free tier</option><option value="pro">Pro tier</option><option value="vip">VIP tier</option><option value="kyc_pending">KYC pending</option><option value="staff">Staff only (test)</option></select></div>
+                    <div><label class="px-lbl">Style</label><select name="priority" class="px-sel"><option value="info">Info</option><option value="success">Good news</option><option value="warning">Warning</option><option value="error">Urgent</option></select></div>
+                </div>
+                <div><label class="px-lbl">Title</label><input name="title" required maxlength="200" class="px-in" placeholder="e.g. Scheduled maintenance tonight"></div>
+                <div><label class="px-lbl">Message</label><textarea name="message" rows="4" required class="px-ta"></textarea></div>
+                <div><label class="px-lbl">Link (optional)</label><input name="link" class="px-in" placeholder="/trade/"></div>
+                <button class="px-btn px-btn-primary">Send broadcast</button>
+                <p class="text-[11px] px-muted">Shows in each user's bell and as a toast on their next page view. Tip: send to "Staff only" first to preview.</p>
+            </form>
+        </section>
+    </div>
+
+    <!-- ═══════════════ SIGNALS ═══════════════ -->
+    <div class="hpanel" data-p="signals">
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <section class="px-card overflow-hidden">
+                <div class="px-card-h"><span class="px-card-t"><i class="fa-solid fa-copy px-muted"></i>Copy-trade signals · {{ ov.copy_active }} active</span><a href="{% url 'admin_copy_signals' %}" class="text-[12px] font-semibold" style="color:var(--px-accent)">Create / manage →</a></div>
+                {% if copy_signals %}<div class="overflow-x-auto"><table class="ad-tbl">
+                    <thead><tr><th>Code</th><th>Trade</th><th>Tier</th><th>Redeemed</th><th>Status</th><th></th></tr></thead>
+                    <tbody>{% for s in copy_signals %}<tr>
+                        <td class="px-num font-semibold" style="color:var(--px-accent)">{{ s.code }}</td>
+                        <td><span class="{% if s.direction == 'BUY' %}px-up{% else %}px-down{% endif %} font-semibold">{{ s.direction }} {{ s.symbol }}</span> <span class="px-muted text-[11px]">{{ s.lot_size }} lot</span></td>
+                        <td>{{ s.tier_required }}</td><td class="px-num">{{ s.redemption_count }}</td>
+                        <td><span class="pill {% if s.status == 'ACTIVE' %}ok{% else %}mute{% endif %}">{{ s.status }}</span></td>
+                        <td class="text-right"><form method="POST">{% csrf_token %}<input type="hidden" name="action_type" value="copy_toggle"><input type="hidden" name="item_id" value="{{ s.id }}"><input type="hidden" name="tab" value="signals"><button class="btn-gh">{% if s.status == 'ACTIVE' %}Pause{% else %}Activate{% endif %}</button></form></td>
+                    </tr>{% endfor %}</tbody></table></div>
+                {% else %}<div class="ad-empty"><i class="fa-solid fa-copy"></i>No copy signals yet.</div>{% endif %}
+            </section>
+            <section class="px-card overflow-hidden">
+                <div class="px-card-h"><span class="px-card-t"><i class="fa-solid fa-satellite-dish px-muted"></i>AI scanner signals</span>
+                    {% if ai_stats %}<span class="text-[11px] px-dim">{{ ai_stats.signals }} in {{ ai_stats.days }}d · target first {% if ai_stats.hit_rate is not None %}{% widthratio ai_stats.hit_rate 1 100 %}%{% else %}—{% endif %} · avg {% if ai_stats.avg_r is not None %}{{ ai_stats.avg_r }}R{% else %}—{% endif %}</span>{% endif %}</div>
+                {% if ai_signals %}<div class="overflow-x-auto"><table class="ad-tbl">
+                    <thead><tr><th>Market</th><th>Setup</th><th>Entry</th><th>Result</th></tr></thead>
+                    <tbody>{% for x in ai_signals %}<tr>
+                        <td class="font-semibold px-strong">{{ x.symbol }} <span class="px-muted font-normal">{{ x.timeframe|upper }}</span></td>
+                        <td><span class="{% if x.direction == 'BUY' %}px-up{% else %}px-down{% endif %} font-semibold">{{ x.direction }}</span> <span class="pill warn">{{ x.grade }}</span></td>
+                        <td class="px-num">{{ x.entry }}</td>
+                        <td><span class="pill {% if x.outcome == 'TP' %}ok{% elif x.outcome == 'SL' %}bad{% elif x.outcome == 'OPEN' %}warn{% else %}mute{% endif %}">{{ x.outcome }}</span> {% if x.result_r is not None %}<span class="px-num">{{ x.result_r }}R</span>{% endif %}</td>
+                    </tr>{% endfor %}</tbody></table></div>
+                {% else %}<div class="ad-empty"><i class="fa-solid fa-satellite-dish"></i>{% if ai_stats %}No strong signals recorded yet.{% else %}AI signals module not installed or not migrated.{% endif %}</div>{% endif %}
+            </section>
+        </div>
+    </div>
+
+    <!-- ═══════════════ SYSTEM ═══════════════ -->
+    <div class="hpanel" data-p="system">
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            <section class="px-card p-4">
+                <p class="px-card-t mb-2"><i class="fa-solid fa-heart-pulse px-muted"></i>System health</p>
+                {% for c in health %}
+                <div class="hc">
+                    <span class="dot" style="background:{% if c.state == 'ok' %}var(--px-up){% elif c.state == 'warn' %}var(--px-accent){% else %}var(--px-down){% endif %}"></span>
+                    <div class="min-w-0 flex-1"><p class="text-[12.5px] font-semibold px-strong">{{ c.name }}</p><p class="text-[11.5px] px-dim">{{ c.detail }}</p>{% if c.state != 'ok' and c.fix %}<p class="text-[11px] mt-0.5" style="color:var(--px-accent)">→ {{ c.fix }}</p>{% endif %}</div>
+                </div>{% endfor %}
+            </section>
+            <section class="px-card overflow-hidden">
+                <div class="px-card-h"><span class="px-card-t"><i class="fa-solid fa-triangle-exclamation px-muted"></i>Ledger discrepancies</span><a href="{% url 'admin_gateway_logs' %}" class="text-[12px] font-semibold" style="color:var(--px-accent)">Gateway logs →</a></div>
+                {% for l in discrepancy_logs %}<div class="px-4 py-2.5 text-[12px] flex justify-between gap-2" style="border-top:1px solid var(--px-line-soft)"><span class="min-w-0"><span class="px-num font-semibold" style="color:var(--px-accent)">{{ l.reference_id|truncatechars:18 }}</span> <span class="px-muted">{{ l.gateway_name }} · {{ l.transaction_type }}</span></span><span class="px-num px-down font-semibold">${{ l.amount|floatformat:2 }}</span></div>
+                {% empty %}<div class="ad-empty"><i class="fa-solid fa-scale-balanced"></i>Ledger matches.</div>{% endfor %}
+                <div class="px-4 py-3 text-[12px] space-y-1" style="border-top:1px solid var(--px-line)">
+                    <div class="flex justify-between"><span class="px-dim">Linked broker accounts</span><span class="px-num px-strong">{{ ov.brokers_linked }}{% if ov.brokers_errors %} · <span class="px-down">{{ ov.brokers_errors }} failing sync</span>{% endif %}</span></div>
+                    <div class="flex justify-between"><span class="px-dim">KYC approved</span><span class="px-num px-strong">{{ ov.kyc_approved }}</span></div>
+                    <div class="flex justify-between"><span class="px-dim">Suspended users</span><span class="px-num px-strong">{{ ov.users_suspended }}</span></div>
+                    <div class="flex justify-between"><span class="px-dim">Approved in / out 24h</span><span class="px-num px-strong">${{ ov.dep_24h|floatformat:0 }} / ${{ ov.wd_24h|floatformat:0 }}</span></div>
+                </div>
+            </section>
+            <section class="px-card overflow-hidden">
+                <div class="px-card-h"><span class="px-card-t"><i class="fa-solid fa-bolt px-muted"></i>Latest transactions</span></div>
+                {% for t in activity %}<div class="px-4 py-2 text-[12px] flex justify-between gap-2" style="border-top:1px solid var(--px-line-soft)"><span class="min-w-0 truncate"><a href="?tab=users&q={{ t.user.username|urlencode }}" class="font-semibold px-strong hover:underline">@{{ t.user.username }}</a> <span class="px-dim">{{ t.transaction_type }}</span></span><span class="flex items-center gap-2 shrink-0"><span class="px-num {% if t.amount < 0 or t.transaction_type == 'WITHDRAWAL' %}px-down{% else %}px-up{% endif %}">${{ t.amount|floatformat:2 }}</span><span class="px-num text-[10.5px] px-muted">{{ t.created_at|date:"H:i" }}</span></span></div>
+                {% empty %}<div class="ad-empty"><i class="fa-solid fa-bolt"></i>No transactions yet.</div>{% endfor %}
+            </section>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const $ = id => document.getElementById(id);
+    // ── tabs (?tab= in the URL so actions come back to the same tab) ──
+    const tabs = [...document.querySelectorAll('#htabs [data-t]')];
+    function show(t) {
+        if (!document.querySelector(`.hpanel[data-p="${t}"]`)) t = 'queues';
+        tabs.forEach(b => b.classList.toggle('on', b.dataset.t === t));
+        document.querySelectorAll('.hpanel').forEach(p => p.classList.toggle('on', p.dataset.p === t));
+        const u = new URL(location.href); u.searchParams.set('tab', t); history.replaceState(null, '', u);
+        document.querySelectorAll('form[method="POST"]').forEach(f => { let i = f.querySelector('input[name="tab"]'); if (!i) { i = document.createElement('input'); i.type = 'hidden'; i.name = 'tab'; f.appendChild(i); } i.value = t; });
+    }
+    tabs.forEach(b => b.addEventListener('click', () => show(b.dataset.t)));
+    show(new URLSearchParams(location.search).get('tab') || '{{ tab|escapejs }}');
+
+    // ── approve = confirm, reject = reason (goes to the user) ──
+    document.querySelectorAll('form.hub-act').forEach(f => f.addEventListener('submit', e => {
+        const btn = e.submitter, d = f.dataset;
+        if (!btn) return;
+        const what = `${d.kind}${d.amt ? ' of ' + d.amt : ''} for @${d.who}`;
+        if (btn.value === 'approve') {
+            if (!confirm(`Approve ${what}?`)) return e.preventDefault();
+        } else {
+            const reason = prompt(`Reason for rejecting the ${what} (sent to the user):`, '');
+            if (reason === null) return e.preventDefault();
+            f.querySelector('input[name="admin_notes"]').value = reason.trim();
+        }
+        btn.disabled = true;
+        const keep = document.createElement('input'); keep.type = 'hidden'; keep.name = 'decision'; keep.value = btn.value; f.appendChild(keep);
+    }));
+    document.querySelectorAll('form.hub-confirm').forEach(f => f.addEventListener('submit', e => { if (!confirm(f.dataset.confirm)) e.preventDefault(); }));
+
+    // ── copy buttons ──
+    document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', () => {
+        navigator.clipboard.writeText(b.dataset.copy).then(() => {
+            const i = b.querySelector('i'), o = i.className;
+            i.className = 'fa-solid fa-check text-[11px]'; setTimeout(() => { i.className = o; }, 1300);
+        }).catch(() => {});
+    }));
+
+    // ── live counts: tell the admin when new work arrives ──
+    const start = { queue: {{ ov.queue_total|default:0 }}, tickets: {{ ov.tickets|default:0 }} };
+    async function poll() {
+        if (document.hidden) return;
+        try {
+            const d = await (await fetch('{% url "admin_dashboard_hub" %}counts/', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })).json();
+            if (!d.success) return;
+            const q = d.deposits + d.withdrawals + d.kyc + d.payouts + d.tickets;
+            if (q > start.queue) {
+                $('hub-new-t').textContent = `${q - start.queue} new item${q - start.queue > 1 ? 's' : ''} since this page loaded (${d.deposits} deposits, ${d.withdrawals} withdrawals, ${d.kyc} KYC, ${d.payouts} payouts, ${d.tickets} tickets).`;
+                $('hub-new').style.display = 'flex';
+                document.title = `(${q}) Admin Hub · PATREOAIX`;
+            }
+        } catch (e) {}
+    }
+    setInterval(poll, 30000);
+})();
+</script>
+{% endblock %}

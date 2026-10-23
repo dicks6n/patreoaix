@@ -1,0 +1,155 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}Admin — Copy Signals · PATREOAIX{% endblock %}
+{% block page_title %}Copy Signals{% endblock %}
+{% block message_toasts %}{% endblock %}
+
+{% block extra_head %}
+{% include 'partials/admin_styles.html' %}
+<style>
+    .dir-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .dir-seg label { height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 800; cursor: pointer; background: var(--px-panel-2); border: 1px solid var(--px-line); color: var(--px-dim); }
+    .dir-seg input { display: none; }
+    .dir-seg input[value="BUY"]:checked + label { background: var(--px-up); color: #fff; border-color: var(--px-up); }
+    .dir-seg input[value="SELL"]:checked + label { background: var(--px-down); color: #fff; border-color: var(--px-down); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-3">
+        <div>
+            <h2 class="text-xl sm:text-2xl font-semibold tracking-tight px-strong">Copy-trade signals</h2>
+            <p class="text-[13px] mt-1 px-dim">Create, pause and manage the signals subscribers can redeem.</p>
+        </div>
+        <a href="{% url 'admin_dashboard_hub' %}?tab=signals" class="btn-gh"><i class="fa-solid fa-arrow-left"></i>Admin Hub</a>
+    </div>
+
+    {% if messages %}<div class="space-y-2">{% for m in messages %}<div class="ad-flash {{ m.tags }}"><i class="fa-solid fa-circle-check"></i><span>{{ m }}</span></div>{% endfor %}</div>{% endif %}
+
+    <div class="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
+        <!-- CREATE -->
+        <section class="px-card p-4 xl:col-span-5">
+            <p class="px-card-t mb-3"><i class="fa-solid fa-plus px-muted"></i>New signal</p>
+            <form method="POST" class="space-y-3" id="cs-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create">
+                <div><label class="px-lbl">Title</label><input type="text" name="title" required placeholder="Gold breakout · London open" class="px-in"></div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="px-lbl">Symbol</label>
+                        <input type="text" name="symbol" id="cs-sym" value="XAUUSD" required list="cs-syms" class="px-in px-num" autocomplete="off">
+                        <datalist id="cs-syms"></datalist>
+                    </div>
+                    <div><label class="px-lbl">Tier</label>
+                        <select name="tier_required" class="px-sel"><option value="ALL">All tiers</option><option value="PRO">Pro only</option><option value="VIP">VIP only</option></select></div>
+                </div>
+                <div><label class="px-lbl">Direction</label>
+                    <div class="dir-seg"><input type="radio" name="direction" value="BUY" id="cs-buy" checked><label for="cs-buy">BUY</label><input type="radio" name="direction" value="SELL" id="cs-sell"><label for="cs-sell">SELL</label></div></div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="px-lbl">Lot size</label><input type="number" step="0.01" min="0.01" name="lot_size" value="0.01" required class="px-in px-num"></div>
+                    <div><label class="px-lbl">Expires in (hours)</label><input type="number" min="1" name="expiry_hours" value="24" class="px-in px-num"></div>
+                </div>
+                <div>
+                    <div class="flex items-center justify-between"><label class="px-lbl">Entry price (optional)</label><button type="button" id="cs-live" class="text-[11px] font-semibold" style="color:var(--px-accent)">Use live price <span id="cs-live-p" class="px-num"></span></button></div>
+                    <input type="number" step="any" name="entry_price" id="cs-entry" class="px-in px-num" placeholder="Market">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="px-lbl">Stop loss (optional)</label><input type="number" step="any" name="stop_loss" id="cs-sl" class="px-in px-num"></div>
+                    <div><label class="px-lbl">Take profit (optional)</label><input type="number" step="any" name="take_profit" id="cs-tp" class="px-in px-num"></div>
+                </div>
+                <p id="cs-rr" class="text-[12px] px-dim"></p>
+                <div><label class="px-lbl">Rationale (optional)</label><textarea name="rationale" rows="2" placeholder="Why this trade: e.g. bullish divergence at support, 4H uptrend" class="px-ta"></textarea></div>
+                <button type="submit" class="px-btn px-btn-primary w-full" style="height:42px"><i class="fa-solid fa-plus text-[11px]"></i>Create signal</button>
+            </form>
+        </section>
+
+        <!-- LIST -->
+        <section class="px-card overflow-hidden xl:col-span-7">
+            <div class="px-card-h">
+                <span class="px-card-t"><i class="fa-solid fa-list px-muted"></i>Signals <span class="px-muted font-normal" id="cs-count"></span></span>
+                <div class="flex gap-2">
+                    <select id="cs-f" class="px-sel" style="width:auto"><option value="">All</option><option value="ACTIVE" selected>Active</option><option value="PAUSED">Paused</option><option value="EXPIRED">Expired / closed</option></select>
+                    <input id="cs-q" class="px-in" placeholder="Search" style="width:150px">
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="ad-tbl">
+                    <thead><tr><th>Code</th><th>Title</th><th>Trade</th><th>Levels</th><th>Redeemed</th><th>Status</th><th>Expires</th><th class="text-right">Actions</th></tr></thead>
+                    <tbody id="cs-rows">
+                        {% for s in signals %}
+                        <tr data-status="{{ s.status }}" data-exp="{% if s.expires_at %}{{ s.expires_at|date:'U' }}{% endif %}" data-text="{{ s.code|lower }} {{ s.title|lower }} {{ s.symbol|lower }}">
+                            <td><div class="flex items-center gap-1"><span class="px-num font-semibold" style="color:var(--px-accent)">{{ s.code }}</span><button type="button" class="copy-btn" data-copy="{{ s.code }}" title="Copy code"><i class="fa-regular fa-copy text-[11px]"></i></button></div></td>
+                            <td class="px-strong">{{ s.title }}<p class="text-[11px] px-muted">{{ s.tier_required }}</p></td>
+                            <td><span class="{% if s.direction == 'BUY' %}px-up{% else %}px-down{% endif %} font-bold">{{ s.direction }} {{ s.symbol }}</span><p class="text-[11px] px-muted">{{ s.lot_size }} lots</p></td>
+                            <td class="px-num text-[11px] px-dim whitespace-nowrap">{% if s.entry_price %}@ {{ s.entry_price|floatformat:-5 }}<br>{% endif %}{% if s.stop_loss %}SL {{ s.stop_loss|floatformat:-5 }}{% endif %}{% if s.take_profit %} · TP {{ s.take_profit|floatformat:-5 }}{% endif %}{% if not s.entry_price and not s.stop_loss and not s.take_profit %}market{% endif %}</td>
+                            <td class="px-num">{{ s.redemption_count }}</td>
+                            <td><span class="pill {% if s.status == 'ACTIVE' %}ok{% elif s.status == 'PAUSED' %}warn{% else %}mute{% endif %}">{{ s.status }}</span></td>
+                            <td class="px-num text-[11px] px-dim cs-exp">{% if s.expires_at %}{{ s.expires_at|date:"M d, H:i" }}{% else %}—{% endif %}</td>
+                            <td class="text-right whitespace-nowrap">
+                                <form method="POST" class="inline">{% csrf_token %}<input type="hidden" name="action" value="toggle_status"><input type="hidden" name="signal_id" value="{{ s.id }}">
+                                    <button class="btn-gh">{% if s.status == 'ACTIVE' %}Pause{% else %}Activate{% endif %}</button></form>
+                                <form method="POST" class="inline" onsubmit="return confirm('Delete {{ s.code|escapejs }}? Users can no longer redeem it.')">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="signal_id" value="{{ s.id }}">
+                                    <button class="btn-no">Delete</button></form>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="8"><div class="ad-empty"><i class="fa-solid fa-copy"></i>No signals created yet.</div></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div id="cs-none" class="ad-empty hidden"><i class="fa-solid fa-filter"></i>No signals match.</div>
+        </section>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const $ = id => document.getElementById(id);
+    const PX = window.PX || {};
+    ['XAUUSD','XAGUSD','EURUSD','GBPUSD','USDJPY','AUDUSD','USDCAD','USDCHF','NZDUSD','EURGBP','EURJPY','GBPJPY','USOIL','UKOIL','BTCUSD','ETHUSD','SOLUSD']
+        .forEach(s => { const o = document.createElement('option'); o.value = s; $('cs-syms').appendChild(o); });
+
+    // ── live price + reward:risk helper ──
+    const sym = () => $('cs-sym').value.trim().toUpperCase();
+    const dir = () => document.querySelector('input[name="direction"]:checked').value;
+    function live() { const q = PX.quotes && PX.quotes[sym()]; return q ? (dir() === 'BUY' ? q.ask : q.bid) : null; }
+    function paintLive() { const p = live(); $('cs-live-p').textContent = p ? `(${PX.fmt(sym(), p)})` : ''; }
+    $('cs-live').addEventListener('click', () => { const p = live(); if (p) { $('cs-entry').value = (+p).toFixed(PX.digits ? PX.digits(sym()) : 5); rr(); } });
+    function rr() {
+        const e = parseFloat($('cs-entry').value) || live(), sl = parseFloat($('cs-sl').value), tp = parseFloat($('cs-tp').value), d = dir();
+        const out = $('cs-rr');
+        if (!e || (!sl && !tp)) { out.textContent = ''; return; }
+        const bad = (sl && (d === 'BUY' ? sl >= e : sl <= e)) || (tp && (d === 'BUY' ? tp <= e : tp >= e));
+        if (bad) { out.innerHTML = `<span class="px-down"><i class="fa-solid fa-triangle-exclamation"></i> For a ${d}, the stop must be ${d === 'BUY' ? 'below' : 'above'} the entry and the target ${d === 'BUY' ? 'above' : 'below'} it.</span>`; return; }
+        if (sl && tp) out.innerHTML = `Reward : risk <b class="px-num px-strong">${(Math.abs(tp - e) / Math.abs(e - sl)).toFixed(2)}</b> · risk ${Math.abs(e - sl).toFixed(5).replace(/0+$/, '')} · target ${Math.abs(tp - e).toFixed(5).replace(/0+$/, '')}`;
+        else out.textContent = '';
+    }
+    ['cs-entry', 'cs-sl', 'cs-tp', 'cs-sym'].forEach(id => $(id).addEventListener('input', () => { rr(); paintLive(); }));
+    document.querySelectorAll('input[name="direction"]').forEach(r => r.addEventListener('change', () => { rr(); paintLive(); }));
+    window.addEventListener('px:quotes', paintLive);
+    $('cs-form').addEventListener('submit', e => { if ($('cs-rr').querySelector('.px-down') && !confirm('The stop / target look the wrong way round. Create anyway?')) e.preventDefault(); });
+
+    // ── list: filter, search, expiry countdown, copy ──
+    const rows = [...document.querySelectorAll('#cs-rows tr[data-status]')];
+    const now = Date.now() / 1000;
+    rows.forEach(r => {
+        const x = +r.dataset.exp;
+        if (x && x < now && r.dataset.status === 'ACTIVE') r.dataset.status = 'EXPIRED';
+        if (x && x > now) { const h = (x - now) / 3600; r.querySelector('.cs-exp').insertAdjacentHTML('beforeend', `<br><span class="px-muted">in ${h < 1 ? Math.round(h * 60) + ' min' : h < 48 ? Math.round(h) + ' h' : Math.round(h / 24) + ' d'}</span>`); }
+    });
+    function apply() {
+        const f = $('cs-f').value, q = $('cs-q').value.trim().toLowerCase();
+        let n = 0;
+        rows.forEach(r => { const st = r.dataset.status; const ok = (!f || (f === 'EXPIRED' ? ['EXPIRED', 'CLOSED'].includes(st) : st === f)) && (!q || r.dataset.text.includes(q)); r.style.display = ok ? '' : 'none'; if (ok) n++; });
+        $('cs-count').textContent = `· ${n} of ${rows.length}`;
+        $('cs-none').classList.toggle('hidden', !!n || !rows.length);
+    }
+    $('cs-f').addEventListener('change', apply); $('cs-q').addEventListener('input', apply);
+    if (!rows.some(r => r.dataset.status === 'ACTIVE')) $('cs-f').value = '';
+    apply(); paintLive();
+    document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', () => navigator.clipboard.writeText(b.dataset.copy).then(() => { const i = b.querySelector('i'), o = i.className; i.className = 'fa-solid fa-check text-[11px]'; setTimeout(() => i.className = o, 1200); }).catch(() => {})));
+})();
+</script>
+{% endblock %}

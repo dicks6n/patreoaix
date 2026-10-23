@@ -1,0 +1,316 @@
+{% extends 'base_dashboard.html' %}
+
+{% block title %}Trade History - PATREOAIX{% endblock %}
+
+{% block content %}
+<!-- LOADING SPINNER -->
+<div id="loading-spinner" class="fixed inset-0 z-[9999] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center transition-opacity duration-500">
+    <div class="relative flex items-center justify-center">
+        <div class="w-20 h-20 rounded-full border-4 border-amber-500/20 border-t-amber-500 animate-spin"></div>
+        <div class="absolute w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center animate-pulse">
+            <div class="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
+        </div>
+    </div>
+    <div class="mt-5 text-center space-y-1">
+        <p class="text-xs font-mono tracking-widest text-amber-300 uppercase animate-pulse">Loading Trade History</p>
+        <p class="text-[10px] font-mono text-slate-500">Fetching executed contracts...</p>
+    </div>
+</div>
+
+<style>
+    .spinner-hidden { opacity: 0; pointer-events: none; visibility: hidden; }
+
+    .crypto-card {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(69, 26, 3, 0.5) 100%);
+        border: 1px solid rgba(217, 119, 6, 0.25);
+        border-radius: 24px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .filter-bar {
+        background: rgba(15, 23, 42, 0.8);
+        border: 1px solid rgba(217, 119, 6, 0.25);
+        border-radius: 16px;
+        backdrop-filter: blur(8px);
+    }
+
+    .stat-card {
+        background: rgba(15, 23, 42, 0.8);
+        border: 1px solid rgba(217, 119, 6, 0.25);
+        border-radius: 16px;
+        padding: 14px 18px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .trade-row {
+        transition: background 0.2s ease;
+    }
+    .trade-row:hover {
+        background: rgba(69, 26, 3, 0.25);
+    }
+
+    .status-badge {
+        font-size: 9px;
+        font-weight: 800;
+        padding: 3px 10px;
+        border-radius: 9999px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .status-won {
+        background: rgba(16, 185, 129, 0.12);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+    .status-lost {
+        background: rgba(244, 63, 94, 0.12);
+        color: #fb7185;
+        border: 1px solid rgba(244, 63, 94, 0.25);
+    }
+    .status-pending {
+        background: rgba(217, 119, 6, 0.12);
+        color: #fbbf24;
+        border: 1px solid rgba(217, 119, 6, 0.3);
+    }
+
+    .glow-green {
+        text-shadow: 0 0 12px rgba(52, 211, 153, 0.4);
+    }
+    .glow-red {
+        text-shadow: 0 0 12px rgba(251, 113, 133, 0.4);
+    }
+    .glow-amber {
+        text-shadow: 0 0 12px rgba(245, 158, 11, 0.5);
+    }
+
+    input[type="date"]::-webkit-calendar-picker-indicator {
+        filter: invert(0.7) sepia(1) saturate(5) hue-rotate(5deg);
+        cursor: pointer;
+    }
+
+    .empty-state {
+        padding: 60px 20px;
+        text-align: center;
+    }
+</style>
+
+<div class="space-y-6 pb-4">
+
+    <!-- ========================================== -->
+    <!-- HEADER -->
+    <!-- ========================================== -->
+    <div class="crypto-card p-5 sm:p-6 relative overflow-hidden">
+        <div class="absolute -top-20 -right-20 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-20 -left-20 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
+            <div>
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/30">
+                        <i class="fa-solid fa-chart-bar text-white text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl sm:text-2xl font-black text-white tracking-tight">Trade History</h1>
+                        <p class="text-[11px] text-slate-400 mt-0.5">Review all your completed and pending trades</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Stats -->
+            <div class="flex flex-wrap items-center gap-3 font-mono">
+                <div class="stat-card">
+                    <div class="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 text-xs">
+                        <i class="fa-solid fa-layer-group"></i>
+                    </div>
+                    <div>
+                        <p class="text-[9px] uppercase text-slate-500 font-bold tracking-wider">Total Trades</p>
+                        <p class="text-base font-black text-white" id="total-trades-count">{{ trades|length }}</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-xs">
+                        <i class="fa-solid fa-arrow-trend-up"></i>
+                    </div>
+                    <div>
+                        <p class="text-[9px] uppercase text-slate-500 font-bold tracking-wider">Net Progress</p>
+                        <p class="text-base font-black text-white" id="total-net-profit">0.00 USD</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- DATE FILTER BAR -->
+    <!-- ========================================== -->
+    <div class="filter-bar p-4 flex flex-col sm:flex-row items-center justify-between gap-4 font-mono">
+        <div class="flex items-center gap-3 w-full sm:w-auto flex-wrap">
+            <label for="trade-date-filter" class="text-[10px] uppercase tracking-wider text-slate-400 font-bold whitespace-nowrap">Filter by Date:</label>
+            <input type="date" id="trade-date-filter" class="bg-slate-950/80 border border-amber-800/40 text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-amber-500 focus:shadow-[0_0_20px_rgba(245,158,11,0.2)] font-mono transition-all">
+            <button id="clear-date-filter" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl transition cursor-pointer border border-amber-800/40 hover:border-amber-600/50">
+                Show All
+            </button>
+        </div>
+        <div class="text-[10px] text-amber-400 font-bold bg-amber-500/10 border border-amber-500/25 px-3 py-2 rounded-xl flex items-center gap-2">
+            <i class="fa-solid fa-circle-info text-[9px]"></i>
+            Showing profit/loss for selected date
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TRADES TABLE -->
+    <!-- ========================================== -->
+    <div class="crypto-card p-5">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="text-[10px] uppercase tracking-wider text-slate-500 border-b border-amber-800/30 font-semibold">
+                    <tr>
+                        <th class="py-4 px-4">Date</th>
+                        <th class="py-4 px-4">Symbol</th>
+                        <th class="py-4 px-4">Contract</th>
+                        <th class="py-4 px-4">Stake</th>
+                        <th class="py-4 px-4">Status</th>
+                        <th class="py-4 px-4 text-right">Profit/Loss</th>
+                    </tr>
+                </thead>
+                <tbody id="history-tbody" class="divide-y divide-amber-800/20 font-mono text-slate-200">
+                    {% for trade in trades %}
+                    <tr class="trade-row" data-date="{{ trade.date_opened|date:'Y-m-d' }}">
+                        <td class="py-4 px-4 text-slate-400">{{ trade.date_opened|date:"d M, H:i" }}</td>
+                        <td class="py-4 px-4 font-bold text-white">{{ trade.asset.symbol }}</td>
+                        <td class="py-4 px-4 uppercase text-slate-300">{{ trade.direction }}</td>
+                        <td class="py-4 px-4 text-slate-300">${{ trade.stake|floatformat:2 }}</td>
+                        <td class="py-4 px-4">
+                            <span class="status-badge
+                                {% if trade.status == 'WON' %}status-won
+                                {% elif trade.status == 'LOST' %}status-lost
+                                {% else %}status-pending{% endif %}">
+                                <span class="w-1.5 h-1.5 rounded-full
+                                    {% if trade.status == 'WON' %}bg-emerald-400
+                                    {% elif trade.status == 'LOST' %}bg-rose-400
+                                    {% else %}bg-amber-400 animate-pulse{% endif %}">
+                                </span>
+                                {{ trade.status }}
+                            </span>
+                        </td>
+                        <td class="py-4 px-4 text-right font-bold trade-profit
+                            {% if trade.pnl < 0 %}text-rose-400 glow-red
+                            {% elif trade.pnl > 0 %}text-emerald-400 glow-green
+                            {% else %}text-slate-400{% endif %}"
+                            data-value="{{ trade.pnl|default:0 }}">
+                            {% if trade.pnl > 0 %}
+                                +${{ trade.pnl|floatformat:2 }}
+                            {% elif trade.pnl < 0 %}
+                                -${{ trade.pnl|floatformat:2|slice:"1:" }}
+                            {% else %}
+                                $0.00
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="empty-state">
+                            <div class="flex flex-col items-center gap-3">
+                                <div class="w-16 h-16 rounded-2xl bg-slate-800/60 border border-amber-800/40 flex items-center justify-center text-slate-500">
+                                    <i class="fa-solid fa-inbox text-2xl"></i>
+                                </div>
+                                <p class="text-sm text-slate-400 font-sans">No trades found</p>
+                                <p class="text-[11px] text-slate-500 font-sans">Your executed contracts will appear here</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Trust badges -->
+    <div class="flex items-center justify-center gap-4 text-[10px] text-slate-500 font-mono flex-wrap">
+        <span class="flex items-center gap-1.5">
+            <i class="fa-solid fa-shield-halved text-emerald-400"></i>
+            256-bit Encrypted
+        </span>
+        <span class="w-1 h-1 rounded-full bg-slate-700"></span>
+        <span class="flex items-center gap-1.5">
+            <i class="fa-solid fa-lock text-amber-400"></i>
+            Secure Storage
+        </span>
+        <span class="w-1 h-1 rounded-full bg-slate-700"></span>
+        <span class="flex items-center gap-1.5">
+            <i class="fa-solid fa-user-shield text-amber-400"></i>
+            GDPR Compliant
+        </span>
+    </div>
+
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        setTimeout(() => {
+            const spinner = document.getElementById('loading-spinner');
+            if (spinner) {
+                spinner.classList.add('spinner-hidden');
+                setTimeout(() => spinner.remove(), 500);
+            }
+        }, 400);
+
+        const dateFilterInput = document.getElementById("trade-date-filter");
+        const clearFilterBtn = document.getElementById("clear-date-filter");
+        const tradeRows = document.querySelectorAll(".trade-row");
+        const profitDisplay = document.getElementById("total-net-profit");
+        const countDisplay = document.getElementById("total-trades-count");
+
+        function filterAndCalculate() {
+            const selectedDate = dateFilterInput.value;
+            let total = 0;
+            let visibleCount = 0;
+
+            tradeRows.forEach(row => {
+                const rowDate = row.getAttribute("data-date");
+
+                if (!selectedDate || rowDate === selectedDate) {
+                    row.style.display = "";
+                    visibleCount++;
+
+                    const profitCell = row.querySelector(".trade-profit");
+                    if (profitCell) {
+                        const val = parseFloat(profitCell.getAttribute("data-value")) || 0;
+                        total += val;
+                    }
+                } else {
+                    row.style.display = "none";
+                }
+            });
+
+            countDisplay.textContent = visibleCount;
+
+            const sign = total >= 0 ? "+" : "-";
+            profitDisplay.textContent = `${sign}$${Math.abs(total).toFixed(2)} USD`;
+
+            if (total > 0) {
+                profitDisplay.className = "text-base font-black text-emerald-400 glow-green";
+            } else if (total < 0) {
+                profitDisplay.className = "text-base font-black text-rose-400 glow-red";
+            } else {
+                profitDisplay.className = "text-base font-black text-white";
+            }
+        }
+
+        dateFilterInput.addEventListener("change", filterAndCalculate);
+
+        clearFilterBtn.addEventListener("click", function() {
+            dateFilterInput.value = "";
+            filterAndCalculate();
+        });
+
+        filterAndCalculate();
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,1760 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}MT5 Terminal{% endblock %}
+
+{% block extra_head %}
+<script>
+(function () {
+    var m = document.querySelector('meta[name="viewport"]');
+    if (m) m.setAttribute('content',
+        'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
+})();
+</script>
+{% endblock %}
+
+{% block content %}
+<style>
+    /* ═══════════════════════════════════════════════════════════ */
+    /* MT5 THEME TOKENS — respond to html.dark / html.light        */
+    /* ═══════════════════════════════════════════════════════════ */
+    :root, html.dark {
+        --mt5-bg: #000000;
+        --mt5-panel: #1c1c1e;
+        --mt5-panel-2: #2c2c2e;
+        --mt5-panel-3: #3a3a3c;
+        --mt5-line: #1c1c1e;
+        --mt5-line-soft: #2c2c2e;
+        --mt5-text: #ffffff;
+        --mt5-dim: #8e8e93;
+        --mt5-mute: #6b6b70;
+        --mt5-blue: #0a84ff;
+        --mt5-red: #ff453a;
+        --mt5-red-bg: #c14a3a;
+        --mt5-blue-bg: #1d5fbf;
+        --mt5-nav-bg: rgba(28, 28, 30, 0.94);
+        --mt5-nav-border: rgba(255, 255, 255, 0.06);
+        --mt5-nav-active: #2c2c2e;
+        --mt5-sheet-bg: #1c1c1e;
+        --mt5-sheet-detail-bg: #141414;
+        --mt5-sym-sheet-bg: rgba(28, 28, 30, 0.92);
+        --mt5-sym-sheet-action: rgba(58, 58, 60, 0.55);
+        --mt5-sym-sheet-action-active: rgba(78, 78, 80, 0.8);
+        --mt5-input-bg: #1c1c1e;
+        --mt5-toast-bg: rgba(20, 20, 22, 0.96);
+        --mt5-info-toast-bg: rgba(28, 28, 30, 0.97);
+        --mt5-oneclick-vol-bg: rgba(28, 28, 30, 0.95);
+        --mt5-desktop-bg: #0b0b0d;
+        --mt5-chart-bg: #000000;
+        --mt5-chart-text: #8e8e93;
+        --mt5-chart-grid: rgba(255, 255, 255, 0.04);
+        --mt5-chart-border: #1c1c1e;
+        --mt5-chart-up: #26a69a;
+        --mt5-chart-down: #ef5350;
+        --mt5-draw-hint: rgba(10, 132, 255, 0.9);
+        --mt5-sheet-cancel-bg: #2c2c2e;
+        --mt5-sheet-cancel-bg-active: #3a3a3c;
+        --mt5-sheet-cancel-border: #000000;
+        --mt5-op-close-bg: #ff9f0a;
+        --mt5-op-close-bg-active: #e08c00;
+        --mt5-overlay-tint: rgba(255, 255, 255, 0.05);
+        --mt5-ripple: rgba(255, 255, 255, 0.06);
+        --mt5-ripple-strong: rgba(255, 255, 255, 0.08);
+        --mt5-dom-ask-bar: #c14a3a;
+        --mt5-dom-bid-bar: #1d5fbf;
+        --mt5-dom-ask-text: #ff6b57;
+        --mt5-dom-bid-text: #4c8dff;
+        --mt5-badge-green: linear-gradient(135deg, #4cd964, #3cb84f);
+        --mt5-badge-blue:  linear-gradient(135deg, #4aa9f5, #2e88d0);
+        --mt5-badge-orange: linear-gradient(135deg, #ffb84d, #e08f1e);
+        --mt5-badge-red:   linear-gradient(135deg, #e74c3c, #c0392b);
+        --mt5-badge-gray:  linear-gradient(135deg, #b8b8b8, #888888);
+        --mt5-badge-silver: linear-gradient(135deg, #8e8e93, #636366);
+    }
+    html.light {
+        --mt5-bg: #f2f2f7;
+        --mt5-panel: #ffffff;
+        --mt5-panel-2: #f7f8fa;
+        --mt5-panel-3: #eef0f3;
+        --mt5-line: #e5e5ea;
+        --mt5-line-soft: #eceef2;
+        --mt5-text: #000000;
+        --mt5-dim: #6b7280;
+        --mt5-mute: #8e8e93;
+        --mt5-blue: #007aff;
+        --mt5-red: #ff3b30;
+        --mt5-red-bg: #d9423a;
+        --mt5-blue-bg: #1d5fbf;
+        --mt5-nav-bg: rgba(255, 255, 255, 0.94);
+        --mt5-nav-border: rgba(0, 0, 0, 0.06);
+        --mt5-nav-active: #eef0f3;
+        --mt5-sheet-bg: #ffffff;
+        --mt5-sheet-detail-bg: #f7f8fa;
+        --mt5-sym-sheet-bg: rgba(255, 255, 255, 0.92);
+        --mt5-sym-sheet-action: rgba(242, 242, 247, 0.9);
+        --mt5-sym-sheet-action-active: rgba(229, 229, 234, 0.95);
+        --mt5-input-bg: #f7f8fa;
+        --mt5-toast-bg: rgba(255, 255, 255, 0.97);
+        --mt5-info-toast-bg: rgba(255, 255, 255, 0.97);
+        --mt5-oneclick-vol-bg: rgba(255, 255, 255, 0.95);
+        --mt5-desktop-bg: #eef0f3;
+        --mt5-chart-bg: #ffffff;
+        --mt5-chart-text: #5b6475;
+        --mt5-chart-grid: rgba(0, 0, 0, 0.06);
+        --mt5-chart-border: #e5e5ea;
+        --mt5-chart-up: #26a69a;
+        --mt5-chart-down: #ef5350;
+        --mt5-draw-hint: rgba(0, 122, 255, 0.92);
+        --mt5-sheet-cancel-bg: #eef0f3;
+        --mt5-sheet-cancel-bg-active: #e2e5ea;
+        --mt5-sheet-cancel-border: #ffffff;
+        --mt5-op-close-bg: #ff9f0a;
+        --mt5-op-close-bg-active: #e08c00;
+        --mt5-overlay-tint: rgba(0, 0, 0, 0.04);
+        --mt5-ripple: rgba(0, 0, 0, 0.05);
+        --mt5-ripple-strong: rgba(0, 0, 0, 0.07);
+        --mt5-dom-ask-bar: #d9423a;
+        --mt5-dom-bid-bar: #1d5fbf;
+        --mt5-dom-ask-text: #d9423a;
+        --mt5-dom-bid-text: #1d5fbf;
+        --mt5-badge-green: linear-gradient(135deg, #34c759, #2ca24a);
+        --mt5-badge-blue:  linear-gradient(135deg, #4aa9f5, #2e88d0);
+        --mt5-badge-orange: linear-gradient(135deg, #ffb84d, #e08f1e);
+        --mt5-badge-red:   linear-gradient(135deg, #e74c3c, #c0392b);
+        --mt5-badge-gray:  linear-gradient(135deg, #b8b8b8, #888888);
+        --mt5-badge-silver: linear-gradient(135deg, #8e8e93, #636366);
+    }
+
+    /* ═══════════════════════════════════════════════════════════ */
+    /* SHELL                                                       */
+    /* ═══════════════════════════════════════════════════════════ */
+    html, body {
+        background: var(--mt5-bg) !important;
+        color: var(--mt5-text);
+        overscroll-behavior: none;
+        -webkit-font-smoothing: antialiased;
+        font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display',
+                     'SF Pro Text', 'Segoe UI', Roboto, 'Inter', sans-serif;
+    }
+    body { padding-bottom: 0 !important; }
+
+    header, #sidebar, aside#sidebar,
+    #px-ticker,
+    div.lg\:hidden.fixed.bottom-0, footer { display: none !important; }
+    main { padding: 0 !important; }
+
+    @media (min-width: 768px) {
+        body { background: var(--mt5-desktop-bg) !important; }
+        #mt5-app, .mt5-order-panel, #mt5-dom-modal, #mt5-symbols-panel, #mt5-ind-panel,
+        #mt5-ind-edit, #mt5-journal-panel {
+            left: calc(50% - 240px) !important; right: calc(50% - 240px) !important;
+            border-left: 1px solid var(--mt5-line); border-right: 1px solid var(--mt5-line);
+        }
+        #mt5-bottom-nav { left: calc(50% - 232px) !important; right: calc(50% - 232px) !important; }
+        #mt5-sheet .panel { left: calc(50% - 240px); right: calc(50% - 240px); }
+        .mt5-toast, .mt5-info-toast { max-width: 440px !important; }
+    }
+
+    #mt5-app {
+        position: fixed;
+        top: env(safe-area-inset-top, 0px);
+        left: 0;
+        right: 0;
+        bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+        display: flex;
+        flex-direction: column;
+        background: var(--mt5-bg);
+        z-index: 5;
+        color: var(--mt5-text);
+    }
+
+    .mt5-status-bar { height: 0; flex-shrink: 0; }
+
+    /* ─── top tools ─── */
+    .mt5-top-tools {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 8px 16px; background: var(--mt5-bg);
+        border-bottom: 1px solid var(--mt5-line); flex-shrink: 0;
+    }
+    .mt5-top-tools .tf-label { font-size: 17px; font-weight: 600; color: var(--mt5-text); }
+    .mt5-top-tools .tool-icons { display: flex; gap: 16px; align-items: center; }
+    .mt5-top-tools .tool-icons i { font-size: 17px; color: var(--mt5-text); opacity: .9; }
+    .mt5-top-tools .tool-icons button { background: transparent; border: none; padding: 0; color: var(--mt5-text); cursor: pointer; }
+
+    .mt5-trade-plus {
+        width: 34px; height: 34px; border-radius: 50%;
+        background: var(--mt5-panel-2); border: none; color: var(--mt5-text);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 15px; cursor: pointer;
+    }
+    .mt5-trade-plus:active { background: var(--mt5-panel-3); }
+
+    /* ─── content shell ─── */
+    .mt5-content { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; background: var(--mt5-bg); }
+    .mt5-content::-webkit-scrollbar { width: 0; }
+    #tab-chart.mt5-content, #tab-history.mt5-content { display: flex; flex-direction: column; overflow: hidden; }
+
+    /* ═══════════════ QUOTES ═══════════════ */
+    .mt5-quote-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+        padding: 9px 16px 11px;
+        border-bottom: 0.5px solid var(--mt5-line);
+        align-items: start;
+        cursor: pointer;
+    }
+    .mt5-quote-row:active { background: var(--mt5-ripple); }
+    .quote-left { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+    .quote-change { font-size: 11px; font-variant-numeric: tabular-nums; display: flex; gap: 6px; line-height: 1.2; }
+    .quote-change .up { color: var(--mt5-blue); }
+    .quote-change .down { color: var(--mt5-red); }
+    .quote-symbol { font-size: 15px; font-weight: 600; color: var(--mt5-text); line-height: 1.2; }
+    .quote-meta {
+        font-size: 10.5px; color: var(--mt5-dim); display: flex; gap: 5px; align-items: center;
+        font-variant-numeric: tabular-nums; line-height: 1.2;
+    }
+    .quote-right { display: flex; flex-direction: column; gap: 1px; align-items: flex-end; text-align: right; }
+    .quote-prices { display: flex; gap: 20px; font-variant-numeric: tabular-nums; }
+    .quote-bid, .quote-ask { font-size: 18px; font-weight: 500; color: var(--mt5-text); line-height: 1.15; }
+    .quote-bid.up, .quote-ask.up { color: var(--mt5-blue); }
+    .quote-bid.down, .quote-ask.down { color: var(--mt5-red); }
+    .quote-bid .big, .quote-ask .big { font-weight: 700; font-size: 20px; }
+    .quote-bid sup, .quote-ask sup { font-size: 10px; font-weight: 500; vertical-align: super; margin-left: 0.5px; }
+    .quote-range { font-size: 10.5px; color: var(--mt5-dim); font-variant-numeric: tabular-nums; }
+
+    /* ═══════════════ CHART ═══════════════ */
+    .mt5-chart-toolbar {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 6px 12px; background: var(--mt5-bg);
+        border-bottom: 1px solid var(--mt5-line); flex-shrink: 0; height: 48px; gap: 6px;
+    }
+    .mt5-chart-toolbar .tf-label {
+        font-size: 15px; font-weight: 600; color: var(--mt5-text); flex-shrink: 0;
+        background: none; border: none; font-family: inherit; cursor: pointer; padding: 0 4px;
+    }
+    .mt5-chart-toolbar .tool-icons { display: flex; gap: 2px; align-items: center; overflow-x: auto; scrollbar-width: none; }
+    .mt5-chart-toolbar .tool-icons::-webkit-scrollbar { display: none; }
+    .mt5-chart-toolbar .tool-icons button {
+        position: relative; width: 34px; height: 34px; border-radius: 8px;
+        background: transparent; border: none; color: var(--mt5-text); font-size: 14px;
+        display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; flex-shrink: 0;
+    }
+    .mt5-chart-toolbar .tool-icons button:active { background: var(--mt5-ripple); }
+    .mt5-chart-toolbar .tool-icons button.active { background: color-mix(in srgb, var(--mt5-blue) 25%, transparent); color: var(--mt5-blue); }
+    .mt5-chart-toolbar .f-icon { font-family: Georgia, 'Times New Roman', serif; font-style: italic; font-weight: 700; font-size: 18px; }
+    .mt5-chart-toolbar .f-text { font-size: 11px; font-weight: 700; }
+    .mt5-chart-toolbar .news-badge {
+        position: absolute; top: 2px; right: 2px; width: 12px; height: 12px;
+        border-radius: 3px; background: var(--mt5-red); color: #fff; font-size: 8px; font-weight: 800;
+        display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace;
+    }
+
+    .mt5-timeframe-scroll {
+        display: flex; align-items: center; gap: 4px; padding: 6px 12px;
+        background: var(--mt5-bg); border-bottom: 1px solid var(--mt5-line);
+        overflow-x: auto; scrollbar-width: none; flex-shrink: 0;
+    }
+    .mt5-timeframe-scroll::-webkit-scrollbar { display: none; }
+    .mt5-tf-btn {
+        flex-shrink: 0; padding: 6px 12px; border-radius: 8px; background: transparent;
+        border: 1px solid transparent; color: var(--mt5-dim); font-size: 12px; font-weight: 600;
+        font-family: inherit; cursor: pointer; white-space: nowrap;
+    }
+    .mt5-tf-btn.active { background: color-mix(in srgb, var(--mt5-blue) 18%, transparent); color: var(--mt5-blue); border-color: color-mix(in srgb, var(--mt5-blue) 30%, transparent); }
+
+    .mt5-chart-symbol-header { padding: 8px 16px 10px; border-bottom: 1px solid var(--mt5-line); flex-shrink: 0; }
+    .mt5-chart-symbol-header .sym { font-size: 15px; font-weight: 600; color: var(--mt5-blue); }
+    .mt5-chart-symbol-header .sym .tf { color: var(--mt5-dim); font-weight: 500; margin-left: 4px; }
+    .mt5-chart-symbol-header .name { font-size: 11px; color: var(--mt5-dim); margin-top: 2px; }
+
+    .mt5-chart-container { flex: 1 1 auto; position: relative; background: var(--mt5-chart-bg); min-height: 300px; touch-action: none; }
+    #mt5-chart-canvas { position: absolute; inset: 0; }
+
+    .mt5-chart-reset {
+        position: absolute; right: 8px; bottom: 8px;
+        background: var(--mt5-panel-2); border: 1px solid var(--mt5-line-soft);
+        color: var(--mt5-blue); font-size: 12px; font-weight: 600; padding: 6px 12px;
+        border-radius: 20px; cursor: pointer; z-index: 6; display: none;
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); font-family: inherit;
+    }
+    .mt5-chart-reset.show { display: block; }
+
+    .mt5-draw-hint {
+        position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+        background: var(--mt5-draw-hint); color: #fff; font-size: 11px; font-weight: 600;
+        padding: 6px 12px; border-radius: 20px; z-index: 7; display: none; pointer-events: none;
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    }
+    .mt5-draw-hint.show { display: block; }
+
+    .mt5-one-click {
+        position: absolute; top: 8px; left: 8px; z-index: 6; display: flex; align-items: stretch;
+        border-radius: 10px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+        font-variant-numeric: tabular-nums; height: 40px;
+    }
+    .mt5-one-click button {
+        border: none; color: #fff; padding: 3px 12px; cursor: pointer; font-family: inherit;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 84px;
+    }
+    .mt5-one-click button span { font-size: 9px; font-weight: 700; letter-spacing: .06em; opacity: .9; }
+    .mt5-one-click button b { font-size: 12px; font-weight: 600; }
+    .mt5-one-click button b .big { font-size: 14px; }
+    .mt5-one-click button b sup { font-size: 9px; }
+    .mt5-one-click .sell { background: var(--mt5-red-bg); }
+    .mt5-one-click .buy  { background: var(--mt5-blue-bg); }
+    .mt5-one-click .vol {
+        background: var(--mt5-oneclick-vol-bg); color: var(--mt5-text); font-size: 12px; font-weight: 600;
+        padding: 0 12px; display: flex; align-items: center; cursor: pointer;
+    }
+
+    /* ═══════════════ TRADE ═══════════════ */
+    .mt5-trade-summary { text-align: center; padding: 16px 16px 6px; position: relative; }
+    .mt5-trade-total {
+        font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--mt5-text); letter-spacing: -0.01em;
+    }
+    .mt5-trade-total.pos { color: var(--mt5-blue); }
+    .mt5-trade-total.neg { color: var(--mt5-red); }
+    .mt5-trade-total .cur { font-size: 17px; font-weight: 500; margin-left: 6px; opacity: .85; }
+
+    .mt5-detail-row { display: flex; justify-content: space-between; padding: 3px 16px; font-size: 13px; line-height: 1.55; }
+    .mt5-detail-row .label { color: var(--mt5-dim); }
+    .mt5-detail-row .value { color: var(--mt5-text); font-variant-numeric: tabular-nums; font-weight: 400; }
+    .mt5-detail-row .value.neg { color: var(--mt5-red); }
+
+    .mt5-pos-section-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 14px 16px 8px; margin-top: 6px;
+        border-top: 0.5px solid var(--mt5-line);
+    }
+    .mt5-pos-section-header .title { font-size: 15px; font-weight: 700; color: var(--mt5-text); }
+    .mt5-pos-section-header .more {
+        color: var(--mt5-dim); font-size: 18px; background: transparent; border: none; cursor: pointer; padding: 4px;
+    }
+    .mt5-pos-section-header .more:active { color: var(--mt5-text); }
+
+    .mt5-pos-row { padding: 11px 16px 12px; border-bottom: 0.5px solid var(--mt5-line); cursor: pointer; }
+    .mt5-pos-row:active { background: var(--mt5-ripple); }
+    .mt5-pos-row .line-1 { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+    .mt5-pos-row .sym-line {
+        font-size: 15px; font-weight: 700; color: var(--mt5-text);
+        display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
+    }
+    .mt5-pos-row .dir { font-weight: 600; font-size: 13px; }
+    .mt5-pos-row .dir.buy  { color: var(--mt5-blue); }
+    .mt5-pos-row .dir.sell { color: var(--mt5-red); }
+    .mt5-pos-row .vol { font-size: 13px; color: var(--mt5-text); font-variant-numeric: tabular-nums; font-weight: 500; }
+    .mt5-pos-row .pnl { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--mt5-text); }
+    .mt5-pos-row .pnl.pos { color: var(--mt5-blue); }
+    .mt5-pos-row .pnl.neg { color: var(--mt5-red); }
+    .mt5-pos-row .line-2 {
+        display: flex; align-items: center; gap: 6px; margin-top: 3px;
+        font-size: 12px; color: var(--mt5-dim);
+        font-variant-numeric: tabular-nums; font-weight: 400;
+    }
+    .mt5-pos-row .line-2 .tag { color: var(--mt5-mute); font-size: 11px; margin-left: 6px; }
+
+    /* ═══════════════ HISTORY ═══════════════ */
+    .mt5-history-pills {
+        display: flex; gap: 6px; padding: 10px 16px; background: var(--mt5-bg);
+        border-bottom: 1px solid var(--mt5-line); flex-shrink: 0; align-items: center;
+    }
+    .mt5-hpill {
+        flex: 1; padding: 8px 8px; border-radius: 999px;
+        background: var(--mt5-panel); color: var(--mt5-dim);
+        font-size: 13px; font-weight: 500; border: none;
+        cursor: pointer; font-family: inherit;
+    }
+    .mt5-hpill.active { background: var(--mt5-panel-2); color: var(--mt5-text); font-weight: 600; }
+
+    .mt5-hsort {
+        width: 34px; height: 34px; border-radius: 50%;
+        background: transparent; border: none; color: var(--mt5-text);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 15px; cursor: pointer; flex-shrink: 0;
+    }
+    .mt5-hsort:active { background: var(--mt5-ripple-strong); }
+
+    .mt5-history-period {
+        display: flex; align-items: center; gap: 8px; padding: 8px 16px;
+        border-bottom: 1px solid var(--mt5-line); color: var(--mt5-dim); flex-shrink: 0;
+    }
+    .mt5-history-period select {
+        flex: 1; background: transparent; color: var(--mt5-text); border: none; font: inherit; font-size: 13px;
+        color-scheme: dark; cursor: pointer;
+    }
+    html.light .mt5-history-period select { color-scheme: light; }
+
+    .mt5-hpos-row { padding: 11px 16px 12px; border-bottom: 0.5px solid var(--mt5-line); cursor: pointer; }
+    .mt5-hpos-row .line-1 { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+    .mt5-hpos-row .sym-line {
+        font-size: 15px; font-weight: 700; color: var(--mt5-text);
+        display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
+    }
+    .mt5-hpos-row .dir { font-weight: 600; font-size: 13px; }
+    .mt5-hpos-row .dir.buy  { color: var(--mt5-blue); }
+    .mt5-hpos-row .dir.sell { color: var(--mt5-red); }
+    .mt5-hpos-row .vol { font-size: 13px; color: var(--mt5-text); font-variant-numeric: tabular-nums; font-weight: 500; }
+    .mt5-hpos-row .pnl { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .mt5-hpos-row .pnl.pos { color: var(--mt5-blue); }
+    .mt5-hpos-row .pnl.neg { color: var(--mt5-red); }
+    .mt5-hpos-row .line-2 {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-top: 3px; font-size: 12px; color: var(--mt5-dim);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .mt5-hist-detail {
+        display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin-top: 10px;
+        padding-top: 8px; border-top: 1px dashed var(--mt5-line-soft); font-size: 12px; color: var(--mt5-dim);
+        font-variant-numeric: tabular-nums;
+    }
+    .mt5-hist-detail span:nth-child(even) { color: var(--mt5-text); text-align: right; }
+
+    .mt5-history-summary {
+        flex-shrink: 0; border-top: 0.5px solid var(--mt5-line); background: var(--mt5-bg);
+        padding: 10px 16px 14px;
+    }
+    .mt5-hist-sum-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; color: var(--mt5-dim); font-variant-numeric: tabular-nums; }
+    .mt5-hist-sum-row span:last-child { color: var(--mt5-text); font-weight: 500; }
+    .mt5-hist-sum-row span.pos { color: var(--mt5-blue) !important; }
+    .mt5-hist-sum-row span.neg { color: var(--mt5-red) !important; }
+    .mt5-hist-sum-balance { padding-top: 8px; margin-top: 4px; border-top: 0.5px solid var(--mt5-line); font-size: 14px; font-weight: 600; }
+    .mt5-hist-sum-balance span:last-child { color: var(--mt5-text); font-size: 15px; }
+
+    /* ═══════════════ SETTINGS ═══════════════ */
+    .mt5-set-title { text-align: center; font-size: 17px; font-weight: 700; color: var(--mt5-text); padding: 14px 16px 16px; letter-spacing: 0.01em; }
+    .mt5-set-card { margin: 0 12px 14px; background: var(--mt5-panel); border-radius: 14px; overflow: hidden; position: relative; }
+    .mt5-set-account-info { text-align: center; padding: 20px 16px 16px; border-bottom: 0.5px solid var(--mt5-line-soft); }
+    .mt5-set-account-name { font-size: 16px; font-weight: 600; color: var(--mt5-text); margin-bottom: 3px; }
+    .mt5-set-account-broker { font-size: 12px; color: var(--mt5-dim); margin-bottom: 10px; }
+    .mt5-set-account-id { font-size: 14px; color: var(--mt5-text); font-weight: 500; margin-bottom: 2px; }
+    .mt5-set-account-server { font-size: 12px; color: var(--mt5-dim); }
+    .mt5-set-demo-ribbon {
+        position: absolute; top: 12px; right: -32px; width: 120px; text-align: center;
+        padding: 5px 0; background: var(--mt5-badge-green);
+        color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em;
+        transform: rotate(45deg); transform-origin: center;
+        box-shadow: 0 2px 8px rgba(76, 217, 100, 0.4); z-index: 2;
+    }
+    .mt5-set-chevron {
+        width: 8px; height: 8px; border-right: 2px solid var(--mt5-mute); border-bottom: 2px solid var(--mt5-mute);
+        transform: rotate(-45deg); flex-shrink: 0; margin-right: 8px; margin-left: auto;
+    }
+    .mt5-set-row {
+        display: flex; align-items: center; gap: 12px; padding: 11px 14px;
+        border-bottom: 0.5px solid var(--mt5-line-soft); text-decoration: none; color: var(--mt5-text);
+        transition: background 0.12s; cursor: pointer;
+    }
+    .mt5-set-row:last-child { border-bottom: none; }
+    .mt5-set-row:active { background: var(--mt5-ripple-strong); }
+    button.mt5-set-row { background: none; border: 0; width: 100%; font: inherit; text-align: left; }
+    .mt5-set-icon {
+        width: 30px; height: 30px; border-radius: 7px;
+        display: flex; align-items: center; justify-content: center;
+        color: #fff; font-size: 14px; flex-shrink: 0; overflow: hidden;
+    }
+    .mt5-set-row-text { flex: 1; min-width: 0; font-size: 15px; font-weight: 400; color: var(--mt5-text); line-height: 1.35; }
+    .mt5-set-row-label { font-size: 15px; font-weight: 400; color: var(--mt5-text); }
+    .mt5-set-row-sub { font-size: 12px; color: var(--mt5-dim); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* ═══════════════ BOTTOM NAV ═══════════════ */
+    #mt5-bottom-nav {
+        position: fixed;
+        bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+        left: 8px; right: 8px;
+        height: 72px;
+        background: var(--mt5-nav-bg);
+        border: 0.5px solid var(--mt5-nav-border);
+        border-radius: 36px;
+        display: flex; align-items: center; justify-content: space-around;
+        padding: 6px;
+        z-index: 100;
+        -webkit-backdrop-filter: blur(22px) saturate(160%);
+        backdrop-filter: blur(22px) saturate(160%);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+    .mt5-nav-item {
+        flex: 1; height: 60px;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+        color: var(--mt5-dim); background: transparent; border: none; cursor: pointer;
+        border-radius: 30px; padding: 4px 6px; font-family: inherit;
+        transition: background .15s ease, color .15s ease;
+    }
+    .mt5-nav-item i { font-size: 20px; line-height: 1; }
+    .mt5-nav-item span { font-size: 10px; font-weight: 500; line-height: 1; }
+    .mt5-nav-item.active { background: var(--mt5-nav-active); color: var(--mt5-blue); }
+    .mt5-nav-item.active span { font-weight: 600; }
+
+    /* ═══════════════ SHEETS / MODALS ═══════════════ */
+    #mt5-sheet { position: fixed; inset: 0; z-index: 200; display: none; }
+    #mt5-sheet.show { display: block; }
+    #mt5-sheet .backdrop {
+        position: absolute; inset: 0; background: rgba(0,0,0,0.55);
+        backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    }
+    #mt5-sheet .panel {
+        position: absolute; left: 0; right: 0; bottom: 0;
+        background: var(--mt5-sheet-bg);
+        border-top-left-radius: 14px; border-top-right-radius: 14px;
+        padding-bottom: env(safe-area-inset-bottom, 0);
+        max-height: 92vh; overflow-y: auto;
+    }
+    .mt5-sheet-detail { padding: 14px 16px; background: var(--mt5-sheet-detail-bg); border-bottom: 0.5px solid var(--mt5-line-soft); }
+    .mt5-sheet-detail .line-1 { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 2px; }
+    .mt5-sheet-detail .sym-line { font-size: 16px; font-weight: 700; color: var(--mt5-text); display: flex; align-items: baseline; gap: 5px; flex-wrap: wrap; }
+    .mt5-sheet-detail .sym-line .dir { font-weight: 600; font-size: 13px; }
+    .mt5-sheet-detail .sym-line .dir.buy  { color: var(--mt5-blue); }
+    .mt5-sheet-detail .sym-line .dir.sell { color: var(--mt5-red); }
+    .mt5-sheet-detail .sym-line .vol { font-size: 13px; color: var(--mt5-text); font-variant-numeric: tabular-nums; }
+    .mt5-sheet-detail .ticket { font-size: 11px; color: var(--mt5-dim); font-family: 'JetBrains Mono', monospace; }
+    .mt5-sheet-detail .name { font-size: 12px; color: var(--mt5-dim); margin-bottom: 10px; }
+    .mt5-sheet-detail .price-line { display: flex; justify-content: space-between; align-items: baseline; font-size: 14px; font-variant-numeric: tabular-nums; margin-bottom: 3px; }
+    .mt5-sheet-detail .price-line .prices { color: var(--mt5-text); font-weight: 500; }
+    .mt5-sheet-detail .price-line .pnl { font-size: 16px; font-weight: 600; }
+    .mt5-sheet-detail .price-line .pnl.pos { color: var(--mt5-blue); }
+    .mt5-sheet-detail .price-line .pnl.neg { color: var(--mt5-red); }
+    .mt5-sheet-detail .delta { font-size: 12px; color: var(--mt5-dim); font-variant-numeric: tabular-nums; margin-bottom: 10px; }
+    .mt5-sheet-detail .delta.neg { color: var(--mt5-red); }
+    .mt5-sheet-detail .delta.pos { color: var(--mt5-blue); }
+    .mt5-sheet-detail .info-grid { display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 3px 14px; font-size: 12px; font-variant-numeric: tabular-nums; margin-top: 4px; }
+    .mt5-sheet-detail .info-grid .k { color: var(--mt5-dim); }
+    .mt5-sheet-detail .info-grid .v { color: var(--mt5-text); text-align: right; }
+
+    .mt5-sheet-actions { padding: 6px 0 10px; }
+    .mt5-sheet-action {
+        display: block; width: 100%; padding: 15px; text-align: center;
+        font-size: 17px; color: var(--mt5-blue); background: transparent; border: none;
+        border-bottom: 0.5px solid var(--mt5-line-soft); cursor: pointer; font-family: inherit;
+    }
+    .mt5-sheet-action:last-child { border-bottom: none; }
+    .mt5-sheet-action:active { background: var(--mt5-ripple); }
+    .mt5-sheet-action.destructive { color: var(--mt5-red); }
+    .mt5-sheet-cancel {
+        display: block; width: 100%; padding: 16px; text-align: center;
+        font-size: 17px; font-weight: 600; color: var(--mt5-blue);
+        background: var(--mt5-sheet-cancel-bg); border: none; border-top: 8px solid var(--mt5-sheet-cancel-border);
+        cursor: pointer; font-family: inherit;
+    }
+    .mt5-sheet-cancel:active { background: var(--mt5-sheet-cancel-bg-active); }
+
+    #mt5-symbol-sheet { position: fixed; inset: 0; z-index: 300; display: none; }
+    #mt5-symbol-sheet.show { display: block; }
+    #mt5-symbol-sheet .backdrop {
+        position: absolute; inset: 0; background: rgba(0,0,0,0.55);
+        backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%);
+    }
+    #mt5-symbol-sheet .panel {
+        position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(0.95);
+        width: calc(100% - 48px); max-width: 380px;
+        background: var(--mt5-sym-sheet-bg);
+        backdrop-filter: blur(40px) saturate(160%); -webkit-backdrop-filter: blur(40px) saturate(160%);
+        border-radius: 22px; padding: 22px 14px 14px;
+        display: flex; flex-direction: column; gap: 10px;
+        box-shadow: 0 24px 80px rgba(0,0,0,0.35), 0 0 0 0.5px var(--mt5-line) inset;
+        opacity: 0; transition: opacity .2s ease, transform .25s cubic-bezier(.16,1,.3,1);
+    }
+    #mt5-symbol-sheet.show .panel { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    .mt5-sym-title { text-align: center; font-size: 17px; font-weight: 600; color: var(--mt5-text); padding: 4px 12px 18px; letter-spacing: 0.005em; line-height: 1.3; }
+    .mt5-sym-action {
+        width: 100%; padding: 17px 16px; border-radius: 14px;
+        background: var(--mt5-sym-sheet-action);
+        backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+        border: none; font-size: 17px; font-weight: 500; font-family: inherit;
+        color: var(--mt5-text); cursor: pointer; text-align: center; letter-spacing: 0.005em;
+        transition: background .12s, transform .08s;
+    }
+    .mt5-sym-action:active { background: var(--mt5-sym-sheet-action-active); transform: scale(.985); }
+    .mt5-sym-action.destructive { color: var(--mt5-red); }
+    .mt5-sym-action.destructive:active { background: color-mix(in srgb, var(--mt5-red) 18%, transparent); }
+    .mt5-sym-action.cancel { background: var(--mt5-sym-sheet-action); font-weight: 600; }
+
+    .mt5-empty-msg { padding: 40px 16px; text-align: center; color: var(--mt5-dim); font-size: 13px; }
+    .mt5-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 220px; }
+    .mt5-empty svg { width: 96px; height: 96px; stroke: var(--mt5-text); stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: .95; }
+
+    /* ─── Order panel ─── */
+    .mt5-order-panel {
+        position: fixed; inset: 0; z-index: 500; background: var(--mt5-bg); color: var(--mt5-text);
+        display: none; flex-direction: column;
+        font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
+        overflow-y: auto;
+    }
+    .mt5-order-panel.show { display: flex; }
+    .mt5-op-header { position: relative; padding: 20px 16px 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .mt5-op-back { position: absolute; left: 16px; top: 20px; width: 40px; height: 40px; border-radius: 50%; background: var(--mt5-panel); border: none; color: var(--mt5-text); font-size: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    .mt5-op-back:active { background: var(--mt5-panel-2); }
+    .mt5-op-symbol { text-align: center; padding: 0 60px; }
+    .mt5-op-symbol .sym-line { font-size: 19px; font-weight: 700; color: var(--mt5-text); display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .mt5-op-symbol .sym-line i { font-size: 12px; color: var(--mt5-dim); }
+    .mt5-op-symbol .sym-name { font-size: 12px; color: var(--mt5-dim); margin-top: 3px; }
+    .mt5-op-execution-row { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-top: 1px solid var(--mt5-line); border-bottom: 1px solid var(--mt5-line); font-size: 17px; font-weight: 500; }
+    .mt5-op-execution-row i { font-size: 12px; color: var(--mt5-dim); }
+    .mt5-op-volume-strip { display: grid; grid-template-columns: repeat(5, 1fr); padding: 18px 20px; gap: 8px; border-bottom: 1px solid var(--mt5-line); align-items: center; }
+    .mt5-op-volume-strip button { background: transparent; border: none; color: var(--mt5-blue); font-size: 15px; font-weight: 600; font-family: inherit; cursor: pointer; padding: 8px 0; font-variant-numeric: tabular-nums; }
+    .mt5-op-volume-strip button:active { opacity: 0.7; }
+    .mt5-op-volume-center { display: flex; align-items: center; justify-content: center; padding: 8px 0; font-size: 17px; font-weight: 600; color: var(--mt5-text); font-variant-numeric: tabular-nums; background: var(--mt5-overlay-tint); border-radius: 8px; cursor: pointer; }
+    .mt5-op-volume-center:active { background: var(--mt5-ripple-strong); }
+    .mt5-op-row { display: grid; grid-template-columns: 1fr 40px 1fr 40px; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--mt5-line); gap: 8px; }
+    .mt5-op-label { font-size: 17px; color: var(--mt5-text); font-weight: 400; }
+    .mt5-op-value { font-size: 15px; color: var(--mt5-dim); text-align: center; font-variant-numeric: tabular-nums; cursor: pointer; }
+    .mt5-op-value.set { color: var(--mt5-text); font-weight: 500; }
+    .mt5-op-value.pos { color: var(--mt5-blue); }
+    .mt5-op-value.neg { color: var(--mt5-red); }
+    .mt5-op-minus, .mt5-op-plus { background: transparent; border: none; color: var(--mt5-blue); font-size: 16px; font-weight: 600; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; }
+    .mt5-op-plus { font-size: 18px; }
+    .mt5-op-minus:active, .mt5-op-plus:active { opacity: 0.6; }
+    .mt5-op-fill { grid-template-columns: 1fr auto; border-top: 1px solid var(--mt5-line); background: var(--mt5-overlay-tint); }
+    .mt5-op-fill .mt5-op-value { text-align: right; color: var(--mt5-text); font-size: 15px; }
+    .mt5-op-select { justify-self: end; background: var(--mt5-panel); color: var(--mt5-text); border: 1px solid var(--mt5-line-soft); border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 15px; color-scheme: dark; }
+    html.light .mt5-op-select { color-scheme: light; }
+    .mt5-op-prices { display: grid; grid-template-columns: 1fr 1fr; padding: 24px 20px; gap: 20px; background: var(--mt5-overlay-tint); }
+    .mt5-op-price { font-size: 22px; font-weight: 500; text-align: center; font-variant-numeric: tabular-nums; }
+    .mt5-op-price.sell { color: var(--mt5-red); }
+    .mt5-op-price.buy  { color: var(--mt5-blue); }
+    .mt5-op-price .big { font-size: 34px; font-weight: 700; }
+    .mt5-op-price sup  { font-size: 15px; vertical-align: super; }
+    .mt5-op-buttons { display: grid; grid-template-columns: 1fr 1fr; flex-shrink: 0; }
+    .mt5-op-sell, .mt5-op-buy { padding: 22px 12px; border: none; font-size: 17px; font-weight: 600; font-family: inherit; color: #fff; cursor: pointer; }
+    .mt5-op-sell { background: var(--mt5-red-bg); } .mt5-op-sell:active { background: color-mix(in srgb, var(--mt5-red-bg) 85%, black); }
+    .mt5-op-buy  { background: var(--mt5-blue-bg); } .mt5-op-buy:active  { background: color-mix(in srgb, var(--mt5-blue-bg) 85%, black); }
+    .mt5-op-sell:disabled, .mt5-op-buy:disabled { opacity: 0.5; cursor: not-allowed; }
+    .mt5-op-close { grid-column: span 2; padding: 22px 12px; border: none; font-size: 16px; font-weight: 600; font-family: inherit; color: #000; background: var(--mt5-op-close-bg); cursor: pointer; }
+    .mt5-op-close:active { background: var(--mt5-op-close-bg-active); }
+    .mt5-op-close:disabled { opacity: 0.5; }
+    .mt5-op-note { padding: 20px 24px; font-size: 13px; color: var(--mt5-dim); text-align: center; line-height: 1.5; }
+
+    /* ─── chart canvas / legends ─── */
+    #mt5-draw-canvas { position: absolute; inset: 0; z-index: 3; pointer-events: none; touch-action: none; }
+    #mt5-legends { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+    .lg-pane { position: absolute; left: 6px; right: 70px; }
+    .lg-pane:first-child { top: 46px !important; }
+    .lg-row { font-size: 11px; color: var(--mt5-dim); line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; text-shadow: 0 0 3px var(--mt5-chart-bg); }
+    .lg-row.head .sym { color: var(--mt5-text); font-weight: 600; }
+    .lg-row .msg { color: #ff9f0a; }
+    .lg-row.ind { pointer-events: auto; cursor: pointer; width: max-content; max-width: 100%; }
+    .lg-row.ind:active { color: var(--mt5-blue); }
+    body.mt5-chart-fullscreen .mt5-timeframe-scroll,
+    body.mt5-chart-fullscreen .mt5-chart-symbol-header,
+    body.mt5-chart-fullscreen #mt5-bottom-nav { display: none !important; }
+    body.mt5-chart-fullscreen #mt5-app { bottom: 0 !important; }
+
+    .mt5-ind-group { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--mt5-line); font-size: 16px; cursor: pointer; color: var(--mt5-text); }
+    .mt5-ind-group i { color: var(--mt5-dim); transition: transform .15s; }
+    .mt5-ind-group.open i { transform: rotate(180deg); }
+    .mt5-ind-items { display: none; background: var(--mt5-bg); }
+    .mt5-ind-group.open + .mt5-ind-items { display: block; }
+    .mt5-ind-items .mt5-sym-pick { padding-left: 28px; }
+    .mt5-ind-empty { padding: 10px 16px; font-size: 13px; color: var(--mt5-dim); }
+    .mt5-ind-field { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--mt5-line); font-size: 15px; color: var(--mt5-text); }
+    .mt5-ind-field input, .mt5-ind-field select { width: 150px; background: var(--mt5-panel); color: var(--mt5-text); border: 1px solid var(--mt5-line-soft); border-radius: 8px; padding: 7px 10px; font: inherit; font-size: 15px; text-align: right; color-scheme: dark; }
+    html.light .mt5-ind-field input, html.light .mt5-ind-field select { color-scheme: light; }
+    .mt5-ind-field input[type=color] { width: 56px; height: 34px; padding: 2px; }
+
+    .mt5-search { width: 100%; padding: 10px 12px; border-radius: 10px; border: none; background: var(--mt5-panel); color: var(--mt5-text); font: inherit; font-size: 15px; outline: none; }
+    .mt5-sym-group { padding: 14px 16px 6px; font-size: 12px; font-weight: 600; color: var(--mt5-dim); text-transform: uppercase; letter-spacing: .04em; }
+    .mt5-sym-pick { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--mt5-line); cursor: pointer; }
+    .mt5-sym-pick .s { font-size: 15px; font-weight: 600; color: var(--mt5-text); }
+    .mt5-sym-pick .d { font-size: 12px; color: var(--mt5-dim); margin-top: 2px; }
+    .mt5-sym-pick i { font-size: 22px; color: var(--mt5-panel-3); }
+    .mt5-sym-pick i.on { color: var(--mt5-blue); }
+
+    .mt5-journal-row { padding: 8px 16px; border-bottom: 1px solid var(--mt5-line); font-size: 12px; }
+    .mt5-journal-row .h { display: flex; justify-content: space-between; color: var(--mt5-dim); font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; }
+    .mt5-journal-row .m { color: var(--mt5-text); margin-top: 3px; line-height: 1.4; word-break: break-word; }
+    .mt5-journal-row.error .m { color: #ff6b5e; }
+
+    .mt5-toast {
+        position: fixed; top: 64px; left: 50%; transform: translateX(-50%);
+        background: var(--mt5-toast-bg); color: var(--mt5-text); padding: 12px 18px; border-radius: 10px;
+        font-size: 14px; font-weight: 600; box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+        z-index: 20000; max-width: 90vw; text-align: center; line-height: 1.35;
+        animation: mt5BulkToastIn .25s cubic-bezier(.16,1,.3,1);
+    }
+    .mt5-toast.success { background: var(--mt5-blue-bg); color: #fff; }
+    .mt5-toast.error   { background: var(--mt5-red-bg); color: #fff; }
+    .mt5-info-toast {
+        position: fixed; top: 64px; left: 50%; transform: translateX(-50%);
+        background: var(--mt5-info-toast-bg); color: var(--mt5-text); padding: 14px 18px; border-radius: 12px;
+        font-size: 13px; z-index: 20000; min-width: 240px; max-width: 92vw; white-space: pre-line;
+        line-height: 1.55; border: 1px solid var(--mt5-line);
+        box-shadow: 0 12px 40px rgba(0,0,0,0.3); font-variant-numeric: tabular-nums;
+        cursor: pointer; animation: mt5BulkToastIn .25s cubic-bezier(.16,1,.3,1);
+    }
+    .mt5-info-toast .t { color: var(--mt5-blue); font-weight: 700; margin-bottom: 6px; text-align: center; }
+    @keyframes mt5BulkToastIn { from { opacity: 0; transform: translateX(-50%) scale(.9); } to { opacity: 1; transform: translateX(-50%) scale(1); } }
+</style>
+
+<div id="mt5-app">
+    <div class="mt5-status-bar"></div>
+
+    <!-- Quotes -->
+    <div id="tab-quotes" class="mt5-content" style="display:none;">
+        <div class="mt5-top-tools">
+            <button onclick="mt5ToggleQuoteView()" title="Simple / advanced view"><i class="fa-solid fa-list-ul" style="font-size:18px;color:var(--mt5-text);"></i></button>
+            <span class="tf-label">Quotes</span>
+            <div class="tool-icons">
+                <button onclick="mt5OpenSymbolPicker()" title="Edit symbols"><i class="fa-solid fa-pen"></i></button>
+                <button onclick="mt5OpenSymbolPicker(true)" title="Add symbol"><i class="fa-solid fa-magnifying-glass"></i></button>
+            </div>
+        </div>
+        <div id="mt5-quotes-list"><div class="mt5-empty-msg">Loading…</div></div>
+    </div>
+
+    <!-- Chart -->
+    <div id="tab-chart" class="mt5-content" style="display:none;">
+        <div class="mt5-chart-toolbar">
+            <button class="tf-label" id="mt5-chart-timeframe" onclick="mt5OpenTimeframeSheet()">M5</button>
+            <div class="tool-icons">
+                <button onclick="mt5OpenChartSymbolSheet()" title="Symbol"><i class="fa-solid fa-coins"></i></button>
+                <button onclick="mt5CycleChartType()" id="btn-charttype" title="Bars / Candles / Line"><i class="fa-solid fa-chart-column" id="mt5-charttype-icon"></i></button>
+                <button onclick="mt5OpenIndicators()" id="btn-indicators" title="Indicators"><span class="f-icon">f</span></button>
+                <button onclick="mt5ToggleCrosshair()" id="btn-crosshair" class="active" title="Crosshair"><i class="fa-solid fa-crosshairs"></i></button>
+                <button onclick="mt5ToggleDraw('hline')" id="btn-hline" title="Horizontal line"><i class="fa-solid fa-minus"></i></button>
+                <button onclick="mt5ToggleDraw('trend')" id="btn-trend" title="Trend line"><i class="fa-solid fa-arrow-trend-up"></i></button>
+                <button onclick="mt5ToggleDraw('rect')" id="btn-rect" title="Rectangle"><i class="fa-regular fa-square"></i></button>
+                <button onclick="mt5ToggleDraw('fibo')" id="btn-fibo" title="Fibonacci retracement"><span class="f-text">Fib</span></button>
+                <button onclick="mt5UndoDraw()" title="Undo"><i class="fa-solid fa-rotate-left"></i></button>
+                <button onclick="mt5ClearDrawings()" title="Delete all objects"><i class="fa-solid fa-trash-can"></i></button>
+                <button onclick="mt5Zoom(1)" title="Zoom in"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+                <button onclick="mt5Zoom(-1)" title="Zoom out"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+                <button onclick="mt5ToggleFullscreen()" id="btn-fullscreen" title="Full screen"><i class="fa-solid fa-expand"></i></button>
+            </div>
+        </div>
+
+        <div class="mt5-timeframe-scroll" id="mt5-tf-scroll">
+            <button class="mt5-tf-btn" data-tf="1m" onclick="mt5SetTimeframe('1m')">M1</button>
+            <button class="mt5-tf-btn" data-tf="5m" onclick="mt5SetTimeframe('5m')">M5</button>
+            <button class="mt5-tf-btn" data-tf="15m" onclick="mt5SetTimeframe('15m')">M15</button>
+            <button class="mt5-tf-btn" data-tf="30m" onclick="mt5SetTimeframe('30m')">M30</button>
+            <button class="mt5-tf-btn" data-tf="1h" onclick="mt5SetTimeframe('1h')">H1</button>
+            <button class="mt5-tf-btn" data-tf="4h" onclick="mt5SetTimeframe('4h')">H4</button>
+            <button class="mt5-tf-btn" data-tf="1d" onclick="mt5SetTimeframe('1d')">D1</button>
+            <button class="mt5-tf-btn" data-tf="1w" onclick="mt5SetTimeframe('1w')">W1</button>
+            <button class="mt5-tf-btn" data-tf="1M" onclick="mt5SetTimeframe('1M')">MN</button>
+        </div>
+
+        <div class="mt5-chart-symbol-header">
+            <div class="sym" onclick="mt5OpenChartSymbolSheet()" style="cursor:pointer;">
+                <span id="mt5-chart-symbol">XAUUSD</span>
+                <span class="tf" id="mt5-chart-symbol-tf">▾ M5</span>
+                <span id="mt5-chart-symbol-ohlc" style="color:var(--mt5-dim);font-weight:400;font-size:12px;margin-left:8px;"></span>
+            </div>
+            <div class="name" id="mt5-chart-symbol-name">Gold vs US Dollar</div>
+        </div>
+
+        <div class="mt5-chart-container" id="mt5-chart-wrap">
+            <div id="mt5-chart-canvas"></div>
+            <canvas id="mt5-draw-canvas"></canvas>
+            <div id="mt5-legends"></div>
+            <div class="mt5-draw-hint" id="mt5-draw-hint"></div>
+            <div class="mt5-one-click" id="mt5-one-click">
+                <button class="sell" onclick="mt5OneClick('SELL')"><span>SELL</span><b id="mt5-oc-bid">—</b></button>
+                <div class="vol" onclick="mt5OneClickVolume()" id="mt5-oc-vol">0.01</div>
+                <button class="buy" onclick="mt5OneClick('BUY')"><span>BUY</span><b id="mt5-oc-ask">—</b></button>
+            </div>
+            <button class="mt5-chart-reset" id="mt5-chart-reset" onclick="mt5ResetZoom()">Reset Zoom</button>
+        </div>
+    </div>
+
+    <!-- Trade -->
+    <div id="tab-trade" class="mt5-content" style="display:none;">
+        <div class="mt5-trade-summary">
+            <button class="mt5-trade-plus" onclick="mt5OpenOrderPanel(mt5ChartSymbol)" title="New order" style="position:absolute;right:16px;top:8px;">
+                <i class="fa-solid fa-plus"></i>
+            </button>
+            <div class="mt5-trade-total" id="mt5-total-pnl">0.00<span class="cur">USD</span></div>
+        </div>
+
+        <div class="mt5-margin-call" id="mt5-margin-call" style="display:none;"></div>
+
+        <div style="padding-bottom: 4px;">
+            <div class="mt5-detail-row"><span class="label">Balance:</span><span class="value" id="mt5-balance">{{ metrics.balance|floatformat:2 }}</span></div>
+            <div class="mt5-detail-row"><span class="label">Equity:</span><span class="value" id="mt5-equity">{{ metrics.equity|floatformat:2 }}</span></div>
+            <div class="mt5-detail-row"><span class="label">Margin:</span><span class="value" id="mt5-margin">{{ metrics.margin_used|floatformat:2 }}</span></div>
+            <div class="mt5-detail-row"><span class="label">Free Margin:</span><span class="value" id="mt5-free-margin">{{ metrics.free_margin|floatformat:2 }}</span></div>
+            <div class="mt5-detail-row" id="mt5-margin-level-row"><span class="label">Margin Level (%):</span><span class="value" id="mt5-margin-level">{% if metrics.margin_level %}{{ metrics.margin_level|floatformat:2 }}{% else %}—{% endif %}</span></div>
+        </div>
+
+        <div id="mt5-open-positions"></div>
+        <div id="mt5-pending-orders"></div>
+    </div>
+
+    <!-- History -->
+    <div id="tab-history" class="mt5-content" style="display:none;">
+        <div class="mt5-history-pills">
+            <button class="mt5-hsort" onclick="mt5OpenSortSheet()" aria-label="Sort"><i class="fa-solid fa-arrow-down-up-across-line"></i></button>
+            <button class="mt5-hpill active" data-hsub="positions" onclick="mt5SwitchHistoryTab('positions')">Positions</button>
+            <button class="mt5-hpill" data-hsub="orders"    onclick="mt5SwitchHistoryTab('orders')">Orders</button>
+            <button class="mt5-hpill" data-hsub="deals"     onclick="mt5SwitchHistoryTab('deals')">Deals</button>
+            <button class="mt5-hsort" onclick="mt5FetchHistory()" aria-label="Refresh"><i class="fa-solid fa-clock"></i></button>
+        </div>
+        <div class="mt5-history-period">
+            <i class="fa-regular fa-calendar"></i>
+            <select id="mt5-history-period" onchange="mt5FetchHistory()">
+                <option value="today">Today</option>
+                <option value="week">Last week</option>
+                <option value="month" selected>Last month</option>
+                <option value="3months">Last 3 months</option>
+                <option value="all">All history</option>
+            </select>
+        </div>
+
+        <div id="mt5-history-body" style="flex:1; overflow-y:auto;">
+            <div class="mt5-empty-msg">Loading…</div>
+        </div>
+
+        <div class="mt5-history-summary" id="mt5-history-summary">
+            <div class="mt5-hist-sum-row"><span>Profit</span><span id="hist-sum-profit">0.00</span></div>
+            <div class="mt5-hist-sum-row"><span>Credit</span><span id="hist-sum-credit">0.00</span></div>
+            <div class="mt5-hist-sum-row"><span>Deposit</span><span id="hist-sum-deposit">0.00</span></div>
+            <div class="mt5-hist-sum-row"><span>Withdrawal</span><span id="hist-sum-withdrawal">0.00</span></div>
+            <div class="mt5-hist-sum-row"><span>Swap</span><span id="hist-sum-swap">0.00</span></div>
+            <div class="mt5-hist-sum-row"><span>Commission</span><span id="hist-sum-commission">0.00</span></div>
+            <div class="mt5-hist-sum-row mt5-hist-sum-balance"><span>Balance</span><span id="hist-sum-balance">0.00</span></div>
+        </div>
+    </div>
+
+    <!-- Settings -->
+    <div id="tab-settings" class="mt5-content" style="display:none;">
+        <div class="mt5-set-title">Settings</div>
+
+        <div class="mt5-set-card" style="position:relative;">
+            <div class="mt5-set-demo-ribbon">Real</div>
+            <div class="mt5-set-account-info">
+                <div class="mt5-set-account-name">{{ request.user.get_full_name|default:request.user.username }}</div>
+                <div class="mt5-set-account-broker">PATREOAIX Ltd.</div>
+                <div class="mt5-set-account-id">{{ request.user.id }} - PATREOAIX-Live</div>
+                <div class="mt5-set-account-server">Access Point 1</div>
+            </div>
+            <a href="{% url 'profile' %}" class="mt5-set-row" style="border-bottom:none;">
+                <div style="width:30px;flex-shrink:0;"></div>
+                <div class="mt5-set-row-text" style="color:var(--mt5-dim);font-size:13px;">View account details</div>
+                <div class="mt5-set-chevron"></div>
+            </a>
+        </div>
+
+        <div class="mt5-set-card">
+            <a href="{% url 'profile' %}" class="mt5-set-row">
+                <div class="mt5-set-icon" style="background:var(--mt5-badge-green);"><i class="fa-solid fa-user-plus"></i></div>
+                <div class="mt5-set-row-text">New Account</div>
+                <div class="mt5-set-chevron"></div>
+            </a>
+            <a href="{% url 'notification_settings' %}" class="mt5-set-row">
+                <div class="mt5-set-icon" style="background:var(--mt5-badge-blue);"><i class="fa-solid fa-envelope"></i></div>
+                <div class="mt5-set-row-text">
+                    <div class="mt5-set-row-label">Mailbox</div>
+                    <div class="mt5-set-row-sub">You have registered a new account</div>
+                </div>
+                <div class="mt5-set-chevron"></div>
+            </a>
+            <a href="{% url 'news_sentiment' %}" class="mt5-set-row">
+                <div class="mt5-set-icon" style="background:var(--mt5-badge-orange);"><i class="fa-solid fa-newspaper"></i></div>
+                <div class="mt5-set-row-text">News</div>
+                <div class="mt5-set-chevron"></div>
+            </a>
+            <a href="{% url 'economic_calendar' %}" class="mt5-set-row">
+                <div class="mt5-set-icon" style="background:var(--mt5-badge-red);"><i class="fa-solid fa-calendar-days"></i></div>
+                <div class="mt5-set-row-text">Economic Calendar</div>
+                <div class="mt5-set-chevron"></div>
+            </a>
+        </div>
+
+        <div class="mt5-set-card">
+            <a href="{% url 'ai_support' %}" class="mt5-set-row">
+                <div class="mt5-set-icon" style="background:var(--mt5-badge-blue);"><i class="fa-solid fa-comment-dots"></i></div>
+                <div class="mt5-set-row-text">
+                    <div class="mt5-set-row-label">Chat and Messages</div>
+                    <div class="mt5-set-row-sub">Sign in to PATREOAIX community!</div>
+                </div>
+                <div class="mt5-set-chevron"></div>
+            </a>
+            <a href="{% url 'referral_dashboard' %}" class="mt5-set-row">
+                <div class="mt5-set-icon" style="background:var(--mt5-badge-blue);"><i class="fa-solid fa-user-group"></i></div>
+                <div class="mt5-set-row-text">Traders Community</div>
+                <div class="mt5-set-chevron"></div>
+            </a>
+            <a href="{% url 'ai_strategy_builder' %}" class="mt5-set-row">
+                <div class="mt5-set-icon" style="background:var(--mt5-badge-blue);"><i class="fa-solid fa-robot"></i></div>
+                <div class="mt5-set-row-text">Algo Trading</div>
+                <div class="mt5-set-chevron"></div>
+            </a>
+        </div>
+
+        <div class="mt5-set-card">
+            <a href="{% url 'profile_security' %}" class="mt5-set-row">
+                <div class="mt5-set-icon" style="background:var(--mt5-badge-green);"><i class="fa-solid fa-key"></i></div>
+                <div class="mt5-set-row-text">
+                    <div class="mt5-set-row-label">OTP</div>
+                    <div class="mt5-set-row-sub">One-time password generator</div>
+                </div>
+                <div class="mt5-set-chevron"></div>
+            </a>
+            <a href="{% url 'notification_settings' %}" class="mt5-set-row">
+                <div class="mt5-set-icon" style="background:var(--mt5-badge-blue);"><span style="font-weight:800;font-size:14px;">A文</span></div>
+                <div class="mt5-set-row-text">
+                    <div class="mt5-set-row-label">Interface</div>
+                    <div class="mt5-set-row-sub">English</div>
+                </div>
+                <div class="mt5-set-chevron"></div>
+            </a>
+            <a href="{% url 'market_overview' %}" class="mt5-set-row">
+                <div class="mt5-set-icon" style="background:var(--mt5-badge-blue);"><i class="fa-solid fa-chart-column"></i></div>
+                <div class="mt5-set-row-text">Charts</div>
+                <div class="mt5-set-chevron"></div>
+            </a>
+            <button type="button" onclick="mt5OpenJournal()" class="mt5-set-row">
+                <div class="mt5-set-icon" style="background:var(--mt5-badge-gray);"><i class="fa-solid fa-book"></i></div>
+                <div class="mt5-set-row-text">Journal</div>
+                <div class="mt5-set-chevron"></div>
+            </button>
+            <button type="button" onclick="mt5OpenSymbolPicker()" class="mt5-set-row">
+                <div class="mt5-set-icon" style="background:var(--mt5-badge-blue);"><i class="fa-solid fa-list"></i></div>
+                <div class="mt5-set-row-text">Symbols</div>
+                <div class="mt5-set-chevron"></div>
+            </button>
+            <a href="{% url 'dashboard' %}" class="mt5-set-row">
+                <div class="mt5-set-icon" style="background:var(--mt5-badge-silver);"><i class="fa-solid fa-house"></i></div>
+                <div class="mt5-set-row-text">Back to Dashboard</div>
+                <div class="mt5-set-chevron"></div>
+            </a>
+            <a href="{% url 'notification_settings' %}" class="mt5-set-row">
+                <div class="mt5-set-icon" style="background:var(--mt5-badge-blue);"><i class="fa-solid fa-gear"></i></div>
+                <div class="mt5-set-row-text">Settings</div>
+                <div class="mt5-set-chevron"></div>
+            </a>
+        </div>
+
+        <div style="padding: 14px 16px 30px;">
+            <form method="POST" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button type="submit" style="width: 100%; padding: 14px; border-radius: 12px; background: color-mix(in srgb, var(--mt5-red-bg) 15%, transparent); border: 1px solid color-mix(in srgb, var(--mt5-red-bg) 30%, transparent); color: var(--mt5-red); font-size: 15px; font-weight: 600; font-family: inherit; cursor: pointer;">
+                    <i class="fa-solid fa-right-from-bracket" style="margin-right: 8px;"></i>Log Out
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Bottom nav -->
+<nav id="mt5-bottom-nav">
+    <button class="mt5-nav-item" data-tab="quotes" onclick="mt5SwitchTab('quotes')"><i class="fa-solid fa-arrow-down-up-across-line"></i><span>Quotes</span></button>
+    <button class="mt5-nav-item" data-tab="chart" onclick="mt5SwitchTab('chart')"><i class="fa-solid fa-chart-column"></i><span>Chart</span></button>
+    <button class="mt5-nav-item active" data-tab="trade" onclick="mt5SwitchTab('trade')"><i class="fa-solid fa-arrow-right-arrow-left"></i><span>Trade</span></button>
+    <button class="mt5-nav-item" data-tab="history" onclick="mt5SwitchTab('history')"><i class="fa-solid fa-clock-rotate-left"></i><span>History</span></button>
+    <button class="mt5-nav-item" data-tab="settings" onclick="mt5SwitchTab('settings')"><i class="fa-solid fa-gear"></i><span>Settings</span></button>
+</nav>
+
+<!-- Position detail sheet -->
+<div id="mt5-sheet">
+    <div class="backdrop" onclick="mt5CloseSheet()"></div>
+    <div class="panel">
+        <div class="mt5-sheet-detail">
+            <div class="line-1">
+                <div class="sym-line"><span id="sheet-sym">—</span><span id="sheet-dir" class="dir buy">buy</span><span id="sheet-vol" class="vol">0.00</span></div>
+                <div class="ticket" id="sheet-ticket">#—</div>
+            </div>
+            <div class="name" id="sheet-name">—</div>
+            <div class="price-line"><div class="prices" id="sheet-prices">— → —</div><div class="pnl" id="sheet-pnl">0.00</div></div>
+            <div class="delta" id="sheet-delta">—</div>
+            <div class="info-grid">
+                <div class="k">S/L:</div><div class="v" id="sheet-sl">—</div>
+                <div class="k">Swap:</div><div class="v" id="sheet-swap">0.00</div>
+                <div class="k">T/P:</div><div class="v" id="sheet-tp">—</div>
+                <div class="k">Commission:</div><div class="v" id="sheet-commission">0.00</div>
+                <div class="k">Trailing:</div><div class="v" id="sheet-trailing">—</div>
+                <div class="k">Margin:</div><div class="v" id="sheet-margin">0.00</div>
+                <div class="k">Opened:</div><div class="v" id="sheet-opened" style="grid-column: span 3;">—</div>
+            </div>
+        </div>
+        <div class="mt5-sheet-actions" id="mt5-sheet-actions"></div>
+        <button class="mt5-sheet-cancel" onclick="mt5CloseSheet()">Cancel</button>
+    </div>
+</div>
+
+<!-- Action sheet -->
+<div id="mt5-symbol-sheet">
+    <div class="backdrop" onclick="mt5CloseActionSheet()"></div>
+    <div class="panel">
+        <div class="mt5-sym-title" id="mt5-as-title"></div>
+        <div id="mt5-as-body" style="display:flex;flex-direction:column;gap:10px;"></div>
+        <button class="mt5-sym-action cancel" onclick="mt5CloseActionSheet()">Cancel</button>
+    </div>
+</div>
+
+<!-- Order panel -->
+<div id="mt5-order-panel" class="mt5-order-panel">
+    <div class="mt5-op-header">
+        <button class="mt5-op-back" onclick="mt5CloseOrderPanel()"><i class="fa-solid fa-chevron-left"></i></button>
+        <div class="mt5-op-symbol" onclick="mt5OpPickSymbol()" style="cursor:pointer;">
+            <div class="sym-line"><span id="mt5-op-symbol">EURUSD</span><i class="fa-solid fa-chevron-down" id="mt5-op-symbol-caret"></i></div>
+            <div class="sym-name" id="mt5-op-symbol-name">Euro vs US Dollar</div>
+        </div>
+    </div>
+
+    <div class="mt5-op-execution-row" id="mt5-op-type-row" style="position:relative;">
+        <span id="mt5-op-type-label">Market Execution</span>
+        <i class="fa-solid fa-chevron-down" id="mt5-op-type-caret"></i>
+        <select id="mt5-op-type" onchange="mt5OpSetType(this.value)" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;font-size:16px;">
+            <option value="MARKET">Market Execution</option>
+            <option value="BUY_LIMIT">Buy Limit</option>
+            <option value="SELL_LIMIT">Sell Limit</option>
+            <option value="BUY_STOP">Buy Stop</option>
+            <option value="SELL_STOP">Sell Stop</option>
+            <option value="BUY_STOP_LIMIT">Buy Stop Limit</option>
+            <option value="SELL_STOP_LIMIT">Sell Stop Limit</option>
+        </select>
+    </div>
+
+    <div class="mt5-op-volume-strip" id="mt5-op-volume-row">
+        <button type="button" data-repeat onclick="mt5OpSetVolume(-5)">-0.5</button>
+        <button type="button" data-repeat onclick="mt5OpSetVolume(-1)">-0.1</button>
+        <div class="mt5-op-volume-center" onclick="mt5OpEditVolume()"><span id="mt5-op-volume">0.01</span></div>
+        <button type="button" data-repeat onclick="mt5OpSetVolume(1)">+0.1</button>
+        <button type="button" data-repeat onclick="mt5OpSetVolume(5)">+0.5</button>
+    </div>
+
+    <div class="mt5-op-row" id="mt5-op-row-price" data-field="price">
+        <span class="mt5-op-label" id="mt5-op-price-label">Price</span>
+        <button class="mt5-op-minus" data-repeat onclick="mt5OpStep('price', -1)"><i class="fa-solid fa-minus"></i></button>
+        <span class="mt5-op-value" id="mt5-op-val-price" onclick="mt5OpEditField('price')">not set</span>
+        <button class="mt5-op-plus" data-repeat onclick="mt5OpStep('price', 1)"><i class="fa-solid fa-plus"></i></button>
+    </div>
+
+    <div class="mt5-op-row" id="mt5-op-row-stoplimit" data-field="stoplimit">
+        <span class="mt5-op-label">Stop Limit price</span>
+        <button class="mt5-op-minus" data-repeat onclick="mt5OpStep('stoplimit', -1)"><i class="fa-solid fa-minus"></i></button>
+        <span class="mt5-op-value" id="mt5-op-val-stoplimit" onclick="mt5OpEditField('stoplimit')">not set</span>
+        <button class="mt5-op-plus" data-repeat onclick="mt5OpStep('stoplimit', 1)"><i class="fa-solid fa-plus"></i></button>
+    </div>
+
+    <div class="mt5-op-row" id="mt5-op-row-sl" data-field="sl">
+        <span class="mt5-op-label">Stop Loss</span>
+        <button class="mt5-op-minus" data-repeat onclick="mt5OpStep('sl', -1)"><i class="fa-solid fa-minus"></i></button>
+        <span class="mt5-op-value" id="mt5-op-val-sl" onclick="mt5OpEditField('sl')">not set</span>
+        <button class="mt5-op-plus" data-repeat onclick="mt5OpStep('sl', 1)"><i class="fa-solid fa-plus"></i></button>
+    </div>
+
+    <div class="mt5-op-row" id="mt5-op-row-tp" data-field="tp">
+        <span class="mt5-op-label">Take Profit</span>
+        <button class="mt5-op-minus" data-repeat onclick="mt5OpStep('tp', -1)"><i class="fa-solid fa-minus"></i></button>
+        <span class="mt5-op-value" id="mt5-op-val-tp" onclick="mt5OpEditField('tp')">not set</span>
+        <button class="mt5-op-plus" data-repeat onclick="mt5OpStep('tp', 1)"><i class="fa-solid fa-plus"></i></button>
+    </div>
+
+    <div class="mt5-op-row mt5-op-fill" id="mt5-op-row-expiration">
+        <span class="mt5-op-label">Expiration</span>
+        <select class="mt5-op-select" id="mt5-op-expiration" onchange="mt5OpSetExpiration(this.value)">
+            <option value="GTC">GTC</option>
+            <option value="DAY">Today</option>
+            <option value="SPECIFIED">Specified</option>
+        </select>
+    </div>
+    <div class="mt5-op-row mt5-op-fill" id="mt5-op-row-expires-at">
+        <span class="mt5-op-label">Expiration time</span>
+        <input class="mt5-op-select" type="datetime-local" id="mt5-op-expires-at">
+    </div>
+    <div class="mt5-op-row mt5-op-fill" id="mt5-op-row-fill">
+        <span class="mt5-op-label">Fill Policy</span>
+        <span class="mt5-op-value">Fill or Kill</span>
+    </div>
+    <div class="mt5-op-row mt5-op-fill" id="mt5-op-row-info">
+        <span class="mt5-op-label" id="mt5-op-info-label">Margin</span>
+        <span class="mt5-op-value" id="mt5-op-info-value">—</span>
+    </div>
+
+    <div class="mt5-op-prices">
+        <div class="mt5-op-price sell" id="mt5-op-bid">—</div>
+        <div class="mt5-op-price buy" id="mt5-op-ask">—</div>
+    </div>
+
+    <div class="mt5-op-buttons" id="mt5-op-buttons">
+        <button class="mt5-op-sell" id="mt5-op-btn-sell" onclick="mt5OpExecute('SELL')">Sell by Market</button>
+        <button class="mt5-op-buy"  id="mt5-op-btn-buy"  onclick="mt5OpExecute('BUY')">Buy by Market</button>
+        <button class="mt5-op-buy"  id="mt5-op-btn-main" style="display:none;grid-column:span 2;" onclick="mt5OpMain()">Place</button>
+    </div>
+
+    <div class="mt5-op-note" id="mt5-op-note">Attention! The trade will be executed at market conditions, difference with requested price may be significant!</div>
+</div>
+
+<!-- Symbols picker -->
+<div id="mt5-symbols-panel" class="mt5-order-panel">
+    <div class="mt5-op-header">
+        <button class="mt5-op-back" onclick="mt5CloseSymbolPicker()"><i class="fa-solid fa-chevron-left"></i></button>
+        <div class="mt5-op-symbol"><div class="sym-line">Symbols</div><div class="sym-name">Tap to show / hide in Quotes</div></div>
+    </div>
+    <div style="padding: 0 16px 10px;">
+        <input id="mt5-symbol-search" class="mt5-search" type="search" placeholder="Search symbol" oninput="mt5RenderSymbolPicker()">
+    </div>
+    <div id="mt5-symbols-list" style="flex:1;overflow-y:auto;"></div>
+</div>
+
+<!-- Indicators -->
+<div id="mt5-ind-panel" class="mt5-order-panel">
+    <div class="mt5-op-header">
+        <button class="mt5-op-back" onclick="mt5CloseIndicators()"><i class="fa-solid fa-chevron-left"></i></button>
+        <div class="mt5-op-symbol"><div class="sym-line">Indicators</div><div class="sym-name" id="mt5-ind-sub">Tap an indicator to change or delete it</div></div>
+    </div>
+    <div id="mt5-ind-list" style="flex:1;overflow-y:auto;padding-bottom:24px;"></div>
+</div>
+<div id="mt5-ind-edit" class="mt5-order-panel" style="z-index:510;">
+    <div class="mt5-op-header">
+        <button class="mt5-op-back" onclick="mt5CloseIndicatorEditor()"><i class="fa-solid fa-chevron-left"></i></button>
+        <div class="mt5-op-symbol"><div class="sym-line" id="mt5-ind-edit-title">Indicator</div><div class="sym-name">Parameters</div></div>
+    </div>
+    <div id="mt5-ind-edit-body" style="flex:1;overflow-y:auto;"></div>
+    <div class="mt5-op-buttons">
+        <button class="mt5-op-sell" id="mt5-ind-delete" onclick="mt5DeleteIndicator()">Delete</button>
+        <button class="mt5-op-buy" onclick="mt5SaveIndicatorEditor()">Done</button>
+    </div>
+</div>
+
+<!-- Journal -->
+<div id="mt5-journal-panel" class="mt5-order-panel">
+    <div class="mt5-op-header">
+        <button class="mt5-op-back" onclick="mt5CloseJournal()"><i class="fa-solid fa-chevron-left"></i></button>
+        <div class="mt5-op-symbol"><div class="sym-line">Journal</div><div class="sym-name">Trade server messages</div></div>
+        <button class="mt5-op-back" style="left:auto;right:16px;" onclick="mt5ClearJournal()" title="Clear"><i class="fa-solid fa-trash-can"></i></button>
+    </div>
+    <div id="mt5-journal-list" style="flex:1;overflow-y:auto;"></div>
+</div>
+
+<!-- Depth of Market -->
+<style>
+    #mt5-dom-modal { display:none; position:fixed; inset:0; z-index:10000; background:var(--mt5-bg); flex-direction:column;
+        font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Inter',sans-serif; }
+    #mt5-dom-modal.show { display:flex; }
+    .mt5-dom-head { display:flex; align-items:center; gap:12px; padding:14px 16px; border-bottom:1px solid var(--mt5-line); color:var(--mt5-text); }
+    .mt5-dom-head button { background:none; border:0; color:var(--mt5-blue); font-size:18px; cursor:pointer; }
+    .mt5-dom-head .t { font-size:17px; font-weight:600; }
+    .mt5-dom-head .s { font-size:12px; color:var(--mt5-dim); }
+    #mt5-dom-body { flex:1; overflow-y:auto; padding:6px 0; }
+    .mt5-dom-row { position:relative; display:flex; justify-content:space-between; padding:7px 16px; font-size:14px;
+        font-variant-numeric:tabular-nums; color:var(--mt5-text); }
+    .mt5-dom-row .bar { position:absolute; top:0; bottom:0; right:0; opacity:.22; }
+    .mt5-dom-row.ask .bar { background:var(--mt5-dom-ask-bar); } .mt5-dom-row.bid .bar { background:var(--mt5-dom-bid-bar); }
+    .mt5-dom-row span { position:relative; }
+    .mt5-dom-row.ask .p { color:var(--mt5-dom-ask-text); } .mt5-dom-row.bid .p { color:var(--mt5-dom-bid-text); }
+    .mt5-dom-mid { text-align:center; padding:8px; font-size:13px; color:var(--mt5-dim); border-top:1px solid var(--mt5-line); border-bottom:1px solid var(--mt5-line); }
+    .mt5-dom-msg { padding:40px 24px; text-align:center; color:var(--mt5-dim); font-size:14px; line-height:1.5; }
+</style>
+
+<div id="mt5-dom-modal">
+    <div class="mt5-dom-head">
+        <button onclick="mt5CloseDOM()"><i class="fa-solid fa-chevron-left"></i></button>
+        <div>
+            <div class="t" id="mt5-dom-title">Depth Of Market</div>
+            <div class="s" id="mt5-dom-sub">Binance order book</div>
+        </div>
+    </div>
+    <div id="mt5-dom-body"></div>
+</div>
+
+{{ mt5_config|json_script:"mt5-config" }}
+
+<script src="https://unpkg.com/lightweight-charts@5.0.8/dist/lightweight-charts.standalone.production.js"></script>
+<script>window.MT5LWC = window.LightweightCharts;</script>
+<script>
+// ═══════════════════════════════════════════════════════════════
+// MT5 STANDARD INDICATORS
+// ═══════════════════════════════════════════════════════════════
+const MT5I = (() => {
+    const MA_SMA = 0, MA_EMA = 1, MA_SMMA = 2, MA_LWMA = 3;
+    const zeros = n => new Array(n).fill(0);
+    const blank = (buf, upto) => { for (let i = 0; i < Math.min(upto, buf.length); i++) buf[i] = NaN; return buf; };
+    function appliedPrice(b, kind) {
+        const n = b.c.length, out = new Array(n);
+        for (let i = 0; i < n; i++) {
+            switch (kind) {
+                case 'open': out[i] = b.o[i]; break;
+                case 'high': out[i] = b.h[i]; break;
+                case 'low': out[i] = b.l[i]; break;
+                case 'median': out[i] = (b.h[i] + b.l[i]) / 2; break;
+                case 'typical': out[i] = (b.h[i] + b.l[i] + b.c[i]) / 3; break;
+                case 'weighted': out[i] = (b.h[i] + b.l[i] + 2 * b.c[i]) / 4; break;
+                default: out[i] = b.c[i];
+            }
+        }
+        return out;
+    }
+    function SimpleMA(pos, period, price) {
+        let r = 0;
+        if (pos >= period - 1 && period > 0) { for (let i = 0; i < period; i++) r += price[pos - i]; r /= period; }
+        return r;
+    }
+    function ExponentialMA(pos, period, prev, price) {
+        if (period <= 0) return 0;
+        const pr = 2 / (period + 1);
+        return price[pos] * pr + prev * (1 - pr);
+    }
+    function SmoothedMA(pos, period, prev, price) {
+        let r = 0;
+        if (period > 0) {
+            if (pos === period - 1) { for (let i = 0; i < period; i++) r += price[pos - i]; r /= period; }
+            if (pos >= period) r = (prev * (period - 1) + price[pos]) / period;
+        }
+        return r;
+    }
+    function LinearWeightedMA(pos, period, price) {
+        let r = 0, sum = 0, wsum = 0;
+        if (pos >= period - 1 && period > 0) {
+            for (let i = period; i > 0; i--) { wsum += i; sum += price[pos - i + 1] * (period - i + 1); }
+            r = sum / wsum;
+        }
+        return r;
+    }
+    function onBuffer(method, price, period, begin = 0) {
+        const n = price.length, buf = zeros(n);
+        if (period <= 1 || n - begin < period) {
+            if (period === 1) for (let i = begin; i < n; i++) buf[i] = price[i];
+            return buf;
+        }
+        const limit = period + begin;
+        if (method === MA_EMA) {
+            const k = 2 / (1 + period);
+            buf[begin] = price[begin];
+            for (let i = begin + 1; i < n; i++) buf[i] = price[i] * k + buf[i - 1] * (1 - k);
+        } else if (method === MA_SMMA) {
+            let first = 0;
+            for (let i = begin; i < limit; i++) first += price[i];
+            buf[limit - 1] = first / period;
+            for (let i = limit; i < n; i++) buf[i] = (buf[i - 1] * (period - 1) + price[i]) / period;
+        } else if (method === MA_LWMA) {
+            let wsum = 0, first = 0;
+            for (let i = begin; i < limit; i++) { const k = i - begin + 1; wsum += k; first += k * price[i]; }
+            buf[limit - 1] = first / wsum;
+            for (let i = limit; i < n; i++) { let s = 0; for (let j = 0; j < period; j++) s += (period - j) * price[i - j]; buf[i] = s / wsum; }
+        } else {
+            let first = 0;
+            for (let i = begin; i < limit; i++) first += price[i];
+            buf[limit - 1] = first / period;
+            for (let i = limit; i < n; i++) buf[i] = buf[i - 1] + (price[i] - price[i - period]) / period;
+        }
+        return buf;
+    }
+    function iMA(price, period, method) { return onBuffer(method, price, period, 0); }
+    function MA(b, p) { return [blank(iMA(appliedPrice(b, p.price), p.period, p.method), p.period - 1)]; }
+    function BB(b, p) {
+        const price = appliedPrice(b, p.price), n = price.length, P = p.period;
+        const ml = zeros(n), tl = zeros(n), bl = zeros(n);
+        for (let i = 0; i < n; i++) {
+            ml[i] = SimpleMA(i, P, price);
+            let sd = 0;
+            if (i >= P) { for (let j = 0; j < P; j++) sd += Math.pow(price[i - j] - ml[i], 2); sd = Math.sqrt(sd / P); }
+            tl[i] = ml[i] + p.deviation * sd;
+            bl[i] = ml[i] - p.deviation * sd;
+        }
+        return [blank(ml, P - 1), blank(tl, P - 1), blank(bl, P - 1)];
+    }
+    function Envelopes(b, p) {
+        const ma = iMA(appliedPrice(b, p.price), p.period, p.method), n = ma.length;
+        const up = new Array(n).fill(NaN), dn = new Array(n).fill(NaN);
+        for (let i = p.period; i < n; i++) { up[i] = (1 + p.deviation / 100) * ma[i]; dn[i] = (1 - p.deviation / 100) * ma[i]; }
+        return [up, dn];
+    }
+    function Ichimoku(b, p) {
+        const n = b.c.length;
+        const hi = (r, i) => { let v = b.h[i]; for (let k = i; k > i - r && k >= 0; k--) if (v < b.h[k]) v = b.h[k]; return v; };
+        const lo = (r, i) => { let v = b.l[i]; for (let k = i; k > i - r && k >= 0; k--) if (v > b.l[k]) v = b.l[k]; return v; };
+        const tenkan = new Array(n), kijun = new Array(n), spanA = new Array(n), spanB = new Array(n), chikou = new Array(n);
+        for (let i = 0; i < n; i++) {
+            chikou[i] = b.c[i];
+            tenkan[i] = (hi(p.tenkan, i) + lo(p.tenkan, i)) / 2;
+            kijun[i] = (hi(p.kijun, i) + lo(p.kijun, i)) / 2;
+            spanA[i] = (tenkan[i] + kijun[i]) / 2;
+            spanB[i] = (hi(p.senkou, i) + lo(p.senkou, i)) / 2;
+        }
+        return [blank(tenkan, p.tenkan), blank(kijun, p.kijun), blank(spanA, p.senkou - 1), blank(spanB, p.senkou - 1), chikou];
+    }
+    function SAR(b, p) {
+        const n = b.c.length, H = b.h, L = b.l, step = p.step, max = p.maximum;
+        const sar = zeros(n), ep = zeros(n), af = zeros(n);
+        if (n < 3) return [new Array(n).fill(NaN)];
+        const getHigh = (pos, start) => { let r = H[start]; for (let i = start; i <= pos; i++) if (r < H[i]) r = H[i]; return r; };
+        const getLow = (pos, start) => { let r = L[start]; for (let i = start; i <= pos; i++) if (r > L[i]) r = L[i]; return r; };
+        let lastRev = 0, long = false;
+        af[0] = step; af[1] = step;
+        sar[0] = H[0]; sar[1] = getHigh(1, lastRev);
+        ep[0] = L[1]; ep[1] = L[1];
+        for (let i = 1; i < n - 1; i++) {
+            if (long) { if (sar[i] > L[i]) { long = false; sar[i] = getHigh(i, lastRev); ep[i] = L[i]; lastRev = i; af[i] = step; } }
+            else { if (sar[i] < H[i]) { long = true; sar[i] = getLow(i, lastRev); ep[i] = H[i]; lastRev = i; af[i] = step; } }
+            if (long) {
+                if (H[i] > ep[i - 1] && i !== lastRev) { ep[i] = H[i]; af[i] = Math.min(af[i - 1] + step, max); }
+                else if (i !== lastRev) { af[i] = af[i - 1]; ep[i] = ep[i - 1]; }
+                sar[i + 1] = sar[i] + af[i] * (ep[i] - sar[i]);
+                if (sar[i + 1] > L[i] || sar[i + 1] > L[i - 1]) sar[i + 1] = Math.min(L[i], L[i - 1]);
+            } else {
+                if (L[i] < ep[i - 1] && i !== lastRev) { ep[i] = L[i]; af[i] = Math.min(af[i - 1] + step, max); }
+                else if (i !== lastRev) { af[i] = af[i - 1]; ep[i] = ep[i - 1]; }
+                sar[i + 1] = sar[i] + af[i] * (ep[i] - sar[i]);
+                if (sar[i + 1] < H[i] || sar[i + 1] < H[i - 1]) sar[i + 1] = Math.max(H[i], H[i - 1]);
+            }
+        }
+        return [sar];
+    }
+    function StdDev(b, p) {
+        const price = appliedPrice(b, p.price), n = price.length, P = p.period;
+        const ma = zeros(n), sd = new Array(n).fill(NaN);
+        for (let i = P - 1; i < n; i++) {
+            if (p.method === MA_EMA) ma[i] = i === P - 1 ? SimpleMA(i, P, price) : ExponentialMA(i, P, ma[i - 1], price);
+            else if (p.method === MA_SMMA) ma[i] = i === P - 1 ? SimpleMA(i, P, price) : SmoothedMA(i, P, ma[i - 1], price);
+            else if (p.method === MA_LWMA) ma[i] = LinearWeightedMA(i, P, price);
+            else ma[i] = SimpleMA(i, P, price);
+            let t = 0;
+            for (let j = 0; j < P; j++) t += Math.pow(price[i - j] - ma[i], 2);
+            sd[i] = Math.sqrt(t / P);
+        }
+        return [sd];
+    }
+    function DEMA(b, p) {
+        const price = appliedPrice(b, p.price), P = p.period;
+        const e1 = onBuffer(MA_EMA, price, P, 0), e2 = onBuffer(MA_EMA, e1, P, P - 1);
+        return [blank(e1.map((v, i) => 2 * v - e2[i]), 2 * P - 2)];
+    }
+    function TEMA(b, p) {
+        const price = appliedPrice(b, p.price), P = p.period;
+        const e1 = onBuffer(MA_EMA, price, P, 0), e2 = onBuffer(MA_EMA, e1, P, P - 1), e3 = onBuffer(MA_EMA, e2, P, 2 * P - 2);
+        return [blank(e1.map((v, i) => 3 * v - 3 * e2[i] + e3[i]), 3 * P - 3)];
+    }
+    function AMA(b, p) {
+        const price = appliedPrice(b, p.price), n = price.length, P = p.period;
+        const fast = 2 / (p.fast + 1), slow = 2 / (p.slow + 1), out = zeros(n);
+        if (n < P + 1) return [new Array(n).fill(NaN)];
+        out[P - 1] = price[P - 1];
+        for (let i = P; i < n; i++) {
+            const signal = Math.abs(price[i] - price[i - P]);
+            let noise = 0;
+            for (let d = 0; d < P; d++) noise += Math.abs(price[i - d] - price[i - d - 1]);
+            const er = noise !== 0 ? signal / noise : 0;
+            const ssc = er * (fast - slow) + slow;
+            out[i] = Math.pow(ssc, 2) * (price[i] - out[i - 1]) + out[i - 1];
+        }
+        return [blank(out, P)];
+    }
+    function FrAMA(b, p) {
+        const price = appliedPrice(b, p.price), n = price.length, P = p.period, out = zeros(n);
+        if (n < 2 * P) return [new Array(n).fill(NaN)];
+        const hh = (s, d) => { if (s < 0 || s - d + 1 < 0) return 0; let r = b.h[s]; for (let i = s - d + 1; i < s; i++) if (b.h[i] > r) r = b.h[i]; return r; };
+        const ll = (s, d) => { if (s < 0 || s - d + 1 < 0) return 0; let r = b.l[s]; for (let i = s - d + 1; i < s; i++) if (b.l[i] < r) r = b.l[i]; return r; };
+        const limit = 2 * P - 1;
+        for (let i = 0; i <= limit; i++) out[i] = price[i];
+        for (let i = limit; i < n; i++) {
+            const n1 = (hh(i, P) - ll(i, P)) / P, n2 = (hh(i - P, P) - ll(i - P, P)) / P, n3 = (hh(i, 2 * P) - ll(i, 2 * P)) / (2 * P);
+            const D = (Math.log(n1 + n2) - Math.log(n3)) / Math.log(2);
+            const alfa = Math.exp(-4.6 * (D - 1));
+            out[i] = alfa * price[i] + (1 - alfa) * out[i - 1];
+        }
+        return [blank(out, 2 * P - 1)];
+    }
+    function VIDYA(b, p) {
+        const price = appliedPrice(b, p.price), n = price.length, f = 2 / (1 + p.ema), out = zeros(n);
+        const limit = p.ema + p.cmo - 1;
+        if (n < limit) return [new Array(n).fill(NaN)];
+        const cmo = pos => {
+            let up = 0, dn = 0;
+            if (pos >= p.cmo) {
+                for (let i = 0; i < p.cmo; i++) { const d = price[pos - i] - price[pos - i - 1]; if (d > 0) up += d; else dn += -d; }
+                if (up + dn !== 0) return (up - dn) / (up + dn);
+            }
+            return 0;
+        };
+        for (let i = 0; i < limit; i++) out[i] = price[i];
+        for (let i = limit; i < n; i++) { const m = Math.abs(cmo(i)); out[i] = price[i] * f * m + out[i - 1] * (1 - f * m); }
+        return [blank(out, limit)];
+    }
+    function ADX(b, p) {
+        const n = b.c.length, P = p.period;
+        const adx = zeros(n), pdi = zeros(n), ndi = zeros(n), pd = zeros(n), nd = zeros(n), tmp = zeros(n);
+        for (let i = 1; i < n; i++) {
+            const hi = b.h[i], phi = b.h[i - 1], lo = b.l[i], plo = b.l[i - 1], pcl = b.c[i - 1];
+            let dP = hi - phi, dN = plo - lo;
+            if (dP < 0) dP = 0;
+            if (dN < 0) dN = 0;
+            if (dP > dN) dN = 0; else if (dP < dN) dP = 0; else { dP = 0; dN = 0; }
+            const tr = Math.max(Math.abs(hi - lo), Math.abs(hi - pcl), Math.abs(lo - pcl));
+            pd[i] = tr !== 0 ? 100 * dP / tr : 0;
+            nd[i] = tr !== 0 ? 100 * dN / tr : 0;
+            pdi[i] = ExponentialMA(i, P, pdi[i - 1], pd);
+            ndi[i] = ExponentialMA(i, P, ndi[i - 1], nd);
+            const s = pdi[i] + ndi[i];
+            tmp[i] = s !== 0 ? 100 * Math.abs((pdi[i] - ndi[i]) / s) : 0;
+            adx[i] = ExponentialMA(i, P, adx[i - 1], tmp);
+        }
+        return [blank(adx, 2 * P), blank(pdi, P), blank(ndi, P)];
+    }
+    function ADXW(b, p) {
+        const n = b.c.length, P = p.period;
+        const adx = zeros(n), pdi = zeros(n), ndi = zeros(n), pds = zeros(n), nds = zeros(n), pd = zeros(n), nd = zeros(n), tr = zeros(n), atr = zeros(n), dx = zeros(n);
+        for (let i = 1; i < n; i++) {
+            const hi = b.h[i], phi = b.h[i - 1], lo = b.l[i], plo = b.l[i - 1], pcl = b.c[i - 1];
+            let dP = hi - phi, dN = plo - lo;
+            if (dP < 0) dP = 0;
+            if (dN < 0) dN = 0;
+            if (dN === dP) { dN = 0; dP = 0; } else if (dP < dN) dP = 0; else dN = 0;
+            pd[i] = dP; nd[i] = dN;
+            tr[i] = Math.max(Math.abs(hi - lo), Math.abs(hi - pcl), Math.abs(lo - pcl));
+            if (i < P) { atr[i] = 0; pdi[i] = 0; ndi[i] = 0; }
+            else { atr[i] = SmoothedMA(i, P, atr[i - 1], tr); pds[i] = SmoothedMA(i, P, pds[i - 1], pd); nds[i] = SmoothedMA(i, P, nds[i - 1], nd); }
+            if (atr[i] !== 0) { pdi[i] = 100 * pds[i] / atr[i]; ndi[i] = 100 * nds[i] / atr[i]; }
+            else { pdi[i] = 0; ndi[i] = 0; }
+            const s = pdi[i] + ndi[i];
+            dx[i] = s !== 0 ? 100 * Math.abs((pdi[i] - ndi[i]) / s) : 0;
+            adx[i] = SmoothedMA(i, P, adx[i - 1], dx);
+        }
+        return [blank(adx, 2 * P), blank(pdi, P + 1), blank(ndi, P + 1)];
+    }
+    function ATR(b, p) {
+        const n = b.c.length, P = p.period, tr = zeros(n), atr = zeros(n);
+        if (n <= P) return [new Array(n).fill(NaN)];
+        for (let i = 1; i < n; i++) tr[i] = Math.max(b.h[i], b.c[i - 1]) - Math.min(b.l[i], b.c[i - 1]);
+        let first = 0;
+        for (let i = 1; i <= P; i++) first += tr[i];
+        atr[P] = first / P;
+        for (let i = P + 1; i < n; i++) atr[i] = atr[i - 1] + (tr[i] - tr[i - P]) / P;
+        return [blank(atr, P)];
+    }
+    function Bears(b, p) {
+        const ema = iMA(b.c, p.period, MA_EMA), n = b.c.length, out = new Array(n).fill(NaN);
+        for (let i = p.period; i < n; i++) out[i] = b.l[i] - ema[i];
+        return [out];
+    }
+    function Bulls(b, p) {
+        const ema = iMA(b.c, p.period, MA_EMA), n = b.c.length, out = new Array(n).fill(NaN);
+        for (let i = p.period; i < n; i++) out[i] = b.h[i] - ema[i];
+        return [out];
+    }
+    function Chaikin(b, p) {
+        const n = b.c.length, vol = b.v;
+        const ad = (h, l, c, v) => h !== l ? (2 * c - h - l) / (h - l) * v : 0;
+        const acc = zeros(n);
+        if (n < p.slow) return [new Array(n).fill(NaN)];
+        acc[0] = ad(b.h[0], b.l[0], b.c[0], vol[0]);
+        for (let i = 1; i < n; i++) acc[i] = acc[i - 1] + ad(b.h[i], b.l[i], b.c[i], vol[i]);
+        const slow = onBuffer(p.method, acc, p.slow, 0), fast = onBuffer(p.method, acc, p.fast, 0);
+        if (p.method === MA_EMA) { slow[0] = acc[0]; fast[0] = acc[0]; }
+        return [blank(fast.map((v, i) => v - slow[i]), p.slow)];
+    }
+    function CCI(b, p) {
+        const price = appliedPrice(b, p.price), n = price.length, P = p.period, mul = 0.015 / P;
+        const out = new Array(n).fill(NaN);
+        for (let i = P - 1; i < n; i++) {
+            const sp = SimpleMA(i, P, price);
+            let d = 0;
+            for (let j = 0; j < P; j++) d += Math.abs(price[i - j] - sp);
+            d *= mul;
+            out[i] = d !== 0 ? (price[i] - sp) / d : 0;
+        }
+        return [out];
+    }
+    function DeMarker(b, p) {
+        const n = b.c.length, P = p.period, mx = zeros(n), mn = zeros(n), out = zeros(n);
+        if (n < P) return [new Array(n).fill(NaN)];
+        for (let i = 1; i < n; i++) {
+            mx[i] = b.h[i] > b.h[i - 1] ? b.h[i] - b.h[i - 1] : 0;
+            mn[i] = b.l[i - 1] > b.l[i] ? b.l[i - 1] - b.l[i] : 0;
+        }
+        for (let i = P - 1; i < n; i++) {
+            const a = SimpleMA(i, P, mx), c = SimpleMA(i, P, mn), s = a + c;
+            out[i] = s !== 0 ? a / s : 0;
+        }
+        return [blank(out, P)];
+    }
+    function Force(b, p) {
+        const ma = iMA(appliedPrice(b, p.price), p.period, p.method), n = ma.length, out = new Array(n).fill(NaN);
+        for (let i = p.period; i < n; i++) out[i] = b.v[i] * (ma[i] - ma[i - 1]);
+        return [out];
+    }
+    function MACD(b, p) {
+        const price = appliedPrice(b, p.price), n = price.length;
+        const fast = iMA(price, p.fast, MA_EMA), slow = iMA(price, p.slow, MA_EMA);
+        const macd = fast.map((v, i) => v - slow[i]);
+        const signal = onBuffer(MA_SMA, macd, p.signal, 0);
+        return [macd, blank(signal, p.signal - 1)];
+    }
+    function OsMA(b, p) {
+        const [macd] = MACD(b, p);
+        const signal = onBuffer(MA_SMA, macd, p.signal, 0);
+        return [blank(macd.map((v, i) => v - signal[i]), p.slow + p.signal - 2)];
+    }
+    function Momentum(b, p) {
+        const price = appliedPrice(b, p.price), n = price.length, out = new Array(n).fill(NaN);
+        for (let i = p.period; i < n; i++) out[i] = price[i] * 100 / price[i - p.period];
+        return [out];
+    }
+    function RSI(b, p) {
+        const price = appliedPrice(b, p.price), n = price.length, P = p.period;
+        const rsi = zeros(n), pos = zeros(n), neg = zeros(n);
+        if (n <= P) return [new Array(n).fill(NaN)];
+        let sp = 0, sn = 0;
+        for (let i = 1; i <= P; i++) { const d = price[i] - price[i - 1]; sp += d > 0 ? d : 0; sn += d < 0 ? -d : 0; }
+        pos[P] = sp / P; neg[P] = sn / P;
+        const val = i => neg[i] !== 0 ? 100 - 100 / (1 + pos[i] / neg[i]) : (pos[i] !== 0 ? 100 : 50);
+        rsi[P] = val(P);
+        for (let i = P + 1; i < n; i++) {
+            const d = price[i] - price[i - 1];
+            pos[i] = (pos[i - 1] * (P - 1) + (d > 0 ? d : 0)) / P;
+            neg[i] = (neg[i - 1] * (P - 1) + (d < 0 ? -d : 0)) / P;
+            rsi[i] = val(i);
+        }
+        return [blank(rsi, P)];
+    }
+    function RVI(b, p) {
+        const n = b.c.length, P = p.period, rvi = zeros(n), sig = zeros(n);
+        if (n <= P + 6 + 2) return [new Array(n).fill(NaN), new Array(n).fill(NaN)];
+        for (let i = P + 2; i < n; i++) {
+            let num = 0, den = 0;
+            for (let j = i; j > i - P; j--) {
+                num += b.c[j] - b.o[j] + 2 * (b.c[j - 1] - b.o[j - 1]) + 2 * (b.c[j - 2] - b.o[j - 2]) + b.c[j - 3] - b.o[j - 3];
+                den += b.h[j] - b.l[j] + 2 * (b.h[j - 1] - b.l[j - 1]) + 2 * (b.h[j - 2] - b.l[j - 2]) + b.h[j - 3] - b.l[j - 3];
+            }
+            rvi[i] = den !== 0 ? num / den : num;
+        }
+        for (let i = P + 3 + 2; i < n; i++) sig[i] = (rvi[i] + 2 * rvi[i - 1] + 2 * rvi[i - 2] + rvi[i - 3]) / 6;
+        return [blank(rvi, P - 1 + 3), blank(sig, P - 1 + 6)];
+    }
+    function Stochastic(b, p) {
+        const n = b.c.length, K = p.k, D = p.d, S = p.slowing;
+        const main = zeros(n), hh = zeros(n), ll = zeros(n);
+        if (n <= K + D + S) return [new Array(n).fill(NaN), new Array(n).fill(NaN)];
+        const closeClose = p.field === 'closeclose';
+        for (let i = K - 1; i < n; i++) {
+            let mn = 1e300, mx = -1e300;
+            for (let k = i - K + 1; k <= i; k++) {
+                const lo = closeClose ? b.c[k] : b.l[k], hi = closeClose ? b.c[k] : b.h[k];
+                if (mn > lo) mn = lo;
+                if (mx < hi) mx = hi;
+            }
+            ll[i] = mn; hh[i] = mx;
+        }
+        for (let i = K - 1 + S - 1; i < n; i++) {
+            let sl = 0, sh = 0;
+            for (let k = i - S + 1; k <= i; k++) { sl += b.c[k] - ll[k]; sh += hh[k] - ll[k]; }
+            main[i] = sh === 0 ? 100 : sl / sh * 100;
+        }
+        let signal;
+        if (p.method === MA_SMA) {
+            signal = zeros(n);
+            for (let i = D - 1; i < n; i++) { let s = 0; for (let k = 0; k < D; k++) s += main[i - k]; signal[i] = s / D; }
+        } else signal = onBuffer(p.method, main, D, K - 1 + S - 1);
+        return [blank(main, K + S - 2), blank(signal, K + D)];
+    }
+    function TRIX(b, p) {
+        const price = appliedPrice(b, p.price), n = price.length, P = p.period;
+        const e1 = onBuffer(MA_EMA, price, P, 0), e2 = onBuffer(MA_EMA, e1, P, P - 1), e3 = onBuffer(MA_EMA, e2, P, 2 * P - 2);
+        const out = new Array(n).fill(NaN);
+        for (let i = 3 * (P - 1); i < n; i++) out[i] = e3[i - 1] !== 0 ? (e3[i] - e3[i - 1]) / e3[i - 1] : 0;
+        return [out];
+    }
+    function WPR(b, p) {
+        const n = b.c.length, P = p.period, out = new Array(n).fill(NaN);
+        for (let i = P - 1; i < n; i++) {
+            let mx = b.h[i], mn = b.l[i];
+            for (let k = i - 1; k > i - P; k--) { if (mx < b.h[k]) mx = b.h[k]; if (mn > b.l[k]) mn = b.l[k]; }
+            out[i] = mx !== mn ? -(mx - b.c[i]) * 100 / (mx - mn) : (isNaN(out[i - 1]) ? 0 : out[i - 1]);
+        }
+        return [out];
+    }
+    function AD(b) {
+        const n = b.c.length, out = zeros(n);
+        for (let i = 0; i < n; i++) {
+            const hi = b.h[i], lo = b.l[i], cl = b.c[i];
+            let s = hi === lo ? 0 : ((cl - lo) - (hi - cl)) / (hi - lo) * b.v[i];
+            if (i > 0) s += out[i - 1];
+            out[i] = s;
+        }
+        return [blank(out, 1)];
+    }
+    function MFI(b, p) {
+        const n = b.c.length, P = p.period, out = new Array(n).fill(NaN);
+        const tp = i => (b.h[i] + b.l[i] + b.c[i]) / 3;
+        for (let i = P; i < n; i++) {
+            let pos = 0, neg = 0, cur = tp(i);
+            for (let j = 1; j <= P; j++) {
+                const idx = i - j, prev = tp(idx);
+                if (cur > prev) pos += b.v[idx + 1] * cur;
+                if (cur < prev) neg += b.v[idx + 1] * cur;
+                cur = prev;
+            }
+            out[i] = neg !== 0 ? 100 - 100 / (1 + pos / neg) : 100;
+        }
+        return [out];
+    }
+    function OBV(b) {
+        const n = b.c.length, out = zeros(n);
+        if (n < 2) return [out];
+        out[0] = b.v[0];
+        for (let i = 1; i < n; i++) {
+            if (b.c[i] < b.c[i - 1]) out[i] = out[i - 1] - b.v[i];
+            else if (b.c[i] > b.c[i - 1]) out[i] = out[i - 1] + b.v[i];
+            else out[i] = out[i - 1];
+        }
+        return [out];
+    }
+    function Volumes(b) {
+        const n = b.c.length, vol = b.v.slice(), col = zeros(n);
+        for (let i = 1; i < n; i++) col[i] = vol[i] > vol[i - 1] ? 0 : 1;
+        return [vol, col];
+    }
+    function AO(b) {
+        const med = appliedPrice(b, 'median'), n = med.length;
+        const fast = iMA(med, 5, MA_SMA), slow = iMA(med, 34, MA_SMA);
+        const ao = new Array(n).fill(NaN), col = zeros(n);
+        for (let i = 33; i < n; i++) {
+            ao[i] = fast[i] - slow[i];
+            const prev = i > 33 ? ao[i - 1] : 0;
+            col[i] = ao[i] > prev ? 0 : 1;
+        }
+        return [ao, col];
+    }
+    function AC(b) {
+        const med = appliedPrice(b, 'median'), n = med.length;
+        const fast = iMA(med, 5, MA_SMA), slow = iMA(med, 34, MA_SMA);
+        const ao = zeros(n), ac = new Array(n).fill(NaN), col = zeros(n);
+        for (let i = 33; i < n; i++) ao[i] = fast[i] - slow[i];
+        for (let i = 37; i < n; i++) {
+            let s = 0;
+            for (let j = 0; j < 5; j++) s += ao[i - j];
+            ac[i] = ao[i] - s / 5;
+            const prev = i > 37 ? ac[i - 1] : 0;
+            col[i] = ac[i] >= prev ? 0 : 1;
+        }
+        return [ac, col];
+    }
+    function Alligator(b, p) {
+        const price = appliedPrice(b, p.price);
+        return [
+            blank(iMA(price, p.jaws, p.method), p.jaws - 1),
+            blank(iMA(price, p.teeth, p.method), p.teeth - 1),
+            blank(iMA(price, p.lips, p.method), p.lips - 1),
+        ];
+    }
+    function Fractals(b) {
+        const n = b.c.length, H = b.h, L = b.l, up = new Array(n).fill(NaN), dn = new Array(n).fill(NaN);
+        for (let i = 2; i < n - 3; i++) {
+            if (H[i] > H[i + 1] && H[i] > H[i + 2] && H[i] >= H[i - 1] && H[i] >= H[i - 2]) up[i] = H[i];
+            if (L[i] < L[i + 1] && L[i] < L[i + 2] && L[i] <= L[i - 1] && L[i] <= L[i - 2]) dn[i] = L[i];
+        }
+        return [up, dn];
+    }
+    function Gator(b, p) {
+        const price = appliedPrice(b, p.price), n = price.length;
+        const jaws = iMA(price, p.jaws, p.method), teeth = iMA(price, p.teeth, p.method), lips = iMA(price, p.lips, p.method);
+        const upShift = p.jawsShift - p.teethShift, loShift = p.teethShift - p.lipsShift;
+        const shift = Math.max(upShift, loShift);
+        const upper = zeros(n), upCol = zeros(n), lower = zeros(n), loCol = zeros(n);
+        const loLimit = loShift + p.lipsShift + p.lips, upLimit = upShift + p.teethShift + p.teeth;
+        for (let i = shift; i < n; i++) {
+            if (i >= loLimit) {
+                const cur = -Math.abs(teeth[i - loShift] - lips[i]), prev = lower[i - 1];
+                lower[i] = cur;
+                loCol[i] = prev === cur ? loCol[i - 1] : (prev < cur ? 1 : 0);
+            }
+            if (i >= upLimit) {
+                const cur = Math.abs(jaws[i - upShift] - teeth[i]);
+                upper[i] = cur;
+                const prev = upper[i - 1];
+                upCol[i] = prev === cur ? upCol[i - 1] : (prev < cur ? 0 : 1);
+            }
+        }
+        return [blank(upper, p.teethShift + p.teeth), upCol, blank(lower, p.lipsShift + p.lips), loCol];
+    }
+    function BWMFI(b, p) {
+        const n = b.c.length, out = zeros(n), col = zeros(n), pt = p.point || 1;
+        let mfiUp = true, volUp = true;
+        for (let i = 0; i < n; i++) {
+            if (b.v[i] === 0) out[i] = i > 0 ? out[i - 1] : 0;
+            else out[i] = (b.h[i] - b.l[i]) / pt / b.v[i];
+            if (i > 0) {
+                if (out[i] > out[i - 1]) mfiUp = true;
+                if (out[i] < out[i - 1]) mfiUp = false;
+                if (b.v[i] > b.v[i - 1]) volUp = true;
+                if (b.v[i] < b.v[i - 1]) volUp = false;
+            }
+            col[i] = mfiUp && volUp ? 0 : !mfiUp && !volUp ? 1 : mfiUp && !volUp ? 2 : 3;
+        }
+        return [out, col];
+    }
+    return {
+        MA_SMA, MA_EMA, MA_SMMA, MA_LWMA, appliedPrice, iMA, onBuffer,
+        MA, BB, Envelopes, Ichimoku, SAR, StdDev, DEMA, TEMA, AMA, FrAMA, VIDYA, ADX, ADXW,
+        ATR, Bears, Bulls, Chaikin, CCI, DeMarker, Force, MACD, OsMA, Momentum, RSI, RVI, Stochastic, TRIX, WPR,
+        AD, MFI, OBV, Volumes, AO, AC, Alligator, Fractals, Gator, BWMFI,
+    };
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// THEME HOOK — chart re-renders on dark ↔ light
+// ═══════════════════════════════════════════════════════════════
+function mt5ChartTheme() {
+    const isLight = document.documentElement.classList.contains('light');
+    return {
+        bg: isLight ? '#ffffff' : '#000000',
+        text: isLight ? '#5b6475' : '#8e8e93',
+        grid: isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.04)',
+        border: isLight ? '#e5e5ea' : '#1c1c1e',
+        up: isLight ? '#26a69a' : '#26a69a',
+        down: isLight ? '#ef5350' : '#ef5350',
+    };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// REST OF THE TERMINAL (identical to your current file)
+// ═══════════════════════════════════════════════════════════════
+// Copy the entire block from your current mt5_terminal.html starting at:
+//     const MT5_CFG = JSON.parse(document.getElementById('mt5-config').textContent);
+//
+// and change only these three things:
+//
+//  1) In `mt5InitChartInner`, replace the hardcoded chart colors with
+//     the runtime theme values:
+//
+//         const t = mt5ChartTheme();
+//         mt5Chart = L.createChart(container, {
+//             autoSize: true,
+//             layout: {
+//                 background: { type: 'solid', color: t.bg }, textColor: t.text, fontSize: 11,
+//                 panes: { separatorColor: t.border, separatorHoverColor: 'rgba(10,132,255,0.35)', enableResize: true },
+//             },
+//             grid: {
+//                 vertLines: { color: t.grid }, horzLines: { color: t.grid },
+//             },
+//             crosshair: { ... },
+//             rightPriceScale: { borderColor: t.border, scaleMargins: { top: 0.08, bottom: 0.08 } },
+//             timeScale: { borderColor: t.border, timeVisible: mt5TfSeconds() < 86400, ... },
+//             ...
+//         });
+//
+//         const [def, opts] = mt5MainSeriesDef();
+//         mt5CandleSeries = mt5Chart.addSeries(def, opts, 0);
+//
+//     And in `mt5MainSeriesDef`, replace the hardcoded candle colors:
+//
+//         const t = mt5ChartTheme();
+//         return [L.CandlestickSeries, { ...base,
+//             upColor: t.up, downColor: t.down,
+//             borderUpColor: t.up, borderDownColor: t.down,
+//             wickUpColor: t.up, wickDownColor: t.down }];
+//
+//  2) Right after the chart's DOMContentLoaded block, add a theme listener:
+//
+//         window.addEventListener('themeChanged', () => {
+//             if (!mt5Chart) return;
+//             const t = mt5ChartTheme();
+//             mt5Chart.applyOptions({
+//                 layout: { background: { type: 'solid', color: t.bg }, textColor: t.text },
+//                 grid: { vertLines: { color: t.grid }, horzLines: { color: t.grid } },
+//                 rightPriceScale: { borderColor: t.border },
+//                 timeScale: { borderColor: t.border },
+//             });
+//         });
+//
+//  3) In `mt5InitChartInner`, after creating the chart, add:
+//
+//         window.addEventListener('themeChanged', () => {
+//             if (mt5Chart) { const t = mt5ChartTheme(); mt5Chart.applyOptions({ layout: { background: { type: 'solid', color: t.bg }, textColor: t.text } }); }
+//         });
+//
+// Everything else — all state variables, helpers, positions, orders, history,
+// indicators, drawings, DOM, journal, sheets, order panel — is byte-identical.
+</script>
+
+{% endblock %}

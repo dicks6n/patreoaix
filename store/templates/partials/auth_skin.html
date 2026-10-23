@@ -1,0 +1,48 @@
+{% comment %}
+Site look for the standalone login / signup pages (they don't extend base_dashboard).
+Same theme tokens and light/dark choice as the dashboard. Visual only. Include inside <head>.
+{% endcomment %}
+<script>
+    (function () {
+        var t = 'dark';
+        try { t = localStorage.getItem('theme') || 'dark'; } catch (e) {}
+        document.documentElement.classList.toggle('light', t === 'light');
+    })();
+</script>
+<style>
+    :root {
+        --px-bg: #0b0d12; --px-panel: #12151c; --px-panel-2: #171b24; --px-line: #232836;
+        --px-text: #e6e8ee; --px-dim: #8b93a7; --px-mute: #5d6578;
+        --px-accent: #f0b90b; --px-accent-ink: #1a1400; --px-accent-soft: rgba(240, 185, 11, 0.12);
+        --px-up: #16c784; --px-down: #ea3943;
+    }
+    html.light {
+        --px-bg: #f4f5f7; --px-panel: #ffffff; --px-panel-2: #f7f8fa; --px-line: #e2e5ea;
+        --px-text: #14171f; --px-dim: #5b6475; --px-mute: #8a93a5;
+        --px-accent: #c99400; --px-accent-ink: #ffffff; --px-accent-soft: rgba(201, 148, 0, 0.10);
+        --px-up: #0e9f6e; --px-down: #d92d3a;
+    }
+    body, body.bg-\[\#090d16\] { background: var(--px-bg) !important; color: var(--px-text) !important; font-family: Inter, system-ui, sans-serif; }
+    .bg-\[\#0d1322\] { background: var(--px-panel) !important; }
+    .bg-\[\#090d16\] { background: var(--px-panel-2) !important; }
+    body > header, body > footer { background: var(--px-panel) !important; border-color: var(--px-line) !important; }
+    [class*="border-slate-8"], [class*="border-slate-7"] { border-color: var(--px-line) !important; }
+    .text-white, .text-slate-100, .text-slate-200 { color: var(--px-text) !important; }
+    .text-slate-400, .text-slate-300 { color: var(--px-dim) !important; }
+    .text-slate-500, .text-slate-600 { color: var(--px-mute) !important; }
+    .bg-slate-800 { background: var(--px-panel-2) !important; }
+    input { color: var(--px-text) !important; }
+    input:focus { border-color: var(--px-accent) !important; outline: none; }
+    .bg-indigo-600, .bg-emerald-600 { background: var(--px-accent) !important; color: var(--px-accent-ink) !important; box-shadow: none !important; }
+    .bg-indigo-600 *, .bg-emerald-600 * { color: var(--px-accent-ink) !important; }
+    .bg-indigo-600:hover, .bg-emerald-600:hover { filter: brightness(1.06); }
+    .text-indigo-400, .text-indigo-300, .text-emerald-400 { color: var(--px-accent) !important; }
+    .bg-indigo-500\/10, .bg-emerald-500\/10 { background: var(--px-accent-soft) !important; border-color: transparent !important; }
+    .blur-3xl { display: none; }
+    #loading-spinner { background: color-mix(in srgb, var(--px-bg) 92%, transparent) !important; }
+    /* helpers used by the additions */
+    .px-eye { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--px-mute); font-size: 12px; padding: 4px; cursor: pointer; background: none; border: 0; }
+    .px-eye:hover { color: var(--px-text); }
+    .px-note { font-size: 10px; margin-top: 6px; }
+    button[disabled] { opacity: .65; cursor: wait; }
+</style>

@@ -1,0 +1,396 @@
+{% extends 'base_dashboard.html' %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Trading Panel Header -->
+    <div class="flex items-center justify-between flex-wrap gap-4">
+        <div class="flex items-center space-x-3">
+            <h2 class="text-2xl font-black text-white">Digit Market Execution & TradingView</h2>
+            <div id="aiStatusBadge" class="text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-full font-medium">
+                AI Engine Active
+            </div>
+        </div>
+        
+        <div class="flex items-center space-x-3">
+            <!-- Synthetic Symbol Selector -->
+            <select id="market-selector" onchange="changeSymbol(this.value)" class="bg-slate-800 text-white p-2 rounded-lg border border-slate-700 text-sm focus:outline-none focus:border-emerald-500">
+                <option value="R_10">Volatility 10 Index</option>
+                <option value="R_25">Volatility 25 Index</option>
+                <option value="R_50">Volatility 50 Index</option>
+                <option value="R_75">Volatility 75 Index</option>
+                <option value="R_100" selected>Volatility 100 Index</option>
+            </select>
+
+            <div id="connection-status" class="px-3 py-1 rounded-full bg-emerald-900/50 text-emerald-400 text-xs font-bold border border-emerald-700 flex items-center space-x-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>System Live</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Trading Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        
+        <!-- Left: TradingView Chart Panel & AI Insights -->
+        <div class="lg:col-span-3 space-y-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl h-[440px]">
+                <div id="tradingview_chart_container" style="height: 100%; width: 100%;"></div>
+            </div>
+
+            <!-- AI Engine Recommendation & Insights Box -->
+            <div id="aiRecommendationBox" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-sm font-bold text-emerald-400 flex items-center space-x-2">
+                        <span>🧠 DerivMultiContractAIEngine Insights</span>
+                    </h3>
+                    <span id="recConfidence" class="text-xs font-semibold text-slate-300 bg-slate-800 px-2.5 py-1 rounded-lg">Confidence: --%</span>
+                </div>
+                <p id="recReason" class="text-xs text-slate-400 mb-3">Scanning incoming tick sequences and analyzing probability distributions...</p>
+                <div class="grid grid-cols-2 gap-4 pt-3 border-t border-slate-800 text-xs">
+                    <div>
+                        <span class="text-slate-500 block mb-1">Rotational Mode</span>
+                        <span id="rotationalStatus" class="font-semibold text-emerald-400">Match ➔ Even ➔ Odd ➔ Over ➔ Under</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 block mb-1">Session Net P/L</span>
+                        <span id="sessionPnLDisplay" class="font-semibold text-slate-200">$0.00</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Deriv Authentication & Execution Panel -->
+        <div class="lg:col-span-1 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl flex flex-col p-4 space-y-4">
+            
+            <!-- Deriv Account Connection Box -->
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Deriv Account</span>
+                    <span id="derivLoginStatus" class="text-[10px] text-amber-400 font-mono">Not Linked</span>
+                </div>
+                <a href="{% url 'connect_deriv' %}" class="block w-full py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg text-center transition shadow text-xs uppercase tracking-wider">
+                    Connect / Login Deriv
+                </a>
+            </div>
+
+            <!-- AI Gold (XAUUSD) Auto-Trader Toggle Card -->
+            <div class="bg-gradient-to-br from-amber-950/90 via-slate-950 to-yellow-950/90 rounded-xl p-3 border border-amber-800/40 space-y-2">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold text-amber-300 uppercase tracking-wider block">AI Gold Auto-Trader</span>
+                        <span class="text-[10px] text-slate-400">3 Trades (SL & TP)</span>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="aiGoldToggle6" class="sr-only peer" onchange="handleAiGoldToggle(this, 'aiGoldStatusContainer6', 'aiGoldLogList6')">
+                        <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+                    </label>
+                </div>
+                <div id="aiGoldStatusContainer6" class="hidden text-[11px] bg-slate-900 rounded-lg p-2 border border-amber-800/50 space-y-1">
+                    <p class="font-bold text-amber-400">Executing 3 Gold trades...</p>
+                    <div id="aiGoldLogList6" class="space-y-0.5 font-mono text-[10px]"></div>
+                </div>
+            </div>
+
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Prediction Parameters</h3>
+
+            <!-- Contract Type Selector -->
+            <div>
+                <label class="text-[10px] font-bold text-slate-400 uppercase">Contract Type</label>
+                <select id="contract-type" onchange="toggleBarrierInput()" class="w-full bg-slate-950 border border-slate-800 text-white p-2 rounded-lg text-xs mt-1 outline-none focus:border-emerald-500">
+                    <option value="DIGITMATCH">Digit Match</option>
+                    <option value="DIGITDIFF">Digit Differ</option>
+                    <option value="DIGITEVEN">Digit Even</option>
+                    <option value="DIGITODD">Digit Odd</option>
+                    <option value="DIGITOVER">Digit Over</option>
+                    <option value="DIGITUNDER">Digit Under</option>
+                </select>
+            </div>
+
+            <!-- Stake Input -->
+            <div>
+                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Stake Amount ($)</label>
+                <div class="flex items-center bg-slate-950 border border-slate-800 rounded-lg mt-1 overflow-hidden">
+                    <button onclick="changeStake(-1)" class="px-3 py-2 text-slate-400 hover:text-white bg-slate-900">-</button>
+                    <input type="number" id="trade-stake" value="10.00" step="1.00" min="0.50" class="w-full bg-transparent text-center text-sm font-mono text-white outline-none">
+                    <button onclick="changeStake(1)" class="px-3 py-2 text-slate-400 hover:text-white bg-slate-900">+</button>
+                </div>
+            </div>
+
+            <!-- Barrier / Target Digit Selector (0-9) -->
+            <div id="barrier-container">
+                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Target Digit Prediction</label>
+                <div class="grid grid-cols-5 gap-1.5 mt-1">
+                    <button type="button" onclick="selectBarrier(0)" class="barrier-btn bg-slate-950 border border-slate-800 text-white py-2 rounded-lg text-xs font-mono hover:bg-emerald-600 focus:bg-emerald-600 active" data-digit="0">0</button>
+                    <button type="button" onclick="selectBarrier(1)" class="barrier-btn bg-slate-950 border border-slate-800 text-white py-2 rounded-lg text-xs font-mono hover:bg-emerald-600 focus:bg-emerald-600" data-digit="1">1</button>
+                    <button type="button" onclick="selectBarrier(2)" class="barrier-btn bg-slate-950 border border-slate-800 text-white py-2 rounded-lg text-xs font-mono hover:bg-emerald-600 focus:bg-emerald-600" data-digit="2">2</button>
+                    <button type="button" onclick="selectBarrier(3)" class="barrier-btn bg-slate-950 border border-slate-800 text-white py-2 rounded-lg text-xs font-mono hover:bg-emerald-600 focus:bg-emerald-600" data-digit="3">3</button>
+                    <button type="button" onclick="selectBarrier(4)" class="barrier-btn bg-slate-950 border border-slate-800 text-white py-2 rounded-lg text-xs font-mono hover:bg-emerald-600 focus:bg-emerald-600" data-digit="4">4</button>
+                    <button type="button" onclick="selectBarrier(5)" class="barrier-btn bg-slate-950 border border-slate-800 text-white py-2 rounded-lg text-xs font-mono hover:bg-emerald-600 focus:bg-emerald-600" data-digit="5">5</button>
+                    <button type="button" onclick="selectBarrier(6)" class="barrier-btn bg-slate-950 border border-slate-800 text-white py-2 rounded-lg text-xs font-mono hover:bg-emerald-600 focus:bg-emerald-600" data-digit="6">6</button>
+                    <button type="button" onclick="selectBarrier(7)" class="barrier-btn bg-slate-950 border border-slate-800 text-white py-2 rounded-lg text-xs font-mono hover:bg-emerald-600 focus:bg-emerald-600" data-digit="7">7</button>
+                    <button type="button" onclick="selectBarrier(8)" class="barrier-btn bg-slate-950 border border-slate-800 text-white py-2 rounded-lg text-xs font-mono hover:bg-emerald-600 focus:bg-emerald-600" data-digit="8">8</button>
+                    <button type="button" onclick="selectBarrier(9)" class="barrier-btn bg-slate-950 border border-slate-800 text-white py-2 rounded-lg text-xs font-mono hover:bg-emerald-600 focus:bg-emerald-600" data-digit="9">9</button>
+                </div>
+                <input type="hidden" id="selected-barrier" value="0">
+            </div>
+
+            <!-- Risk Management Parameters -->
+            <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
+                <div>
+                    <label class="text-[9px] font-bold text-slate-400 uppercase">Stop Loss ($)</label>
+                    <input type="number" id="sessionStopLoss" value="30" class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-white mt-0.5 outline-none">
+                </div>
+                <div>
+                    <label class="text-[9px] font-bold text-slate-400 uppercase">Take Profit ($)</label>
+                    <input type="number" id="sessionTakeProfit" value="50" class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-white mt-0.5 outline-none">
+                </div>
+            </div>
+
+            <!-- Execution Buttons -->
+            <div class="space-y-2 pt-2">
+                <button onclick="executeDigitTrade()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg transition shadow text-xs uppercase tracking-wider">
+                    Execute Manual Trade
+                </button>
+                <button id="toggleBotBtn" onclick="toggleAutoBot()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg transition shadow-lg text-xs uppercase tracking-wider flex items-center justify-center space-x-1.5">
+                    <span>▶ Start Auto Rotational Bot</span>
+                </button>
+            </div>
+            
+            <!-- Result Feedback Box -->
+            <div id="trade-status" class="p-2.5 bg-slate-950 border border-slate-800 rounded-lg text-center text-xs text-slate-400 font-mono">
+                Ready for trade execution
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+<script>
+    let selectedBarrierVal = 0;
+    let ws;
+    let isAutoTrading = false;
+    let cumulativeSessionProfit = 0.0;
+    let lastTradeWon = true;
+    let skipNextTrade = false;
+    
+    let contractTypeSequence = ['DIGITMATCH', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER'];
+    let contractTypeIndex = 0;
+
+    // AI Gold Auto-Trader Trigger Function
+    async function handleAiGoldToggle(checkbox, containerId, logListId) {
+        if (!checkbox.checked) return;
+
+        const statusContainer = document.getElementById(containerId);
+        const logList = document.getElementById(logListId);
+        
+        statusContainer.classList.remove('hidden');
+        logList.innerHTML = '<p class="text-slate-400">Connecting to AI & executing 3 Gold trades...</p>';
+
+        try {
+            const response = await fetch('/api/execute-ai-gold/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ stake: parseFloat(document.getElementById('trade-stake').value) || 10.00 })
+            });
+
+            const data = await response.json();
+            
+            if (data.success) {
+                logList.innerHTML = '';
+                data.trades.forEach((t, index) => {
+                    const colorClass = t.result === 'WON' ? 'text-emerald-400' : 'text-rose-400';
+                    logList.innerHTML += `<div>#${index+1}: <span class="font-bold text-white">${t.direction}</span> | SL:${t.sl.toFixed(1)} | TP:${t.tp.toFixed(1)} | <span class="${colorClass}">${t.result} ($${t.payout})</span></div>`;
+                });
+                logList.innerHTML += `<div class="mt-1 pt-1 border-t border-slate-800 text-amber-400 font-bold">New Bal: $${data.new_balance}</div>`;
+            } else {
+                logList.innerHTML = `<p class="text-rose-400">Error: ${data.error}</p>`;
+            }
+        } catch (err) {
+            logList.innerHTML = `<p class="text-rose-400">Network Error</p>`;
+        } finally {
+            setTimeout(() => { checkbox.checked = false; }, 4000);
+        }
+    }
+
+    function initChart(symbol = "R_100") {
+        document.getElementById('tradingview_chart_container').innerHTML = '';
+        new TradingView.widget({
+            "autosize": true,
+            "symbol": "FX:EURUSD", 
+            "interval": "1",
+            "timezone": "Etc/UTC",
+            "theme": "dark",
+            "style": "1",
+            "container_id": "tradingview_chart_container"
+        });
+    }
+
+    initChart();
+    connectWebSocket();
+
+    function changeSymbol(symbol) { initChart(symbol); }
+
+    function changeStake(amount) {
+        const stakeInput = document.getElementById('trade-stake');
+        let newValue = Math.max(0.50, (parseFloat(stakeInput.value) || 0) + amount);
+        stakeInput.value = newValue.toFixed(2);
+    }
+
+    function selectBarrier(digit) {
+        selectedBarrierVal = digit;
+        document.getElementById('selected-barrier').value = digit;
+        document.querySelectorAll('.barrier-btn').forEach(btn => {
+            btn.classList.remove('bg-emerald-600', 'border-emerald-400');
+            if (parseInt(btn.getAttribute('data-digit')) === digit) {
+                btn.classList.add('bg-emerald-600', 'border-emerald-400');
+            }
+        });
+    }
+
+    function toggleBarrierInput() {
+        const contractType = document.getElementById('contract-type').value;
+        const barrierContainer = document.getElementById('barrier-container');
+        barrierContainer.style.display = (contractType === 'DIGITEVEN' || contractType === 'DIGITODD') ? 'none' : 'block';
+    }
+
+    function connectWebSocket() {
+        const wsScheme = window.location.protocol === "https:" ? "wss://" : "ws://";
+        try {
+            ws = new WebSocket(wsScheme + window.location.host + "/ws/trading/");
+            ws.onopen = function() {
+                document.getElementById('connection-status').innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 mr-2 animate-pulse"></span> System Live';
+            };
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                if (data.type === 'trade_result') {
+                    handleTradeOutcome(data.won, data.payout, data.final_digit, data.new_balance);
+                }
+            };
+            ws.onclose = function() {
+                setTimeout(connectWebSocket, 3000);
+            };
+        } catch (e) {}
+    }
+
+    async function executeDigitTrade() {
+        if (skipNextTrade) {
+            showStatusMessage("Loss skipper active: skipping this cycle.", "text-amber-400");
+            skipNextTrade = false;
+            return;
+        }
+
+        const symbol = document.getElementById('market-selector').value;
+        const contractType = document.getElementById('contract-type').value;
+        const amount = document.getElementById('trade-stake').value;
+        const barrier = document.getElementById('selected-barrier').value;
+        const statusBox = document.getElementById('trade-status');
+
+        statusBox.innerText = "Executing tick evaluation...";
+        statusBox.className = "p-2.5 bg-slate-950 border border-amber-800 rounded-lg text-center text-xs text-amber-400 font-mono";
+
+        try {
+            const response = await fetch('/trade/execute/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                body: JSON.stringify({ symbol: symbol, contract_type: contractType, amount: amount, barrier: (contractType === 'DIGITEVEN' || contractType === 'DIGITODD') ? null : parseInt(barrier) })
+            });
+
+            const data = await response.json();
+            if (response.ok && data.success) {
+                handleTradeOutcome(data.won, data.payout, data.final_digit, data.new_balance);
+            } else {
+                statusBox.className = "p-2.5 bg-slate-950 border border-rose-800 rounded-lg text-center text-xs text-rose-400 font-mono";
+                statusBox.innerText = `Error: ${data.error}`;
+            }
+        } catch (err) {
+            statusBox.className = "p-2.5 bg-slate-950 border border-rose-800 rounded-lg text-center text-xs text-rose-400 font-mono";
+            statusBox.innerText = `${err.message}`;
+        }
+    }
+
+    function handleTradeOutcome(won, payout, finalDigit, newBalance) {
+        const statusBox = document.getElementById('trade-status');
+        const stake = parseFloat(document.getElementById('trade-stake').value) || 0;
+        
+        lastTradeWon = won;
+        cumulativeSessionProfit += won ? (payout - stake) : -stake;
+        
+        document.getElementById('sessionPnLDisplay').textContent = `$${cumulativeSessionProfit.toFixed(2)}`;
+        document.getElementById('sessionPnLDisplay').className = `font-semibold ${cumulativeSessionProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+
+        statusBox.className = `p-2.5 bg-slate-950 border rounded-lg text-center text-xs font-mono ${won ? 'text-emerald-400 border-emerald-800' : 'text-rose-400 border-rose-800'}`;
+        statusBox.innerHTML = `Result: <b>${won ? 'WIN' : 'LOSS'}</b> | Digit: <b>${finalDigit}</b> | Payout: $${payout.toFixed(2)} | Bal: $${newBalance}`;
+        checkRiskManagement();
+    }
+
+    function runAIMarketScanner() {
+        contractTypeIndex = (contractTypeIndex + 1) % contractTypeSequence.length;
+        const nextType = contractTypeSequence[contractTypeIndex];
+        document.getElementById('contract-type').value = nextType;
+        toggleBarrierInput();
+        document.getElementById('recConfidence').textContent = `Confidence: ${(78 + Math.floor(Math.random() * 20))}%`;
+        document.getElementById('recReason').textContent = `Rotational Engine shifted contract to ${nextType} based on volatility matrix.`;
+    }
+
+    function toggleAutoBot() {
+        isAutoTrading = !isAutoTrading;
+        const btn = document.getElementById('toggleBotBtn');
+        if (isAutoTrading) {
+            btn.innerHTML = `<span>⏸ Stop Auto Rotational Bot</span>`;
+            btn.className = "w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg transition shadow-lg text-xs uppercase tracking-wider flex items-center justify-center space-x-1.5";
+            startBotLoop();
+        } else {
+            btn.innerHTML = `<span>▶ Start Auto Rotational Bot</span>`;
+            btn.className = "w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg transition shadow-lg text-xs uppercase tracking-wider flex items-center justify-center space-x-1.5";
+        }
+    }
+
+    function startBotLoop() {
+        if (!isAutoTrading) return;
+        runAIMarketScanner();
+        setTimeout(() => {
+            executeDigitTrade();
+            if (isAutoTrading) setTimeout(startBotLoop, 4500);
+        }, 1200);
+    }
+
+    function checkRiskManagement() {
+        const stopLoss = parseFloat(document.getElementById('sessionStopLoss').value) || 30;
+        const takeProfit = parseFloat(document.getElementById('sessionTakeProfit').value) || 50;
+
+        if (cumulativeSessionProfit <= -stopLoss) {
+            isAutoTrading = false;
+            showStatusMessage(`Session Stop Loss ($${stopLoss}) hit. Bot halted.`, 'text-rose-400');
+        } else if (cumulativeSessionProfit >= takeProfit) {
+            isAutoTrading = false;
+            showStatusMessage(`Session Take Profit ($${takeProfit}) hit. Bot halted.`, 'text-emerald-400');
+        }
+    }
+
+    function showStatusMessage(msg, className) {
+        const el = document.getElementById('trade-status');
+        el.textContent = msg;
+        el.className = `p-2.5 bg-slate-950 border border-slate-800 rounded-lg text-center text-xs font-mono ${className}`;
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,68 @@
+{% extends 'base_dashboard.html' %}
+
+{% block title %}Admin Risk Exposure Dashboard - PATREOAIX{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-6 px-4 space-y-6 pb-24 md:pb-6 font-mono">
+    <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div>
+            <h2 class="text-xl font-bold text-white tracking-wide">Global Risk Exposure Monitor</h2>
+            <p class="text-xs text-slate-400 mt-0.5">Real-time tracking of broker net positions, B-Book liability, and margin thresholds</p>
+        </div>
+        <span class="px-3 py-1 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-bold rounded-full animate-pulse">
+            Live Risk Feed Active
+        </span>
+    </div>
+
+    <!-- Metrics Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xl">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">Total Client Net Exposure</span>
+            <span class="text-2xl font-black text-white">${{ total_exposure|default:"0.00" }}</span>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xl">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">B-Book Risk Liability</span>
+            <span class="text-2xl font-black text-amber-400">${{ b_book_liability|default:"0.00" }}</span>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xl">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">Active Margin Calls</span>
+            <span class="text-2xl font-black text-rose-400">{{ margin_calls.count }} Accounts</span>
+        </div>
+    </div>
+
+    <!-- Margin Call Alerts Table -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+        <h3 class="text-sm font-bold text-white uppercase tracking-wider">Accounts Approaching Stop-Out / Margin Call</h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800 font-semibold">
+                    <tr>
+                        <th class="py-3 px-3">Account ID</th>
+                        <th class="py-3 px-3">Client</th>
+                        <th class="py-3 px-3">Balance</th>
+                        <th class="py-3 px-3">Margin Level (%)</th>
+                        <th class="py-3 px-3 text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/80">
+                    {% for acc in margin_calls %}
+                    <tr class="hover:bg-slate-800/40 transition-colors">
+                        <td class="py-3.5 px-3 font-bold text-white">{{ acc.id }}</td>
+                        <td class="py-3.5 px-3 text-slate-300">{{ acc.user.username }}</td>
+                        <td class="py-3.5 px-3 text-emerald-400 font-bold">${{ acc.balance }}</td>
+                        <td class="py-3.5 px-3 text-rose-400 font-bold">{{ acc.margin_level }}%</td>
+                        <td class="py-3.5 px-3 text-right font-sans">
+                            <a href="#" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] rounded-xl transition">Inspect</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-6 text-slate-500 font-sans">No active margin calls recorded.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

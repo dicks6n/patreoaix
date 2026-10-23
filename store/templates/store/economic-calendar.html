@@ -1,0 +1,356 @@
+{% extends 'base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Economic Calendar · PATREOAIX{% endblock %}
+{% block page_title %}Economic Calendar{% endblock %}
+
+{% block extra_head %}
+<style>
+    .px-card { background: var(--px-panel); border: 1px solid var(--px-line); border-radius: 12px; box-shadow: var(--px-shadow); }
+    .px-num { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+    .px-muted { color: var(--px-mute); } .px-dim { color: var(--px-dim); } .px-strong { color: var(--px-text); }
+    .px-seg { display: inline-flex; padding: 3px; border-radius: 8px; background: var(--px-panel-2); border: 1px solid var(--px-line); gap: 2px; }
+    .px-seg button { height: 28px; padding: 0 11px; border-radius: 6px; font-size: 12px; font-weight: 600; color: var(--px-dim); white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+    .px-seg button:hover { color: var(--px-text); }
+    .px-seg button.on { background: var(--px-panel); color: var(--px-text); box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+    .px-input { height: 36px; padding: 0 10px; border-radius: 8px; background: var(--px-panel-2) !important; border: 1px solid var(--px-line) !important; color: var(--px-text) !important; font-size: 13px; outline: none; }
+    .px-input:focus { border-color: var(--px-accent) !important; }
+    .chip { height: 28px; padding: 0 10px; border-radius: 6px; font-size: 12px; font-weight: 600; color: var(--px-dim); background: var(--px-panel-2); border: 1px solid var(--px-line); white-space: nowrap; }
+    .chip.on { color: var(--px-accent); border-color: var(--px-accent); background: var(--px-accent-soft); }
+
+    .dots { display: inline-flex; gap: 3px; }
+    .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--px-line); display: inline-block; }
+    .dots.high i { background: var(--px-down); }
+    .dots.medium i:nth-child(-n+2) { background: #f59e0b; }
+    .dots.low i:first-child { background: var(--px-mute); }
+
+    .ev-head, .ev { display: grid; grid-template-columns: 70px 92px 64px minmax(0,1fr) 64px 90px 90px 90px 36px; gap: 12px; align-items: center; padding: 0 16px; }
+    .ev-head { height: 34px; font-size: 11px; color: var(--px-mute); border-bottom: 1px solid var(--px-line); }
+    .ev { min-height: 50px; font-size: 13px; border-bottom: 1px solid var(--px-line-soft); cursor: pointer; transition: background-color .1s ease; position: relative; }
+    .ev:hover { background: var(--px-hover); }
+    .ev.past { opacity: .55; }
+    .ev.next::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 0 3px 3px 0; background: var(--px-accent); }
+    .ev .r { text-align: right; }
+    .cd { font-size: 11px; font-family: 'JetBrains Mono', monospace; }
+    .cd.soon { color: var(--px-down); font-weight: 600; }
+    .bell { width: 28px; height: 28px; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center; color: var(--px-mute); }
+    .bell:hover { background: var(--px-panel-2); color: var(--px-text); }
+    .bell.on { color: var(--px-accent); }
+    @media (max-width: 1023px) {
+        .ev-head { display: none; }
+        .ev { grid-template-columns: 56px minmax(0,1fr) auto; grid-template-areas: "t e i" "t m b"; row-gap: 4px; padding: 10px 14px; }
+        .ev .c-time { grid-area: t; align-self: start; }
+        .ev .c-event { grid-area: e; }
+        .ev .c-imp { grid-area: i; justify-self: end; }
+        .ev .c-meta { grid-area: m; display: block !important; }
+        .ev .c-bell { grid-area: b; justify-self: end; }
+        .ev .c-cd, .ev .c-cur, .ev .c-a, .ev .c-f, .ev .c-p { display: none; }
+    }
+    .day-h { display: flex; align-items: baseline; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--px-line); background: var(--px-panel-2); }
+    .px-modal { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0,0,0,.6); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+    .px-modal.hidden { display: none; }
+    .val { padding: 10px 12px; border-radius: 9px; background: var(--px-panel-2); border: 1px solid var(--px-line-soft); text-align: center; }
+    .val .k { font-size: 11px; color: var(--px-mute); } .val .v { font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 600; color: var(--px-text); margin-top: 2px; }
+    .px-empty { padding: 48px 16px; text-align: center; color: var(--px-mute); font-size: 13px; }
+    .px-empty i { display: block; font-size: 24px; margin-bottom: 10px; opacity: .7; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-4 lg:space-y-5">
+
+    <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2.5 flex-wrap">
+                <h2 class="text-xl sm:text-2xl font-semibold tracking-tight px-strong">Economic Calendar</h2>
+                {% if feed_ok and feed_stale %}
+                <span class="px-pill sm" style="color:#f59e0b" title="The feeds are not responding; showing the last data received."><span class="px-dot"></span>Feed offline · data from {{ feed_updated|date:"H:i" }} UTC</span>
+                {% elif feed_ok %}
+                <span class="px-pill sm"><span class="px-dot live"></span>Live · {{ feed_source }}</span>
+                {% else %}
+                <span class="px-pill sm" style="color:var(--px-down)"><span class="px-dot off"></span>Feed unavailable</span>
+                {% endif %}
+            </div>
+            <p class="text-[13px] mt-1 px-dim">Market-moving releases for the next 7 days. Times are in your time zone (<span id="cal-tz">—</span>).</p>
+        </div>
+        <div id="cal-next" class="px-card px-4 py-3 flex items-center gap-3 hidden" style="min-width:300px">
+            <span class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style="background:var(--px-down-soft);color:var(--px-down)"><i class="fa-solid fa-bolt"></i></span>
+            <div class="min-w-0 flex-1">
+                <p class="text-[11px] px-muted">Next high-impact release</p>
+                <p class="text-[13px] font-semibold px-strong truncate" id="cal-next-name">—</p>
+            </div>
+            <div class="text-right">
+                <p class="px-num text-[15px] font-semibold" style="color:var(--px-down)" id="cal-next-cd">—</p>
+                <p class="text-[11px] px-muted px-num" id="cal-next-time">—</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div class="px-card px-4 py-3"><p class="text-[11px] px-muted">High impact</p><p class="px-num text-xl font-semibold px-down mt-0.5" id="st-high">0</p></div>
+        <div class="px-card px-4 py-3"><p class="text-[11px] px-muted">Medium impact</p><p class="px-num text-xl font-semibold mt-0.5" style="color:#f59e0b" id="st-med">0</p></div>
+        <div class="px-card px-4 py-3"><p class="text-[11px] px-muted">Still to come today</p><p class="px-num text-xl font-semibold px-strong mt-0.5" id="st-today">0</p></div>
+        <div class="px-card px-4 py-3"><p class="text-[11px] px-muted">Your reminders</p><p class="px-num text-xl font-semibold mt-0.5" style="color:var(--px-accent)" id="st-rem">0</p></div>
+    </div>
+
+    <div class="flex flex-col xl:flex-row xl:items-center gap-2.5">
+        <div class="px-seg" id="f-impact">
+            <button data-i="all" class="on">All</button>
+            <button data-i="high"><span class="dots high"><i></i><i></i><i></i></span>High</button>
+            <button data-i="medium"><span class="dots medium"><i></i><i></i><i></i></span>Medium+</button>
+        </div>
+        <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar" id="f-cur"></div>
+        <div class="flex items-center gap-2 xl:ml-auto">
+            <div class="relative flex-1 xl:w-60">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-[11px] px-muted"></i>
+                <input id="f-q" type="text" placeholder="Search events" class="px-input w-full" style="padding-left:30px">
+            </div>
+            <label class="flex items-center gap-2 text-[12px] px-dim whitespace-nowrap cursor-pointer"><input id="f-past" type="checkbox" class="accent-amber-500"> Hide released</label>
+        </div>
+    </div>
+
+    <div class="px-card overflow-hidden" id="cal-list">
+        {% if not feed_ok %}
+        <div class="px-empty"><i class="fa-solid fa-satellite-dish"></i>The calendar feeds (TradingView, ForexFactory) are not responding right now, so no events are shown.<br>
+            <a href="" class="px-btn px-btn-ghost sm mt-4 inline-flex">Try again</a>
+            {% if feed_errors %}<div class="mt-4 text-left inline-block text-[11px] px-num" style="color:var(--px-down)">{% for e in feed_errors %}<div>{{ e }}</div>{% endfor %}<div class="px-muted mt-1">(only staff see these details)</div></div>{% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Event detail -->
+<div id="ev-modal" class="px-modal hidden" role="dialog" aria-modal="true" aria-labelledby="ev-title">
+    <div class="px-card w-full max-w-lg max-h-[92vh] overflow-y-auto">
+        <div class="flex items-start justify-between gap-3 p-4" style="border-bottom:1px solid var(--px-line)">
+            <div class="flex items-center gap-3 min-w-0">
+                <span id="ev-flag" class="text-2xl leading-none"></span>
+                <div class="min-w-0">
+                    <h3 id="ev-title" class="text-[15px] font-semibold px-strong">—</h3>
+                    <p id="ev-when" class="text-[12px] px-muted px-num">—</p>
+                </div>
+            </div>
+            <button type="button" class="header-icon-btn" onclick="closeEv()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-4 space-y-4">
+            <div class="flex items-center justify-between text-[12px]">
+                <span class="px-dim">Impact</span><span id="ev-impact"></span>
+            </div>
+            <div class="grid grid-cols-3 gap-2.5">
+                <div class="val"><div class="k">Actual</div><div class="v" id="ev-a">—</div></div>
+                <div class="val"><div class="k">Forecast</div><div class="v" id="ev-f">—</div></div>
+                <div class="val"><div class="k">Previous</div><div class="v" id="ev-p">—</div></div>
+            </div>
+            <p id="ev-surprise" class="text-[12px] hidden"></p>
+            <div>
+                <h4 class="text-[13px] font-semibold px-strong mb-1">About this release</h4>
+                <p id="ev-desc" class="text-[12px] px-dim leading-relaxed">—</p>
+            </div>
+            <div>
+                <h4 class="text-[13px] font-semibold px-strong mb-1">How traders usually handle it</h4>
+                <p id="ev-tip" class="text-[12px] px-dim leading-relaxed">—</p>
+            </div>
+            <div>
+                <h4 class="text-[13px] font-semibold px-strong mb-2">Markets that react</h4>
+                <div id="ev-mkts" class="grid grid-cols-2 sm:grid-cols-3 gap-2"></div>
+            </div>
+            <button id="ev-remind" type="button" class="px-btn px-btn-primary w-full" style="height:42px"><i class="fa-regular fa-bell text-[12px]"></i><span>Remind me 15 minutes before</span></button>
+        </div>
+    </div>
+</div>
+
+{{ events_json|json_script:"cal-data" }}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const PX = window.PX;
+    const $ = id => document.getElementById(id);
+    const EVENTS = JSON.parse($('cal-data').textContent).map(e => Object.assign(e, { t: new Date(e.ts) }));
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'local';
+    $('cal-tz').textContent = tz;
+
+    // Pairs that move most on each currency's data
+    const MARKETS = {
+        USD: ['EURUSD', 'GBPUSD', 'USDJPY', 'XAUUSD', 'BTCUSD'], EUR: ['EURUSD', 'EURGBP', 'EURJPY'], GBP: ['GBPUSD', 'EURGBP', 'GBPJPY'],
+        JPY: ['USDJPY', 'EURJPY', 'GBPJPY'], AUD: ['AUDUSD'], NZD: ['NZDUSD'], CAD: ['USDCAD', 'USOIL'], CHF: ['USDCHF'], CNY: ['AUDUSD', 'XAUUSD', 'USOIL'],
+    };
+    const TIPS = [
+        [/non.?farm|payroll|nfp/i, 'The biggest scheduled mover for USD and gold. Spreads widen and price can spike both ways in the first minutes; many traders wait for the first 5–15 minute candle to close.'],
+        [/interest rate|rate decision|fomc|monetary policy/i, 'The decision itself is usually priced in. The statement and press conference about future moves drive the follow-through.'],
+        [/\bcpi\b|inflation|pce/i, 'Inflation above forecast tends to lift the currency (higher rates expected) and pressure gold; below forecast does the opposite.'],
+        [/\bgdp\b/i, 'Compare actual with forecast: a beat usually supports the currency. Revisions to the previous figure matter too.'],
+        [/\bpmi\b/i, 'Above 50 means expansion. The direction versus last month often matters more than the level.'],
+        [/unemployment|jobless|claims|employment change/i, 'Higher unemployment or claims than expected usually weakens the currency. Trade the surprise versus forecast, not the absolute number.'],
+        [/retail sales/i, 'A read on consumer spending. Strong numbers support the currency; watch the core (ex-autos) figure.'],
+    ];
+    const tipFor = name => (TIPS.find(([re]) => re.test(name)) || [null, 'Expect wider spreads and fast moves around high-impact releases. Reduce size or wait for the reaction to settle.'])[1];
+
+    // ── reminders (stored in this browser, checked by every page) ─────────
+    const RKEY = 'px-reminders';
+    const getRem = () => { try { return JSON.parse(localStorage.getItem(RKEY) || '[]'); } catch (e) { return []; } };
+    const setRem = r => { try { localStorage.setItem(RKEY, JSON.stringify(r)); } catch (e) {} };
+    const hasRem = id => getRem().some(r => r.id === id);
+    function toggleRem(e) {
+        let r = getRem();
+        if (r.some(x => x.id === e.id)) r = r.filter(x => x.id !== e.id);
+        else {
+            r.push({ id: e.id, title: `${e.currency} ${e.event}`, ts: e.t.getTime() });
+            if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+            showMarketToast(`Reminder set: ${e.event} (15 min before)`, 'success');
+        }
+        setRem(r); render();
+    }
+
+    // ── filters ──────────────────────────────────────
+    let fImpact = 'all', fCur = 'all';
+    const curs = [...new Set(EVENTS.map(e => e.currency).filter(Boolean))].sort();
+    $('f-cur').innerHTML = ['all', ...curs].map(c => `<button class="chip ${c === 'all' ? 'on' : ''}" data-c="${c}">${c === 'all' ? 'All currencies' : c}</button>`).join('');
+    $('f-cur').addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (!b) return; fCur = b.dataset.c; $('f-cur').querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x === b)); render(); });
+    $('f-impact').addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (!b) return; fImpact = b.dataset.i; $('f-impact').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); render(); });
+    $('f-q').addEventListener('input', render);
+    $('f-past').addEventListener('change', render);
+
+    // ── formatting ───────────────────────────────────
+    const fmtTime = d => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const dayKey = d => d.toLocaleDateString('en-CA');
+    function dayLabel(d) {
+        const today = dayKey(new Date()), tmr = dayKey(new Date(Date.now() + 864e5));
+        const k = dayKey(d);
+        const long = d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
+        return k === today ? `Today · ${long}` : k === tmr ? `Tomorrow · ${long}` : long;
+    }
+    function countdown(d) {
+        const s = Math.round((d - Date.now()) / 1000);
+        if (s <= 0) return null;
+        const dd = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60), sec = s % 60;
+        if (dd) return `${dd}d ${h}h`;
+        if (h) return `${h}h ${String(m).padStart(2, '0')}m`;
+        return `${m}m ${String(sec).padStart(2, '0')}s`;
+    }
+    const num = v => (v === null || v === undefined || v === '') ? NaN : parseFloat(String(v).replace(/[^0-9.\-]/g, ''));
+    const fmtVal = (v, u) => (v === null || v === undefined || v === '') ? '—' : `${v}${u && !String(v).endsWith(u) ? u : ''}`;
+    const impLabel = i => ({ high: 'High', medium: 'Medium', low: 'Low' })[i] || i;
+
+    // ── render ───────────────────────────────────────
+    function render() {
+        if (!EVENTS.length) return;
+        const q = $('f-q').value.trim().toLowerCase(), hidePast = $('f-past').checked, now = Date.now();
+        const list = EVENTS.filter(e => (fImpact === 'all' || (fImpact === 'high' ? e.impact === 'high' : e.impact !== 'low'))
+            && (fCur === 'all' || e.currency === fCur) && (!q || e.event.toLowerCase().includes(q) || e.country.toLowerCase().includes(q))
+            && (!hidePast || e.t > now));
+        const next = EVENTS.find(e => e.t > now);
+        const rem = getRem();
+        if (!list.length) {
+            $('cal-list').innerHTML = `<div class="px-empty"><i class="fa-solid fa-filter-circle-xmark"></i>No events match these filters.</div>`;
+        } else {
+            const groups = {};
+            list.forEach(e => (groups[dayKey(e.t)] = groups[dayKey(e.t)] || []).push(e));
+            $('cal-list').innerHTML = `<div class="ev-head"><span>Time</span><span>In</span><span>Currency</span><span>Event</span><span>Impact</span><span class="r">Actual</span><span class="r">Forecast</span><span class="r">Previous</span><span></span></div>` +
+                Object.values(groups).map(g => `
+                <div class="day-h"><span class="text-[13px] font-semibold px-strong">${dayLabel(g[0].t)}</span><span class="text-[11px] px-muted">${g.length} event${g.length > 1 ? 's' : ''}</span></div>
+                ${g.map(e => {
+                    const cd = countdown(e.t), past = !cd;
+                    const soon = cd && e.t - now < 30 * 60 * 1000;
+                    return `<div class="ev ${past ? 'past' : ''} ${next && e.id === next.id ? 'next' : ''}" data-id="${escapeHtml(e.id)}" tabindex="0" role="button">
+                        <span class="c-time px-num px-strong">${fmtTime(e.t)}</span>
+                        <span class="c-cd cd ${soon ? 'soon' : 'px-muted'}" data-cd="${e.t.getTime()}">${cd || 'Released'}</span>
+                        <span class="c-cur flex items-center gap-1.5"><span>${escapeHtml(e.flag)}</span><span class="font-semibold px-dim text-[12px]">${escapeHtml(e.currency)}</span></span>
+                        <span class="c-event min-w-0"><span class="block truncate font-medium px-strong">${escapeHtml(e.event)}</span>
+                            <span class="c-meta hidden text-[11px] px-muted px-num">${escapeHtml(e.flag)} ${escapeHtml(e.currency)} · <span class="${soon ? 'px-down' : ''}" data-cd="${e.t.getTime()}">${cd || 'Released'}</span> · A ${escapeHtml(fmtVal(e.actual, e.unit))} · F ${escapeHtml(fmtVal(e.forecast, e.unit))}</span></span>
+                        <span class="c-imp" title="${impLabel(e.impact)} impact"><span class="dots ${e.impact}"><i></i><i></i><i></i></span></span>
+                        <span class="c-a r px-num font-semibold ${!isNaN(num(e.actual)) && !isNaN(num(e.forecast)) && num(e.actual) !== num(e.forecast) ? (num(e.actual) > num(e.forecast) ? 'px-up' : 'px-down') : 'px-strong'}">${escapeHtml(fmtVal(e.actual, e.unit))}</span>
+                        <span class="c-f r px-num px-dim">${escapeHtml(fmtVal(e.forecast, e.unit))}</span>
+                        <span class="c-p r px-num px-muted">${escapeHtml(fmtVal(e.previous, e.unit))}</span>
+                        <span class="c-bell">${past ? '' : `<button type="button" class="bell ${rem.some(r => r.id === e.id) ? 'on' : ''}" data-bell="${escapeHtml(e.id)}" aria-label="Reminder"><i class="fa-${rem.some(r => r.id === e.id) ? 'solid' : 'regular'} fa-bell text-[12px]"></i></button>`}</span>
+                    </div>`;
+                }).join('')}`).join('');
+            $('cal-list').querySelectorAll('.ev').forEach(el => {
+                el.addEventListener('click', ev => {
+                    const bell = ev.target.closest('[data-bell]');
+                    const e = EVENTS.find(x => x.id === el.dataset.id);
+                    if (bell) { ev.stopPropagation(); toggleRem(e); return; }
+                    openEv(e);
+                });
+                el.addEventListener('keydown', ev => { if (ev.key === 'Enter') openEv(EVENTS.find(x => x.id === el.dataset.id)); });
+            });
+        }
+        // stats
+        const todayK = dayKey(new Date());
+        $('st-high').textContent = EVENTS.filter(e => e.impact === 'high').length;
+        $('st-med').textContent = EVENTS.filter(e => e.impact === 'medium').length;
+        $('st-today').textContent = EVENTS.filter(e => dayKey(e.t) === todayK && e.t > now).length;
+        $('st-rem').textContent = rem.filter(r => r.ts > now).length;
+        nextHigh();
+    }
+    function nextHigh() {
+        const n = EVENTS.find(e => e.impact === 'high' && e.t > Date.now());
+        $('cal-next').classList.toggle('hidden', !n);
+        if (!n) return;
+        $('cal-next-name').textContent = `${n.flag} ${n.event}`;
+        $('cal-next-cd').textContent = countdown(n.t);
+        $('cal-next-time').textContent = `${n.t.toLocaleDateString([], { weekday: 'short' })} ${fmtTime(n.t)}`;
+    }
+    // live countdowns
+    setInterval(() => {
+        let changed = false;
+        document.querySelectorAll('[data-cd]').forEach(el => {
+            const c = countdown(new Date(+el.dataset.cd));
+            if (!c && el.textContent !== 'Released') changed = true;
+            el.textContent = c || 'Released';
+        });
+        nextHigh();
+        if (changed) render();
+    }, 1000);
+
+    // ── modal ────────────────────────────────────────
+    let evCur = null;
+    function openEv(e) {
+        evCur = e;
+        $('ev-flag').textContent = e.flag;
+        $('ev-title').textContent = e.event;
+        $('ev-when').textContent = `${e.t.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })} · ${fmtTime(e.t)} · ${e.country} (${e.currency})`;
+        $('ev-impact').innerHTML = `<span class="dots ${e.impact}"><i></i><i></i><i></i></span> <span class="font-semibold px-strong ml-1">${impLabel(e.impact)}</span>`;
+        $('ev-a').textContent = e.actual == null ? (e.t > Date.now() ? 'Pending' : '—') : fmtVal(e.actual, e.unit);
+        $('ev-f').textContent = fmtVal(e.forecast, e.unit);
+        $('ev-p').textContent = fmtVal(e.previous, e.unit);
+        const sur = $('ev-surprise');
+        if (!isNaN(num(e.actual)) && !isNaN(num(e.forecast))) {
+            const diff = num(e.actual) - num(e.forecast);
+            sur.textContent = diff === 0 ? 'Came in exactly as forecast.' : `Came in ${diff > 0 ? 'above' : 'below'} forecast by ${Math.abs(diff).toLocaleString(undefined, { maximumFractionDigits: 3 })}${e.unit || ''}.`;
+            sur.className = 'text-[12px] font-medium ' + (diff > 0 ? 'px-up' : diff < 0 ? 'px-down' : 'px-dim');
+        } else sur.className = 'hidden';
+        $('ev-desc').textContent = e.description && e.description !== e.event ? e.description : 'No description provided by the feed.';
+        $('ev-tip').textContent = tipFor(e.event);
+        const mk = MARKETS[e.currency] || [];
+        $('ev-mkts').innerHTML = mk.length ? mk.map(s => {
+            const q = PX.quotes[s], ch = PX.change(s);
+            return `<a href="{% url 'market_overview' %}" class="val" style="text-align:left" data-sym="${s}">
+                <div class="text-[12px] font-semibold px-strong">${s}</div>
+                <div class="px-num text-[12px] px-dim" data-q="${s}">${q ? PX.fmt(s, q.bid) : '—'}</div>
+                <div class="px-num text-[11px] ${PX.tone(ch)}" data-c="${s}">${ch == null ? '' : PX.pct(ch)}</div></a>`;
+        }).join('') : '<p class="text-[12px] px-muted col-span-full">No tracked markets for this currency.</p>';
+        $('ev-mkts').querySelectorAll('[data-sym]').forEach(a => a.href = `/signal/${a.dataset.sym}/`);
+        const past = e.t <= Date.now();
+        $('ev-remind').classList.toggle('hidden', past);
+        remBtn();
+        $('ev-modal').classList.remove('hidden');
+    }
+    function remBtn() {
+        const on = evCur && hasRem(evCur.id);
+        $('ev-remind').querySelector('span').textContent = on ? 'Reminder set · tap to remove' : 'Remind me 15 minutes before';
+        $('ev-remind').classList.toggle('px-btn-primary', !on); $('ev-remind').classList.toggle('px-btn-ghost', on);
+    }
+    $('ev-remind').addEventListener('click', () => { toggleRem(evCur); remBtn(); });
+    window.closeEv = () => $('ev-modal').classList.add('hidden');
+    $('ev-modal').addEventListener('click', e => { if (e.target.id === 'ev-modal') closeEv(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeEv(); });
+    window.addEventListener('px:quotes', () => {
+        document.querySelectorAll('#ev-mkts [data-q]').forEach(el => { const q = PX.quotes[el.dataset.q]; if (q) el.textContent = PX.fmt(el.dataset.q, q.bid); });
+    });
+
+    render();
+})();
+</script>
+{% endblock %}
