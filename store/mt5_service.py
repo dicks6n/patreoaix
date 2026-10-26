@@ -226,11 +226,19 @@ def _deriv_mid(symbol):
     entry = price_feed.get_price_entry(symbol)
     if entry and time.time() - entry['ts'] < 1.0:
         return entry['price']
-    import websocket   # websocket-client (already used by price_tracker)
-    ws = websocket.create_connection(DERIV_WS_URL, timeout=5)
+    # websocket-client when installed, else price_feed's built-in client (PythonAnywhere may lack the package)
+    ws = price_feed.ws_connect(DERIV_WS_URL, timeout=5)
     try:
-        ws.send(json.dumps({'ticks_history': symbol, 'count': 1, 'end': 'latest', 'style': 'ticks'}))
-        msg = json.loads(ws.recv())
+        ws.send(json.dumps({'ticks_history': symbol, 'count': 1, 'end': 'latest', 'style': 'ticks', 'req_id': 3}))
+        deadline = time.time() + 5
+        while True:
+            msg = json.loads(ws.recv())
+            if msg.get('req_id') == 3:
+                break
+            if time.time() > deadline:
+                raise TimeoutError(f'No Deriv tick for {symbol}')
+        if msg.get('error'):
+            raise TradeError(f"No prices ({msg['error'].get('message', 'Deriv error')})")
         price = float(msg['history']['prices'][-1])
     finally:
         ws.close()

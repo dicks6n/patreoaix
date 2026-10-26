@@ -1,5 +1,12 @@
 # store/context_processors.py
+from django.conf import settings
+
 from .models import KYCProfile
+
+
+def site_flags(request):
+    """Server capabilities the pages adapt to (websockets are off on hosts like PythonAnywhere)."""
+    return {'websockets_enabled': getattr(settings, 'WEBSOCKETS_ENABLED', True)}
 
 
 def kyc_status(request):

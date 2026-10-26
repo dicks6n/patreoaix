@@ -1,0 +1,46 @@
+<script>
+/* Websocket guard. Hosts without websockets (PythonAnywhere) answer /ws/... with 404, and every page
+   used to retry every few seconds. When the server says websockets are off (settings.WEBSOCKETS_ENABLED),
+   or after two connections in a row fail to open, sockets to this site's /ws/ addresses close at once
+   without a network request, so each page's REST polling takes over. Other hosts' sockets are untouched. */
+(function () {
+    var Native = window.WebSocket;
+    if (!Native) return;
+    var off = {{ websockets_enabled|yesno:"false,true" }}, fails = 0;
+    try { if (sessionStorage.getItem('px-ws-off') === '1') off = true; } catch (e) {}
+
+    function ownSocket(url) {
+        try { var u = new URL(url, location.href); return u.host === location.host && u.pathname.indexOf('/ws/') === 0; }
+        catch (e) { return false; }
+    }
+    function Closed(url) {                       // behaves like a socket that could not connect
+        var t = new EventTarget();
+        t.url = String(url); t.readyState = 3; t.protocol = ''; t.extensions = ''; t.bufferedAmount = 0; t.binaryType = 'blob';
+        t.send = function () {}; t.close = function () {};
+        setTimeout(function () {                 // async, like a real failure; the delay keeps retry loops cheap
+            ['error', 'close'].forEach(function (type) {
+                var ev = type === 'close' ? new CloseEvent('close', { code: 1006, reason: 'websockets unavailable', wasClean: false }) : new Event('error');
+                t.dispatchEvent(ev);
+                if (typeof t['on' + type] === 'function') t['on' + type](ev);
+            });
+        }, 1500);
+        return t;
+    }
+    function Guarded(url, protocols) {
+        if (!ownSocket(url)) return protocols === undefined ? new Native(url) : new Native(url, protocols);
+        if (off) return Closed(url);
+        var ws = protocols === undefined ? new Native(url) : new Native(url, protocols), opened = false;
+        ws.addEventListener('open', function () { opened = true; fails = 0; });
+        ws.addEventListener('close', function () {
+            if (opened || ++fails < 2) return;
+            off = true;
+            try { sessionStorage.setItem('px-ws-off', '1'); } catch (e) {}
+        });
+        return ws;
+    }
+    Guarded.prototype = Native.prototype;
+    Guarded.CONNECTING = 0; Guarded.OPEN = 1; Guarded.CLOSING = 2; Guarded.CLOSED = 3;
+    window.WebSocket = Guarded;
+    window.pxWebsocketsOff = function () { return off; };
+})();
+</script>

@@ -70,7 +70,10 @@ from .forms import CreateBotForm
 import pandas as pd
 import numpy as np
 import yfinance as yf
-import pandas_ta as ta
+try:
+    import pandas_ta_classic as ta      # maintained fork, same functions: pip install pandas-ta-classic
+except ImportError:
+    import pandas_ta as ta              # the original package, if that's what is installed
 
 import logging
 logger = logging.getLogger(__name__)
@@ -4270,7 +4273,7 @@ def crypto_heatmap(request): return render(request, 'store/crypto-heatmap.html')
 def trend_scanner(request): return render(request, 'store/trend-scanner.html')
 
 import pandas as pd
-import pandas_ta as ta
+# (pandas-ta is imported once at the top of this file as `ta`)
 
 
 
@@ -6482,7 +6485,7 @@ def connect_ctrader(request):
 
 
 import pandas as pd
-import pandas_ta as ta
+# (pandas-ta is imported once at the top of this file as `ta`)
 import yfinance as yf
 from datetime import datetime
 import random
@@ -9115,6 +9118,8 @@ def _resample_4h(candles):
 
 
 def _fetch_binance_candles(binance_sym, timeframe, bars):
+    if price_feed.cooling('Binance'):
+        return []
     try:
         url = (
             f"https://api.binance.com/api/v3/klines?"
@@ -9135,7 +9140,7 @@ def _fetch_binance_candles(binance_sym, timeframe, bars):
             for row in raw
         ]
     except Exception as e:
-        logger.warning(f"Binance candles failed for {binance_sym}: {e}")
+        price_feed.feed_failed('Binance', e, rate_pause=60)
         return []
 
 
@@ -9158,10 +9163,7 @@ def _fetch_yahoo_candles(ticker, timeframe, bars):
         with _urlreq.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read())
     except Exception as e:
-        if price_feed.is_rate_limit(e):
-            price_feed.cool_down('Yahoo', 300, 'HTTP 429')
-        else:
-            logger.warning(f"Yahoo candles failed for {ticker}: {e}")
+        price_feed.feed_failed('Yahoo', e, rate_pause=300)
         return []
 
     result = data.get('chart', {}).get('result', [])
@@ -9199,6 +9201,9 @@ BINANCE_CANDLE_FEEDS = {
 
 def _fetch_binance_candles_any(venue, binance_sym, timeframe, bars):
     host = 'https://fapi.binance.com/fapi/v1/klines' if venue == 'fut' else 'https://api.binance.com/api/v3/klines'
+    name = 'BinanceFutures' if venue == 'fut' else 'Binance'
+    if price_feed.cooling(name):
+        return []
     try:
         url = f"{host}?symbol={binance_sym}&interval={timeframe}&limit={bars}"
         req = _urlreq.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
@@ -9207,7 +9212,7 @@ def _fetch_binance_candles_any(venue, binance_sym, timeframe, bars):
         return [{'time': int(r[0] // 1000), 'open': float(r[1]), 'high': float(r[2]),
                  'low': float(r[3]), 'close': float(r[4]), 'volume': float(r[5])} for r in raw]
     except Exception as e:
-        logger.warning(f"Binance candles ({venue}) failed for {binance_sym}: {e}")
+        price_feed.feed_failed(name, e, rate_pause=60)
         return []
 
 
@@ -9223,68 +9228,88 @@ def _deriv_candles(symbol, timeframe, bars):
     granularity = TIMEFRAME_MAP[timeframe]['seconds']
     if granularity not in (60, 120, 180, 300, 600, 900, 1800, 3600, 7200, 14400, 28800, 86400):
         return []   # Deriv has no weekly / monthly candles
+    if price_feed.cooling('Deriv'):
+        return []
+    import asyncio
     from asgiref.sync import async_to_sync
     from .deriv_service import DerivService
+
+    async def _get():
+        # a hung websocket must not hold the page until the host's request timeout
+        return await asyncio.wait_for(DerivService().get_candles(symbol, granularity=granularity, count=bars), 8)
     try:
-        candles = async_to_sync(DerivService().get_candles)(symbol, granularity=granularity, count=bars)
+        candles = async_to_sync(_get)() or []
     except Exception as e:
-        if price_feed.is_rate_limit(e):
-            price_feed.cool_down('Deriv', 60, 'rate limited')
-        else:
-            logger.warning(f"Deriv candles failed for {symbol}: {e}")
+        price_feed.feed_failed('Deriv', e if str(e) else f'timeout ({type(e).__name__})', rate_pause=60)
         candles = []
     if candles:
         cache.set(key, candles, {'1m': 15, '5m': 30, '15m': 60, '30m': 90}.get(timeframe, 120))
     return candles
 
 
-# Forex and metal candles from Deriv's public API: free and keyless, so the scanners don't burn the
-# TwelveData credits that live prices need (TwelveData free = 8 requests / minute).
-DERIV_FX_CANDLES = {s: 'frx' + s for s in (
-    'EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'USDCAD', 'USDCHF', 'NZDUSD', 'EURGBP', 'EURJPY', 'GBPJPY',
-    'EURCHF', 'GBPCHF', 'EURAUD', 'EURCAD', 'GBPAUD', 'AUDJPY', 'AUDCAD', 'AUDNZD', 'NZDJPY',
-    'XAUUSD', 'XAGUSD')}
+# Forex, metal and crypto candles from Deriv's public socket (free, keyless, works from any server).
+from . import price_feed  # noqa: E402  (needed at import time here)
+DERIV_FX_CANDLES = price_feed.DERIV_CANDLE_MAP
 
 
 def get_candles(symbol, timeframe, bars=None):
     """
     OHLC candles, oldest first, as (candles, source) — ([], None) when no feed has them.
-    Crypto    → Binance
-    Metals    → Binance futures (gold) → Deriv → TwelveData → OANDA → Yahoo
-    Energy    → Binance futures (WTI) → TwelveData → OANDA → Yahoo
-    Forex     → Deriv → TwelveData → OANDA → Yahoo
-    A provider that rate-limits us is paused for a while (price_feed.cool_down).
+    Forex / metals → Deriv → Binance (gold, EUR, GBP) → OANDA → Kraken (forex, gold) → Coinbase (gold) → TwelveData → Yahoo
+    Crypto         → Binance → Kraken → Coinbase → Deriv
+    Energy         → Binance futures (WTI) → TwelveData → OANDA → Yahoo
+    Synthetics     → Deriv
+    Hosted servers: Binance refuses US datacenters and Yahoo blocks them, so the keyless Deriv / Kraken /
+    Coinbase sources come first or right after. A provider that fails is paused (price_feed.feed_failed),
+    so the next request skips it instead of waiting on it again.
     """
     symbol = (symbol or '').upper()
     if timeframe not in TIMEFRAME_MAP:
         return [], None
     bars = bars or TIMEFRAME_MAP[timeframe]['bars']
+    enough = min(bars, 120)
 
     if symbol.startswith(DERIV_SYNTHETIC_PREFIXES):
-        candles = _deriv_candles(symbol, timeframe, bars)
+        # same public socket as the live prices (works without the websockets package), then DerivService
+        candles = price_feed.fetch_deriv_candles(symbol, timeframe, bars) or _deriv_candles(symbol, timeframe, bars)
         return (candles, 'DERIV') if candles else ([], None)
+
+    is_crypto = symbol in price_feed.BINANCE_MAP
+    if symbol in DERIV_FX_CANDLES and not is_crypto:
+        candles = price_feed.fetch_deriv_candles(symbol, timeframe, bars)
+        if len(candles) >= enough:
+            return candles, 'DERIV'
 
     if symbol in BINANCE_CANDLE_FEEDS:
         venue, bsym = BINANCE_CANDLE_FEEDS[symbol]
         candles = _fetch_binance_candles_any(venue, bsym, timeframe, bars)
         if candles:
             return candles, 'BINANCE'
-    if symbol in price_feed.BINANCE_MAP:
-        candles = _fetch_binance_candles(price_feed.BINANCE_MAP[symbol], timeframe, bars)
-        return (candles, 'BINANCE') if candles else ([], None)
+    if is_crypto:
+        for name, fetch in (('BINANCE', lambda: _fetch_binance_candles(price_feed.BINANCE_MAP[symbol], timeframe, bars)),
+                            ('KRAKEN', lambda: price_feed.fetch_kraken_candles(symbol, timeframe, bars)),
+                            ('COINBASE', lambda: price_feed.fetch_coinbase_candles(symbol, timeframe, bars)),
+                            ('DERIV', lambda: price_feed.fetch_deriv_candles(symbol, timeframe, bars))):
+            candles = fetch()
+            if len(candles) >= enough:
+                return candles, name
+        return [], None
 
-    if symbol in DERIV_FX_CANDLES and not price_feed.cooling('Deriv'):
-        candles = _deriv_candles(DERIV_FX_CANDLES[symbol], timeframe, bars)
-        if len(candles) >= min(bars, 120):
-            return candles, 'DERIV'
+    # plain-https fallbacks when the Deriv socket is unreachable: OANDA (free practice token in .env),
+    # then Kraken forex / gold, Coinbase gold — all keyless except OANDA
+    candles = price_feed.fetch_oanda_candles(symbol, timeframe, bars)
+    if len(candles) >= enough:
+        return candles, 'OANDA'
+    for name, fetch in (('KRAKEN', price_feed.fetch_kraken_candles), ('COINBASE', price_feed.fetch_coinbase_candles)):
+        if symbol in price_feed.KRAKEN_FX_MAP or (name == 'COINBASE' and symbol == 'XAUUSD'):
+            candles = fetch(symbol, timeframe, bars)
+            if len(candles) >= enough:
+                return candles, name
 
     if symbol in price_feed.TWELVEDATA_MAP or symbol in price_feed.YAHOO_MAP:
         candles = price_feed.fetch_twelvedata_candles(symbol, timeframe, bars)
         if candles:
             return candles, 'TWELVEDATA'
-        candles = price_feed.fetch_oanda_candles(symbol, timeframe, bars)
-        if candles:
-            return candles, 'OANDA'
         if symbol in price_feed.YAHOO_MAP:
             candles = _fetch_yahoo_candles(price_feed.YAHOO_MAP[symbol], timeframe, bars)
             if candles:
@@ -9294,8 +9319,14 @@ def get_candles(symbol, timeframe, bars=None):
 
 @login_required
 def api_candles(request):
-    """OHLC candles for the chart (see get_candles for the source order)."""
-    if request.headers.get('X-Requested-With') != 'XMLHttpRequest':
+    """
+    OHLC candles for the charts (source order: see get_candles).
+    Always answers JSON. Good results are cached briefly and kept for 2 days as a stale fallback, so a
+    provider outage or rate limit shows the last candles (marked stale) instead of an empty chart.
+    Staff: add &debug=1 to see every provider's state as the server sees it.
+    """
+    debug = request.GET.get('debug') == '1' and request.user.is_staff     # staff can open this in the browser
+    if request.headers.get('X-Requested-With') != 'XMLHttpRequest' and not debug:
         return JsonResponse({'success': False, 'error': 'bad request'}, status=400)
 
     symbol    = request.GET.get('symbol', 'XAUUSD').upper()
@@ -9303,18 +9334,45 @@ def api_candles(request):
 
     if timeframe not in TIMEFRAME_MAP:
         return JsonResponse({'success': False, 'error': 'invalid timeframe'}, status=400)
-    known = (symbol in BINANCE_CANDLE_FEEDS or symbol in price_feed.BINANCE_MAP
-             or symbol in price_feed.TWELVEDATA_MAP or symbol in price_feed.YAHOO_MAP)
+    known = (symbol in BINANCE_CANDLE_FEEDS or symbol in price_feed.BINANCE_MAP or symbol in DERIV_FX_CANDLES
+             or symbol in price_feed.TWELVEDATA_MAP or symbol in price_feed.YAHOO_MAP
+             or symbol.startswith(DERIV_SYNTHETIC_PREFIXES))
     if not known:
         return JsonResponse({'success': False, 'error': f'unknown symbol {symbol}'})
 
-    candles, source = get_candles(symbol, timeframe)
+    key = f'cndl:{symbol}:{timeframe}'
+    hit = None if debug else cache.get(key)
+    if hit:
+        return JsonResponse(dict(hit, success=True, cached=True))
+
+    started = _time.time()
+    try:
+        candles, source = get_candles(symbol, timeframe)
+    except Exception as e:
+        logger.exception(f'candles {symbol} {timeframe}: {e}')
+        candles, source = [], None
+    took = round(_time.time() - started, 2)
+
     if candles:
-        return JsonResponse({'success': True, 'symbol': symbol, 'timeframe': timeframe,
-                             'source': source, 'candles': candles})
-    if symbol in price_feed.BINANCE_MAP:
-        return JsonResponse({'success': False, 'error': f'No Binance data for {symbol}'})
-    return JsonResponse({'success': False, 'error': f'No candle data for {symbol}. Check TwelveData API key.'})
+        payload = {'symbol': symbol, 'timeframe': timeframe, 'source': source, 'candles': candles}
+        ttl = {'1m': 10, '5m': 20, '15m': 45, '30m': 60}.get(timeframe, 90)
+        cache.set(key, payload, ttl)
+        cache.set(f'{key}:stale', payload, 2 * 86400)
+        out = dict(payload, success=True, took=took)
+    else:
+        stale = cache.get(f'{key}:stale')
+        if stale:
+            out = dict(stale, success=True, stale=True, took=took,
+                       warning='Live candle feeds are unavailable right now: showing the last candles we had.')
+        else:
+            paused = [n for n, st in price_feed.feed_status().items() if st.get('paused')]
+            out = {'success': False, 'took': took,
+                   'error': f'No candle data for {symbol} right now.'
+                            + (f" Paused providers: {', '.join(paused)}." if paused else '')
+                            + ' Try again in a minute.'}
+    if debug:
+        out['feeds'] = price_feed.feed_status()
+    return JsonResponse(out)
 
 # ═══════════════════════════════════════════════════════════════
 # LIVE PRICES — REST fallback (WS is primary)
@@ -10243,7 +10301,7 @@ def _currency_strength(style):
         spec = mt5_service.SPECS.get(sym)
         if not spec or spec.kind not in ('forex', 'metal'):
             continue
-        r = cache.get(f'aiscan:r:{sym}:{style}:s') or cache.get(f'aiscan:r:{sym}:{style}:d')
+        r = cache.get(chart_scanner.result_key(sym, style)) or cache.get(chart_scanner.result_key(sym, style, True))
         if not r or not r.get('ok'):
             continue
         for cur, sgn in ((spec.base, 1), (spec.quote, -1)):
@@ -10301,3 +10359,55 @@ def _page_url(names, default=''):
         except NoReverseMatch:
             continue
     return default
+
+
+# ═══════════════════════════════════════════════════════════════
+# DERIV TICKS THROUGH THE SERVER (digits page fallback)
+# ═══════════════════════════════════════════════════════════════
+_DERIV_TICK_SYMBOLS = ('R_10', 'R_25', 'R_50', 'R_75', 'R_100', '1HZ10V', '1HZ25V', '1HZ50V', '1HZ75V', '1HZ100V',
+                       'frxXAUUSD', 'frxXAGUSD', 'frxEURUSD', 'frxGBPUSD', 'frxUSDJPY', 'cryBTCUSD', 'cryETHUSD')
+
+
+@login_required
+def api_deriv_ticks(request):
+    """
+    GET /api/deriv/ticks/?symbol=1HZ100V&count=100 → {success, symbol, pip_size, ticks: [{epoch, quote}]}
+    The last ticks of a Deriv symbol fetched by the server. The digits page uses this when the browser
+    can't open Deriv's websocket itself (blocked by a browser shield / extension / network).
+    Cached 1 s per symbol, so any number of viewers costs one Deriv request per second.
+    """
+    symbol = request.GET.get('symbol', '')
+    if symbol not in _DERIV_TICK_SYMBOLS:
+        return JsonResponse({'success': False, 'error': 'unknown symbol'}, status=400)
+    try:
+        count = max(1, min(1000, int(request.GET.get('count', 20))))
+    except ValueError:
+        count = 20
+    depth = 1000 if count > 100 else 100          # the live feed asks for 100, the scanner for 1000
+    key = f'deriv:ticks:{symbol}:{depth}'
+    data = cache.get(key)
+    if data is None:
+        if price_feed.cooling('Deriv'):
+            return JsonResponse({'success': False, 'error': 'Deriv is not reachable from the server right now'})
+        try:
+            ws = price_feed.ws_connect(price_feed.DERIV_PUBLIC_WS, timeout=6)
+            try:
+                ws.send(json.dumps({'ticks_history': symbol, 'count': depth, 'end': 'latest', 'style': 'ticks', 'req_id': 11}))
+                deadline = _time.time() + 6
+                msg = {}
+                while _time.time() < deadline:
+                    msg = json.loads(ws.recv())
+                    if msg.get('req_id') == 11:
+                        break
+            finally:
+                ws.close()
+        except Exception as e:
+            price_feed.feed_failed('Deriv', e if str(e) else f'timeout ({type(e).__name__})', rate_pause=30)
+            return JsonResponse({'success': False, 'error': f'Deriv not reachable from the server: {e}'})
+        if msg.get('error'):
+            return JsonResponse({'success': False, 'error': msg['error'].get('message', 'Deriv error')})
+        hist = msg.get('history') or {}
+        data = {'pip_size': msg.get('pip_size'),
+                'ticks': [{'epoch': int(t), 'quote': float(p)} for t, p in zip(hist.get('times') or [], hist.get('prices') or [])]}
+        cache.set(key, data, 1 if depth == 100 else 30)
+    return JsonResponse({'success': True, 'symbol': symbol, 'pip_size': data['pip_size'], 'ticks': data['ticks'][-count:]})

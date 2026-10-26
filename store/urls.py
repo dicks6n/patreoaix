@@ -73,6 +73,7 @@ urlpatterns = [
 
 # In urls.py
     path('get-live-prices/', views.get_live_prices, name='get_live_prices'),
+    path('api/deriv/ticks/', views.api_deriv_ticks, name='api_deriv_ticks'),
 
     path('api/market-status/', views.api_market_status, name='api_market_status'),
     # MetaTrader & Trading Accounts (New Broker Suite)
@@ -280,6 +281,10 @@ urlpatterns = [
    # path('admin/crypto-deposits/', views.admin_crypto_deposits_view, name='admin_crypto_deposits'),
     # Authentication
     path('login/', views.login_view, name='login'),
+    # the login / signup pages post to allauth's addresses: serve them with our own views (phone login,
+    # referral codes, wallets created at signup). Listed before allauth, so these win. Google login stays on allauth.
+    path('accounts/login/', views.login_view, name='account_login'),
+    path('accounts/signup/', views.signup_view, name='account_signup'),
     path('signup/', views.signup_view, name='signup'),
     path('logout/', views.logout_view, name='logout'),
     path('api/ai-scrutiny/<str:symbol>/', views.api_ai_scrutiny, name='api_ai_scrutiny'),

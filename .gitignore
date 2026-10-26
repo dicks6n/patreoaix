@@ -5,5 +5,9 @@ __pycache__/
 db.sqlite3
 .env
 .DS_Store
-staticfiles/mpesa_debug.log
+staticfiles/
+mpesa_debug.log
 *.log
+
+.cache/
+*.sqlite3

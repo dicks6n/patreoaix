@@ -2,8 +2,10 @@
 """
 Site-wide JSON endpoints used by the base layout and the dashboard:
   • market overview — 24h change, high/low and a sparkline per symbol
-      crypto            → Binance (24h ticker + hourly klines, no key needed)
-      forex/metals/oil  → Yahoo chart meta, TwelveData /quote as fallback
+      crypto            → Binance 24h ticker when this server may use it (it refuses US hosts)
+      everything else   → the last 24 hourly candles from views.get_candles (Deriv / Kraken / Coinbase /
+                          TwelveData …, whatever this server can reach), cached 10 minutes
+      gaps              → Yahoo chart meta, then TwelveData /quote — both skipped while rate-limited
   • notifications    — list, mark one read, mark all read
 Live bid/ask comes from /api/mt5/quotes/ (same prices the trade server fills at).
 """
@@ -51,7 +53,7 @@ def _downsample(values, n=48):
 def _binance_stats(symbols):
     """24h change / high / low for crypto in one request, sparkline from 1h klines."""
     pairs = {s: price_feed.BINANCE_MAP[s] for s in symbols if s in price_feed.BINANCE_MAP}
-    if not pairs:
+    if not pairs or price_feed.cooling('Binance'):
         return {}
     out = {}
     try:
@@ -64,7 +66,8 @@ def _binance_stats(symbols):
                 out[sym] = {'change_pct': float(r['priceChangePercent']), 'high': float(r['highPrice']),
                             'low': float(r['lowPrice']), 'prev_close': float(r['openPrice']), 'source': 'Binance'}
     except Exception as e:
-        logger.warning(f'Binance 24h ticker failed: {e}')
+        price_feed.feed_failed('Binance', e, rate_pause=60)     # 451 on US servers → paused for an hour
+        return {}
 
     def spark(item):
         sym, pair = item
@@ -82,7 +85,7 @@ def _binance_stats(symbols):
 
 def _yahoo_stats(symbol):
     ticker = price_feed.YAHOO_MAP.get(symbol)
-    if not ticker:
+    if not ticker or price_feed.cooling('Yahoo'):
         return None
     try:
         d = _get_json(f'https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=15m&range=1d')
@@ -97,12 +100,12 @@ def _yahoo_stats(symbol):
                 'low': meta.get('regularMarketDayLow'), 'prev_close': prev,
                 'spark': _downsample(closes), 'source': 'Yahoo'}
     except Exception as e:
-        logger.debug(f'Yahoo stats failed for {symbol}: {e}')
+        price_feed.feed_failed('Yahoo', e, rate_pause=300)      # one 429 pauses Yahoo for every caller
         return None
 
 
 def _twelvedata_stats(symbols):
-    if not price_feed.TWELVEDATA_API_KEY:
+    if not price_feed.TWELVEDATA_API_KEY or price_feed.cooling('TwelveData'):
         return {}
     td = {s: price_feed.TWELVEDATA_MAP[s] for s in symbols if s in price_feed.TWELVEDATA_MAP}
     if not td:
@@ -112,6 +115,9 @@ def _twelvedata_stats(symbols):
         data = _get_json(f'https://api.twelvedata.com/quote?{q}', timeout=8)
         if len(td) == 1:
             data = {list(td.values())[0]: data}
+        if isinstance(data, dict) and data.get('status') == 'error':
+            price_feed.feed_failed('TwelveData', data.get('message', 'error'))
+            return {}
         out = {}
         for sym, tds in td.items():
             r = data.get(tds) or {}
@@ -120,8 +126,35 @@ def _twelvedata_stats(symbols):
                             'prev_close': float(r['previous_close']), 'source': 'TwelveData'}
         return out
     except Exception as e:
-        logger.warning(f'TwelveData quote failed: {e}')
+        price_feed.feed_failed('TwelveData', e)
         return {}
+
+
+def _candle_stats(symbol):
+    """24h change / high / low / sparkline from the last 24 hourly candles (the same feeds as the charts)."""
+    key = f'site:c24:{symbol}'
+    rows = cache.get(key)
+    if rows is None:
+        from .views import get_candles
+        try:
+            rows, _src = get_candles(symbol, '1h', 26)
+        except Exception as e:
+            logger.warning(f'overview candles {symbol}: {e}')
+            rows = []
+        rows = [{'open': float(c['open']), 'high': float(c['high']), 'low': float(c['low']), 'close': float(c['close'])}
+                for c in (rows or [])[-26:]]
+        cache.set(key, rows, 600 if rows else 120)       # hourly bars: 10 minutes is fresh enough
+    if len(rows) < 6:
+        return None
+    live = (price_feed.get_cached_prices() or {}).get(symbol)
+    last = float(live) if live else rows[-1]['close']
+    window = rows[-25:]
+    prev = window[0]['close'] if len(window) >= 25 else window[0]['open']    # price 24 hours ago
+    if not prev:
+        return None
+    return {'change_pct': (last - prev) / prev * 100,
+            'high': max([r['high'] for r in window[1:]] + [last]), 'low': min([r['low'] for r in window[1:]] + [last]),
+            'prev_close': prev, 'spark': [r['close'] for r in window[1:]] + [last], 'source': 'Candles'}
 
 
 def market_overview(symbols):
@@ -131,11 +164,17 @@ def market_overview(symbols):
         return data
     data = _binance_stats(symbols)
     others = [s for s in symbols if s not in data]
-    with ThreadPoolExecutor(max_workers=8) as pool:
-        for sym, st in zip(others, pool.map(_yahoo_stats, others)):
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        for sym, st in zip(others, pool.map(_candle_stats, others)):
             if st:
                 data[sym] = st
     missing = [s for s in others if s not in data]
+    if missing and not price_feed.cooling('Yahoo'):
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            for sym, st in zip(missing, pool.map(_yahoo_stats, missing)):
+                if st:
+                    data[sym] = st
+    missing = [s for s in missing if s not in data]
     if missing:
         data.update(_twelvedata_stats(missing))
     cache.set(key, data, OVERVIEW_TTL)

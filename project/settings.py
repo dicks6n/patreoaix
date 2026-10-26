@@ -55,7 +55,7 @@ DERIV_OAUTH_SCOPES = 'read trade'
 # NOWCRYPTO API CONFIGURATION
 # =============================================
 
-TWELVEDATA_API_KEY = os.environ.get('TWELVEDATA_API_KEY', 'cdd0d6f92a5948288c3d102a874b7ff6')
+TWELVEDATA_API_KEY = os.environ.get('TWELVEDATA_API_KEY', '')          # in .env (never in the code: the repo is public)
 
 
 # ==========================================
@@ -96,23 +96,43 @@ SMS_OTP_LENGTH = 6
 # Rate limiting (per user, per template, per hour)
 SMS_RATE_LIMIT_PER_HOUR = 10
 # settings.py
-NOWPAYMENTS_API_KEY = '3PKABWF-B65MP44-K6DR5HH-RB6XGH3'
-NOWPAYMENTS_IPN_SECRET = 'cLoO44Lqh4PIGxVbhNcvyFyEHV/8E+97'
-NOWPAYMENTS_SANDBOX = True  # Set to False when going live
+NOWPAYMENTS_API_KEY = os.getenv('NOWPAYMENTS_API_KEY', '')
+NOWPAYMENTS_IPN_SECRET = os.getenv('NOWPAYMENTS_IPN_SECRET', '')
+NOWPAYMENTS_SANDBOX = os.getenv('NOWPAYMENTS_SANDBOX', 'True') == 'True'   # False when going live
 
 # =============================================
 # SECURITY & DEPLOYMENT
 # =============================================
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-ahw@(v2zyav9rjx$yqhgjer+qfa$xiv7k1d37!q$0w8ylwba3k')  #
-DEBUG = True  #
-ALLOWED_HOSTS = ['*' , '192.168.100.74' , '.loca.lt', '.trycloudflare.com']  #
+# Same code on the laptop and on the server: everything that differs comes from .env
+#   laptop: DEBUG=True (default)        server: DEBUG=False, SITE_DOMAIN=patreoaix.com
+DEBUG = os.getenv('DEBUG', 'True') == 'True'
+SECRET_KEY = os.getenv('SECRET_KEY') or ('django-insecure-local-dev-only' if DEBUG else None)
+if not SECRET_KEY:
+    raise RuntimeError('Set SECRET_KEY in .env on the server (python -c "import secrets; print(secrets.token_urlsafe(50))")')
 
+SITE_DOMAIN = os.getenv('SITE_DOMAIN', 'patreoaix.com')
+SITE_URL = os.getenv('SITE_URL', f'https://{SITE_DOMAIN}')
+ON_PYTHONANYWHERE = bool(os.getenv('PYTHONANYWHERE_DOMAIN'))      # set by PythonAnywhere itself
 
+ALLOWED_HOSTS = [SITE_DOMAIN, f'www.{SITE_DOMAIN}', '.pythonanywhere.com', 'localhost', '127.0.0.1',
+                 '192.168.100.74', '.loca.lt', '.trycloudflare.com']
+ALLOWED_HOSTS += [h.strip() for h in os.getenv('EXTRA_ALLOWED_HOSTS', '').split(',') if h.strip()]
+if DEBUG:
+    ALLOWED_HOSTS.append('*')
+
+# Django refuses https form posts (login, signup, trades …) from origins not listed here
 CSRF_TRUSTED_ORIGINS = [
+    f'https://{SITE_DOMAIN}', f'https://www.{SITE_DOMAIN}', 'https://*.pythonanywhere.com',
     'https://*.loca.lt', 'https://*.trycloudflare.com',
 ]
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SESSION_COOKIE_SECURE = not DEBUG          # cookies only over https on the live site
+SECURE_SSL_REDIRECT = (not DEBUG) and os.getenv('SECURE_SSL_REDIRECT', 'True') == 'True'   # http:// → https://
+CSRF_COOKIE_SECURE = not DEBUG
+
+# PythonAnywhere (and plain WSGI hosts) have no websockets: pages poll the REST endpoints instead
+WEBSOCKETS_ENABLED = os.getenv('WEBSOCKETS_ENABLED', 'False' if ON_PYTHONANYWHERE else 'True') == 'True'
 
 # =============================================
 # APPLICATION DEFINITION
@@ -169,6 +189,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',  #
                 'django.contrib.messages.context_processors.messages',
                 'store.context_processors.kyc_status',
+                'store.context_processors.site_flags',
   #
             ],
         },
@@ -191,6 +212,23 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',  #
         'NAME': BASE_DIR / 'db.sqlite3',  #
+        # the website and the background task write at the same time: wait instead of "database is locked"
+        'OPTIONS': {'timeout': 20},
+    }
+}
+
+# =============================================
+# CACHE — shared by every process
+# =============================================
+# Live prices, candles, AI results and provider pauses live here. The default in-memory cache is private
+# to each process: fine for one runserver on the laptop, but on a host the website runs several worker
+# processes plus the background task, and they must all see the same prices. A file cache is shared.
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+        'LOCATION': os.getenv('CACHE_DIR', str(BASE_DIR / '.cache')),
+        'TIMEOUT': 300,
+        'OPTIONS': {'MAX_ENTRIES': 20000, 'CULL_FREQUENCY': 4},
     }
 }
 
@@ -220,6 +258,7 @@ USE_TZ = True  #
 # STATIC & MEDIA FILES
 # =============================================
 STATIC_URL = '/static/'  #
+STATIC_ROOT = BASE_DIR / 'staticfiles'      # python manage.py collectstatic → served by the host at /static/
 STATICFILES_DIRS = [
     BASE_DIR / "store" / "static",  #
 ]
@@ -244,8 +283,8 @@ REST_FRAMEWORK = {
 # =============================================
 # M-PESA CONFIGURATION
 # =============================================
-MPESA_CONSUMER_KEY = os.getenv('MPESA_CONSUMER_KEY', 'LFuAPkR8BWp3uQ4NAUdtRPi0umQVYT5sS8XTEbWOgNsgept2')  #
-MPESA_CONSUMER_SECRET = os.getenv('MPESA_CONSUMER_SECRET', 'UCf5kdz3nAe6Gakk2IJb69gBznmX6knNe1eA7MeQD1pzgmoI7PxaxXGWNLiLawtN')  #
+MPESA_CONSUMER_KEY = os.getenv('MPESA_CONSUMER_KEY', '')  #  in .env
+MPESA_CONSUMER_SECRET = os.getenv('MPESA_CONSUMER_SECRET', '')  #  in .env
 MPESA_PASSKEY = os.getenv('MPESA_PASSKEY', 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919')  #
 MPESA_SHORTCODE = os.getenv('MPESA_SHORTCODE', '174379')  #
 MPESA_ENVIRONMENT = os.getenv('MPESA_ENVIRONMENT', 'sandbox')  #
@@ -255,7 +294,7 @@ if MPESA_ENVIRONMENT == 'production':  #
 else:  #
     MPESA_BASE_URL = 'https://sandbox.safaricom.co.ke'  #
 
-MPESA_CALLBACK_URL = os.getenv('MPESA_CALLBACK_URL', 'https://your-domain.com/mpesa/callback/')  #
+MPESA_CALLBACK_URL = os.getenv('MPESA_CALLBACK_URL', f'{SITE_URL}/account-operations/funding/payment-methods/deposit/mpesa-callback/')  #
 
 # =============================================
 # LOGGING CONFIGURATION
@@ -268,15 +307,15 @@ LOGGING = {
             'class': 'logging.StreamHandler',  #
         },
         'file': {
-            'level': 'DEBUG',  #
+            'level': 'INFO',  #
             'class': 'logging.FileHandler',  #
-            'filename': 'mpesa_debug.log',  #
+            'filename': str(BASE_DIR / 'mpesa_debug.log'),  #
         },
     },
     'loggers': {
         'store': {
             'handlers': ['console', 'file'],  #
-            'level': 'DEBUG',  #
+            'level': 'DEBUG' if DEBUG else 'INFO',  #
             'propagate': True,  #
         },
     },
@@ -287,11 +326,11 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'dikkymccria@gmail.com'  # Replace with your Gmail address
-EMAIL_HOST_PASSWORD = 'iqhl anfs hdkr igxi'     # Replace with your 16-digit Gmail App Password
-DEFAULT_FROM_EMAIL = 'dikkymccria@gmail.com'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'dikkymccria@gmail.com')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')      # Gmail App Password, in .env only
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
 
-ADMIN_EMAIL = 'dikkymccria@gmail.com'
+ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', EMAIL_HOST_USER)
 
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'

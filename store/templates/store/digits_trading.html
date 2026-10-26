@@ -246,16 +246,12 @@
             <div>
                 <label for="assetSelect" class="text-[10px] font-bold text-amber-200/80 uppercase tracking-wider block mb-1.5">Select Asset</label>
                 <select id="assetSelect" onchange="changeAsset()" class="w-full bg-slate-950/90 border border-amber-800/40 rounded-xl px-3 py-3 text-xs font-bold text-slate-100 focus:outline-none focus:border-amber-500 focus:shadow-[0_0_20px_rgba(245,158,11,0.25)] cursor-pointer transition">
-                    <optgroup label="Commodities">
-                        <option value="frxXAUUSD" selected>🥇 Gold Spot (XAU/USD)</option>
-                        <option value="frxXAGUSD">🥈 Silver Spot (XAG/USD)</option>
-                    </optgroup>
                     <optgroup label="Volatility Indices">
                         <option value="R_10">Volatility 10 Index</option>
                         <option value="R_25">Volatility 25 Index</option>
                         <option value="R_50">Volatility 50 Index</option>
                         <option value="R_75">Volatility 75 Index</option>
-                        <option value="R_100">Volatility 100 Index</option>
+                        <option value="R_100" selected>Volatility 100 Index</option>
                     </optgroup>
                     <optgroup label="1s Volatility">
                         <option value="1HZ10V">Volatility 10 (1s)</option>
@@ -263,6 +259,10 @@
                         <option value="1HZ50V">Volatility 50 (1s)</option>
                         <option value="1HZ75V">Volatility 75 (1s)</option>
                         <option value="1HZ100V">Volatility 100 (1s)</option>
+                    </optgroup>
+                    <optgroup label="Commodities">
+                        <option value="frxXAUUSD">🥇 Gold Spot (XAU/USD)</option>
+                        <option value="frxXAGUSD">🥈 Silver Spot (XAG/USD)</option>
                     </optgroup>
                     <optgroup label="Forex">
                         <option value="frxEURUSD">EUR/USD</option>
@@ -283,7 +283,7 @@
                         Live Tick
                         <span id="tick-source-badge" class="source-badge src-loading">LOADING</span>
                     </span>
-                    <span id="stream-asset" class="text-[11px] font-mono font-bold text-amber-300 block truncate">Gold Spot</span>
+                    <span id="stream-asset" class="text-[11px] font-mono font-bold text-amber-300 block truncate">Volatility 100 Index</span>
                     <h3 id="stream-price" class="text-lg sm:text-xl font-black text-emerald-400 font-mono mt-0.5 truncate">$----</h3>
                 </div>
                 <div class="text-right pl-3 border-l border-amber-800/40 shrink-0 relative z-10">
@@ -561,7 +561,7 @@
                         </div>
                         <div class="min-w-0">
                             <h3 class="text-xs font-bold uppercase tracking-wider text-amber-300">AI Market Intelligence</h3>
-                            <p class="text-[10px] text-slate-400 truncate">Rotational high-win scanner</p>
+                            <p class="text-[10px] text-slate-400 truncate">Scans all 10 Volatility indices on Deriv</p>
                         </div>
                     </div>
                     <span id="aiStatusBadge" class="text-[9px] bg-amber-500/20 border border-amber-400/30 px-2.5 py-1 rounded-full text-amber-300 font-bold shrink-0">Ready</span>
@@ -575,10 +575,12 @@
 
                 <div id="aiRecommendationBox" class="hidden text-xs bg-slate-900/90 rounded-xl p-3 border border-amber-500/40 space-y-1 relative z-10">
                     <div class="flex justify-between font-semibold">
-                        <span id="recAsset" class="text-amber-400">Gold Spot</span>
-                        <span id="recConfidence" class="text-emerald-400">Confidence: 96.2%</span>
+                        <span id="recAsset" class="text-amber-400">—</span>
+                        <span id="recConfidence" class="text-emerald-400"></span>
                     </div>
-                    <div id="recReason" class="text-[10px] text-slate-300 leading-relaxed">Multi-strategy rotational sequence optimized for maximum stability.</div>
+                    <div id="recReason" class="text-[10px] text-slate-300 leading-relaxed"></div>
+                    <div id="aiScanTable" class="pt-2"></div>
+                    <p class="text-[9px] text-slate-500 leading-snug pt-1">Volatility index ticks come from a random number generator: a digit bias in past ticks does not change the odds of the next one. The scan shows where the recent ticks were most lopsided; the win chance stays the fair one shown.</p>
                 </div>
             </div>
 
@@ -660,7 +662,7 @@
     let sessionWins = 0;
     let sessionPnL = 0;
 
-    let selectedSymbol = "frxXAUUSD";
+    let selectedSymbol = "R_100";      // digits page opens on a Volatility index (AI Gold has its own card)
     let activeTab = "matches";
     let subType = "DIFF";
     let selectedDigit = 5;
@@ -748,6 +750,158 @@
         'cryBTCUSD', 'cryETHUSD',
     ]);
 
+    // ═══════════════════════════════════════════════════════════
+    // DERIV TICKS — straight from Deriv's public API in the browser (works on any host,
+    // including ones without websockets). The last digit is read at Deriv's own pip size,
+    // exactly how the server settles digit contracts.
+    // ═══════════════════════════════════════════════════════════
+    const DERIV_WS_URL = 'wss://ws.derivws.com/websockets/v3?app_id=1089';
+    const PIP_SIZE = { R_10: 3, R_25: 3, R_50: 4, R_75: 4, R_100: 2,
+                       '1HZ10V': 2, '1HZ25V': 2, '1HZ50V': 2, '1HZ75V': 2, '1HZ100V': 2 };
+    const VOL_SYMBOLS = ['R_10', 'R_25', 'R_50', 'R_75', 'R_100', '1HZ10V', '1HZ25V', '1HZ50V', '1HZ75V', '1HZ100V'];
+    let derivSock = null, derivLive = false, derivRetry = null;
+    let derivServerTimer = null;                 // fallback: the same Deriv ticks fetched by our server
+    let recentDigits = [];                       // last 100 digits, oldest first
+
+    function lastDigitOf(price, pip) {
+        const s = Number(price).toFixed(pip);
+        return parseInt(s[s.length - 1], 10);
+    }
+
+    function pushDigit(d, render = true) {
+        recentDigits.push(d);
+        if (recentDigits.length > 100) recentDigits.shift();
+        digitCounts.fill(0);
+        recentDigits.forEach(x => digitCounts[x]++);
+        totalTicksCount = recentDigits.length;
+        if (render) updateDigitDistributionList();
+    }
+
+    function closeDerivTicks() {
+        clearTimeout(derivRetry);
+        clearInterval(derivServerTimer); derivServerTimer = null;
+        derivLive = false;
+        if (derivSock) { const s = derivSock; derivSock = null; try { s.close(); } catch (e) {} }
+    }
+
+    function feedNote(text) {                     // why there's no direct Deriv feed (hover the badge)
+        const badge = document.getElementById('tick-source-badge');
+        if (badge) badge.title = text || '';
+        if (text) console.warn('[Deriv]', text);
+    }
+
+    // Browser can't use Deriv's websocket (shield / extension / network): our server fetches the ticks.
+    function startServerTicks(sym, why) {
+        closeDerivTicks();
+        feedNote(`Direct Deriv feed unavailable (${why}); using the server`);
+        let lastEpoch = 0, fails = 0, first = true;
+        const poll = async () => {
+            if (document.hidden || sym !== selectedSymbol) return;
+            try {
+                const r = await fetch(`/api/deriv/ticks/?symbol=${encodeURIComponent(DERIV_SYMBOL_MAP[sym])}&count=${first ? 100 : 20}`,
+                                      { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                const d = await r.json();
+                if (sym !== selectedSymbol) return;
+                if (!d.success) throw new Error(d.error || `HTTP ${r.status}`);
+                const pip = d.pip_size ?? PIP_SIZE[sym] ?? getDecimals(sym);
+                PIP_SIZE[sym] = pip;
+                const fresh = d.ticks.filter(x => x.epoch > lastEpoch);
+                if (!fresh.length) return;
+                if (first) { recentDigits = []; fresh.slice(0, -1).forEach(x => pushDigit(lastDigitOf(x.quote, pip), false)); }
+                (first ? fresh.slice(-1) : fresh).forEach(x => {
+                    wsHasTicked = true; wsTickCount++; wsLastTickAt = Date.now();
+                    updateLivePriceFromTV(x.quote, pip, true);
+                });
+                lastEpoch = fresh[fresh.length - 1].epoch;
+                first = false; fails = 0;
+                setSourceBadge('DERIV');
+            } catch (e) {
+                if (++fails >= 3) {                  // the server can't reach Deriv either: the site's own feed
+                    clearInterval(derivServerTimer); derivServerTimer = null;
+                    feedNote(`Deriv unreachable from the browser (${why}) and from the server (${e.message})`);
+                    setSourceBadge('NO FEED');
+                    connectWSForSymbol(sym);
+                }
+            }
+        };
+        derivServerTimer = setInterval(poll, 1000);
+        poll();
+    }
+
+    function connectDerivTicks(sym) {
+        closeDerivTicks();
+        if (!DERIV_SYMBOL_MAP[sym]) { connectWSForSymbol(sym); return; }
+        let sock, ticked = false, answered = false;
+        try { sock = new WebSocket(DERIV_WS_URL); } catch (e) { startServerTicks(sym, e.message); return; }
+        derivSock = sock;
+        const silence = setTimeout(() => {           // connected but Deriv never answered
+            if (sock === derivSock && !answered) startServerTicks(sym, 'no answer from Deriv in 6 s');
+        }, 6000);
+        sock.onopen = () => {
+            sock.send(JSON.stringify({ ticks_history: DERIV_SYMBOL_MAP[sym], count: 100, end: 'latest', style: 'ticks', req_id: 1 }));
+            sock.send(JSON.stringify({ ticks: DERIV_SYMBOL_MAP[sym], subscribe: 1, req_id: 2 }));
+        };
+        sock.onmessage = (ev) => {
+            if (sock !== derivSock || sym !== selectedSymbol) return;
+            let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+            answered = true;
+            if (m.error) {
+                if (!ticked) { clearTimeout(silence); startServerTicks(sym, m.error.message); }
+                return;
+            }
+            if (m.msg_type === 'history' && m.history && m.history.prices) {
+                const pip = m.pip_size ?? PIP_SIZE[sym] ?? getDecimals(sym);
+                PIP_SIZE[sym] = pip;
+                recentDigits = [];
+                m.history.prices.forEach(p => pushDigit(lastDigitOf(p, pip), false));
+                updateDigitDistributionList();
+            } else if (m.msg_type === 'tick' && m.tick) {
+                ticked = true; derivLive = true; clearTimeout(silence); feedNote('');
+                wsHasTicked = true; wsTickCount++; wsLastTickAt = Date.now();
+                if (m.tick.pip_size != null) PIP_SIZE[sym] = m.tick.pip_size;
+                setSourceBadge('DERIV');
+                updateLivePriceFromTV(parseFloat(m.tick.quote), PIP_SIZE[sym], true);
+                const text = document.getElementById('ws-status-text');
+                if (text) text.textContent = `Live · ${wsTickCount}`;
+            }
+        };
+        sock.onclose = (ev) => {
+            if (sock !== derivSock) return;
+            clearTimeout(silence);
+            derivSock = null; derivLive = false;
+            if (!ticked) { startServerTicks(sym, `connection closed (code ${ev.code})`); return; }   // blocked in this browser
+            clearTimeout(derivRetry);
+            derivRetry = setTimeout(() => { if (selectedSymbol === sym) connectDerivTicks(sym); }, 2000);
+        };
+    }
+
+    // one socket, the last `count` ticks of every symbol → {sym: {digits, pip}}
+    function derivHistory(symbols, count, timeoutMs = 15000) {
+        return new Promise((resolve) => {
+            const out = {};
+            let sock, done = false;
+            const finish = () => { if (done) return; done = true; try { sock && sock.close(); } catch (e) {} resolve(out); };
+            try { sock = new WebSocket(DERIV_WS_URL); } catch (e) { return resolve(out); }
+            const timer = setTimeout(finish, timeoutMs);
+            sock.onopen = () => symbols.forEach((s, i) => sock.send(JSON.stringify(
+                { ticks_history: s, count, end: 'latest', style: 'ticks', req_id: 100 + i })));
+            sock.onmessage = (ev) => {
+                let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+                const s = symbols[(m.req_id || 0) - 100];
+                if (!s) return;
+                if (m.history && m.history.prices) {
+                    const pip = m.pip_size ?? PIP_SIZE[s] ?? 2;
+                    out[s] = { pip, digits: m.history.prices.map(p => lastDigitOf(p, pip)) };
+                } else {
+                    out[s] = { error: (m.error && m.error.message) || 'no data', digits: [] };
+                }
+                if (Object.keys(out).length === symbols.length) { clearTimeout(timer); finish(); }
+            };
+            sock.onerror = () => {};
+            sock.onclose = () => { clearTimeout(timer); finish(); };
+        });
+    }
+
     function getWsSymbol(dropdownValue) {
         return WS_SYMBOL_MAP[dropdownValue] || null;
     }
@@ -783,7 +937,7 @@
             try {
                 const msg = JSON.parse(ev.data);
 
-                if (msg.type === 'tick' && msg.symbol === wsSymbol) {
+                if (msg.type === 'tick' && msg.symbol === wsSymbol && !derivSock && !derivServerTimer) {
                     wsTickCount++;
                     wsLastTickAt = Date.now();
                     wsHasTicked = true;
@@ -943,6 +1097,7 @@
     // SERVER POLL — REST fallback when WS is silent
     // ==========================================
     async function pollServerPrices() {
+        if (derivSock || derivServerTimer) return;   // a Deriv feed (direct or via the server) has the real ticks
         // Skip REST poll if WS delivered a tick in the last 2 seconds
         const sinceLastWsTick = Date.now() - wsLastTickAt;
         if (wsLastTickAt > 0 && sinceLastWsTick < 2000) {
@@ -981,17 +1136,19 @@
         updateLivePriceFromTV(price);
     }
 
-    function updateLivePriceFromTV(price) {
+    function updateLivePriceFromTV(price, pip = null, isTick = false) {
         if (!price || price <= 0) return;
-        if (price === lastTVPrice) return;
+        if (price === lastTVPrice && !isTick) return;    // a repeated Deriv tick is still a new digit
 
         const oldPrice = lastTVPrice;
         lastTVPrice = price;
 
         let formatted;
-        const decimals = getDecimals(selectedSymbol);
+        const decimals = pip != null ? pip : getDecimals(selectedSymbol);
 
-        if (price >= 1000) {
+        if (pip != null) {
+            formatted = price.toLocaleString('en-US', { minimumFractionDigits: pip, maximumFractionDigits: pip });
+        } else if (price >= 1000) {
             formatted = price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         } else if (price >= 1) {
             formatted = price.toFixed(Math.min(decimals, 4));
@@ -1008,21 +1165,16 @@
             setTimeout(() => priceEl.classList.remove('price-flash-up', 'price-flash-down'), 400);
         }
 
-        const noDecimal = formatted.replace(/[.,]/g, '').replace(/[^\d]/g, '');
-        const lastDigit = parseInt(noDecimal.slice(-1), 10);
+        const lastDigit = lastDigitOf(price, decimals);     // at the symbol's pip size, like Deriv
 
         const digitEl = document.getElementById('stream-digit');
         if (digitEl && !isNaN(lastDigit)) digitEl.innerText = lastDigit;
 
-        if (!isNaN(lastDigit)) {
-            totalTicksCount++;
-            digitCounts[lastDigit]++;
-            if (totalTicksCount > 100) totalTicksCount = 100;
-            updateDigitDistributionList();
-        }
+        if (!isNaN(lastDigit)) pushDigit(lastDigit);
     }
 
     function getDecimals(symbol) {
+        if (PIP_SIZE[symbol] != null) return PIP_SIZE[symbol];      // Volatility indices (Deriv pip sizes)
         if (symbol === 'frxXAUUSD' || symbol === 'frxXAGUSD') return 2;
         if (symbol === 'frxUSDJPY') return 3;
         if (symbol === 'cryBTCUSD' || symbol === 'cryETHUSD') return 2;
@@ -1084,12 +1236,15 @@
         wsLastTickAt = 0;
         digitCounts.fill(0);
         totalTicksCount = 0;
+        recentDigits = [];
         updateDigitDistributionList();
 
         setSourceBadge('LOADING');
 
-        // Parallel kickoff — WebSocket + REST
-        connectWSForSymbol(selectedSymbol);
+        // Deriv's own tick stream first; the site's WebSocket / REST feed only if Deriv can't be reached
+        if (lwWS) { try { lwWS.close(); } catch (e) {} lwWS = null; }
+        clearTimeout(lwReconnectTimer);
+        connectDerivTicks(selectedSymbol);
         pollServerPrices();
 
         // Fast-poll for 6 seconds to prevent LOADING stare
@@ -1605,75 +1760,94 @@
     // ==========================================
     // AI SCANNER
     // ==========================================
+    // How lopsided one Volatility index's digits are, the way Deriv digit traders read them:
+    // even/odd, high (5-9) / low (0-4) and the coldest digit, over the last 100 ticks (the signal)
+    // and the last 1000 (does the lean hold?). Strength is in standard deviations from a fair 50% / 10%.
+    function analyseVolatility(sym, digits) {
+        const n = digits.length, recent = digits.slice(-100), r = recent.length;
+        if (r < 50) return null;
+        const share = (arr, f) => arr.filter(f).length / arr.length;
+        const z = (p, size, p0) => (p - p0) / Math.sqrt(p0 * (1 - p0) / size);
+        const even100 = share(recent, d => d % 2 === 0), even1000 = share(digits, d => d % 2 === 0);
+        const high100 = share(recent, d => d >= 5), high1000 = share(digits, d => d >= 5);
+        const counts = Array(10).fill(0); recent.forEach(d => counts[d]++);
+        const cold = counts.indexOf(Math.min(...counts)), hot = counts.indexOf(Math.max(...counts));
+        const lean = (pr, pl) => { const zr = z(pr, r, 0.5), zl = z(pl, n, 0.5); return Math.abs(zr) + (Math.sign(zr) === Math.sign(zl) ? 0.5 * Math.abs(zl) : 0); };
+        const name = formatDerivSymbol(sym);
+        const options = [
+            { type: even100 > 0.5 ? 'ODD' : 'EVEN', barrier: null, win: 50, strength: lean(even100, even1000),
+              text: `${name}: ${(even100 * 100).toFixed(0)}% even in the last ${r} ticks (${(even1000 * 100).toFixed(1)}% over ${n})` },
+            { type: high100 > 0.5 ? 'UNDER' : 'OVER', barrier: high100 > 0.5 ? 5 : 4, win: 50, strength: lean(high100, high1000),
+              text: `${name}: ${(high100 * 100).toFixed(0)}% high digits (5-9) in the last ${r} ticks (${(high1000 * 100).toFixed(1)}% over ${n})` },
+            { type: 'DIFF', barrier: cold, win: 90, strength: -z(counts[cold] / r, r, 0.1),
+              text: `${name}: digit ${cold} came up only ${counts[cold]} times in the last ${r} ticks (fair: 10)` },
+        ];
+        const best = options.reduce((x, y) => y.strength > x.strength ? y : x);
+        return { sym, name, n, even100, high100, cold, hot, best };
+    }
+
     async function runAIMarketScanner() {
         if (!isBotActive) return alert("Bot is halted due to Session Risk Limits.");
 
         const scanBtn = document.getElementById('aiScanBtn');
         const originalContent = scanBtn.innerHTML;
-
         scanBtn.disabled = true;
-        scanBtn.innerHTML = '<i class="fa-solid fa-radar text-[11px] animate-spin"></i><span>Scanning ticks...</span>';
+        scanBtn.innerHTML = '<i class="fa-solid fa-radar text-[11px] animate-spin"></i><span>Scanning 10 Volatility indices...</span>';
 
-        await new Promise(resolve => setTimeout(resolve, 1800));
-
-        const totalTicks = Math.min(totalTicksCount, 100);
-        let bestStrategy = 'DIFF';
-        let bestBarrier = 5;
-        let confidence = 85;
-        let reason = '';
-
-        let minCount = Infinity, minDigit = 0;
-        let evenCount = 0, oddCount = 0;
-        let under5Count = 0, over4Count = 0;
-
-        for (let i = 0; i <= 9; i++) {
-            if (digitCounts[i] < minCount) { minCount = digitCounts[i]; minDigit = i; }
-            if (i % 2 === 0) evenCount += digitCounts[i];
-            else oddCount += digitCounts[i];
-            if (i < 5) under5Count += digitCounts[i];
-            else over4Count += digitCounts[i];
+        // the last 1000 ticks of every Volatility index, straight from Deriv (or through our server if the browser can't)
+        let data = await derivHistory(VOL_SYMBOLS, 1000, 8000);
+        if (!VOL_SYMBOLS.some(s => data[s] && data[s].digits.length)) {
+            data = {};
+            await Promise.all(VOL_SYMBOLS.map(async s => {
+                try {
+                    const d = await (await fetch(`/api/deriv/ticks/?symbol=${s}&count=1000`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })).json();
+                    if (d.success) data[s] = { pip: d.pip_size, digits: d.ticks.map(x => lastDigitOf(x.quote, d.pip_size ?? PIP_SIZE[s] ?? 2)) };
+                } catch (e) {}
+            }));
         }
+        const rows = VOL_SYMBOLS.map(s => data[s] && data[s].digits.length ? analyseVolatility(s, data[s].digits) : null).filter(Boolean);
 
-        const evenPct = (evenCount / totalTicks) * 100;
-        const oddPct = (oddCount / totalTicks) * 100;
-        const overPct = (over4Count / totalTicks) * 100;
-        const underPct = (under5Count / totalTicks) * 100;
-
-        if (evenPct > 58) {
-            applyContractTypeProgrammatically('ODD');
-            bestStrategy = 'ODD';
-            confidence = Math.min(96, 60 + evenPct);
-            reason = `Even digits overrepresented (${evenPct.toFixed(1)}%) — AI picks ODD for mean reversion`;
-        } else if (oddPct > 58) {
-            applyContractTypeProgrammatically('EVEN');
-            bestStrategy = 'EVEN';
-            confidence = Math.min(96, 60 + oddPct);
-            reason = `Odd digits overrepresented (${oddPct.toFixed(1)}%) — AI picks EVEN for mean reversion`;
-        } else if (overPct > 58) {
-            applyContractTypeProgrammatically('UNDER');
-            bestBarrier = 5;
-            selectedBarrier = 5;
-            bestStrategy = 'UNDER';
-            confidence = Math.min(96, 60 + overPct);
-            reason = `High digits (5-9) overrepresented (${overPct.toFixed(1)}%) — AI picks UNDER 5`;
-        } else if (underPct > 58) {
-            applyContractTypeProgrammatically('OVER');
-            bestBarrier = 4;
-            selectedBarrier = 4;
-            bestStrategy = 'OVER';
-            confidence = Math.min(96, 60 + underPct);
-            reason = `Low digits (0-4) overrepresented (${underPct.toFixed(1)}%) — AI picks OVER 4`;
-        } else {
-            applyContractTypeProgrammatically('DIFF');
-            bestStrategy = 'DIFF';
-            bestBarrier = minDigit;
-            confidence = Math.min(95, 78 + (100 - minCount / totalTicks * 100) / 4);
-            reason = `Digit ${minDigit} is least frequent (${((minCount/totalTicks)*100).toFixed(1)}%) — AI picks DIFF ${minDigit}`;
+        scanBtn.disabled = false;
+        scanBtn.innerHTML = originalContent;
+        document.getElementById('aiRecommendationBox').classList.remove('hidden');
+        if (!rows.length) {
+            document.getElementById('recAsset').textContent = 'Deriv unreachable';
+            document.getElementById('recConfidence').textContent = '';
+            document.getElementById('recReason').textContent = 'Could not load Volatility ticks from Deriv. Check your connection and scan again.';
+            document.getElementById('aiScanTable').innerHTML = '';
+            return;
         }
+        rows.sort((x, y) => y.best.strength - x.best.strength);
+        const top = rows[0], pick = top.best;
 
-        if (bestStrategy === 'DIFF' || bestStrategy === 'MATCH') {
-            selectedDigit = bestBarrier;
+        // switch to the index with the strongest lean, then set the contract
+        if (selectedSymbol !== top.sym) {
+            document.getElementById('assetSelect').value = top.sym;
+            changeAsset();
         }
+        applyContractTypeProgrammatically(pick.type);
+        const bestStrategy = pick.type;
+        if (pick.type === 'DIFF' || pick.type === 'MATCH') selectedDigit = pick.barrier;
+        else if (pick.barrier != null) selectedBarrier = pick.barrier;
+        const confidence = pick.strength;
+        const reason = `${pick.text}. Pick: ${pick.type}${pick.barrier != null ? ' ' + pick.barrier : ''}`;
+        const totalTicks = top.n;
+
+        const label = x => `${x.best.type}${x.best.barrier != null ? ' ' + x.best.barrier : ''}`;
+        document.getElementById('aiScanTable').innerHTML = `
+            <table class="w-full text-[10px] font-mono">
+                <thead><tr class="text-slate-500 text-left"><th class="py-1 font-semibold">Index</th><th class="text-right">Even</th><th class="text-right">5-9</th><th class="text-right">Cold</th><th class="text-right">Lean</th><th class="text-right">Pick</th></tr></thead>
+                <tbody>${rows.map((x, i) => `
+                    <tr class="border-t border-slate-800/60 ${i === 0 ? 'text-amber-300 font-bold' : 'text-slate-300'} cursor-pointer" onclick="document.getElementById('assetSelect').value='${x.sym}';changeAsset();">
+                        <td class="py-1 truncate">${x.sym}</td>
+                        <td class="text-right">${(x.even100 * 100).toFixed(0)}%</td>
+                        <td class="text-right">${(x.high100 * 100).toFixed(0)}%</td>
+                        <td class="text-right">${x.cold}</td>
+                        <td class="text-right">${x.best.strength.toFixed(1)}σ</td>
+                        <td class="text-right">${label(x)}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>`;
 
         initGrids();
         updateBuyButtonLabel();
@@ -1682,20 +1856,15 @@
         const recConfidence = document.getElementById('recConfidence');
         const recReason = document.getElementById('recReason');
 
-        if (recAsset) recAsset.textContent = formatDerivSymbol(selectedSymbol);
-        if (recConfidence) recConfidence.textContent = `Confidence: ${confidence.toFixed(1)}%`;
-        if (recReason) recReason.textContent = reason + ` (based on ${totalTicks} ticks)`;
+        if (recAsset) recAsset.textContent = top.name;
+        if (recConfidence) recConfidence.textContent = `Lean ${confidence.toFixed(1)}σ · win chance ${pick.win}%`;
+        if (recReason) recReason.textContent = reason + ` (from ${totalTicks} ticks per index)`;
 
         const aiStatusBadge = document.getElementById('aiStatusBadge');
         if (aiStatusBadge) {
             aiStatusBadge.textContent = 'Selected';
             aiStatusBadge.className = 'text-[9px] bg-emerald-500/20 border border-emerald-400/30 px-2.5 py-1 rounded-full text-emerald-300 font-bold shrink-0';
         }
-
-        document.getElementById('aiRecommendationBox').classList.remove('hidden');
-
-        scanBtn.disabled = false;
-        scanBtn.innerHTML = originalContent;
 
         setTimeout(() => {
             const grid = (bestStrategy === 'DIFF' || bestStrategy === 'MATCH')
@@ -2174,8 +2343,8 @@
         updateSessionStats();
         checkAIGoldStatus();
 
-        // ✅ Start WebSocket for the initially selected symbol (Gold)
-        connectWSForSymbol(selectedSymbol);
+        // ✅ Deriv tick stream for the initially selected Volatility index
+        connectDerivTicks(selectedSymbol);
 
         // ✅ REST fallback poll every 4s
         serverPollInterval = setInterval(pollServerPrices, 4000);
