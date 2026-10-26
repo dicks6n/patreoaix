@@ -2999,15 +2999,31 @@ def _live_digit_ticks(symbol, count):
     The last digit is taken at the index's own pip size, the way Deriv settles digit contracts.
     Returns ([], []) when Deriv can't be reached — the caller refuses the trade.
     """
-    from asgiref.sync import async_to_sync
-    from .deriv_service import DerivService
+    from . import price_feed
+    reasons = []
+    # 1) the same Deriv connection as the live prices (sync; works without the `websockets` package)
     try:
-        ticks = async_to_sync(DerivService().get_settlement_ticks)(
-            symbol, count=count, timeout=count * 2 + 8, detail=True,
-        )
+        ticks = price_feed.deriv_live_ticks(symbol, count=count)
     except Exception as e:
-        logger.warning(f"Live digit ticks failed for {symbol}: {e}")
+        reasons.append(f'direct: {e or type(e).__name__}')
         ticks = []
+    # 2) DerivService (async `websockets`)
+    if len(ticks) < count:
+        from asgiref.sync import async_to_sync
+        from .deriv_service import DerivService
+        try:
+            ticks = async_to_sync(DerivService().get_settlement_ticks)(
+                symbol, count=count, timeout=count * 2 + 8, detail=True,
+            ) or []
+        except Exception as e:
+            reasons.append(f'service: {e or type(e).__name__}')
+            ticks = []
+        if len(ticks) < count and len(reasons) < 2:
+            reasons.append('service: no ticks')
+    if len(ticks) < count:
+        logger.warning(f"Live digit ticks failed for {symbol}: {'; '.join(reasons)}")
+        _live_digit_ticks.last_error = '; '.join(reasons)
+        return [], []
     prices = [t['quote'] for t in ticks]
     digits = [int(f"{t['quote']:.{t['pip_size']}f}"[-1]) for t in ticks]
     return prices, digits
@@ -3272,6 +3288,7 @@ def execute_trade(request):
             return JsonResponse({
                 "success": False,
                 "error": "Live ticks for this index are unavailable right now. No stake was taken — please try again.",
+                "detail": getattr(_live_digit_ticks, 'last_error', ''),     # why (shown to staff in the page console)
             }, status=503)
 
         with transaction.atomic():

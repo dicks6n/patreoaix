@@ -842,7 +842,7 @@ class LiveChartConsumer(AsyncWebsocketConsumer):
         while self.running:
             try:
                 self.deriv_ws = await _ws_client.connect(
-                    "wss://ws.derivws.com/websockets/v3?app_id=1089",
+                    price_feed.DERIV_PUBLIC_WS,
                     open_timeout=8,
                     ping_interval=20,
                     ping_timeout=10,

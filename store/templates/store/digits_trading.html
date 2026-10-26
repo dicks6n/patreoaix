@@ -755,7 +755,8 @@
     // including ones without websockets). The last digit is read at Deriv's own pip size,
     // exactly how the server settles digit contracts.
     // ═══════════════════════════════════════════════════════════
-    const DERIV_WS_URL = 'wss://ws.derivws.com/websockets/v3?app_id=1089';
+    const DERIV_WS_URL = 'wss://ws.derivws.com/websockets/v3?app_id={{ deriv_ws_app_id|default:"1089"|urlencode }}';
+    const pxEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
     const PIP_SIZE = { R_10: 3, R_25: 3, R_50: 4, R_75: 4, R_100: 2,
                        '1HZ10V': 2, '1HZ25V': 2, '1HZ50V': 2, '1HZ75V': 2, '1HZ100V': 2 };
     const VOL_SYMBOLS = ['R_10', 'R_25', 'R_50', 'R_75', 'R_100', '1HZ10V', '1HZ25V', '1HZ50V', '1HZ75V', '1HZ100V'];
@@ -2075,7 +2076,8 @@
                     </div>
                     <div class="text-left">
                         <p class="text-[10px] font-black uppercase tracking-widest text-rose-400">Execution Failed</p>
-                        <p class="text-xs text-slate-300 mt-1">${result.error || 'Trade failed'}</p>
+                        <p class="text-xs text-slate-300 mt-1">${pxEsc(result.error || 'Trade failed')}</p>
+                        ${result.detail ? `<p class="text-[10px] text-slate-500 mt-1 font-mono break-words">Reason: ${pxEsc(result.detail)}</p>` : ''}
                     </div>
                 </div>`;
             return false;

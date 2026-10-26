@@ -139,7 +139,12 @@ STOOQ_MAP = {
 _YAHOO_TO_INTERNAL = {v: k for k, v in YAHOO_MAP.items()}
 
 # Deriv public ticks (no key, real time) — forex and metals
-DERIV_PUBLIC_WS = "wss://ws.derivws.com/websockets/v3?app_id=1089"
+try:
+    from django.conf import settings as _settings
+    _DERIV_WS_APP_ID = str(getattr(_settings, 'DERIV_WS_APP_ID', '') or '1089')
+except Exception:
+    _DERIV_WS_APP_ID = '1089'
+DERIV_PUBLIC_WS = f"wss://ws.derivws.com/websockets/v3?app_id={_DERIV_WS_APP_ID}"   # settings.DERIV_WS_APP_ID
 DERIV_FX_MAP = {
     'XAUUSD': 'frxXAUUSD', 'XAGUSD': 'frxXAGUSD',
     'EURUSD': 'frxEURUSD', 'GBPUSD': 'frxGBPUSD',
@@ -953,6 +958,36 @@ def fetch_deriv_candles(internal_symbol, timeframe='1h', bars=500, timeout=8.0):
     except Exception as e:
         feed_failed('Deriv', e if str(e) else f'timeout ({type(e).__name__})', rate_pause=60)
     return []
+
+
+def deriv_live_ticks(deriv_symbol, count=1, timeout=None):
+    """
+    The next `count` live ticks of a Deriv symbol, for settling digit contracts:
+    [{'quote', 'epoch', 'pip_size'}]. Same connection as the live prices (websocket-client or the
+    built-in client). Raises with the reason when Deriv can't deliver them in time.
+    """
+    timeout = timeout or count * 2 + 8
+    ws = ws_connect(DERIV_PUBLIC_WS, timeout=min(timeout, 10))
+    try:
+        ws.send(json.dumps({'ticks': deriv_symbol, 'subscribe': 1, 'req_id': 21}))
+        ticks, deadline = [], time.time() + timeout
+        while len(ticks) < count:
+            if time.time() > deadline:
+                raise TimeoutError(f'only {len(ticks)} of {count} ticks from Deriv in {timeout}s')
+            msg = json.loads(ws.recv())
+            if msg.get('error'):
+                raise RuntimeError(msg['error'].get('message') or msg['error'].get('code') or 'Deriv error')
+            tick = msg.get('tick')
+            if tick and tick.get('quote') is not None:
+                ticks.append({'quote': float(tick['quote']), 'epoch': int(tick.get('epoch') or 0),
+                              'pip_size': int(tick.get('pip_size') if tick.get('pip_size') is not None else 2)})
+        return ticks
+    finally:
+        try:
+            ws.send(json.dumps({'forget_all': 'ticks'}))
+        except Exception:
+            pass
+        ws.close()
 
 
 def _get_json(url, timeout=8):

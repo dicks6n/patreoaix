@@ -49,7 +49,7 @@ MAX_PENDING_ORDERS = 50
 TICKET_OFFSET = 8400                                                    # position ticket = 8400 + Trade.id
 PENDING_TICKET_OFFSET = 9000000                                         # order ticket = 9000000 + PendingOrder.id
 
-DERIV_WS_URL = 'wss://ws.derivws.com/websockets/v3?app_id=1089'
+DERIV_WS_URL = price_feed.DERIV_PUBLIC_WS          # app_id from settings.DERIV_WS_APP_ID
 
 
 class TradeError(Exception):

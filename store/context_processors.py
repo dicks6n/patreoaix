@@ -6,7 +6,8 @@ from .models import KYCProfile
 
 def site_flags(request):
     """Server capabilities the pages adapt to (websockets are off on hosts like PythonAnywhere)."""
-    return {'websockets_enabled': getattr(settings, 'WEBSOCKETS_ENABLED', True)}
+    return {'websockets_enabled': getattr(settings, 'WEBSOCKETS_ENABLED', True),
+            'deriv_ws_app_id': getattr(settings, 'DERIV_WS_APP_ID', '1089')}
 
 
 def kyc_status(request):
