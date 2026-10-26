@@ -344,6 +344,13 @@
         .btn-refresh span.btn-label { display: none; }
         .btn-close-all, .btn-refresh { padding: 7px 10px; }
     }
+    /* Deriv demo (Multipliers) */
+    .acct-btn { flex: 1; padding: 8px 10px; border-radius: 10px; font-size: 10px; font-weight: 800; text-align: left; border: 1px solid rgba(51,65,85,.7); background: rgba(15,23,42,.7); color: #94a3b8; transition: all .15s; min-width: 0; }
+    .acct-btn.on { border-color: #f59e0b; color: #fff; background: linear-gradient(135deg, rgba(217,119,6,.35), rgba(234,88,12,.25)); box-shadow: 0 0 18px rgba(217,119,6,.3); }
+    .acct-btn.demo.on { border-color: #22d3ee; background: linear-gradient(135deg, rgba(8,145,178,.35), rgba(14,116,144,.2)); box-shadow: 0 0 18px rgba(34,211,238,.3); }
+    .acct-btn:disabled { opacity: .55; cursor: not-allowed; }
+    .acct-btn small { display: block; font-weight: 600; font-size: 9px; opacity: .8; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #panel-ticket.dm-on .execution-btn { box-shadow: 0 0 0 1px rgba(34,211,238,.5), 0 8px 24px rgba(8,145,178,.25); }
 </style>
 
 <style>
@@ -716,6 +723,15 @@
                     </label>
                 </div>
 
+                <div id="dm-switch">
+                    <label class="tk-lbl">Trade with</label>
+                    <div class="flex gap-2">
+                        <button type="button" id="acct-site" class="acct-btn on" onclick="setTradeAcct('site')"><i class="fa-solid fa-wallet mr-1"></i>Site account<small>MT5-style lots</small></button>
+                        <button type="button" id="acct-demo" class="acct-btn demo" onclick="setTradeAcct('demo')" disabled><i class="fa-solid fa-flask mr-1"></i>Deriv Demo<small id="acct-demo-info">checking…</small></button>
+                    </div>
+                    <p id="acct-demo-note" class="text-[10px] text-slate-500 mt-1.5 hidden"></p>
+                </div>
+
                 <div>
                     <label class="tk-lbl">Trading Instrument</label>
                     <select id="order-symbol" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-amber-500 font-mono">
@@ -741,6 +757,28 @@
                         <button type="button" data-t="STOP_LIMIT">Stop limit</button>
                     </div>
                     <p class="text-[10px] text-slate-500 mt-1.5" id="ord-type-help">Fills now at the best price.</p>
+                </div>
+
+                <div id="dm-block" class="hidden space-y-2.5">
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <div>
+                            <label class="tk-lbl">Stake (USD)</label>
+                            <input type="number" id="dm-stake" value="10" min="1" step="1" class="tk-in w-full text-center font-bold">
+                        </div>
+                        <div>
+                            <label class="tk-lbl">Multiplier</label>
+                            <select id="dm-mult" class="tk-in w-full"><option value="100">×100</option></select>
+                        </div>
+                        <div>
+                            <label class="tk-lbl">Stop loss ($)</label>
+                            <input type="number" id="dm-sl" min="0" step="0.5" class="tk-in w-full focus:!border-red-500" placeholder="Optional">
+                        </div>
+                        <div>
+                            <label class="tk-lbl">Take profit ($)</label>
+                            <input type="number" id="dm-tp" min="0" step="0.5" class="tk-in w-full focus:!border-emerald-500" placeholder="Optional">
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-slate-500 leading-snug" id="dm-help">Deriv Multipliers on your demo account: BUY profits when price rises, SELL when it falls. Profit ≈ stake × multiplier × price move. You can never lose more than the stake.</p>
                 </div>
 
                 <div id="ord-pending-box" class="hidden space-y-2.5">
@@ -902,6 +940,11 @@
                         class="ptab-btn py-2.5 border-b-2 border-transparent text-slate-400 hover:text-white px-3 flex items-center gap-1.5 whitespace-nowrap transition text-[11px]">
                     <i class="fa-solid fa-clock-rotate-left text-[10px]"></i>
                     History
+                </button>
+                <button onclick="switchPositionTab('deriv')" id="ptab-deriv"
+                        class="ptab-btn py-2.5 border-b-2 border-transparent text-slate-400 hover:text-white px-3 flex items-center gap-1.5 whitespace-nowrap transition text-[11px] hidden">
+                    <i class="fa-solid fa-flask text-[10px] text-cyan-400"></i>
+                    Deriv Demo (<span id="deriv-count">0</span>)
                 </button>
                 <button onclick="switchPositionTab('alerts')" id="ptab-alerts"
                         class="ptab-btn py-2.5 border-b-2 border-transparent text-slate-400 hover:text-white px-3 flex items-center gap-1.5 whitespace-nowrap transition text-[11px]">
@@ -1111,6 +1154,23 @@
                     <i class="fa-solid fa-chevron-down text-[10px] mr-1"></i>
                     Load More
                 </button>
+            </div>
+        </div>
+        <div id="tab-content-deriv" class="tab-content hidden">
+            <div class="px-4 py-2.5 text-[11px] text-slate-400 border-b border-slate-800/60 flex items-center justify-between gap-2 flex-wrap">
+                <span>Open Multipliers contracts on your Deriv demo account <b class="text-cyan-400" id="deriv-loginid"></b> · they also show in Deriv → Reports.</span>
+                <span class="font-mono">Balance <b class="text-white" id="deriv-balance">—</b> · Floating <b id="deriv-floating" class="pnl-neutral">$0.00</b></span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-[11px] font-mono">
+                    <thead class="text-slate-500 text-left"><tr>
+                        <th class="px-3 py-2 font-semibold">Contract</th><th class="px-3 py-2 font-semibold">Market</th><th class="px-3 py-2 font-semibold">Side</th>
+                        <th class="px-3 py-2 font-semibold text-right">Stake</th><th class="px-3 py-2 font-semibold text-right">Mult</th>
+                        <th class="px-3 py-2 font-semibold text-right">Entry</th><th class="px-3 py-2 font-semibold text-right">Now</th>
+                        <th class="px-3 py-2 font-semibold text-right">SL / TP</th><th class="px-3 py-2 font-semibold text-right">P/L</th><th class="px-3 py-2"></th>
+                    </tr></thead>
+                    <tbody class="divide-y divide-slate-800/40" id="deriv-positions-body"><tr><td colspan="10" class="px-3 py-6 text-center text-slate-500">No open Deriv demo contracts.</td></tr></tbody>
+                </table>
             </div>
         </div>
         <div id="tab-content-alerts" class="tab-content hidden">
@@ -2865,7 +2925,7 @@ function switchPositionTab(tab) {
         activeBtn.classList.remove('border-transparent', 'text-slate-400');
         activeBtn.classList.add('border-amber-500', 'text-white');
     }
-    ['positions', 'pending', 'history', 'alerts'].forEach(t => {
+    ['positions', 'pending', 'history', 'alerts', 'deriv'].forEach(t => {
         const content = document.getElementById(`tab-content-${t}`);
         if (content) content.classList.toggle('hidden', t !== tab);
     });
@@ -2876,6 +2936,7 @@ function switchPositionTab(tab) {
     show('export-btn', tab === 'history');
     show('del-pending-btn', tab === 'pending' && pendingCache.length > 0);
 
+    if (tab === 'deriv') loadDerivPositions();
     if (tab === 'positions') updateAllPositionsPnL();
     else if (tab === 'pending') loadPendingOrders();
     else if (tab === 'history' && historyOffset === 0) loadHistory(true);
@@ -3743,6 +3804,7 @@ function expiryFor() {
     return { expiration: 'GTC', expires_at: null };
 }
 async function placeOrder(side, opts = {}) {
+    if (tradeAcct === 'demo') return placeDemoOrder(side);
     lastSide = side;
     const sym = tkSym(), s = specOf(sym), d = getDecimals(sym), f = v => Number(v).toFixed(d);
     const type = opts.market ? 'MARKET' : ordType;
@@ -4410,8 +4472,142 @@ window.addEventListener('load', function() {
     }, 300);
 });
 
+
+// ═══════════════════════════════════════════════════════════
+// DERIV DEMO — Multipliers on the user's own Deriv demo account
+// BUY = MULTUP, SELL = MULTDOWN; they show in Deriv → Reports too.
+// ═══════════════════════════════════════════════════════════
+var tradeAcct = 'site', demoAcc = null, derivTimer = null;
+const DM_SITE_ONLY = ['ord-type', 'ord-pending-box', 'order-volume', 'order-sl', 'margin-req'];
+const dmPost = (url, body) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken'), 'X-Requested-With': 'XMLHttpRequest' }, body: JSON.stringify(body) }).then(r => r.json());
+const dmGet = url => fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } }).then(r => r.json());
+const dmEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
+function dmTopBlock(el) {            // the ticket section that holds `el`
+    const root = $t('panel-ticket').firstElementChild;
+    while (el && el.parentElement && el.parentElement !== root) el = el.parentElement;
+    return el && el.parentElement === root ? el : null;
+}
+
+async function loadDemoAcc() {
+    const btn = $t('acct-demo'), info = $t('acct-demo-info'), note = $t('acct-demo-note');
+    try {
+        const d = await dmGet('/api/deriv/demo/account/');
+        if (d.connected && d.success) {
+            demoAcc = d; btn.disabled = false;
+            info.textContent = `${d.loginid} · ${fmtMoney(Number(d.balance))}`;
+            note.classList.add('hidden');
+            $t('ptab-deriv').classList.remove('hidden');
+            if (activePositionTab === 'deriv') loadDerivPositions();     // tab restored before the account loaded
+        } else {
+            demoAcc = null; btn.disabled = true;
+            info.textContent = d.connected ? 'token problem' : 'not connected';
+            note.innerHTML = `${dmEsc(d.error || 'Deriv demo account unavailable.')} <a href="/" class="text-cyan-400 underline">Dashboard</a>`;
+            note.classList.remove('hidden');
+        }
+    } catch (e) { info.textContent = 'unavailable'; }
+    setTradeAcct(store.get('tr-account', 'site'));
+}
+
+function setTradeAcct(acc) {
+    if (acc === 'demo' && !demoAcc) acc = 'site';
+    tradeAcct = acc;
+    store.set('tr-account', acc);
+    const demo = acc === 'demo';
+    $t('acct-site').classList.toggle('on', !demo);
+    $t('acct-demo').classList.toggle('on', demo);
+    $t('panel-ticket').classList.toggle('dm-on', demo);
+    $t('dm-block').classList.toggle('hidden', !demo);
+    DM_SITE_ONLY.forEach(id => { const b = dmTopBlock($t(id)); if (b) b.style.display = demo ? 'none' : ''; });
+    if (demo) loadMultipliers();
+}
+
+async function loadMultipliers() {
+    const sel = $t('dm-mult'), keep = sel.value;
+    try {
+        const d = await dmGet(`/api/deriv/demo/multipliers/?symbol=${encodeURIComponent(tkSym())}`);
+        const list = d.multipliers || [100];
+        sel.innerHTML = list.map(m => `<option value="${m}">×${m}</option>`).join('');
+        sel.value = list.includes(Number(keep)) ? keep : String(list.includes(100) ? 100 : list[0]);
+    } catch (e) {}
+}
+
+async function placeDemoOrder(side) {
+    const sym = tkSym(), stake = numIn('dm-stake'), mult = Number($t('dm-mult').value);
+    const sl = numIn('dm-sl'), tp = numIn('dm-tp'), buy = side === 'BUY';
+    const fb = $t('trade-execution-feedback');
+    const fail = msg => { fb.className = 'p-3 bg-slate-950 border border-rose-800 rounded-xl text-center text-[11px] text-rose-400 font-mono'; fb.textContent = '❌ ' + msg; showToast(msg, 'error'); };
+    if (!stake || stake < 1) return fail('Stake must be at least 1 USD');
+    const go = async () => {
+        fb.className = 'p-3 bg-slate-950 border border-cyan-800 rounded-xl text-center text-[11px] text-cyan-300 font-mono';
+        fb.textContent = `Opening ${side} ×${mult} on Deriv demo…`;
+        try {
+            const d = await dmPost('/api/deriv/demo/open/', { symbol: sym, side, stake, multiplier: mult, stop_loss: sl, take_profit: tp });
+            if (!d.success) return fail(d.error || 'Deriv demo order failed');
+            fb.className = 'p-3 bg-slate-950 border border-emerald-800 rounded-xl text-center text-[11px] text-emerald-400 font-mono';
+            fb.textContent = `✅ ${side} ${sym} ×${mult} · stake ${fmtMoney(d.buy_price)} · Deriv demo #${d.contract_id}`;
+            showToast(`Deriv demo ${side} ${sym} opened (#${d.contract_id})`, 'success');
+            if (d.new_balance != null && demoAcc) { demoAcc.balance = d.new_balance; $t('acct-demo-info').textContent = `${d.loginid} · ${fmtMoney(d.new_balance)}`; }
+            if (typeof beep === 'function') beep();
+            switchPositionTab('deriv');
+        } catch (e) { fail('Could not reach the server'); }
+    };
+    if (oneClick) return go();
+    const row = (k, v, c = 'text-white') => `<div class="flex justify-between mb-1"><span class="text-slate-500">${k}</span><span class="${c}">${v}</span></div>`;
+    openCustomModal({ title: `${buy ? 'Buy' : 'Sell'} ${sym} on Deriv demo?`, message: 'Deriv Multipliers contract on your demo account (virtual money).',
+        details: row('Contract', `${buy ? 'MULTUP' : 'MULTDOWN'} ×${mult}`, buy ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold') + row('Stake', fmtMoney(stake))
+               + row('Stop loss', sl ? fmtMoney(sl) : 'none', 'text-rose-400') + row('Take profit', tp ? fmtMoney(tp) : 'none', 'text-emerald-400'),
+        icon: 'warning', confirmText: `${buy ? 'Buy' : 'Sell'} on demo`, onConfirm: go });
+}
+
+async function loadDerivPositions() {
+    clearTimeout(derivTimer);
+    if (!demoAcc) return;
+    try {
+        const d = await dmGet('/api/deriv/demo/positions/');
+        const body = $t('deriv-positions-body');
+        if (!d.success) { body.innerHTML = `<tr><td colspan="10" class="px-3 py-6 text-center text-rose-400">${dmEsc(d.error)}</td></tr>`; }
+        else {
+            $t('deriv-loginid').textContent = d.loginid || '';
+            if (d.balance != null) $t('deriv-balance').textContent = fmtMoney(d.balance);
+            const pos = d.positions || [];
+            $t('deriv-count').textContent = pos.length;
+            const total = pos.reduce((a, p) => a + (p.profit || 0), 0);
+            const fl = $t('deriv-floating'); fl.textContent = fmtMoney(total); fl.className = total > 0 ? 'pnl-positive' : total < 0 ? 'pnl-negative' : 'pnl-neutral';
+            body.innerHTML = pos.length ? pos.map(p => `<tr>
+                <td class="px-3 py-2 text-slate-400">#${p.contract_id}</td>
+                <td class="px-3 py-2 text-white">${dmEsc(p.display_name)}</td>
+                <td class="px-3 py-2 font-bold ${p.side === 'BUY' ? 'text-emerald-400' : 'text-rose-400'}">${p.side}</td>
+                <td class="px-3 py-2 text-right">${fmtMoney(p.stake)}</td>
+                <td class="px-3 py-2 text-right">×${p.multiplier}</td>
+                <td class="px-3 py-2 text-right">${dmEsc(p.entry)}</td>
+                <td class="px-3 py-2 text-right text-white">${dmEsc(p.current)}</td>
+                <td class="px-3 py-2 text-right text-slate-400">${p.stop_loss != null ? fmtMoney(-Math.abs(p.stop_loss)) : '—'} / ${p.take_profit != null ? fmtMoney(p.take_profit) : '—'}</td>
+                <td class="px-3 py-2 text-right font-bold ${p.profit > 0 ? 'text-emerald-400' : p.profit < 0 ? 'text-rose-400' : 'text-slate-300'}">${fmtMoney(p.profit)}</td>
+                <td class="px-3 py-2 text-right"><button class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-rose-600 text-[10px] font-bold text-white border border-slate-700 disabled:opacity-40" ${p.can_sell ? '' : 'disabled'} onclick="closeDerivPosition(${p.contract_id}, this)">Close</button></td>
+            </tr>`).join('') : '<tr><td colspan="10" class="px-3 py-6 text-center text-slate-500">No open Deriv demo contracts.</td></tr>';
+        }
+    } catch (e) {}
+    if (activePositionTab === 'deriv') derivTimer = setTimeout(() => { if (!document.hidden) loadDerivPositions(); else derivTimer = setTimeout(loadDerivPositions, 5000); }, 5000);
+}
+
+async function closeDerivPosition(id, btn) {
+    if (btn) { btn.disabled = true; btn.textContent = '…'; }
+    try {
+        const d = await dmPost('/api/deriv/demo/close/', { contract_id: id });
+        if (!d.success) showToast(d.error || 'Close failed', 'error');
+        else {
+            showToast(`Deriv demo #${id} closed · ${fmtMoney(d.profit || 0)}`, (d.profit || 0) >= 0 ? 'success' : 'error');
+            if (d.new_balance != null && demoAcc) { demoAcc.balance = d.new_balance; $t('acct-demo-info').textContent = `${demoAcc.loginid} · ${fmtMoney(d.new_balance)}`; }
+        }
+    } catch (e) { showToast('Could not reach the server', 'error'); }
+    loadDerivPositions();
+}
+
 window.addEventListener('DOMContentLoaded', () => {
     initProTrading();
+    loadDemoAcc();
+    $t('order-symbol').addEventListener('change', () => { if (tradeAcct === 'demo') loadMultipliers(); });
     seedPricesFromServer();
     startBinanceWatchlistStream();
     restorePersistedUIState();

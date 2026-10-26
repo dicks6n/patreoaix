@@ -2,18 +2,20 @@
 """
 Demo trading on the user's own Deriv DEMO (virtual money) account from the digits page.
 
-Flow over Deriv's API (one websocket per trade, the same connection the live prices use):
-    authorize (the user's a1- API token) → refuse unless the account is virtual
+Flow (one websocket per trade):
+    new Deriv API (Personal Access Token / "Connect Deriv" login): REST OTP → the demo account's own socket
+    legacy a1- API token: authorize on the legacy socket (Deriv retired that host in 2026; kept as a fallback)
     → proposal (price of the contract) → buy → proposal_open_contract until sold → balance
 
-Real-money accounts are refused on purpose: the token is checked on every trade (authorize.is_virtual).
+Real-money accounts are refused on purpose: only accounts Deriv listed as demo are used, and a legacy
+token is checked on every trade (authorize.is_virtual).
 """
 import json
 import logging
 import time
 
 from . import price_feed
-from .deriv_service import is_legacy_token, looks_demo
+from .deriv_service import is_legacy_token
 
 logger = logging.getLogger(__name__)
 
@@ -32,24 +34,40 @@ def demo_account(user):
     """The user's connected Deriv demo account (with a token), or None."""
     from .models import UserBrokerAccount
     for acc in UserBrokerAccount.objects.filter(user=user, broker='DERIV', is_active=True).exclude(api_token__isnull=True).exclude(api_token=''):
-        if acc.server_name == 'Deriv Demo' or looks_demo(acc.account_number):
+        if acc.server_name == 'Deriv Demo':          # set from Deriv's own account list (is_demo / is_virtual)
             return acc
     return None
 
 
 class _Session:
-    """One authorized Deriv websocket; every request waits for its own req_id."""
+    """One Deriv trading websocket for the demo account; every request waits for its own req_id."""
 
-    def __init__(self, token, timeout=10):
-        if not is_legacy_token(token):
-            raise DemoTradeError('Demo trading needs a Deriv API token (it starts with "a1-") created on your demo account. '
-                                 'Make one in Deriv → Settings → API token with the Trade scope, and connect it on your dashboard.')
+    def __init__(self, acc, timeout=10):
+        token = acc.api_token
+        self.req = 0
+        if is_legacy_token(token):
+            try:
+                self.ws = price_feed.ws_connect(price_feed.DERIV_PUBLIC_WS_LEGACY, timeout=timeout)
+            except Exception as e:
+                raise DemoTradeError(f'Legacy "a1-" tokens need Deriv\'s old API, which is not reachable ({e}). '
+                                     'Reconnect Deriv on the dashboard with "Connect Deriv" or a Personal Access Token.')
+            self.auth = self.call({'authorize': token}, timeout=timeout)['authorize']
+            return
+        # new API: the account's own socket from a one-time password
+        from .deriv_service import DerivService
+        svc = DerivService()
+        if not svc.app_id:
+            raise DemoTradeError('Set DERIV_APP_ID (your Deriv app ID) in .env: the new Deriv API needs it to open the demo account.')
+        url = svc._get_authenticated_ws_url(token, acc.account_number)
+        if not url:
+            raise DemoTradeError(f"Deriv did not open the demo account {acc.account_number}: {svc.last_error or 'no socket returned'}")
         try:
-            self.ws = price_feed.ws_connect(price_feed.DERIV_PUBLIC_WS, timeout=timeout)
+            self.ws = price_feed.ws_connect(url, timeout=timeout)
         except Exception as e:
             raise DemoTradeError(f'Could not reach Deriv: {e}')
-        self.req = 0
-        self.auth = self.call({'authorize': token}, timeout=timeout)['authorize']
+        bal = self.call({'balance': 1}, timeout=timeout).get('balance') or {}
+        self.auth = {'loginid': bal.get('loginid') or acc.account_number, 'balance': bal.get('balance'),
+                     'currency': bal.get('currency') or 'USD', 'is_virtual': True}   # demo per Deriv's account list
 
     def call(self, request, timeout=10):
         self.req += 1
@@ -88,7 +106,7 @@ def _require_demo(auth):
 
 def account_info(acc):
     """{loginid, balance, currency} of the demo account, straight from Deriv."""
-    s = _Session(acc.api_token)
+    s = _Session(acc)
     try:
         _require_demo(s.auth)
         return {'loginid': s.auth.get('loginid'), 'balance': float(s.auth.get('balance') or 0),
@@ -130,7 +148,7 @@ def place_trade(acc, symbol, contract_type, stake, duration, barrier=None):
             raise DemoTradeError('Pick a digit first.')
         proposal['barrier'] = str(int(barrier))
 
-    s = _Session(acc.api_token)
+    s = _Session(acc)
     try:
         _require_demo(s.auth)
         proposal['currency'] = s.auth.get('currency') or 'USD'
@@ -170,5 +188,145 @@ def place_trade(acc, symbol, contract_type, stake, duration, barrier=None):
             'entry_tick': poc.get('entry_tick_display_value'), 'exit_tick': poc.get('exit_tick_display_value'),
             'new_balance': float(balance) if balance is not None else None,
         }
+    finally:
+        s.close()
+
+
+# ═══════════════════════════════════════════════════════════════
+# MULTIPLIERS (trade.html): BUY = MULTUP, SELL = MULTDOWN on the demo account
+# ═══════════════════════════════════════════════════════════════
+DEFAULT_MULTIPLIERS = [50, 100, 200, 300, 500]
+
+
+def deriv_symbol(symbol):
+    """Site symbol → Deriv underlying: XAUUSD → frxXAUUSD, BTCUSD → cryBTCUSD, R_100 → R_100."""
+    symbol = (symbol or '').upper()
+    if symbol in VOLATILITY or symbol.startswith(('R_', '1HZ')):
+        return symbol
+    return price_feed.DERIV_CANDLE_MAP.get(symbol) or ('frx' + symbol)
+
+
+def multiplier_options(symbol):
+    """Multipliers Deriv allows on this underlying (from contracts_for on the public socket), cached 1 h."""
+    from django.core.cache import cache
+    dsym = deriv_symbol(symbol)
+    key = f'deriv:mult:{dsym}'
+    hit = cache.get(key)
+    if hit is not None:
+        return hit
+    opts = []
+    try:
+        ws = price_feed.deriv_connect(timeout=8)
+        try:
+            ws.send(json.dumps({'contracts_for': dsym, 'currency': 'USD', 'req_id': 31}))
+            deadline = time.time() + 8
+            while time.time() < deadline:
+                msg = json.loads(ws.recv())
+                if msg.get('req_id') != 31:
+                    continue
+                for c in (msg.get('contracts_for') or {}).get('available') or []:
+                    if c.get('contract_type') == 'MULTUP' and c.get('multiplier_range'):
+                        opts = sorted({int(m) for m in c['multiplier_range']})
+                        break
+                break
+        finally:
+            ws.close()
+    except Exception as e:
+        logger.warning(f'contracts_for {dsym}: {e}')
+    cache.set(key, opts, 3600 if opts else 120)
+    return opts
+
+
+def _poc(s, contract_id):
+    return s.call({'proposal_open_contract': 1, 'contract_id': contract_id}).get('proposal_open_contract') or {}
+
+
+def _position(poc):
+    side = 'BUY' if poc.get('contract_type') == 'MULTUP' else 'SELL'
+    lo = poc.get('limit_order') or {}
+    amount = lambda k: (lo.get(k) or {}).get('order_amount')
+    return {
+        'contract_id': poc.get('contract_id'), 'side': side, 'symbol': poc.get('underlying'),
+        'display_name': poc.get('display_name') or poc.get('underlying'),
+        'stake': float(poc.get('buy_price') or 0), 'multiplier': poc.get('multiplier'),
+        'entry': poc.get('entry_spot_display_value') or poc.get('entry_spot'),
+        'current': poc.get('current_spot_display_value') or poc.get('current_spot'),
+        'profit': float(poc.get('profit') or 0), 'bid_price': float(poc.get('bid_price') or 0),
+        'stop_loss': amount('stop_loss'), 'take_profit': amount('take_profit'),
+        'stop_out': amount('stop_out'), 'can_sell': bool(poc.get('is_valid_to_sell')),
+        'is_sold': bool(poc.get('is_sold')), 'status': poc.get('status'),
+        'opened': poc.get('date_start'),
+    }
+
+
+def open_multiplier(acc, symbol, side, stake, multiplier, stop_loss=None, take_profit=None):
+    side = (side or '').upper()
+    if side not in ('BUY', 'SELL'):
+        raise DemoTradeError('Side must be BUY or SELL.')
+    try:
+        stake = round(float(stake), 2)
+        multiplier = int(multiplier)
+    except (TypeError, ValueError):
+        raise DemoTradeError('Invalid stake or multiplier.')
+    if not 1 <= stake <= 2000:
+        raise DemoTradeError('Stake must be between 1 and 2000 USD.')
+    proposal = {'proposal': 1, 'amount': stake, 'basis': 'stake', 'symbol': deriv_symbol(symbol),
+                'contract_type': 'MULTUP' if side == 'BUY' else 'MULTDOWN', 'multiplier': multiplier}
+    limit = {}
+    for k, v in (('stop_loss', stop_loss), ('take_profit', take_profit)):
+        if v not in (None, '', 0, '0'):
+            try:
+                v = round(float(v), 2)
+            except (TypeError, ValueError):
+                raise DemoTradeError(f'Invalid {k.replace("_", " ")} amount.')
+            if v <= 0:
+                raise DemoTradeError(f'{k.replace("_", " ").capitalize()} is an amount in USD and must be above 0.')
+            limit[k] = v
+    if limit:
+        proposal['limit_order'] = limit
+    s = _Session(acc)
+    try:
+        _require_demo(s.auth)
+        proposal['currency'] = s.auth.get('currency') or 'USD'
+        p = s.call(proposal)['proposal']
+        b = s.call({'buy': p['id'], 'price': p['ask_price']}, timeout=15)['buy']
+        pos = _position(_poc(s, b['contract_id']))
+        balance = s.call({'balance': 1}).get('balance', {}).get('balance')
+        return {'success': True, 'account': 'deriv_demo', 'loginid': s.auth.get('loginid'), 'currency': proposal['currency'],
+                'contract_id': b['contract_id'], 'buy_price': float(b.get('buy_price') or stake), 'longcode': b.get('longcode'),
+                'position': pos, 'new_balance': float(balance) if balance is not None else None}
+    finally:
+        s.close()
+
+
+def open_multipliers(acc):
+    """Every open Multipliers contract on the demo account, with live profit."""
+    s = _Session(acc)
+    try:
+        _require_demo(s.auth)
+        contracts = (s.call({'portfolio': 1}).get('portfolio') or {}).get('contracts') or []
+        out = [_position(_poc(s, c['contract_id'])) for c in contracts
+               if str(c.get('contract_type', '')).startswith('MULT')]
+        return {'success': True, 'loginid': s.auth.get('loginid'), 'currency': s.auth.get('currency') or 'USD',
+                'balance': float(s.auth.get('balance') or 0) if s.auth.get('balance') is not None else None,
+                'positions': [p for p in out if not p['is_sold']]}
+    finally:
+        s.close()
+
+
+def close_multiplier(acc, contract_id):
+    """Sell (close) one open contract at the market price."""
+    try:
+        contract_id = int(contract_id)
+    except (TypeError, ValueError):
+        raise DemoTradeError('Invalid contract.')
+    s = _Session(acc)
+    try:
+        _require_demo(s.auth)
+        sold = s.call({'sell': contract_id, 'price': 0}, timeout=15)['sell']
+        pos = _position(_poc(s, contract_id))
+        balance = s.call({'balance': 1}).get('balance', {}).get('balance')
+        return {'success': True, 'contract_id': contract_id, 'sold_for': float(sold.get('sold_for') or 0),
+                'profit': pos.get('profit'), 'new_balance': float(balance) if balance is not None else None}
     finally:
         s.close()

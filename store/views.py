@@ -10407,7 +10407,7 @@ def api_deriv_ticks(request):
         if price_feed.cooling('Deriv'):
             return JsonResponse({'success': False, 'error': 'Deriv is not reachable from the server right now'})
         try:
-            ws = price_feed.ws_connect(price_feed.DERIV_PUBLIC_WS, timeout=6)
+            ws = price_feed.deriv_connect(timeout=6)
             try:
                 ws.send(json.dumps({'ticks_history': symbol, 'count': depth, 'end': 'latest', 'style': 'ticks', 'req_id': 11}))
                 deadline = _time.time() + 6
@@ -10445,7 +10445,7 @@ def api_deriv_demo_account(request):
     history = cache.get(_demo_history_key(request.user)) or []
     if not acc:
         return JsonResponse({'success': True, 'connected': False, 'history': history,
-                             'error': 'No Deriv demo account connected. Connect a Deriv API token made on your demo account (dashboard → Connect Deriv).'})
+                             'error': 'No Deriv demo account connected. On your dashboard use Connect Deriv (or a Personal Access Token) so your demo account is listed.'})
     try:
         info = deriv_demo.account_info(acc)
     except deriv_demo.DemoTradeError as e:
@@ -10467,7 +10467,7 @@ def api_deriv_demo_trade(request):
         return JsonResponse({'success': False, 'error': 'Invalid request'}, status=400)
     acc = deriv_demo.demo_account(request.user)
     if not acc:
-        return JsonResponse({'success': False, 'error': 'No Deriv demo account connected. Connect a Deriv API token made on your demo account on the dashboard.'})
+        return JsonResponse({'success': False, 'error': 'No Deriv demo account connected. On your dashboard use Connect Deriv (or a Personal Access Token) so your demo account is listed.'})
     lock = f'deriv:demo:busy:{request.user.id}'
     if not cache.add(lock, 1, 60):          # one contract at a time per user (double clicks, bot + manual)
         return JsonResponse({'success': False, 'error': 'A demo contract is still running. Wait for its result.'})
@@ -10489,3 +10489,73 @@ def api_deriv_demo_trade(request):
                       'at': int(_time.time())})
     cache.set(key, history[:50], 30 * 86400)
     return JsonResponse(res)
+
+
+# ── Deriv demo Multipliers (trade.html) ──
+def _demo_guard(request):
+    from . import deriv_demo
+    acc = deriv_demo.demo_account(request.user)
+    if not acc:
+        return None, JsonResponse({'success': False, 'connected': False, 'error': 'No Deriv demo account connected. On your dashboard use Connect Deriv (or a Personal Access Token) so your demo account is listed.'})
+    return acc, None
+
+
+@login_required
+def api_deriv_demo_multipliers(request):
+    """GET ?symbol=XAUUSD → {success, multipliers: [...]} allowed by Deriv for that market."""
+    from . import deriv_demo
+    opts = deriv_demo.multiplier_options(request.GET.get('symbol', ''))
+    return JsonResponse({'success': True, 'multipliers': opts or deriv_demo.DEFAULT_MULTIPLIERS, 'from_deriv': bool(opts)})
+
+
+@login_required
+def api_deriv_demo_positions(request):
+    """GET → open Multipliers contracts on the user's Deriv demo account."""
+    from . import deriv_demo
+    acc, err = _demo_guard(request)
+    if err:
+        return err
+    try:
+        return JsonResponse(deriv_demo.open_multipliers(acc))
+    except deriv_demo.DemoTradeError as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+def _demo_post(request, fn):
+    from . import deriv_demo
+    try:
+        data = json.loads(request.body or '{}')
+    except ValueError:
+        return JsonResponse({'success': False, 'error': 'Invalid request'}, status=400)
+    acc, err = _demo_guard(request)
+    if err:
+        return err
+    lock = f'deriv:demo:busy:{request.user.id}'
+    if not cache.add(lock, 1, 60):
+        return JsonResponse({'success': False, 'error': 'Another Deriv demo request is still running. Wait a moment.'})
+    try:
+        return JsonResponse(fn(acc, data))
+    except deriv_demo.DemoTradeError as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+    except Exception as e:
+        logger.exception(f'Deriv demo request failed: {e}')
+        return JsonResponse({'success': False, 'error': 'Deriv demo request failed. Check your Deriv statement before trying again.', 'detail': str(e)[:200]})
+    finally:
+        cache.delete(lock)
+
+
+@login_required
+@require_POST
+def api_deriv_demo_open(request):
+    """POST {symbol, side: BUY|SELL, stake, multiplier, stop_loss?, take_profit?} → opens a Multipliers contract (demo)."""
+    from . import deriv_demo
+    return _demo_post(request, lambda acc, d: deriv_demo.open_multiplier(
+        acc, d.get('symbol'), d.get('side'), d.get('stake'), d.get('multiplier'), d.get('stop_loss'), d.get('take_profit')))
+
+
+@login_required
+@require_POST
+def api_deriv_demo_close(request):
+    """POST {contract_id} → sells (closes) that demo contract at market."""
+    from . import deriv_demo
+    return _demo_post(request, lambda acc, d: deriv_demo.close_multiplier(acc, d.get('contract_id')))

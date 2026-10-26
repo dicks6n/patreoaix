@@ -227,7 +227,7 @@ def _deriv_mid(symbol):
     if entry and time.time() - entry['ts'] < 1.0:
         return entry['price']
     # websocket-client when installed, else price_feed's built-in client (PythonAnywhere may lack the package)
-    ws = price_feed.ws_connect(DERIV_WS_URL, timeout=5)
+    ws = price_feed.deriv_connect(timeout=5)
     try:
         ws.send(json.dumps({'ticks_history': symbol, 'count': 1, 'end': 'latest', 'style': 'ticks', 'req_id': 3}))
         deadline = time.time() + 5

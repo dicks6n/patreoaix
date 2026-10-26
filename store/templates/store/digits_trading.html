@@ -855,7 +855,8 @@
     // including ones without websockets). The last digit is read at Deriv's own pip size,
     // exactly how the server settles digit contracts.
     // ═══════════════════════════════════════════════════════════
-    const DERIV_WS_URL = 'wss://ws.derivws.com/websockets/v3?app_id={{ deriv_ws_app_id|default:"1089"|urlencode }}';
+    // Deriv's public market-data socket (new API host; the legacy ws.derivws.com host was retired in 2026)
+    const DERIV_WS_URL = '{{ deriv_public_ws_url|default:"wss://api.derivws.com/trading/v1/options/ws/public"|escapejs }}';
     const pxEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
     const PIP_SIZE = { R_10: 3, R_25: 3, R_50: 4, R_75: 4, R_100: 2,
                        '1HZ10V': 2, '1HZ25V': 2, '1HZ50V': 2, '1HZ75V': 2, '1HZ100V': 2 };

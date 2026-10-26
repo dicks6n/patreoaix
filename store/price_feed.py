@@ -144,7 +144,33 @@ try:
     _DERIV_WS_APP_ID = str(getattr(_settings, 'DERIV_WS_APP_ID', '') or '1089')
 except Exception:
     _DERIV_WS_APP_ID = '1089'
-DERIV_PUBLIC_WS = f"wss://ws.derivws.com/websockets/v3?app_id={_DERIV_WS_APP_ID}"   # settings.DERIV_WS_APP_ID
+# Deriv public market data (ticks, tick history, candles). Deriv's new API serves it at api.derivws.com
+# without login; the legacy ws.derivws.com host was retired in 2026. The legacy URL stays as a fallback,
+# and settings.DERIV_PUBLIC_WS_URL can force a specific one.
+DERIV_PUBLIC_WS_NEW = "wss://api.derivws.com/trading/v1/options/ws/public"
+DERIV_PUBLIC_WS_LEGACY = f"wss://ws.derivws.com/websockets/v3?app_id={_DERIV_WS_APP_ID}"
+try:
+    _forced = str(getattr(_settings, 'DERIV_PUBLIC_WS_URL', '') or '')
+except Exception:
+    _forced = ''
+DERIV_WS_CANDIDATES = [u for u in (_forced, DERIV_PUBLIC_WS_NEW, DERIV_PUBLIC_WS_LEGACY) if u]
+DERIV_PUBLIC_WS = DERIV_WS_CANDIDATES[0]            # first choice; deriv_connect() falls back to the others
+_DERIV_WS_GOOD = None                               # the URL that worked last
+
+
+def deriv_connect(timeout=8.0):
+    """Open Deriv's public market-data socket: the URL that worked last, else each candidate in turn."""
+    global _DERIV_WS_GOOD
+    order = ([_DERIV_WS_GOOD] if _DERIV_WS_GOOD else []) + [u for u in DERIV_WS_CANDIDATES if u != _DERIV_WS_GOOD]
+    errors = []
+    for url in order:
+        try:
+            ws = ws_connect(url, timeout=timeout)
+            _DERIV_WS_GOOD = url
+            return ws
+        except Exception as e:
+            errors.append(f"{url.split('//')[1].split('/')[0]}: {e or type(e).__name__}")
+    raise ConnectionError('; '.join(errors))
 DERIV_FX_MAP = {
     'XAUUSD': 'frxXAUUSD', 'XAGUSD': 'frxXAGUSD',
     'EURUSD': 'frxEURUSD', 'GBPUSD': 'frxGBPUSD',
@@ -633,7 +659,7 @@ def _fetch_deriv_batch(internal_symbols, timeout=4.0):
         return {}
     out = {}
     try:
-        ws = ws_connect(DERIV_PUBLIC_WS, timeout=timeout)
+        ws = deriv_connect(timeout=timeout)
         try:
             ids = {}
             for i, dsym in enumerate(wanted, start=1):
@@ -936,7 +962,7 @@ def fetch_deriv_candles(internal_symbol, timeframe='1h', bars=500, timeout=8.0):
     if not dsym or not gran or cooling('Deriv'):
         return []
     try:
-        ws = ws_connect(DERIV_PUBLIC_WS, timeout=timeout)
+        ws = deriv_connect(timeout=timeout)
         try:
             ws.send(json.dumps({'ticks_history': dsym, 'style': 'candles', 'granularity': gran,
                                 'count': max(1, min(int(bars), 5000)), 'end': 'latest', 'adjust_start_time': 1, 'req_id': 7}))
@@ -967,7 +993,7 @@ def deriv_live_ticks(deriv_symbol, count=1, timeout=None):
     built-in client). Raises with the reason when Deriv can't deliver them in time.
     """
     timeout = timeout or count * 2 + 8
-    ws = ws_connect(DERIV_PUBLIC_WS, timeout=min(timeout, 10))
+    ws = deriv_connect(timeout=min(timeout, 10))
     try:
         ws.send(json.dumps({'ticks': deriv_symbol, 'subscribe': 1, 'req_id': 21}))
         ticks, deadline = [], time.time() + timeout

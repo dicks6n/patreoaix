@@ -49,6 +49,8 @@ DERIV_APP_ID = os.environ.get('DERIV_APP_ID', '34mjct1dBCmYao65TsMoD')
 # App ID for Deriv's public market-data websocket (ticks, candles, digit settlement). 1089 is Deriv's
 # shared test app; put your own app's numeric ID here if Deriv stops serving 1089.
 DERIV_WS_APP_ID = os.environ.get('DERIV_WS_APP_ID', '1089')
+# Force a market-data socket URL (default: Deriv's new public endpoint, then the legacy one)
+DERIV_PUBLIC_WS_URL = os.environ.get('DERIV_PUBLIC_WS_URL', '')
 DERIV_OAUTH_REDIRECT = os.environ.get(
     'DERIV_OAUTH_REDIRECT',
     'http://127.0.0.1:8000/deriv-callback/'  # change in production
