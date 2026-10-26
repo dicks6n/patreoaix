@@ -2999,15 +2999,31 @@ def _live_digit_ticks(symbol, count):
     The last digit is taken at the index's own pip size, the way Deriv settles digit contracts.
     Returns ([], []) when Deriv can't be reached — the caller refuses the trade.
     """
-    from asgiref.sync import async_to_sync
-    from .deriv_service import DerivService
+    from . import price_feed
+    reasons = []
+    # 1) the same Deriv connection as the live prices (sync; works without the `websockets` package)
     try:
-        ticks = async_to_sync(DerivService().get_settlement_ticks)(
-            symbol, count=count, timeout=count * 2 + 8, detail=True,
-        )
+        ticks = price_feed.deriv_live_ticks(symbol, count=count)
     except Exception as e:
-        logger.warning(f"Live digit ticks failed for {symbol}: {e}")
+        reasons.append(f'direct: {e or type(e).__name__}')
         ticks = []
+    # 2) DerivService (async `websockets`)
+    if len(ticks) < count:
+        from asgiref.sync import async_to_sync
+        from .deriv_service import DerivService
+        try:
+            ticks = async_to_sync(DerivService().get_settlement_ticks)(
+                symbol, count=count, timeout=count * 2 + 8, detail=True,
+            ) or []
+        except Exception as e:
+            reasons.append(f'service: {e or type(e).__name__}')
+            ticks = []
+        if len(ticks) < count and len(reasons) < 2:
+            reasons.append('service: no ticks')
+    if len(ticks) < count:
+        logger.warning(f"Live digit ticks failed for {symbol}: {'; '.join(reasons)}")
+        _live_digit_ticks.last_error = '; '.join(reasons)
+        return [], []
     prices = [t['quote'] for t in ticks]
     digits = [int(f"{t['quote']:.{t['pip_size']}f}"[-1]) for t in ticks]
     return prices, digits
@@ -3272,6 +3288,7 @@ def execute_trade(request):
             return JsonResponse({
                 "success": False,
                 "error": "Live ticks for this index are unavailable right now. No stake was taken — please try again.",
+                "detail": getattr(_live_digit_ticks, 'last_error', ''),     # why (shown to staff in the page console)
             }, status=503)
 
         with transaction.atomic():
@@ -9201,7 +9218,7 @@ BINANCE_CANDLE_FEEDS = {
 
 def _fetch_binance_candles_any(venue, binance_sym, timeframe, bars):
     host = 'https://fapi.binance.com/fapi/v1/klines' if venue == 'fut' else 'https://api.binance.com/api/v3/klines'
-    name = 'Binance Futures' if venue == 'fut' else 'Binance'
+    name = 'BinanceFutures' if venue == 'fut' else 'Binance'
     if price_feed.cooling(name):
         return []
     try:
@@ -9255,7 +9272,7 @@ DERIV_FX_CANDLES = price_feed.DERIV_CANDLE_MAP
 def get_candles(symbol, timeframe, bars=None):
     """
     OHLC candles, oldest first, as (candles, source) — ([], None) when no feed has them.
-    Forex / metals → Deriv → Binance (gold, EUR, GBP) → TwelveData → OANDA → Yahoo
+    Forex / metals → Deriv → Binance (gold, EUR, GBP) → OANDA → Kraken (forex, gold) → Coinbase (gold) → TwelveData → Yahoo
     Crypto         → Binance → Kraken → Coinbase → Deriv
     Energy         → Binance futures (WTI) → TwelveData → OANDA → Yahoo
     Synthetics     → Deriv
@@ -9295,13 +9312,21 @@ def get_candles(symbol, timeframe, bars=None):
                 return candles, name
         return [], None
 
+    # plain-https fallbacks when the Deriv socket is unreachable: OANDA (free practice token in .env),
+    # then Kraken forex / gold, Coinbase gold — all keyless except OANDA
+    candles = price_feed.fetch_oanda_candles(symbol, timeframe, bars)
+    if len(candles) >= enough:
+        return candles, 'OANDA'
+    for name, fetch in (('KRAKEN', price_feed.fetch_kraken_candles), ('COINBASE', price_feed.fetch_coinbase_candles)):
+        if symbol in price_feed.KRAKEN_FX_MAP or (name == 'COINBASE' and symbol == 'XAUUSD'):
+            candles = fetch(symbol, timeframe, bars)
+            if len(candles) >= enough:
+                return candles, name
+
     if symbol in price_feed.TWELVEDATA_MAP or symbol in price_feed.YAHOO_MAP:
         candles = price_feed.fetch_twelvedata_candles(symbol, timeframe, bars)
         if candles:
             return candles, 'TWELVEDATA'
-        candles = price_feed.fetch_oanda_candles(symbol, timeframe, bars)
-        if candles:
-            return candles, 'OANDA'
         if symbol in price_feed.YAHOO_MAP:
             candles = _fetch_yahoo_candles(price_feed.YAHOO_MAP[symbol], timeframe, bars)
             if candles:
@@ -10351,3 +10376,186 @@ def _page_url(names, default=''):
         except NoReverseMatch:
             continue
     return default
+
+
+# ═══════════════════════════════════════════════════════════════
+# DERIV TICKS THROUGH THE SERVER (digits page fallback)
+# ═══════════════════════════════════════════════════════════════
+_DERIV_TICK_SYMBOLS = ('R_10', 'R_25', 'R_50', 'R_75', 'R_100', '1HZ10V', '1HZ25V', '1HZ50V', '1HZ75V', '1HZ100V',
+                       'frxXAUUSD', 'frxXAGUSD', 'frxEURUSD', 'frxGBPUSD', 'frxUSDJPY', 'cryBTCUSD', 'cryETHUSD')
+
+
+@login_required
+def api_deriv_ticks(request):
+    """
+    GET /api/deriv/ticks/?symbol=1HZ100V&count=100 → {success, symbol, pip_size, ticks: [{epoch, quote}]}
+    The last ticks of a Deriv symbol fetched by the server. The digits page uses this when the browser
+    can't open Deriv's websocket itself (blocked by a browser shield / extension / network).
+    Cached 1 s per symbol, so any number of viewers costs one Deriv request per second.
+    """
+    symbol = request.GET.get('symbol', '')
+    if symbol not in _DERIV_TICK_SYMBOLS:
+        return JsonResponse({'success': False, 'error': 'unknown symbol'}, status=400)
+    try:
+        count = max(1, min(1000, int(request.GET.get('count', 20))))
+    except ValueError:
+        count = 20
+    depth = 1000 if count > 100 else 100          # the live feed asks for 100, the scanner for 1000
+    key = f'deriv:ticks:{symbol}:{depth}'
+    data = cache.get(key)
+    if data is None:
+        if price_feed.cooling('Deriv'):
+            return JsonResponse({'success': False, 'error': 'Deriv is not reachable from the server right now'})
+        try:
+            ws = price_feed.deriv_connect(timeout=6)
+            try:
+                ws.send(json.dumps({'ticks_history': symbol, 'count': depth, 'end': 'latest', 'style': 'ticks', 'req_id': 11}))
+                deadline = _time.time() + 6
+                msg = {}
+                while _time.time() < deadline:
+                    msg = json.loads(ws.recv())
+                    if msg.get('req_id') == 11:
+                        break
+            finally:
+                ws.close()
+        except Exception as e:
+            price_feed.feed_failed('Deriv', e if str(e) else f'timeout ({type(e).__name__})', rate_pause=30)
+            return JsonResponse({'success': False, 'error': f'Deriv not reachable from the server: {e}'})
+        if msg.get('error'):
+            return JsonResponse({'success': False, 'error': msg['error'].get('message', 'Deriv error')})
+        hist = msg.get('history') or {}
+        data = {'pip_size': msg.get('pip_size'),
+                'ticks': [{'epoch': int(t), 'quote': float(p)} for t, p in zip(hist.get('times') or [], hist.get('prices') or [])]}
+        cache.set(key, data, 1 if depth == 100 else 30)
+    return JsonResponse({'success': True, 'symbol': symbol, 'pip_size': data['pip_size'], 'ticks': data['ticks'][-count:]})
+
+
+# ═══════════════════════════════════════════════════════════════
+# DERIV DEMO TRADING (digits page → the user's own Deriv demo account)
+# ═══════════════════════════════════════════════════════════════
+def _demo_history_key(user):
+    return f'deriv:demo:history:{user.id}'
+
+
+@login_required
+def api_deriv_demo_account(request):
+    """GET → {success, connected, loginid, balance, currency, history} for the user's Deriv demo account."""
+    from . import deriv_demo
+    acc = deriv_demo.demo_account(request.user)
+    history = cache.get(_demo_history_key(request.user)) or []
+    if not acc:
+        return JsonResponse({'success': True, 'connected': False, 'history': history,
+                             'error': 'No Deriv demo account connected. On your dashboard use Connect Deriv (or a Personal Access Token) so your demo account is listed.'})
+    try:
+        info = deriv_demo.account_info(acc)
+    except deriv_demo.DemoTradeError as e:
+        return JsonResponse({'success': False, 'connected': True, 'loginid': acc.account_number, 'error': str(e), 'history': history})
+    return JsonResponse({'success': True, 'connected': True, 'history': history, **info})
+
+
+@login_required
+@require_POST
+def api_deriv_demo_trade(request):
+    """
+    POST {symbol, contract_type: DIGITEVEN…, amount, duration, barrier?} → buys one contract on the user's
+    Deriv DEMO account and waits for Deriv to settle it. Real-money accounts are refused.
+    """
+    from . import deriv_demo
+    try:
+        data = json.loads(request.body or '{}')
+    except ValueError:
+        return JsonResponse({'success': False, 'error': 'Invalid request'}, status=400)
+    acc = deriv_demo.demo_account(request.user)
+    if not acc:
+        return JsonResponse({'success': False, 'error': 'No Deriv demo account connected. On your dashboard use Connect Deriv (or a Personal Access Token) so your demo account is listed.'})
+    lock = f'deriv:demo:busy:{request.user.id}'
+    if not cache.add(lock, 1, 60):          # one contract at a time per user (double clicks, bot + manual)
+        return JsonResponse({'success': False, 'error': 'A demo contract is still running. Wait for its result.'})
+    try:
+        res = deriv_demo.place_trade(acc, data.get('symbol'), data.get('contract_type'), data.get('amount'),
+                                     data.get('duration', 1), data.get('barrier'))
+    except deriv_demo.DemoTradeError as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+    except Exception as e:
+        logger.exception(f'Deriv demo trade failed: {e}')
+        return JsonResponse({'success': False, 'error': 'Deriv demo trade failed. Check your Deriv statement before trying again.',
+                             'detail': str(e)[:200]})
+    finally:
+        cache.delete(lock)
+    key = _demo_history_key(request.user)
+    history = cache.get(key) or []
+    history.insert(0, {k: res.get(k) for k in ('contract_id', 'won', 'profit', 'buy_price', 'final_digit', 'new_balance', 'currency')}
+                   | {'symbol': data.get('symbol'), 'contract_type': data.get('contract_type'), 'barrier': data.get('barrier'),
+                      'at': int(_time.time())})
+    cache.set(key, history[:50], 30 * 86400)
+    return JsonResponse(res)
+
+
+# ── Deriv demo Multipliers (trade.html) ──
+def _demo_guard(request):
+    from . import deriv_demo
+    acc = deriv_demo.demo_account(request.user)
+    if not acc:
+        return None, JsonResponse({'success': False, 'connected': False, 'error': 'No Deriv demo account connected. On your dashboard use Connect Deriv (or a Personal Access Token) so your demo account is listed.'})
+    return acc, None
+
+
+@login_required
+def api_deriv_demo_multipliers(request):
+    """GET ?symbol=XAUUSD → {success, multipliers: [...]} allowed by Deriv for that market."""
+    from . import deriv_demo
+    opts = deriv_demo.multiplier_options(request.GET.get('symbol', ''))
+    return JsonResponse({'success': True, 'multipliers': opts or deriv_demo.DEFAULT_MULTIPLIERS, 'from_deriv': bool(opts)})
+
+
+@login_required
+def api_deriv_demo_positions(request):
+    """GET → open Multipliers contracts on the user's Deriv demo account."""
+    from . import deriv_demo
+    acc, err = _demo_guard(request)
+    if err:
+        return err
+    try:
+        return JsonResponse(deriv_demo.open_multipliers(acc))
+    except deriv_demo.DemoTradeError as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+def _demo_post(request, fn):
+    from . import deriv_demo
+    try:
+        data = json.loads(request.body or '{}')
+    except ValueError:
+        return JsonResponse({'success': False, 'error': 'Invalid request'}, status=400)
+    acc, err = _demo_guard(request)
+    if err:
+        return err
+    lock = f'deriv:demo:busy:{request.user.id}'
+    if not cache.add(lock, 1, 60):
+        return JsonResponse({'success': False, 'error': 'Another Deriv demo request is still running. Wait a moment.'})
+    try:
+        return JsonResponse(fn(acc, data))
+    except deriv_demo.DemoTradeError as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+    except Exception as e:
+        logger.exception(f'Deriv demo request failed: {e}')
+        return JsonResponse({'success': False, 'error': 'Deriv demo request failed. Check your Deriv statement before trying again.', 'detail': str(e)[:200]})
+    finally:
+        cache.delete(lock)
+
+
+@login_required
+@require_POST
+def api_deriv_demo_open(request):
+    """POST {symbol, side: BUY|SELL, stake, multiplier, stop_loss?, take_profit?} → opens a Multipliers contract (demo)."""
+    from . import deriv_demo
+    return _demo_post(request, lambda acc, d: deriv_demo.open_multiplier(
+        acc, d.get('symbol'), d.get('side'), d.get('stake'), d.get('multiplier'), d.get('stop_loss'), d.get('take_profit')))
+
+
+@login_required
+@require_POST
+def api_deriv_demo_close(request):
+    """POST {contract_id} → sells (closes) that demo contract at market."""
+    from . import deriv_demo
+    return _demo_post(request, lambda acc, d: deriv_demo.close_multiplier(acc, d.get('contract_id')))

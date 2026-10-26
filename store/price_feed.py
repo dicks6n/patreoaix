@@ -37,7 +37,8 @@ logger = logging.getLogger(__name__)
 try:
     from django.conf import settings
     TWELVEDATA_API_KEY = getattr(settings, 'TWELVEDATA_API_KEY', '')
-    OANDA_API_KEY      = getattr(settings, 'OANDA_API_KEY', '')
+    # settings.py names it OANDA_API_TOKEN; OANDA_API_KEY kept for older settings
+    OANDA_API_KEY      = getattr(settings, 'OANDA_API_TOKEN', '') or getattr(settings, 'OANDA_API_KEY', '')
     OANDA_ACCOUNT_ID   = getattr(settings, 'OANDA_ACCOUNT_ID', '')
     OANDA_ENV          = getattr(settings, 'OANDA_ENV', 'practice')
 except Exception:
@@ -138,7 +139,38 @@ STOOQ_MAP = {
 _YAHOO_TO_INTERNAL = {v: k for k, v in YAHOO_MAP.items()}
 
 # Deriv public ticks (no key, real time) — forex and metals
-DERIV_PUBLIC_WS = "wss://ws.derivws.com/websockets/v3?app_id=1089"
+try:
+    from django.conf import settings as _settings
+    _DERIV_WS_APP_ID = str(getattr(_settings, 'DERIV_WS_APP_ID', '') or '1089')
+except Exception:
+    _DERIV_WS_APP_ID = '1089'
+# Deriv public market data (ticks, tick history, candles). Deriv's new API serves it at api.derivws.com
+# without login; the legacy ws.derivws.com host was retired in 2026. The legacy URL stays as a fallback,
+# and settings.DERIV_PUBLIC_WS_URL can force a specific one.
+DERIV_PUBLIC_WS_NEW = "wss://api.derivws.com/trading/v1/options/ws/public"
+DERIV_PUBLIC_WS_LEGACY = f"wss://ws.derivws.com/websockets/v3?app_id={_DERIV_WS_APP_ID}"
+try:
+    _forced = str(getattr(_settings, 'DERIV_PUBLIC_WS_URL', '') or '')
+except Exception:
+    _forced = ''
+DERIV_WS_CANDIDATES = [u for u in (_forced, DERIV_PUBLIC_WS_NEW, DERIV_PUBLIC_WS_LEGACY) if u]
+DERIV_PUBLIC_WS = DERIV_WS_CANDIDATES[0]            # first choice; deriv_connect() falls back to the others
+_DERIV_WS_GOOD = None                               # the URL that worked last
+
+
+def deriv_connect(timeout=8.0):
+    """Open Deriv's public market-data socket: the URL that worked last, else each candidate in turn."""
+    global _DERIV_WS_GOOD
+    order = ([_DERIV_WS_GOOD] if _DERIV_WS_GOOD else []) + [u for u in DERIV_WS_CANDIDATES if u != _DERIV_WS_GOOD]
+    errors = []
+    for url in order:
+        try:
+            ws = ws_connect(url, timeout=timeout)
+            _DERIV_WS_GOOD = url
+            return ws
+        except Exception as e:
+            errors.append(f"{url.split('//')[1].split('/')[0]}: {e or type(e).__name__}")
+    raise ConnectionError('; '.join(errors))
 DERIV_FX_MAP = {
     'XAUUSD': 'frxXAUUSD', 'XAGUSD': 'frxXAGUSD',
     'EURUSD': 'frxEURUSD', 'GBPUSD': 'frxGBPUSD',
@@ -627,7 +659,7 @@ def _fetch_deriv_batch(internal_symbols, timeout=4.0):
         return {}
     out = {}
     try:
-        ws = ws_connect(DERIV_PUBLIC_WS, timeout=timeout)
+        ws = deriv_connect(timeout=timeout)
         try:
             ids = {}
             for i, dsym in enumerate(wanted, start=1):
@@ -930,7 +962,7 @@ def fetch_deriv_candles(internal_symbol, timeframe='1h', bars=500, timeout=8.0):
     if not dsym or not gran or cooling('Deriv'):
         return []
     try:
-        ws = ws_connect(DERIV_PUBLIC_WS, timeout=timeout)
+        ws = deriv_connect(timeout=timeout)
         try:
             ws.send(json.dumps({'ticks_history': dsym, 'style': 'candles', 'granularity': gran,
                                 'count': max(1, min(int(bars), 5000)), 'end': 'latest', 'adjust_start_time': 1, 'req_id': 7}))
@@ -954,28 +986,85 @@ def fetch_deriv_candles(internal_symbol, timeframe='1h', bars=500, timeout=8.0):
     return []
 
 
+def deriv_live_ticks(deriv_symbol, count=1, timeout=None):
+    """
+    The next `count` live ticks of a Deriv symbol, for settling digit contracts:
+    [{'quote', 'epoch', 'pip_size'}]. Same connection as the live prices (websocket-client or the
+    built-in client). Raises with the reason when Deriv can't deliver them in time.
+    """
+    timeout = timeout or count * 2 + 8
+    ws = deriv_connect(timeout=min(timeout, 10))
+    try:
+        ws.send(json.dumps({'ticks': deriv_symbol, 'subscribe': 1, 'req_id': 21}))
+        ticks, deadline = [], time.time() + timeout
+        while len(ticks) < count:
+            if time.time() > deadline:
+                raise TimeoutError(f'only {len(ticks)} of {count} ticks from Deriv in {timeout}s')
+            msg = json.loads(ws.recv())
+            if msg.get('error'):
+                raise RuntimeError(msg['error'].get('message') or msg['error'].get('code') or 'Deriv error')
+            tick = msg.get('tick')
+            if tick and tick.get('quote') is not None:
+                ticks.append({'quote': float(tick['quote']), 'epoch': int(tick.get('epoch') or 0),
+                              'pip_size': int(tick.get('pip_size') if tick.get('pip_size') is not None else 2)})
+        return ticks
+    finally:
+        try:
+            ws.send(json.dumps({'forget_all': 'ticks'}))
+        except Exception:
+            pass
+        ws.close()
+
+
 def _get_json(url, timeout=8):
     req = _urlreq.Request(url, headers={'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json'})
     with _urlreq.urlopen(req, timeout=timeout) as resp:
         return json.loads(resp.read())
 
 
+# Forex and gold on Kraken (plain https, keyless): the fallback when the Deriv socket is not reachable,
+# e.g. a PythonAnywhere account that only allows approved sites. Gold = PAXG (a token backed by physical
+# gold, within a fraction of a percent of spot), rescaled to the live gold price.
+KRAKEN_FX_MAP = {
+    'EURUSD': 'EURUSD', 'GBPUSD': 'GBPUSD', 'USDJPY': 'USDJPY', 'AUDUSD': 'AUDUSD', 'USDCAD': 'USDCAD',
+    'USDCHF': 'USDCHF', 'EURGBP': 'EURGBP', 'EURJPY': 'EURJPY', 'EURCHF': 'EURCHF', 'EURAUD': 'EURAUD',
+    'EURCAD': 'EURCAD', 'AUDJPY': 'AUDJPY', 'XAUUSD': 'PAXGUSD',
+}
+PROXY_ASSETS = {'XAUUSD'}           # candles from a tracking asset: rescale to the live price
+_KRAKEN_UNKNOWN = set()             # pairs Kraken said it doesn't list (not asked again)
+
+
+def _rescale_to_spot(internal_symbol, candles):
+    """Shift a tracking asset's candles (PAXG for gold) onto the live spot price, so levels match the quote."""
+    if internal_symbol not in PROXY_ASSETS or not candles:
+        return candles
+    entry = get_price_entry(internal_symbol)
+    spot = entry['price'] if entry and entry.get('price') else None
+    last = candles[-1]['close']
+    if not spot or not last or abs(spot / last - 1) > 0.05:      # no spot yet, or not comparable: leave as is
+        return candles
+    k = spot / last
+    return [dict(c, open=c['open'] * k, high=c['high'] * k, low=c['low'] * k, close=c['close'] * k) for c in candles]
+
+
 def fetch_kraken_candles(internal_symbol, timeframe='1h', bars=500):
-    """Crypto OHLC from Kraken's public API (keyless, serves US servers). Up to 720 bars."""
-    pair = KRAKEN_MAP.get(internal_symbol)
+    """OHLC from Kraken's public API (keyless, serves US servers): crypto, major forex pairs, gold (PAXG). Up to 720 bars."""
+    pair = KRAKEN_MAP.get(internal_symbol) or KRAKEN_FX_MAP.get(internal_symbol)
     interval = {'1m': 1, '5m': 5, '15m': 15, '30m': 30, '1h': 60, '4h': 240, '1d': 1440}.get(timeframe)
-    if not pair or not interval or cooling('Kraken'):
+    if not pair or not interval or pair in _KRAKEN_UNKNOWN or cooling('Kraken'):
         return []
     try:
         data = _get_json(f"https://api.kraken.com/0/public/OHLC?pair={pair}&interval={interval}")
         if data.get('error'):
+            if any('Unknown asset pair' in str(x) for x in data['error']):
+                _KRAKEN_UNKNOWN.add(pair)
             logger.warning(f"Kraken candles {pair}: {data['error']}")
             return []
         res = data.get('result') or {}
         rows = next((v for k, v in res.items() if k != 'last'), [])
         out = [{'time': int(r[0]), 'open': float(r[1]), 'high': float(r[2]), 'low': float(r[3]),
                 'close': float(r[4]), 'volume': float(r[6])} for r in rows]
-        return out[-int(bars):]
+        return _rescale_to_spot(internal_symbol, out[-int(bars):])
     except Exception as e:
         feed_failed('Kraken', e, rate_pause=60)
         return []
@@ -983,7 +1072,7 @@ def fetch_kraken_candles(internal_symbol, timeframe='1h', bars=500):
 
 def fetch_coinbase_candles(internal_symbol, timeframe='1h', bars=300):
     """Crypto OHLC from Coinbase Exchange (keyless). Max 300 bars; no 30m / 4h candles."""
-    product = COINBASE_MAP.get(internal_symbol)
+    product = COINBASE_MAP.get(internal_symbol) or ('PAXG-USD' if internal_symbol == 'XAUUSD' else None)
     gran = {'1m': 60, '5m': 300, '15m': 900, '1h': 3600, '1d': 86400}.get(timeframe)
     if not product or not gran or cooling('Coinbase'):
         return []
@@ -994,7 +1083,7 @@ def fetch_coinbase_candles(internal_symbol, timeframe='1h', bars=300):
         out = [{'time': int(r[0]), 'low': float(r[1]), 'high': float(r[2]), 'open': float(r[3]),
                 'close': float(r[4]), 'volume': float(r[5])} for r in rows]
         out.sort(key=lambda c: c['time'])               # Coinbase sends newest first
-        return out[-int(bars):]
+        return _rescale_to_spot(internal_symbol, out[-int(bars):])
     except Exception as e:
         feed_failed('Coinbase', e, rate_pause=60)
         return []

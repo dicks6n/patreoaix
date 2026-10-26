@@ -49,7 +49,7 @@ MAX_PENDING_ORDERS = 50
 TICKET_OFFSET = 8400                                                    # position ticket = 8400 + Trade.id
 PENDING_TICKET_OFFSET = 9000000                                         # order ticket = 9000000 + PendingOrder.id
 
-DERIV_WS_URL = 'wss://ws.derivws.com/websockets/v3?app_id=1089'
+DERIV_WS_URL = price_feed.DERIV_PUBLIC_WS          # app_id from settings.DERIV_WS_APP_ID
 
 
 class TradeError(Exception):
@@ -227,7 +227,7 @@ def _deriv_mid(symbol):
     if entry and time.time() - entry['ts'] < 1.0:
         return entry['price']
     # websocket-client when installed, else price_feed's built-in client (PythonAnywhere may lack the package)
-    ws = price_feed.ws_connect(DERIV_WS_URL, timeout=5)
+    ws = price_feed.deriv_connect(timeout=5)
     try:
         ws.send(json.dumps({'ticks_history': symbol, 'count': 1, 'end': 'latest', 'style': 'ticks', 'req_id': 3}))
         deadline = time.time() + 5

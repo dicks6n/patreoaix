@@ -21,7 +21,7 @@ ssl_context.check_hostname = False
 ssl_context.verify_mode = ssl.CERT_NONE
 
 # ✅ Public WebSocket (no auth needed) — used for market data (ticks + candles)
-PUBLIC_WS_URL = "wss://ws.derivws.com/websockets/v3?app_id=1089"
+from .price_feed import DERIV_PUBLIC_WS as PUBLIC_WS_URL     # app_id from settings.DERIV_WS_APP_ID
 
 # REST base for OTP + authenticated endpoints
 REST_BASE_URL = "https://api.derivws.com"
