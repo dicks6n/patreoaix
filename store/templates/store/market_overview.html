@@ -451,7 +451,7 @@
     const abbr = s => s.replace('USD', '').slice(0, 3) || s.slice(0, 3);
     const kindOf = k => (k === 'energy' ? 'metal' : k);
 
-    let style = 'intraday', kind = 'all', results = [], selected = null, detail = null, chartTf = null;
+    let style = 'intraday', kind = 'all', results = [], failed = [], selected = null, detail = null, chartTf = null;
     let autoTimer = null, scanning = false;
     try { style = localStorage.getItem('ai-style') || 'intraday'; } catch (e) {}
     // links from signal notifications: /market-overview/?symbol=XAUUSD&style=intraday
@@ -471,6 +471,7 @@
             const d = await (await fetch(`/api/ai-scan/?style=${style}`, XHR)).json();
             if (!d.success) throw 0;
             results = d.results.filter(r => r.ok);
+            failed = d.results.filter(r => !r.ok);
             renderStats(); renderList(); renderRadar(); checkWatch();
             $('st-time').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             window.dispatchEvent(new CustomEvent('px:ai-scan', { detail: { style } }));
@@ -782,7 +783,15 @@
         const rows = results.filter(r => r.coach);
         if (!rows.length) {
             $('radar-sum').innerHTML = '';
-            $('radar-body').innerHTML = '<div class="px-empty"><i class="fa-solid fa-crosshairs"></i>The entry coach is not running on the server yet (update chart_scanner.py).</div>';
+            // say which problem it is: no candles reached the server, or an old chart_scanner.py answered
+            const msg = !results.length && failed.length
+                ? `No candle history reached the server for any of the ${failed.length} markets (${escapeHtml(failed[0].error || 'no data')}). Charts and the AI need candles: check the data feeds on the server (open /api/candles/?symbol=EURUSD&timeframe=1h&debug=1 as an admin).`
+                : !results.length
+                ? 'No markets analysed yet. Press Scan markets.'
+                : !results.some(r => r.engine)
+                ? 'The server is still running an old store/chart_scanner.py (no entry coach in its results). Upload the new file and restart the web app and the background scanner.'
+                : 'No entry-coach readings in this scan.';
+            $('radar-body').innerHTML = `<div class="px-empty"><i class="fa-solid fa-crosshairs"></i>${msg}</div>`;
             return;
         }
         const n = st => rows.filter(r => r.coach.state === st).length;
@@ -819,7 +828,14 @@
         if (!c) {
             $('co-head').textContent = 'Coach unavailable';
             $('co-instr').className = 'coach-instr';
-            $('co-instr').textContent = 'The server did not return an entry-coach reading for this market. Update store/chart_scanner.py and restart.';
+            // say which of the three causes it is
+            $('co-instr').textContent = !detail
+                ? 'Analysis unavailable for this market right now (no candle data from the feeds). Try again in a minute.'
+                : detail.coach_error
+                ? `The entry coach failed on this market: ${detail.coach_error}. The other analysis is still valid; the error is in the server log.`
+                : !detail.engine
+                ? 'The server is still running an old store/chart_scanner.py (no entry coach in its results). Upload the new file and reload / restart the web app and the background scanner.'
+                : 'No entry-coach reading for this market yet. Re-run the scan.';
             $('co-q').textContent = '—';
             ['co-gauge', 'co-plan', 'co-actions', 'co-story', 'co-checks'].forEach(id => { $(id).innerHTML = ''; });
             renderLive();

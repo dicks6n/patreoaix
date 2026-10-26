@@ -602,16 +602,32 @@
         const d = PX.digits(cSym);
         series.applyOptions({ priceFormat: { type: 'price', precision: d, minMove: Math.pow(10, -d) } });
         chartMsg('Loading…');
-        try {
-            const r = await (await fetch(`/api/candles/?symbol=${cSym}&timeframe=${cTf}`, XHR)).json();
-            if (req !== cReq) return;
-            const bars = (r.candles || []).filter(b => b && b.time).map(b => ({ time: b.time, open: +b.open, high: +b.high, low: +b.low, close: +b.close }));
-            if (!bars.length) { series.setData([]); lastBar = null; chartMsg('No price history available for this market right now'); return; }
-            series.setData(bars);
-            lastBar = Object.assign({}, bars[bars.length - 1]);
-            chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, bars.length - 120), to: bars.length + 3 });
-            chartMsg('');
-        } catch (e) { if (req === cReq) chartMsg('Could not load chart data'); }
+        let why = '';
+        for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+                const res = await fetch(`/api/candles/?symbol=${cSym}&timeframe=${cTf}`, XHR);
+                if (req !== cReq) return;
+                const type = res.headers.get('content-type') || '';
+                // say what actually went wrong instead of a generic message
+                if (res.redirected && /login/.test(res.url)) { chartMsg('Your session expired. Log in again to load the chart.'); return; }
+                if (!type.includes('json')) { why = res.status === 404 ? 'Chart service not found on the server (HTTP 404)' : res.status >= 500 ? `Server error (HTTP ${res.status}). Check the server log.` : `Unexpected reply (HTTP ${res.status})`; if (res.status < 500) break; continue; }
+                const r = await res.json();
+                if (req !== cReq) return;
+                const bars = (r.candles || []).filter(b => b && b.time).map(b => ({ time: b.time, open: +b.open, high: +b.high, low: +b.low, close: +b.close }));
+                if (!bars.length) { series.setData([]); lastBar = null; chartMsg(r.error || 'No price history available for this market right now'); return; }
+                series.setData(bars);
+                lastBar = Object.assign({}, bars[bars.length - 1]);
+                chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, bars.length - 120), to: bars.length + 3 });
+                chartMsg(r.stale ? 'Live feed unavailable: showing the last candles we had' : '');
+                if (r.stale) setTimeout(() => { if (req === cReq) chartMsg(''); }, 6000);
+                return;
+            } catch (e) {
+                if (req !== cReq) return;
+                why = 'Could not reach the server (network or timeout)';
+                await new Promise(ok => setTimeout(ok, 1500));    // one retry after a short pause
+            }
+        }
+        if (req === cReq) chartMsg(why || 'Could not load chart data');
     }
     function chartHeader() {
         const k = PX.kind(cSym);

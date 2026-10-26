@@ -1382,7 +1382,10 @@ def send_transaction_notification(sender, instance, created, **kwargs):
 
 import logging
 import pandas as pd
-import pandas_ta as ta
+try:
+    import pandas_ta_classic as ta      # maintained fork, same functions: pip install pandas-ta-classic
+except ImportError:
+    import pandas_ta as ta
 
 logger = logging.getLogger(__name__)
 

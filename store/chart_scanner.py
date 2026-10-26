@@ -53,6 +53,13 @@ FEATURES = ['trend', 'ema200', 'macd', 'rsi', 'structure', 'stoch', 'bands', 'pa
 WEIGHTS = {'trend': 18, 'ema200': 8, 'macd': 12, 'rsi': 9, 'structure': 14, 'stoch': 5,
            'bands': 5, 'pattern': 9, 'levels': 8, 'breakout': 8, 'divergence': 7}
 SIGNAL_THRESHOLD = 20      # |blended score| needed for BUY / SELL
+# Bump when the result format changes: it is part of every cache key, so results cached by an older
+# version of this file are never served after an upgrade, and pages can tell which engine answered.
+ENGINE_VERSION = 'coach-3'
+
+
+def result_key(symbol, style, detail=False):
+    return f"aiscan:r:{ENGINE_VERSION}:{symbol}:{style}:{'d' if detail else 's'}"
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1016,7 +1023,7 @@ def entry_coach(symbol, main, higher, lower, price):
 def analyse(symbol, style='intraday', detail=False):
     symbol = symbol.upper()
     style = style if style in STYLES else 'intraday'
-    key = f"aiscan:r:{symbol}:{style}:{'d' if detail else 's'}"
+    key = result_key(symbol, style, detail)
     hit = cache.get(key)
     if hit is not None:
         return hit
@@ -1105,11 +1112,13 @@ def analyse(symbol, style='intraday', detail=False):
         lean = 'BUY' if blended > 0 else 'SELL'
         res['lean'] = lean
         res['watch'] = trade_plan(symbol, lean, main, price)
+    res['engine'] = ENGINE_VERSION
     try:
         res['coach'] = entry_coach(symbol, main, higher, lower, price)
     except Exception as e:
         logger.exception(f'Entry coach failed for {symbol}: {e}')
         res['coach'] = None
+        res['coach_error'] = f'{type(e).__name__}: {e}'[:200]
     if detail:
         res['charts'] = {t['tf']: chart_payload(symbol, t) for t in (lower, main, higher) if t}
     cache.set(key, res, CANDLE_TTL.get(main_tf, 300))
@@ -1282,7 +1291,7 @@ def scrutiny(symbol, style='intraday'):
     """Every strategy's read of one market (cached per candle). Fundamentals and the verdict are added by the caller."""
     symbol = symbol.upper()
     style = style if style in STYLES else 'intraday'
-    key = f'aiscan:scr:{symbol}:{style}'
+    key = f'aiscan:scr:{ENGINE_VERSION}:{symbol}:{style}'
     hit = cache.get(key)
     if hit is not None:
         return hit

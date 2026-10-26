@@ -149,6 +149,128 @@ DERIV_FX_MAP = {
     'EURCHF': 'frxEURCHF', 'GBPCHF': 'frxGBPCHF',
 }
 
+
+class _MiniWS:
+    """
+    Minimal websocket client (standard library only) used when the websocket-client package isn't
+    installed on the server. Text frames only, which is all the Deriv public API needs.
+    """
+
+    def __init__(self, url, timeout=8.0):
+        import base64, os, socket, ssl
+        from urllib.parse import urlsplit
+        u = urlsplit(url)
+        secure = u.scheme == 'wss'
+        port = u.port or (443 if secure else 80)
+        path = (u.path or '/') + (f'?{u.query}' if u.query else '')
+        # Through the host's HTTPS proxy when one is set (PythonAnywhere free accounts route all traffic
+        # via proxy.server:3128); urllib does the same for the REST calls.
+        proxy = (os.environ.get('HTTPS_PROXY') or os.environ.get('https_proxy') or '') if secure else ''
+        if proxy and not self._no_proxy(u.hostname):
+            pu = urlsplit(proxy if '://' in proxy else f'http://{proxy}')
+            sock = socket.create_connection((pu.hostname, pu.port or 3128), timeout=timeout)
+            sock.sendall(f'CONNECT {u.hostname}:{port} HTTP/1.1\r\nHost: {u.hostname}:{port}\r\n\r\n'.encode())
+            reply = b''
+            while b'\r\n\r\n' not in reply:
+                chunk = sock.recv(1024)
+                if not chunk:
+                    raise ConnectionError('proxy closed the connection')
+                reply += chunk
+            status = reply.split(b'\r\n', 1)[0]
+            if b' 200' not in status:
+                raise ConnectionError(f"proxy refused {u.hostname}: {status.decode(errors='ignore')} "
+                                      '(on a free PythonAnywhere account only approved sites are reachable)')
+        else:
+            sock = socket.create_connection((u.hostname, port), timeout=timeout)
+        if secure:
+            sock = ssl.create_default_context().wrap_socket(sock, server_hostname=u.hostname)
+        self.sock = sock
+        key = base64.b64encode(os.urandom(16)).decode()
+        sock.sendall((f'GET {path} HTTP/1.1\r\nHost: {u.hostname}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n'
+                      f'Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\nUser-Agent: Mozilla/5.0\r\n'
+                      f'Origin: https://{u.hostname}\r\n\r\n').encode())
+        head = b''
+        while b'\r\n\r\n' not in head:
+            chunk = sock.recv(1024)
+            if not chunk:
+                raise ConnectionError('websocket handshake: connection closed')
+            head += chunk
+        status = head.split(b'\r\n', 1)[0]
+        if b' 101 ' not in status + b' ':
+            raise ConnectionError(f'websocket handshake refused: {status.decode(errors="ignore")}')
+        self.buf = head.split(b'\r\n\r\n', 1)[1]
+
+    @staticmethod
+    def _no_proxy(host):
+        import os
+        skip = [h.strip().lstrip('.') for h in (os.environ.get('NO_PROXY') or os.environ.get('no_proxy') or '').split(',') if h.strip()]
+        return any(host == h or host.endswith('.' + h) for h in skip)
+
+    def _read(self, n):
+        while len(self.buf) < n:
+            chunk = self.sock.recv(65536)
+            if not chunk:
+                raise ConnectionError('websocket closed')
+            self.buf += chunk
+        out, self.buf = self.buf[:n], self.buf[n:]
+        return out
+
+    def _frame(self, opcode, payload):
+        import os, struct
+        n = len(payload)
+        head = bytes([0x80 | opcode])
+        head += bytes([0x80 | n]) if n < 126 else (bytes([0x80 | 126]) + struct.pack('>H', n) if n < 65536 else bytes([0x80 | 127]) + struct.pack('>Q', n))
+        mask = os.urandom(4)
+        self.sock.sendall(head + mask + bytes(b ^ mask[i % 4] for i, b in enumerate(payload)))
+
+    def send(self, text):
+        self._frame(0x1, text.encode())
+
+    def recv(self):
+        import struct
+        parts = []
+        while True:
+            b1, b2 = self._read(2)
+            fin, opcode, n = b1 & 0x80, b1 & 0x0F, b2 & 0x7F
+            if n == 126:
+                n = struct.unpack('>H', self._read(2))[0]
+            elif n == 127:
+                n = struct.unpack('>Q', self._read(8))[0]
+            mask = self._read(4) if b2 & 0x80 else None
+            data = self._read(n)
+            if mask:
+                data = bytes(b ^ mask[i % 4] for i, b in enumerate(data))
+            if opcode == 0x8:
+                raise ConnectionError('websocket closed by server')
+            if opcode == 0x9:
+                self._frame(0xA, data)          # answer pings
+                continue
+            if opcode == 0xA:
+                continue
+            parts.append(data)
+            if fin:
+                return b''.join(parts).decode()
+
+    def close(self):
+        try:
+            self._frame(0x8, b'')
+        except Exception:
+            pass
+        try:
+            self.sock.close()
+        except Exception:
+            pass
+
+
+def ws_connect(url, timeout=8.0):
+    """websocket-client when it's installed, else the built-in client (so Deriv works either way)."""
+    try:
+        import websocket   # websocket-client
+        return websocket.create_connection(url, timeout=timeout)
+    except ImportError:
+        return _MiniWS(url, timeout=timeout)
+
+
 # Keyless public quotes (real-time bid/ask): Swissquote for forex and metals, gold-api.com for gold and silver
 SWISSQUOTE_URL = "https://forex-data-feed.swissquote.com/public-quotes/bboquotes/instrument/{}/{}"
 SWISSQUOTE_MAP = {s: (s[:3], s[3:]) for s in DERIV_FX_MAP}          # XAUUSD → XAU/USD, EURUSD → EUR/USD …
@@ -279,16 +401,49 @@ def _should_fetch(key, ttl=None, min_interval=None):
 # ═══════════════════════════════════════════════════════════════
 # FETCHERS — REST
 # ═══════════════════════════════════════════════════════════════
+_CRYPTO_ALT = {}      # internal symbol -> (price, fetched at)
+
+
 def _fetch_binance(binance_symbol, timeout=2.0):
-    """Binance public ticker — real-time crypto."""
-    try:
-        url = f"https://api.binance.com/api/v3/ticker/price?symbol={binance_symbol}"
-        req = _urlreq.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with _urlreq.urlopen(req, timeout=timeout) as resp:
-            return float(json.loads(resp.read())['price'])
-    except Exception as e:
-        logger.debug(f"Binance {binance_symbol} failed: {e}")
-        return None
+    """
+    Real-time crypto price: Binance, else Coinbase, else Kraken (keyless). Binance refuses US servers
+    (HTTP 451): feed_failed() then pauses it for an hour and the other two answer meanwhile.
+    """
+    if not cooling('Binance'):
+        try:
+            url = f"https://api.binance.com/api/v3/ticker/price?symbol={binance_symbol}"
+            req = _urlreq.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with _urlreq.urlopen(req, timeout=timeout) as resp:
+                return float(json.loads(resp.read())['price'])
+        except Exception as e:
+            feed_failed('Binance', e, rate_pause=60)
+    internal = next((k for k, v in BINANCE_MAP.items() if v == binance_symbol), None)
+    return _crypto_alt_price(internal, timeout) if internal else None
+
+
+def _crypto_alt_price(internal, timeout=3.0):
+    hit = _CRYPTO_ALT.get(internal)
+    if hit and time.time() - hit[1] < 3:            # several pages ask every 2 s: one fetch serves them
+        return hit[0]
+    price = None
+    if internal in COINBASE_MAP and not cooling('Coinbase'):
+        try:
+            d = _get_json(f"https://api.exchange.coinbase.com/products/{COINBASE_MAP[internal]}/ticker", timeout)
+            price = float(d['price'])
+        except Exception as e:
+            feed_failed('Coinbase', e, rate_pause=60)
+    if not price and internal in KRAKEN_MAP and not cooling('Kraken'):
+        try:
+            d = _get_json(f"https://api.kraken.com/0/public/Ticker?pair={KRAKEN_MAP[internal]}", timeout)
+            res = d.get('result') or {}
+            if res:
+                price = float(next(iter(res.values()))['c'][0])
+        except Exception as e:
+            feed_failed('Kraken', e, rate_pause=60)
+    if price and price > 0:
+        _CRYPTO_ALT[internal] = (price, time.time())
+        return price
+    return hit[0] if hit else None
 
 
 def _fetch_twelvedata_single(internal_symbol, timeout=4.0):
@@ -472,8 +627,7 @@ def _fetch_deriv_batch(internal_symbols, timeout=4.0):
         return {}
     out = {}
     try:
-        import websocket   # websocket-client
-        ws = websocket.create_connection(DERIV_PUBLIC_WS, timeout=timeout)
+        ws = ws_connect(DERIV_PUBLIC_WS, timeout=timeout)
         try:
             ids = {}
             for i, dsym in enumerate(wanted, start=1):
@@ -496,7 +650,7 @@ def _fetch_deriv_batch(internal_symbols, timeout=4.0):
             ws.close()
     except Exception as e:
         _DERIV_BACKOFF_UNTIL = time.time() + 30
-        logger.debug(f"Deriv batch failed: {e}")
+        logger.warning(f"Deriv batch failed: {e}")
     return {k: v for k, v in out.items() if v}
 
 
@@ -604,6 +758,75 @@ def _note_source(symbol, source):
 # ═══════════════════════════════════════════════════════════════
 # CANDLES
 # ═══════════════════════════════════════════════════════════════
+# ── Provider cool-down ──
+# A provider that answers 429 (rate limit) or "out of API credits" is skipped for a while instead of
+# being hammered (Yahoo lengthens its block when you keep calling). Shared through Django's cache so
+# the web server and the background scanner back off together; a module dict covers a missing cache.
+_COOL = {}
+
+
+def cool_down(name, seconds, reason=''):
+    until = time.time() + seconds
+    if _COOL.get(name, 0) < until - 1:
+        logger.warning(f"{name} paused for {seconds}s ({reason or 'rate limited'})")
+    _COOL[name] = until
+    try:
+        from django.core.cache import cache
+        cache.set(f"feed:cool:{name}", until, seconds)
+    except Exception:
+        pass
+
+
+def cooling(name):
+    """True while `name` is paused after a rate limit."""
+    until = _COOL.get(name, 0)
+    try:
+        from django.core.cache import cache
+        until = max(until, cache.get(f"feed:cool:{name}") or 0)
+    except Exception:
+        pass
+    return until > time.time()
+
+
+def is_rate_limit(err):
+    s = str(err).lower()
+    return '429' in s or 'too many requests' in s or 'credits' in s or 'rate limit' in s
+
+
+_LAST_ERR = {}      # provider -> {'at': ts, 'error': text, 'paused_for': s}
+
+
+def feed_failed(name, err, rate_pause=65):
+    """
+    Record why a provider failed and pause it so the next request doesn't wait on it again:
+      429 / out of credits      → rate_pause seconds
+      451 / 403 / restricted    → 1 hour (blocked from this server's region, e.g. Binance on US hosts)
+      timeout / connection      → 2 minutes
+    """
+    s = str(err)
+    low = s.lower()
+    if is_rate_limit(err):
+        pause, why = rate_pause, 'rate limited'
+    elif '451' in low or '403' in low or 'forbidden' in low or 'restricted' in low or 'eligibility' in low:
+        pause, why = 3600, f'blocked from this server ({s[:80]})'
+    elif 'timed out' in low or 'timeout' in low or 'connection' in low or 'name or service' in low \
+            or 'nodename' in low or 'unreachable' in low or 'proxy' in low or 'ssl' in low:
+        pause, why = 120, f'network ({s[:80]})'
+    else:
+        pause, why = 0, s[:120]
+    _LAST_ERR[name] = {'at': int(time.time()), 'error': s[:300], 'paused_for': pause}
+    if pause:
+        cool_down(name, pause, why)
+    else:
+        logger.warning(f"{name} failed: {s[:200]}")
+
+
+def feed_status():
+    """Per-provider state for diagnostics (paused?, last error)."""
+    names = set(_LAST_ERR) | {k for k in _COOL}
+    return {n: {'paused': cooling(n), **_LAST_ERR.get(n, {})} for n in sorted(names)}
+
+
 _TD_INTERVAL = {
     '1m':  '1min',
     '5m':  '5min',
@@ -627,6 +850,8 @@ def fetch_twelvedata_candles(internal_symbol, timeframe='1h', bars=500):
         return []
 
     td_interval = _TD_INTERVAL.get(timeframe, '1h')
+    if cooling('TwelveData'):
+        return []
 
     try:
         params = _urlparse.urlencode({
@@ -642,8 +867,11 @@ def fetch_twelvedata_candles(internal_symbol, timeframe='1h', bars=500):
             data = json.loads(resp.read())
 
         if data.get('status') == 'error':
-            logger.warning(f"TwelveData candles error for {internal_symbol}: "
-                           f"{data.get('message')}")
+            if is_rate_limit(data.get('message')):
+                feed_failed('TwelveData', data.get('message'))
+            else:
+                logger.warning(f"TwelveData candles error for {internal_symbol}: "
+                               f"{data.get('message')}")
             return []
 
         values = data.get('values') or []
@@ -675,7 +903,100 @@ def fetch_twelvedata_candles(internal_symbol, timeframe='1h', bars=500):
         return candles
 
     except Exception as e:
-        logger.warning(f"TwelveData candles failed for {internal_symbol}: {e}")
+        feed_failed('TwelveData', e)
+        return []
+
+
+# ── Keyless candle sources that work from any server (datacenter IPs included) ──
+# Binance refuses US servers (HTTP 451) and Yahoo blocks datacenters, so a hosted site needs these.
+_GRAN = {'1m': 60, '5m': 300, '15m': 900, '30m': 1800, '1h': 3600, '4h': 14400, '1d': 86400}
+DERIV_CANDLE_MAP = dict(DERIV_FX_MAP, **{
+    'EURAUD': 'frxEURAUD', 'EURCAD': 'frxEURCAD', 'GBPAUD': 'frxGBPAUD', 'AUDJPY': 'frxAUDJPY',
+    'AUDCAD': 'frxAUDCAD', 'AUDNZD': 'frxAUDNZD', 'NZDJPY': 'frxNZDJPY',
+    'BTCUSD': 'cryBTCUSD', 'ETHUSD': 'cryETHUSD',
+})
+DERIV_SYNTHETIC = ('R_', '1HZ', 'BOOM', 'CRASH', 'JD', 'STPRNG', 'RDBEAR', 'RDBULL')
+KRAKEN_MAP = {'BTCUSD': 'XBTUSD', 'ETHUSD': 'ETHUSD', 'SOLUSD': 'SOLUSD', 'XRPUSD': 'XRPUSD', 'ADAUSD': 'ADAUSD',
+              'DOGEUSD': 'XDGUSD', 'DOTUSD': 'DOTUSD', 'LINKUSD': 'LINKUSD', 'BNBUSD': 'BNBUSD'}
+COINBASE_MAP = {'BTCUSD': 'BTC-USD', 'ETHUSD': 'ETH-USD', 'SOLUSD': 'SOL-USD', 'XRPUSD': 'XRP-USD', 'ADAUSD': 'ADA-USD',
+                'DOGEUSD': 'DOGE-USD', 'DOTUSD': 'DOT-USD', 'LINKUSD': 'LINK-USD'}
+
+
+def fetch_deriv_candles(internal_symbol, timeframe='1h', bars=500, timeout=8.0):
+    """OHLC from Deriv's public socket (same connection the live prices use; needs websocket-client)."""
+    # forex / metals / crypto map to frx… / cry… names; synthetic indices (R_75, 1HZ100V…) use their own name
+    dsym = DERIV_CANDLE_MAP.get(internal_symbol) or (internal_symbol if internal_symbol.startswith(DERIV_SYNTHETIC) else None)
+    gran = _GRAN.get(timeframe)
+    if not dsym or not gran or cooling('Deriv'):
+        return []
+    try:
+        ws = ws_connect(DERIV_PUBLIC_WS, timeout=timeout)
+        try:
+            ws.send(json.dumps({'ticks_history': dsym, 'style': 'candles', 'granularity': gran,
+                                'count': max(1, min(int(bars), 5000)), 'end': 'latest', 'adjust_start_time': 1, 'req_id': 7}))
+            deadline = time.time() + timeout
+            while time.time() < deadline:
+                msg = json.loads(ws.recv())
+                if msg.get('req_id') != 7:
+                    continue
+                if msg.get('error'):
+                    err = msg['error'].get('message') or msg['error'].get('code')
+                    if 'market is presently closed' not in str(err).lower():
+                        logger.warning(f"Deriv candles {dsym}: {err}")
+                    return []
+                rows = msg.get('candles') or []
+                return [{'time': int(c['epoch']), 'open': float(c['open']), 'high': float(c['high']),
+                         'low': float(c['low']), 'close': float(c['close']), 'volume': 0.0} for c in rows]
+        finally:
+            ws.close()
+    except Exception as e:
+        feed_failed('Deriv', e if str(e) else f'timeout ({type(e).__name__})', rate_pause=60)
+    return []
+
+
+def _get_json(url, timeout=8):
+    req = _urlreq.Request(url, headers={'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json'})
+    with _urlreq.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read())
+
+
+def fetch_kraken_candles(internal_symbol, timeframe='1h', bars=500):
+    """Crypto OHLC from Kraken's public API (keyless, serves US servers). Up to 720 bars."""
+    pair = KRAKEN_MAP.get(internal_symbol)
+    interval = {'1m': 1, '5m': 5, '15m': 15, '30m': 30, '1h': 60, '4h': 240, '1d': 1440}.get(timeframe)
+    if not pair or not interval or cooling('Kraken'):
+        return []
+    try:
+        data = _get_json(f"https://api.kraken.com/0/public/OHLC?pair={pair}&interval={interval}")
+        if data.get('error'):
+            logger.warning(f"Kraken candles {pair}: {data['error']}")
+            return []
+        res = data.get('result') or {}
+        rows = next((v for k, v in res.items() if k != 'last'), [])
+        out = [{'time': int(r[0]), 'open': float(r[1]), 'high': float(r[2]), 'low': float(r[3]),
+                'close': float(r[4]), 'volume': float(r[6])} for r in rows]
+        return out[-int(bars):]
+    except Exception as e:
+        feed_failed('Kraken', e, rate_pause=60)
+        return []
+
+
+def fetch_coinbase_candles(internal_symbol, timeframe='1h', bars=300):
+    """Crypto OHLC from Coinbase Exchange (keyless). Max 300 bars; no 30m / 4h candles."""
+    product = COINBASE_MAP.get(internal_symbol)
+    gran = {'1m': 60, '5m': 300, '15m': 900, '1h': 3600, '1d': 86400}.get(timeframe)
+    if not product or not gran or cooling('Coinbase'):
+        return []
+    try:
+        rows = _get_json(f"https://api.exchange.coinbase.com/products/{product}/candles?granularity={gran}")
+        if not isinstance(rows, list):
+            return []
+        out = [{'time': int(r[0]), 'low': float(r[1]), 'high': float(r[2]), 'open': float(r[3]),
+                'close': float(r[4]), 'volume': float(r[5])} for r in rows]
+        out.sort(key=lambda c: c['time'])               # Coinbase sends newest first
+        return out[-int(bars):]
+    except Exception as e:
+        feed_failed('Coinbase', e, rate_pause=60)
         return []
 
 
@@ -686,6 +1007,8 @@ def fetch_oanda_candles(internal_symbol, timeframe='1h', bars=500):
 
     o_sym = OANDA_MAP.get(internal_symbol)
     if not o_sym:
+        return []
+    if cooling('OANDA'):
         return []
 
     gran = {
@@ -731,7 +1054,7 @@ def fetch_oanda_candles(internal_symbol, timeframe='1h', bars=500):
         return candles
 
     except Exception as e:
-        logger.warning(f"OANDA candles failed for {internal_symbol}: {e}")
+        feed_failed('OANDA', e)
         return []
 
 

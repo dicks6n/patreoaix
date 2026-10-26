@@ -2899,6 +2899,12 @@ function mt5StartFallback() {
             if (!d.success || !d.quotes) return;
             Object.entries(d.quotes).forEach(([sym, q]) => mt5ApplyQuote(sym, q));
             mt5OnQuotes(Object.keys(d.quotes));
+            // no websocket ticks (e.g. a host without websockets): move the chart's last candle from the polled quote
+            const cq = d.quotes[mt5ChartSymbol];
+            if (cq && mt5CandleSeries && Date.now() - mt5WsLastTickAt > 5000) {
+                mt5PushChartTick((cq.bid + cq.ask) / 2, Date.now());
+                mt5UpdateChartOHLC();
+            }
         } catch (e) {}
     }, 2000);
 }
