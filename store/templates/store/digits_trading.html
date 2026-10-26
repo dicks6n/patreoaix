@@ -188,6 +188,55 @@
         0%, 100% { opacity: 0.7; }
         50% { opacity: 1; }
     }
+
+    /* ── Deriv digit analysis ── */
+    .dx-ring { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .dx-ring svg { width: 100%; max-width: 54px; height: auto; transform: rotate(-90deg); overflow: visible; }
+    .dx-ring .bg { fill: none; stroke: rgba(148,163,184,.14); stroke-width: 5; }
+    .dx-ring .fg { fill: none; stroke: #f59e0b; stroke-width: 5; stroke-linecap: round; transition: stroke-dasharray .45s ease, stroke .3s; }
+    .dx-ring .num { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 54px; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font: 900 15px ui-monospace, monospace; color: #e2e8f0; }
+    .dx-ring .pct { font: 700 10px ui-monospace, monospace; color: #94a3b8; }
+    .dx-ring.max .fg { stroke: #10b981; } .dx-ring.max .pct { color: #34d399; }
+    .dx-ring.min .fg { stroke: #f43f5e; } .dx-ring.min .pct { color: #fb7185; }
+    .dx-ring.cur .num { color: #fbbf24; text-shadow: 0 0 12px rgba(251,191,36,.9); }
+    .dx-ring.cur svg { filter: drop-shadow(0 0 6px rgba(251,191,36,.75)); }
+    .dx-ring .ptr { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 8px solid #fbbf24; opacity: 0; transition: opacity .2s; filter: drop-shadow(0 0 4px rgba(251,191,36,.9)); }
+    .dx-ring.cur .ptr { opacity: 1; animation: dxBob 1s ease-in-out infinite; }
+    @keyframes dxBob { 50% { transform: translate(-50%, -3px); } }
+    .dx-split { height: 22px; border-radius: 8px; overflow: hidden; display: flex; font: 800 10px ui-monospace, monospace; background: rgba(15,23,42,.8); border: 1px solid rgba(51,65,85,.6); }
+    .dx-split > div { display: flex; align-items: center; padding: 0 8px; white-space: nowrap; transition: width .45s ease; min-width: 0; overflow: hidden; }
+    .dx-chip { width: 20px; height: 20px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font: 900 10px ui-monospace, monospace; flex-shrink: 0; }
+    .dx-chip.e { background: rgba(56,189,248,.16); color: #38bdf8; border: 1px solid rgba(56,189,248,.35); }
+    .dx-chip.o { background: rgba(244,114,182,.16); color: #f472b6; border: 1px solid rgba(244,114,182,.35); }
+    .dx-chip.up { background: rgba(16,185,129,.16); color: #34d399; border: 1px solid rgba(16,185,129,.35); }
+    .dx-chip.dn { background: rgba(244,63,94,.16); color: #fb7185; border: 1px solid rgba(244,63,94,.35); }
+    .dx-chip.eq { background: rgba(148,163,184,.12); color: #cbd5e1; border: 1px solid rgba(148,163,184,.3); }
+    .dx-chip.new { animation: dxPop .35s ease; }
+    @keyframes dxPop { from { transform: scale(.4); opacity: 0; } }
+    #dxChart .dl { font: 800 9px ui-monospace, monospace; }
+    #dxChart .last { animation: dxPulse 1.2s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+    @keyframes dxPulse { 0% { r: 4; opacity: 1; } 100% { r: 13; opacity: 0; } }
+
+    /* ── account switch ── */
+    .acct-btn { flex: 1; padding: 8px 10px; border-radius: 10px; font-size: 10px; font-weight: 800; text-align: left; border: 1px solid rgba(51,65,85,.7); background: rgba(15,23,42,.7); color: #94a3b8; transition: all .15s; min-width: 0; }
+    .acct-btn.on { border-color: #f59e0b; color: #fff; background: linear-gradient(135deg, rgba(217,119,6,.35), rgba(234,88,12,.25)); box-shadow: 0 0 18px rgba(217,119,6,.3); }
+    .acct-btn.demo.on { border-color: #22d3ee; background: linear-gradient(135deg, rgba(8,145,178,.35), rgba(14,116,144,.2)); box-shadow: 0 0 18px rgba(34,211,238,.3); }
+    .acct-btn:disabled { opacity: .55; cursor: not-allowed; }
+    .acct-btn small { display: block; font-weight: 600; font-size: 9px; opacity: .8; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── scanner magic ── */
+    .scan-radar { position: relative; height: 92px; border-radius: 12px; overflow: hidden; background: radial-gradient(circle at 50% 50%, rgba(245,158,11,.10), rgba(2,6,23,.9) 70%); border: 1px solid rgba(245,158,11,.25); }
+    .scan-radar::before { content: ''; position: absolute; inset: -60%; background: conic-gradient(from 0deg, rgba(245,158,11,.0) 0deg, rgba(245,158,11,.35) 40deg, rgba(245,158,11,0) 70deg); animation: scanSweep 1.6s linear infinite; }
+    .scan-radar::after { content: ''; position: absolute; inset: 0; background-image: radial-gradient(circle, rgba(245,158,11,.25) 1px, transparent 1px); background-size: 14px 14px; opacity: .35; }
+    @keyframes scanSweep { to { transform: rotate(360deg); } }
+    .scan-radar .label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2; font: 800 11px ui-monospace, monospace; color: #fcd34d; letter-spacing: .08em; text-shadow: 0 0 10px rgba(245,158,11,.8); }
+    .scan-tile { border-radius: 10px; padding: 6px 4px; text-align: center; border: 1px solid rgba(51,65,85,.6); background: rgba(15,23,42,.7); font: 800 9px ui-monospace, monospace; color: #64748b; transition: all .25s; }
+    .scan-tile .v { display: block; font-size: 10px; margin-top: 2px; color: #475569; }
+    .scan-tile.live { color: #fcd34d; border-color: rgba(245,158,11,.5); box-shadow: 0 0 12px rgba(245,158,11,.25); animation: dxPop .3s ease; }
+    .scan-tile.live .v { color: #e2e8f0; }
+    .scan-tile.win { color: #fff; border-color: #fbbf24; background: linear-gradient(135deg, rgba(217,119,6,.55), rgba(234,88,12,.35)); box-shadow: 0 0 22px rgba(251,191,36,.6); animation: winGlow 1.4s ease-in-out infinite; }
+    .scan-tile.win .v { color: #fff; }
+    @keyframes winGlow { 50% { box-shadow: 0 0 34px rgba(251,191,36,.9); } }
 </style>
 
 <style>
@@ -299,6 +348,37 @@
 
         <!-- LEFT COLUMN -->
         <div class="lg:col-span-2 space-y-4">
+
+            <!-- DERIV DIGIT ANALYSIS -->
+            <div class="digits-card p-4 sm:p-5 space-y-4 relative overflow-hidden" id="dxCard">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="min-w-0">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-amber-300 flex items-center gap-2">
+                            <i class="fa-solid fa-wave-square text-[11px]"></i> Deriv Digit Analysis
+                        </h3>
+                        <p class="text-[10px] text-slate-400 truncate"><span id="dxSym">Volatility 100 Index</span> · last <span id="dxN">0</span> ticks</p>
+                    </div>
+                    <span class="text-[9px] font-mono text-emerald-400 flex items-center gap-1.5 shrink-0"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>LIVE</span>
+                </div>
+
+                <div class="rounded-xl bg-slate-950/70 border border-slate-800/70 p-2">
+                    <svg id="dxChart" viewBox="0 0 640 170" class="w-full h-[150px] sm:h-[170px]" preserveAspectRatio="none"></svg>
+                </div>
+
+                <div class="grid grid-cols-5 sm:grid-cols-10 gap-x-2 gap-y-5 pt-3" id="dxRings"></div>
+
+                <div class="space-y-2">
+                    <div class="dx-split" id="dxEO"></div>
+                    <div class="dx-split" id="dxOU"></div>
+                    <div class="dx-split" id="dxRF"></div>
+                </div>
+
+                <div class="space-y-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                    <div class="flex items-center gap-2"><span class="w-24 shrink-0 whitespace-nowrap">Even/Odd</span><div class="flex gap-1 overflow-hidden" id="dxStripEO"></div></div>
+                    <div class="flex items-center gap-2"><span class="w-24 shrink-0 whitespace-nowrap" id="dxStripOULabel">Over/Under</span><div class="flex gap-1 overflow-hidden" id="dxStripOU"></div></div>
+                    <div class="flex items-center gap-2"><span class="w-24 shrink-0 whitespace-nowrap">Rise/Fall</span><div class="flex gap-1 overflow-hidden" id="dxStripRF"></div></div>
+                </div>
+            </div>
 
             <!-- AI GOLD AUTO-TRADER -->
             <div class="digits-card-amber p-4 sm:p-5 relative">
@@ -425,6 +505,21 @@
                         </div>
                     </div>
                     <span id="tradeStatusBadge" class="text-[9px] bg-amber-500/20 border border-amber-400/40 px-2.5 py-1 rounded-full text-amber-300 font-bold shrink-0">Ready</span>
+                </div>
+
+                <div class="relative z-10">
+                    <label class="text-[10px] font-bold text-amber-200/80 uppercase tracking-wider block mb-1.5">Trade with</label>
+                    <div class="flex gap-2">
+                        <button type="button" id="acctSite" class="acct-btn on" onclick="setTradeAccount('site')">
+                            <i class="fa-solid fa-wallet mr-1"></i>Site balance
+                            <small>${{ trading_balance|floatformat:2 }} trading account</small>
+                        </button>
+                        <button type="button" id="acctDemo" class="acct-btn demo" onclick="setTradeAccount('demo')" disabled>
+                            <i class="fa-solid fa-flask mr-1"></i>Deriv Demo
+                            <small id="acctDemoInfo">checking…</small>
+                        </button>
+                    </div>
+                    <p id="acctDemoNote" class="text-[10px] text-slate-500 mt-1.5 hidden"></p>
                 </div>
 
                 <div class="grid grid-cols-3 gap-1 bg-slate-950/80 p-1.5 rounded-xl border border-amber-800/40 relative z-10">
@@ -572,6 +667,11 @@
                     <i class="fa-solid fa-radar text-base"></i>
                     <span>Scan & Calibrate Engine</span>
                 </button>
+
+                <div id="aiScanStage" class="hidden mb-3 relative z-10 space-y-2">
+                    <div class="scan-radar"><div class="label"><span id="aiScanStageText">SCANNING</span><span id="aiScanStageSub" class="text-[9px] text-amber-200/70 mt-1 font-semibold tracking-normal"></span></div></div>
+                    <div class="grid grid-cols-5 gap-1.5" id="aiScanTiles"></div>
+                </div>
 
                 <div id="aiRecommendationBox" class="hidden text-xs bg-slate-900/90 rounded-xl p-3 border border-amber-500/40 space-y-1 relative z-10">
                     <div class="flex justify-between font-semibold">
@@ -763,15 +863,17 @@
     let derivSock = null, derivLive = false, derivRetry = null;
     let derivServerTimer = null;                 // fallback: the same Deriv ticks fetched by our server
     let recentDigits = [];                       // last 100 digits, oldest first
+    let recentPrices = [];                       // the matching prices (null when only the digit is known)
 
     function lastDigitOf(price, pip) {
         const s = Number(price).toFixed(pip);
         return parseInt(s[s.length - 1], 10);
     }
 
-    function pushDigit(d, render = true) {
+    function pushDigit(d, render = true, price = null) {
         recentDigits.push(d);
-        if (recentDigits.length > 100) recentDigits.shift();
+        recentPrices.push(price);
+        if (recentDigits.length > 100) { recentDigits.shift(); recentPrices.shift(); }
         digitCounts.fill(0);
         recentDigits.forEach(x => digitCounts[x]++);
         totalTicksCount = recentDigits.length;
@@ -808,7 +910,7 @@
                 PIP_SIZE[sym] = pip;
                 const fresh = d.ticks.filter(x => x.epoch > lastEpoch);
                 if (!fresh.length) return;
-                if (first) { recentDigits = []; fresh.slice(0, -1).forEach(x => pushDigit(lastDigitOf(x.quote, pip), false)); }
+                if (first) { recentDigits = []; recentPrices = []; fresh.slice(0, -1).forEach(x => pushDigit(lastDigitOf(x.quote, pip), false, x.quote)); }
                 (first ? fresh.slice(-1) : fresh).forEach(x => {
                     wsHasTicked = true; wsTickCount++; wsLastTickAt = Date.now();
                     updateLivePriceFromTV(x.quote, pip, true);
@@ -853,8 +955,8 @@
             if (m.msg_type === 'history' && m.history && m.history.prices) {
                 const pip = m.pip_size ?? PIP_SIZE[sym] ?? getDecimals(sym);
                 PIP_SIZE[sym] = pip;
-                recentDigits = [];
-                m.history.prices.forEach(p => pushDigit(lastDigitOf(p, pip), false));
+                recentDigits = []; recentPrices = [];
+                m.history.prices.forEach(p => pushDigit(lastDigitOf(p, pip), false, parseFloat(p)));
                 updateDigitDistributionList();
             } else if (m.msg_type === 'tick' && m.tick) {
                 ticked = true; derivLive = true; clearTimeout(silence); feedNote('');
@@ -877,7 +979,7 @@
     }
 
     // one socket, the last `count` ticks of every symbol → {sym: {digits, pip}}
-    function derivHistory(symbols, count, timeoutMs = 15000) {
+    function derivHistory(symbols, count, timeoutMs = 15000, onEach = null) {
         return new Promise((resolve) => {
             const out = {};
             let sock, done = false;
@@ -896,6 +998,7 @@
                 } else {
                     out[s] = { error: (m.error && m.error.message) || 'no data', digits: [] };
                 }
+                if (onEach) onEach(s, out[s]);
                 if (Object.keys(out).length === symbols.length) { clearTimeout(timer); finish(); }
             };
             sock.onerror = () => {};
@@ -1171,7 +1274,7 @@
         const digitEl = document.getElementById('stream-digit');
         if (digitEl && !isNaN(lastDigit)) digitEl.innerText = lastDigit;
 
-        if (!isNaN(lastDigit)) pushDigit(lastDigit);
+        if (!isNaN(lastDigit)) pushDigit(lastDigit, true, price);
     }
 
     function getDecimals(symbol) {
@@ -1186,6 +1289,73 @@
     // ==========================================
     // DIGIT DISTRIBUTION
     // ==========================================
+    // Deriv-style digit analysis: tick chart, 0-9 rings, even/odd · over/under · rise/fall
+    let dxLastLen = 0;
+    function renderDx() {
+        const ringsEl = document.getElementById('dxRings');
+        if (!ringsEl) return;
+        const n = recentDigits.length;
+        document.getElementById('dxN').textContent = n;
+        const counts = Array(10).fill(0); recentDigits.forEach(d => counts[d]++);
+        const max = Math.max(...counts), min = Math.min(...counts), cur = n ? recentDigits[n - 1] : -1;
+        const C = 2 * Math.PI * 22;
+        ringsEl.innerHTML = counts.map((c, d) => {
+            const pct = n ? c / n * 100 : 0;
+            const cls = [n && c === max ? 'max' : '', n && c === min ? 'min' : '', d === cur ? 'cur' : ''].join(' ');
+            return `<div class="dx-ring ${cls}"><span class="ptr"></span>
+                <svg viewBox="0 0 54 54"><circle class="bg" cx="27" cy="27" r="22"/><circle class="fg" cx="27" cy="27" r="22" stroke-dasharray="${(pct / 100 * C).toFixed(1)} ${C.toFixed(1)}"/></svg>
+                <span class="num">${d}</span><span class="pct">${pct.toFixed(1)}%</span></div>`;
+        }).join('');
+
+        // split bars
+        const share = f => n ? recentDigits.filter(f).length / n * 100 : 0;
+        const even = share(d => d % 2 === 0), bar = selectedBarrier;
+        const over = share(d => d > bar), under = share(d => d < bar), same = Math.max(0, 100 - over - under);
+        const moves = recentPrices.map((p, i) => (i && p != null && recentPrices[i - 1] != null) ? Math.sign(p - recentPrices[i - 1]) : null).filter(x => x !== null);
+        const rise = moves.length ? moves.filter(x => x > 0).length / moves.length * 100 : 0;
+        const fall = moves.length ? moves.filter(x => x < 0).length / moves.length * 100 : 0;
+        const seg = (w, bg, fg, txt) => `<div style="width:${w}%;background:${bg};color:${fg}">${w >= 12 ? txt : ''}</div>`;
+        document.getElementById('dxEO').innerHTML = seg(even, 'rgba(56,189,248,.22)', '#7dd3fc', `EVEN ${even.toFixed(1)}%`) + seg(100 - even, 'rgba(244,114,182,.2)', '#f9a8d4', `ODD ${(100 - even).toFixed(1)}%`);
+        document.getElementById('dxOU').innerHTML = seg(over, 'rgba(16,185,129,.2)', '#6ee7b7', `OVER ${bar} ${over.toFixed(1)}%`) + seg(same, 'rgba(148,163,184,.14)', '#cbd5e1', `= ${same.toFixed(0)}%`) + seg(under, 'rgba(244,63,94,.2)', '#fda4af', `UNDER ${bar} ${under.toFixed(1)}%`);
+        document.getElementById('dxRF').innerHTML = seg(rise, 'rgba(16,185,129,.2)', '#6ee7b7', `RISE ${rise.toFixed(1)}%`) + seg(Math.max(0, 100 - rise - fall), 'rgba(148,163,184,.14)', '#cbd5e1', '') + seg(fall, 'rgba(244,63,94,.2)', '#fda4af', `FALL ${fall.toFixed(1)}%`);
+        document.getElementById('dxStripOULabel').textContent = `Over/Under ${bar}`;
+
+        // pattern strips: last 20 ticks
+        const last = recentDigits.slice(-20), lp = recentPrices.slice(-21), fresh = n !== dxLastLen;
+        const chip = (cls, txt, i) => `<span class="dx-chip ${cls} ${fresh && i === last.length - 1 ? 'new' : ''}">${txt}</span>`;
+        document.getElementById('dxStripEO').innerHTML = last.map((d, i) => chip(d % 2 ? 'o' : 'e', d % 2 ? 'O' : 'E', i)).join('');
+        document.getElementById('dxStripOU').innerHTML = last.map((d, i) => chip(d > bar ? 'up' : d < bar ? 'dn' : 'eq', d > bar ? 'O' : d < bar ? 'U' : '=', i)).join('');
+        document.getElementById('dxStripRF').innerHTML = last.map((d, i) => {
+            const a = lp[lp.length - last.length + i - 1], b = lp[lp.length - last.length + i];
+            const m = a == null || b == null ? 0 : Math.sign(b - a);
+            return chip(m > 0 ? 'up' : m < 0 ? 'dn' : 'eq', m > 0 ? '▲' : m < 0 ? '▼' : '•', i);
+        }).join('');
+        dxLastLen = n;
+
+        // tick chart: last 40 prices, last digit above each tick (even blue, odd pink)
+        const svg = document.getElementById('dxChart');
+        const pts = recentPrices.map((p, i) => ({ p, d: recentDigits[i] })).filter(x => x.p != null).slice(-40);
+        if (pts.length < 2) { svg.innerHTML = `<text x="320" y="90" text-anchor="middle" fill="#64748b" font-size="13">Waiting for ticks…</text>`; return; }
+        const W = 640, H = 170, padL = 8, padR = 74, padT = 26, padB = 14;
+        const lo = Math.min(...pts.map(x => x.p)), hi = Math.max(...pts.map(x => x.p)), span = hi - lo || 1;
+        const X = i => padL + i * (W - padL - padR) / (pts.length - 1);
+        const Y = p => padT + (1 - (p - lo) / span) * (H - padT - padB);
+        const line = pts.map((x, i) => `${X(i).toFixed(1)},${Y(x.p).toFixed(1)}`).join(' ');
+        const pip = PIP_SIZE[selectedSymbol] ?? getDecimals(selectedSymbol);
+        const lastPt = pts[pts.length - 1], lx = X(pts.length - 1), ly = Y(lastPt.p);
+        svg.innerHTML = `
+            <defs><linearGradient id="dxFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f59e0b" stop-opacity=".35"/><stop offset="1" stop-color="#f59e0b" stop-opacity="0"/></linearGradient></defs>
+            ${[0, .5, 1].map(f => `<line x1="${padL}" x2="${W - padR}" y1="${padT + f * (H - padT - padB)}" y2="${padT + f * (H - padT - padB)}" stroke="rgba(148,163,184,.12)" stroke-dasharray="3 4"/>
+                <text x="${W - padR + 6}" y="${padT + f * (H - padT - padB) + 3}" fill="#64748b" font-size="10" font-family="ui-monospace,monospace">${(hi - f * span).toFixed(pip)}</text>`).join('')}
+            <polygon points="${padL},${H - padB} ${line} ${lx.toFixed(1)},${H - padB}" fill="url(#dxFill)"/>
+            <polyline points="${line}" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linejoin="round"/>
+            ${pts.map((x, i) => `<text class="dl" x="${X(i).toFixed(1)}" y="${(Y(x.p) - 7).toFixed(1)}" text-anchor="middle" fill="${x.d % 2 ? '#f472b6' : '#38bdf8'}" opacity="${i === pts.length - 1 ? 1 : .75}">${x.d}</text>`).join('')}
+            <circle class="last" cx="${lx}" cy="${ly}" r="4" fill="#fbbf24"/>
+            <circle cx="${lx}" cy="${ly}" r="3.5" fill="#fbbf24" stroke="#0f172a" stroke-width="1.5"/>
+            <rect x="${W - padR + 2}" y="${ly - 10}" width="${padR - 4}" height="20" rx="5" fill="#f59e0b"/>
+            <text x="${W - padR / 2}" y="${ly + 4}" text-anchor="middle" fill="#0f172a" font-size="11" font-weight="800" font-family="ui-monospace,monospace">${lastPt.p.toFixed(pip)}</text>`;
+    }
+
     function updateDigitDistributionList() {
         const list = document.getElementById('digitDistributionList');
         if (!list) return;
@@ -1221,6 +1391,7 @@
         if (hottestEl && totalTicksCount > 0) {
             hottestEl.textContent = `${hottestIdx} (${digitCounts[hottestIdx]})`;
         }
+        renderDx();
     }
 
     // ==========================================
@@ -1237,8 +1408,10 @@
         wsLastTickAt = 0;
         digitCounts.fill(0);
         totalTicksCount = 0;
-        recentDigits = [];
+        recentDigits = []; recentPrices = [];
         updateDigitDistributionList();
+        const dxSym = document.getElementById('dxSym');
+        if (dxSym) dxSym.textContent = formatDerivSymbol(selectedSymbol);
 
         setSourceBadge('LOADING');
 
@@ -1364,7 +1537,9 @@
         if (!stakeInput || !buyButton || !payoutDisplay) return;
 
         const stake = stakeInput.value || 5;
-        buyButton.textContent = `Purchase Contract @ ${parseFloat(stake).toFixed(2)} USD`;
+        buyButton.textContent = (typeof tradeAccount !== 'undefined' && tradeAccount === 'demo')
+            ? `Purchase on Deriv Demo @ ${parseFloat(stake).toFixed(2)} USD`
+            : `Purchase Contract @ ${parseFloat(stake).toFixed(2)} USD`;
 
         let multiplier = 1.12;
         if (subType === 'MATCH') multiplier = 9.5;
@@ -1759,6 +1934,44 @@
     }
 
     // ==========================================
+    // TRADE ACCOUNT: site balance or the user's own Deriv DEMO account
+    // ==========================================
+    var tradeAccount = 'site', demoAccount = null;     // var: read by updateBuyButtonLabel, which can run earlier
+    try { tradeAccount = localStorage.getItem('px-digits-account') === 'demo' ? 'demo' : 'site'; } catch (e) {}
+
+    async function loadDemoAccount() {
+        const btn = document.getElementById('acctDemo'), info = document.getElementById('acctDemoInfo'), note = document.getElementById('acctDemoNote');
+        try {
+            const d = await (await fetch('/api/deriv/demo/account/', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })).json();
+            if (d.connected && d.success) {
+                demoAccount = d;
+                btn.disabled = false;
+                info.textContent = `${d.loginid} · ${Number(d.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${d.currency}`;
+                note.classList.add('hidden');
+            } else {
+                demoAccount = null;
+                btn.disabled = true;
+                info.textContent = d.connected ? 'token problem' : 'not connected';
+                note.innerHTML = `${pxEsc(d.error || 'Deriv demo account unavailable.')} <a href="/" class="text-cyan-400 underline">Dashboard</a>`;
+                note.classList.remove('hidden');
+                if (tradeAccount === 'demo') setTradeAccount('site');
+            }
+        } catch (e) { info.textContent = 'unavailable'; }
+        setTradeAccount(tradeAccount, true);
+    }
+
+    function setTradeAccount(acc, silent) {
+        if (acc === 'demo' && !demoAccount) acc = 'site';
+        tradeAccount = acc;
+        try { localStorage.setItem('px-digits-account', acc); } catch (e) {}
+        document.getElementById('acctSite').classList.toggle('on', acc === 'site');
+        document.getElementById('acctDemo').classList.toggle('on', acc === 'demo');
+        const dur = document.getElementById('durationInput');
+        if (dur) dur.max = acc === 'demo' ? 10 : 20;
+        updateBuyButtonLabel();
+    }
+
+    // ==========================================
     // AI SCANNER
     // ==========================================
     // How lopsided one Volatility index's digits are, the way Deriv digit traders read them:
@@ -1795,23 +2008,48 @@
         scanBtn.disabled = true;
         scanBtn.innerHTML = '<i class="fa-solid fa-radar text-[11px] animate-spin"></i><span>Scanning 10 Volatility indices...</span>';
 
+        // radar stage: one tile per index, lit as its ticks arrive
+        const stage = document.getElementById('aiScanStage'), tiles = document.getElementById('aiScanTiles');
+        const short = s => s.replace('1HZ', '').replace('V', 's').replace('R_', 'V');
+        document.getElementById('aiRecommendationBox').classList.add('hidden');
+        stage.classList.remove('hidden');
+        document.getElementById('aiScanStageText').textContent = 'SCANNING';
+        document.getElementById('aiScanStageSub').textContent = 'reading 1,000 ticks × 10 indices';
+        tiles.innerHTML = VOL_SYMBOLS.map(s => `<div class="scan-tile" id="tile-${s}">${short(s)}<span class="v">···</span></div>`).join('');
+        let arrived = 0;
+        const light = (s, info) => {
+            const el = document.getElementById('tile-' + s);
+            if (!el || !info || !info.digits || !info.digits.length) return;
+            const r = analyseVolatility(s, info.digits);
+            if (!r) return;
+            arrived++;
+            setTimeout(() => {
+                el.classList.add('live');
+                el.querySelector('.v').textContent = `${r.best.strength.toFixed(1)}σ`;
+                document.getElementById('aiScanStageSub').textContent = `${arrived}/10 indices analysed`;
+            }, arrived * 110);
+        };
+        const started = Date.now();
+
         // the last 1000 ticks of every Volatility index, straight from Deriv (or through our server if the browser can't)
-        let data = await derivHistory(VOL_SYMBOLS, 1000, 8000);
+        let data = await derivHistory(VOL_SYMBOLS, 1000, 8000, light);
         if (!VOL_SYMBOLS.some(s => data[s] && data[s].digits.length)) {
             data = {};
             await Promise.all(VOL_SYMBOLS.map(async s => {
                 try {
                     const d = await (await fetch(`/api/deriv/ticks/?symbol=${s}&count=1000`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })).json();
-                    if (d.success) data[s] = { pip: d.pip_size, digits: d.ticks.map(x => lastDigitOf(x.quote, d.pip_size ?? PIP_SIZE[s] ?? 2)) };
+                    if (d.success) { data[s] = { pip: d.pip_size, digits: d.ticks.map(x => lastDigitOf(x.quote, d.pip_size ?? PIP_SIZE[s] ?? 2)) }; light(s, data[s]); }
                 } catch (e) {}
             }));
         }
         const rows = VOL_SYMBOLS.map(s => data[s] && data[s].digits.length ? analyseVolatility(s, data[s].digits) : null).filter(Boolean);
 
+        await new Promise(ok => setTimeout(ok, Math.max(0, 1800 - (Date.now() - started), arrived * 110 + 250)));   // let the sweep finish
         scanBtn.disabled = false;
         scanBtn.innerHTML = originalContent;
         document.getElementById('aiRecommendationBox').classList.remove('hidden');
         if (!rows.length) {
+            stage.classList.add('hidden');
             document.getElementById('recAsset').textContent = 'Deriv unreachable';
             document.getElementById('recConfidence').textContent = '';
             document.getElementById('recReason').textContent = 'Could not load Volatility ticks from Deriv. Check your connection and scan again.';
@@ -1820,6 +2058,10 @@
         }
         rows.sort((x, y) => y.best.strength - x.best.strength);
         const top = rows[0], pick = top.best;
+        const winTile = document.getElementById('tile-' + top.sym);
+        if (winTile) { winTile.classList.add('win'); winTile.querySelector('.v').textContent = `${pick.type}${pick.barrier != null ? ' ' + pick.barrier : ''}`; }
+        document.getElementById('aiScanStageText').textContent = `LOCKED · ${top.name.toUpperCase()}`;
+        document.getElementById('aiScanStageSub').textContent = `${pick.type}${pick.barrier != null ? ' ' + pick.barrier : ''} · lean ${pick.strength.toFixed(1)}σ`;
 
         // switch to the index with the strongest lean, then set the contract
         if (selectedSymbol !== top.sym) {
@@ -1905,6 +2147,15 @@
             return false;
         }
 
+        if (tradeAccount === 'demo' && duration > 10) {
+            statusMsg.classList.remove('hidden');
+            statusMsg.innerHTML = `
+                <div class="p-3 h-[180px] rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs font-bold text-center flex items-center justify-center">
+                    ❌ Deriv digit contracts run 1 to 10 ticks
+                </div>`;
+            return false;
+        }
+
         if (duration < 1 || duration > 20) {
             statusMsg.classList.remove('hidden');
             statusMsg.innerHTML = `
@@ -1943,7 +2194,8 @@
         };
 
         try {
-            const response = await fetch("{% url 'execute_trade' %}", {
+            const onDemo = tradeAccount === 'demo';
+            const response = await fetch(onDemo ? '/api/deriv/demo/trade/' : "{% url 'execute_trade' %}", {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
                 body: JSON.stringify(payload)
@@ -2022,7 +2274,7 @@
                                 <div>
                                     <p class="text-[10px] font-black uppercase tracking-widest ${theme.accent}">${theme.label}</p>
                                     <p class="text-[10px] text-slate-500 mt-0.5 font-mono">
-                                        ${contractType.replace('DIGIT','')} · Barrier ${barrierValue !== null ? barrierValue : '—'}
+                                        ${contractType.replace('DIGIT','')} · Barrier ${barrierValue !== null ? barrierValue : '—'}${result.contract_id ? ` · <span class="text-cyan-400">Deriv demo #${result.contract_id}</span>` : ''}
                                     </p>
                                 </div>
                             </div>
@@ -2057,10 +2309,17 @@
                 statusBadge.textContent = isWin ? 'Won' : 'Lost';
                 statusBadge.className = `text-[9px] ${isWin ? 'bg-emerald-500/20 border-emerald-400/40 text-emerald-300' : 'bg-rose-500/20 border-rose-400/40 text-rose-300'} border px-2.5 py-1 rounded-full font-bold shrink-0`;
 
-                const balanceEl = document.getElementById('header-balance')
-                                || document.getElementById('tradingBalanceDisplay');
-                if (balanceEl && result.new_balance !== undefined) {
-                    balanceEl.textContent = `$${result.new_balance.toFixed(2)}`;
+                if (result.account === 'deriv_demo') {
+                    if (demoAccount && result.new_balance != null) {
+                        demoAccount.balance = result.new_balance;
+                        document.getElementById('acctDemoInfo').textContent = `${result.loginid} · ${Number(result.new_balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${result.currency || ''}`;
+                    }
+                } else {
+                    const balanceEl = document.getElementById('header-balance')
+                                    || document.getElementById('tradingBalanceDisplay');
+                    if (balanceEl && result.new_balance !== undefined) {
+                        balanceEl.textContent = `$${result.new_balance.toFixed(2)}`;
+                    }
                 }
 
                 return true;
@@ -2347,6 +2606,7 @@
 
         // ✅ Deriv tick stream for the initially selected Volatility index
         connectDerivTicks(selectedSymbol);
+        loadDemoAccount();
 
         // ✅ REST fallback poll every 4s
         serverPollInterval = setInterval(pollServerPrices, 4000);

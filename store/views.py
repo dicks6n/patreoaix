@@ -10428,3 +10428,64 @@ def api_deriv_ticks(request):
                 'ticks': [{'epoch': int(t), 'quote': float(p)} for t, p in zip(hist.get('times') or [], hist.get('prices') or [])]}
         cache.set(key, data, 1 if depth == 100 else 30)
     return JsonResponse({'success': True, 'symbol': symbol, 'pip_size': data['pip_size'], 'ticks': data['ticks'][-count:]})
+
+
+# ═══════════════════════════════════════════════════════════════
+# DERIV DEMO TRADING (digits page → the user's own Deriv demo account)
+# ═══════════════════════════════════════════════════════════════
+def _demo_history_key(user):
+    return f'deriv:demo:history:{user.id}'
+
+
+@login_required
+def api_deriv_demo_account(request):
+    """GET → {success, connected, loginid, balance, currency, history} for the user's Deriv demo account."""
+    from . import deriv_demo
+    acc = deriv_demo.demo_account(request.user)
+    history = cache.get(_demo_history_key(request.user)) or []
+    if not acc:
+        return JsonResponse({'success': True, 'connected': False, 'history': history,
+                             'error': 'No Deriv demo account connected. Connect a Deriv API token made on your demo account (dashboard → Connect Deriv).'})
+    try:
+        info = deriv_demo.account_info(acc)
+    except deriv_demo.DemoTradeError as e:
+        return JsonResponse({'success': False, 'connected': True, 'loginid': acc.account_number, 'error': str(e), 'history': history})
+    return JsonResponse({'success': True, 'connected': True, 'history': history, **info})
+
+
+@login_required
+@require_POST
+def api_deriv_demo_trade(request):
+    """
+    POST {symbol, contract_type: DIGITEVEN…, amount, duration, barrier?} → buys one contract on the user's
+    Deriv DEMO account and waits for Deriv to settle it. Real-money accounts are refused.
+    """
+    from . import deriv_demo
+    try:
+        data = json.loads(request.body or '{}')
+    except ValueError:
+        return JsonResponse({'success': False, 'error': 'Invalid request'}, status=400)
+    acc = deriv_demo.demo_account(request.user)
+    if not acc:
+        return JsonResponse({'success': False, 'error': 'No Deriv demo account connected. Connect a Deriv API token made on your demo account on the dashboard.'})
+    lock = f'deriv:demo:busy:{request.user.id}'
+    if not cache.add(lock, 1, 60):          # one contract at a time per user (double clicks, bot + manual)
+        return JsonResponse({'success': False, 'error': 'A demo contract is still running. Wait for its result.'})
+    try:
+        res = deriv_demo.place_trade(acc, data.get('symbol'), data.get('contract_type'), data.get('amount'),
+                                     data.get('duration', 1), data.get('barrier'))
+    except deriv_demo.DemoTradeError as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+    except Exception as e:
+        logger.exception(f'Deriv demo trade failed: {e}')
+        return JsonResponse({'success': False, 'error': 'Deriv demo trade failed. Check your Deriv statement before trying again.',
+                             'detail': str(e)[:200]})
+    finally:
+        cache.delete(lock)
+    key = _demo_history_key(request.user)
+    history = cache.get(key) or []
+    history.insert(0, {k: res.get(k) for k in ('contract_id', 'won', 'profit', 'buy_price', 'final_digit', 'new_balance', 'currency')}
+                   | {'symbol': data.get('symbol'), 'contract_type': data.get('contract_type'), 'barrier': data.get('barrier'),
+                      'at': int(_time.time())})
+    cache.set(key, history[:50], 30 * 86400)
+    return JsonResponse(res)

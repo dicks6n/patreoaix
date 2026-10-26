@@ -74,6 +74,8 @@ urlpatterns = [
 # In urls.py
     path('get-live-prices/', views.get_live_prices, name='get_live_prices'),
     path('api/deriv/ticks/', views.api_deriv_ticks, name='api_deriv_ticks'),
+    path('api/deriv/demo/account/', views.api_deriv_demo_account, name='api_deriv_demo_account'),
+    path('api/deriv/demo/trade/', views.api_deriv_demo_trade, name='api_deriv_demo_trade'),
 
     path('api/market-status/', views.api_market_status, name='api_market_status'),
     # MetaTrader & Trading Accounts (New Broker Suite)
