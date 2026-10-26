@@ -24,6 +24,8 @@ CONTRACTS = {'DIGITMATCH', 'DIGITDIFF', 'DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'D
 NEEDS_DIGIT = {'DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER'}
 MIN_STAKE, MAX_STAKE = 0.35, 1000
 MAX_TICKS = 10                    # Deriv digit contracts run 1-10 ticks
+PIP_SIZE = {'R_10': 3, 'R_25': 3, 'R_50': 4, 'R_75': 4, 'R_100': 2,          # decimals Deriv quotes them with
+            '1HZ10V': 2, '1HZ25V': 2, '1HZ50V': 2, '1HZ75V': 2, '1HZ100V': 2}
 
 
 class DemoTradeError(Exception):
@@ -45,7 +47,8 @@ class _Session:
     def __init__(self, acc, timeout=10):
         token = acc.api_token
         self.req = 0
-        if is_legacy_token(token):
+        self.legacy = is_legacy_token(token)
+        if self.legacy:
             try:
                 self.ws = price_feed.ws_connect(price_feed.DERIV_PUBLIC_WS_LEGACY, timeout=timeout)
             except Exception as e:
@@ -82,6 +85,18 @@ class _Session:
                 raise DemoTradeError(msg['error'].get('message') or msg['error'].get('code') or 'Deriv error')
             return msg
         raise DemoTradeError('Deriv did not answer in time')
+
+    def contract(self, request):
+        """A proposal in this API's dialect: the new Deriv API renamed `symbol` to `underlying_symbol`."""
+        request = dict(request)
+        if not self.legacy and 'symbol' in request:
+            request['underlying_symbol'] = request.pop('symbol')
+        return request
+
+    def buy(self, proposal_request, amount, timeout=15):
+        """Price the contract, then buy it. New-API proposals may only carry the id: pay at most the stake."""
+        p = self.call(self.contract(proposal_request))['proposal']
+        return self.call({'buy': p['id'], 'price': p.get('ask_price') or amount}, timeout=timeout)['buy']
 
     def send(self, request):
         self.req += 1
@@ -152,8 +167,7 @@ def place_trade(acc, symbol, contract_type, stake, duration, barrier=None):
     try:
         _require_demo(s.auth)
         proposal['currency'] = s.auth.get('currency') or 'USD'
-        p = s.call(proposal)['proposal']
-        b = s.call({'buy': p['id'], 'price': p['ask_price']}, timeout=15)['buy']
+        b = s.buy(proposal, stake)
         cid = b['contract_id']
 
         # follow the contract until Deriv settles it
@@ -174,9 +188,12 @@ def place_trade(acc, symbol, contract_type, stake, duration, barrier=None):
                                  'Check its result in your Deriv statement.')
 
         balance = s.call({'balance': 1}).get('balance', {}).get('balance')
+        pip = PIP_SIZE.get(symbol, 2)
+        shown = lambda disp, raw: disp if disp not in (None, '') else (f'{float(raw):.{pip}f}' if raw not in (None, '') else None)
         ticks = poc.get('tick_stream') or []
-        tick_digits = [d for d in (_digit(t.get('tick_display_value')) for t in ticks) if d is not None]
-        final = _digit(poc.get('exit_tick_display_value')) if poc.get('exit_tick_display_value') else (tick_digits[-1] if tick_digits else None)
+        tick_digits = [d for d in (_digit(shown(t.get('tick_display_value'), t.get('tick'))) for t in ticks) if d is not None]
+        exit_shown = shown(poc.get('exit_tick_display_value'), poc.get('exit_tick'))
+        final = _digit(exit_shown) if exit_shown else (tick_digits[-1] if tick_digits else None)
         sell = float(poc.get('sell_price') or 0)
         won = poc.get('status') == 'won' or (poc.get('status') is None and sell > 0)
         return {
@@ -185,7 +202,7 @@ def place_trade(acc, symbol, contract_type, stake, duration, barrier=None):
             'buy_price': float(b.get('buy_price') or stake), 'won': bool(won), 'payout': sell,
             'profit': round(sell - float(b.get('buy_price') or stake), 2),
             'tick_digits': tick_digits, 'final_digit': final, 'duration_used': duration,
-            'entry_tick': poc.get('entry_tick_display_value'), 'exit_tick': poc.get('exit_tick_display_value'),
+            'entry_tick': shown(poc.get('entry_tick_display_value'), poc.get('entry_tick')), 'exit_tick': exit_shown,
             'new_balance': float(balance) if balance is not None else None,
         }
     finally:
@@ -246,8 +263,8 @@ def _position(poc):
     lo = poc.get('limit_order') or {}
     amount = lambda k: (lo.get(k) or {}).get('order_amount')
     return {
-        'contract_id': poc.get('contract_id'), 'side': side, 'symbol': poc.get('underlying'),
-        'display_name': poc.get('display_name') or poc.get('underlying'),
+        'contract_id': poc.get('contract_id'), 'side': side, 'symbol': poc.get('underlying_symbol') or poc.get('underlying'),
+        'display_name': poc.get('display_name') or poc.get('underlying_symbol') or poc.get('underlying'),
         'stake': float(poc.get('buy_price') or 0), 'multiplier': poc.get('multiplier'),
         'entry': poc.get('entry_spot_display_value') or poc.get('entry_spot'),
         'current': poc.get('current_spot_display_value') or poc.get('current_spot'),
@@ -288,8 +305,7 @@ def open_multiplier(acc, symbol, side, stake, multiplier, stop_loss=None, take_p
     try:
         _require_demo(s.auth)
         proposal['currency'] = s.auth.get('currency') or 'USD'
-        p = s.call(proposal)['proposal']
-        b = s.call({'buy': p['id'], 'price': p['ask_price']}, timeout=15)['buy']
+        b = s.buy(proposal, stake)
         pos = _position(_poc(s, b['contract_id']))
         balance = s.call({'balance': 1}).get('balance', {}).get('balance')
         return {'success': True, 'account': 'deriv_demo', 'loginid': s.auth.get('loginid'), 'currency': proposal['currency'],
