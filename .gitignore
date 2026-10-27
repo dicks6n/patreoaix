@@ -11,3 +11,7 @@ mpesa_debug.log
 
 .cache/
 *.sqlite3
+
+# generated / private uploads
+media/posters/
+media/kyc_documents/
