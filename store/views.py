@@ -10631,3 +10631,16 @@ def tiktok_post_poster(request):
     except Exception as e:
         messages.error(request, f'TikTok refused the post: {e}')
     return redirect('signal_posters')
+
+
+def _legal(request, template):
+    return render(request, template, {'domain': settings.SITE_DOMAIN, 'updated': '27 October 2026',
+                                      'contact': getattr(settings, 'EMAIL_HOST_USER', '') or f'support@{settings.SITE_DOMAIN}'})
+
+
+def privacy_view(request):
+    return _legal(request, 'store/legal/privacy.html')
+
+
+def terms_view(request):
+    return _legal(request, 'store/legal/terms.html')

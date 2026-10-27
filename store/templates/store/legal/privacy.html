@@ -1,0 +1,42 @@
+{% extends 'store/legal/base_legal.html' %}
+{% block title %}Privacy Policy{% endblock %}
+{% block body %}
+<h1>Privacy Policy</h1>
+<p class="muted">Last updated {{ updated }}</p>
+
+<p>This policy explains what PATREOAIX ({{ domain }}) collects, why, and the choices you have.</p>
+
+<h2>What we collect</h2>
+<ul>
+  <li><b>Account details</b>: your name, email address and password (stored hashed), and login records used to keep your account secure.</li>
+  <li><b>Trading and payment records</b>: deposits, withdrawals, orders and balances on the platform, and the payment references our payment providers send us.</li>
+  <li><b>Identity verification</b>: documents you upload for verification (KYC), used only to verify your identity and meet legal duties.</li>
+  <li><b>Connected accounts</b>: if you connect a broker or social account, the access tokens needed to provide that feature.</li>
+  <li><b>Technical data</b>: IP address, browser type and pages visited, used for security and to keep the service working.</li>
+</ul>
+
+<h2>How we use it</h2>
+<ul>
+  <li>To run your account, process payments and show your trading activity.</li>
+  <li>To send the notifications and signals you asked for.</li>
+  <li>To prevent fraud and abuse and to meet legal requirements.</li>
+</ul>
+<p>We do not sell your personal data.</p>
+
+<h2>TikTok and other social platforms</h2>
+<p>PATREOAIX uses TikTok's Login Kit and Content Posting API only for the PATREOAIX account owner, to publish our own AI signal images to our own TikTok account.
+We receive the basic profile information (display name, avatar, open ID) and an access token, which are stored on our server and used only to publish those posts.
+We do not access or store other TikTok users' data. Access can be removed at any time in TikTok's settings (Manage app permissions) or from our site.</p>
+
+<h2>Sharing</h2>
+<p>We share data only with the services needed to run PATREOAIX (hosting, email, payment processors and connected brokers you choose), or when the law requires it.</p>
+
+<h2>Keeping and deleting data</h2>
+<p>We keep data while your account is open and as long as the law requires afterwards. You can ask us to see, correct or delete your data by emailing us.</p>
+
+<h2>Security</h2>
+<p>Connections use HTTPS, passwords are hashed and access to stored data is restricted. No system is perfectly secure, so please use a strong, unique password.</p>
+
+<h2>Changes</h2>
+<p>We may update this policy; the date above shows the latest version.</p>
+{% endblock %}
