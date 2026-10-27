@@ -1,6 +1,7 @@
 """
 python manage.py telegram_test              → checks the bot token and channel, posts a test message + chart
 python manage.py telegram_test --last       → (re)posts the newest recorded AI signal
+python manage.py telegram_test --open       → posts the AI signals that are open now (made before the bot was set up)
 python manage.py telegram_test --find-channel → lists the channels the bot was added to, with their ids
                                                 (a private channel needs its -100… id, not the t.me/+ link)
 """
@@ -14,9 +15,10 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument('--last', action='store_true', help='Post the newest recorded AI signal')
+        parser.add_argument('--open', action='store_true', help='Post the open AI signals not posted yet')
         parser.add_argument('--find-channel', action='store_true', help='Show the id of the channels the bot was added to')
 
-    def handle(self, *args, last=False, find_channel=False, **opts):
+    def handle(self, *args, last=False, find_channel=False, open=False, **opts):
         if find_channel:
             return self.find_channel()
         if not tg.enabled():
@@ -30,6 +32,14 @@ class Command(BaseCommand):
         except Exception as e:
             self.stderr.write(self.style.ERROR(f'Telegram refused: {e}'))
             self.stderr.write('Check the token, the channel id, and that the bot is an admin of the channel.')
+            return
+        if open:
+            from django.core.cache import cache
+            from store.models import ScannerSignal
+            sigs = ScannerSignal.objects.filter(outcome='OPEN').order_by('created_at')
+            posted = [s for s in sigs if not cache.get(f'tg:msg:{s.id}') and tg.post_signal(s)]
+            self.stdout.write(self.style.SUCCESS(f'Posted {len(posted)} of {sigs.count()} open signals '
+                                                 f'(skipped: below TELEGRAM_MIN_GRADE={tg._cfg("TELEGRAM_MIN_GRADE", "A")} or already posted).'))
             return
         if last:
             from django.core.cache import cache
