@@ -92,6 +92,22 @@ python manage.py collectstatic --noinput
 
 Then **Reload** on the Web tab and restart the always-on task.
 
+## 8. Telegram channel for AI signals (optional)
+
+1. In Telegram open **@BotFather** → `/newbot` → copy the token.
+2. Create your channel, then *Channel info → Administrators → Add admin* → your bot, with "Post messages".
+3. In `.env`:
+
+```
+TELEGRAM_BOT_TOKEN=123456789:AA...
+TELEGRAM_CHANNEL_ID=@yourchannel        # private channel: the -100... number
+TELEGRAM_MIN_GRADE=A                    # B, A or A+
+```
+
+4. Test: `python manage.py telegram_test` (posts a test chart), or `python manage.py telegram_test --last`.
+5. Restart the always-on task. From then on every new A/A+ scanner signal is posted with a chart,
+   and the result (target / stop / expired) is posted as a reply to it.
+
 ## What changed so it behaves like the laptop
 
 | Laptop (runserver)                    | PythonAnywhere                         | Fix in the code                                    |

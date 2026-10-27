@@ -337,5 +337,11 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
 
 ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', EMAIL_HOST_USER)
 
+# ── Telegram channel for AI signals (python manage.py telegram_test) ──
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')        # from @BotFather
+TELEGRAM_CHANNEL_ID = os.getenv('TELEGRAM_CHANNEL_ID', '')      # @yourchannel or -100… (bot must be an admin)
+TELEGRAM_MIN_GRADE = os.getenv('TELEGRAM_MIN_GRADE', 'A')       # A or A+
+TELEGRAM_ENABLED = os.getenv('TELEGRAM_ENABLED', 'True')
+
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'
