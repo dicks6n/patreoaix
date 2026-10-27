@@ -190,6 +190,40 @@ def post_outcome(sig):
         logger.warning(f'Telegram outcome for signal {sig.id} failed: {e}')
 
 
+def post_scan(results, style):
+    """After a scan pass: one message listing every strong setup the scan found right now.
+
+    The same list is not repeated within TELEGRAM_SCAN_REPEAT_MINUTES (default 60; 0 = post after every scan),
+    but any change (new market, flipped direction, new grade) is posted on the next scan.
+    """
+    if not enabled() or _cfg('TELEGRAM_SCAN_POSTS', 'True') != 'True':
+        return None
+    floor = GRADE_RANK.get(_cfg('TELEGRAM_MIN_GRADE', 'A'), 2)
+    strong = [r for r in results if r.get('strong') and GRADE_RANK.get(r.get('grade'), 0) >= floor and (r.get('plan') or {}).get('entry')]
+    if not strong:
+        return None
+    key = '|'.join(sorted(f"{r['symbol']}:{r['direction']}:{r['grade']}" for r in strong))
+    repeat = int(_cfg('TELEGRAM_SCAN_REPEAT_MINUTES', '60') or 0) * 60
+    if repeat and cache.get(f'tg:scan:{style}') == key:
+        return None
+    lines = [f"🧠 <b>PATREOAIX AI scan · {style.title()}</b>  ({len(strong)} strong setup{'s' if len(strong) != 1 else ''})", '']
+    for r in strong[:15]:
+        p, d = r['plan'], _digits(r['symbol'])
+        f = lambda v: '—' if v is None else f'{v:.{d}f}'
+        lines.append(f"{'🟢' if r['direction'] == 'BUY' else '🔴'} <b>{r['grade']} {r['direction']} {_esc(r['symbol'])}</b> {r['main_tf'].upper()}"
+                     f" · {len(r.get('agree') or [])}/{r.get('voting', '?')} agree")
+        lines.append(f"     Entry <code>{f(p.get('entry'))}</code> · SL <code>{f(p.get('sl'))}</code> · TP <code>{f(p.get('tp1'))}</code>"
+                     + (f" · R:R {p['rr']}" if p.get('rr') else ''))
+    site = _cfg('SITE_URL')
+    if site:
+        lines.append(f'\n<a href="{site}/market-overview/?style={style}">Live scanner on PATREOAIX</a>')
+    lines.append('\n<i>Not financial advice. Trade small, always use the stop.</i>')
+    msg = api('sendMessage', {'chat_id': _cfg('TELEGRAM_CHANNEL_ID'), 'text': '\n'.join(lines),
+                              'parse_mode': 'HTML', 'disable_web_page_preview': 'true'})
+    cache.set(f'tg:scan:{style}', key, repeat or 60)
+    return msg['message_id']
+
+
 def safe(fn, *args):
     """Never let Telegram break the scanner."""
     try:

@@ -49,6 +49,8 @@ class Command(BaseCommand):
             results, strength = se.scan_all(style)
             sa.save_snapshot(style, results, strength, 'worker')
             new = sa.record_signals(results, style)
+            from store import telegram_bot
+            telegram_bot.safe(telegram_bot.post_scan, results, style)
             strong = sum(1 for r in results if r['strong'])
             self.stdout.write(f'[{time.strftime("%H:%M:%S")}] {style}: {len(results)} markets, {strong} strong, '
                               f'{len(new)} new ({time.time() - t0:.1f}s)')

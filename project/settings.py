@@ -342,6 +342,8 @@ TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')        # from @BotFathe
 TELEGRAM_CHANNEL_ID = os.getenv('TELEGRAM_CHANNEL_ID', '')      # @yourchannel or -100… (bot must be an admin)
 TELEGRAM_MIN_GRADE = os.getenv('TELEGRAM_MIN_GRADE', 'A')       # A or A+
 TELEGRAM_ENABLED = os.getenv('TELEGRAM_ENABLED', 'True')
+TELEGRAM_SCAN_POSTS = os.getenv('TELEGRAM_SCAN_POSTS', 'True')                 # a list of strong setups after each scan
+TELEGRAM_SCAN_REPEAT_MINUTES = os.getenv('TELEGRAM_SCAN_REPEAT_MINUTES', '60')  # same list again after; 0 = every scan
 
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'
