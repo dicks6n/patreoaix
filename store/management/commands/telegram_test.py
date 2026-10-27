@@ -1,6 +1,8 @@
 """
 python manage.py telegram_test              → checks the bot token and channel, posts a test message + chart
 python manage.py telegram_test --last       → (re)posts the newest recorded AI signal
+python manage.py telegram_test --find-channel → lists the channels the bot was added to, with their ids
+                                                (a private channel needs its -100… id, not the t.me/+ link)
 """
 from django.core.management.base import BaseCommand
 
@@ -12,8 +14,11 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument('--last', action='store_true', help='Post the newest recorded AI signal')
+        parser.add_argument('--find-channel', action='store_true', help='Show the id of the channels the bot was added to')
 
-    def handle(self, *args, last=False, **opts):
+    def handle(self, *args, last=False, find_channel=False, **opts):
+        if find_channel:
+            return self.find_channel()
         if not tg.enabled():
             self.stderr.write(self.style.ERROR('Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHANNEL_ID in .env (and TELEGRAM_ENABLED=True).'))
             return
@@ -43,3 +48,25 @@ class Command(BaseCommand):
                              'caption': '✅ <b>PATREOAIX signals bot is connected.</b>\nStrong AI setups will be posted here automatically.'},
                files={'photo': ('test.png', png, 'image/png')})
         self.stdout.write(self.style.SUCCESS('Test message posted to the channel.'))
+
+
+    def find_channel(self):
+        if not tg._cfg('TELEGRAM_BOT_TOKEN'):
+            self.stderr.write(self.style.ERROR('Set TELEGRAM_BOT_TOKEN in .env first.'))
+            return
+        try:
+            updates = tg.api('getUpdates', {'allowed_updates': '["my_chat_member","channel_post"]'})
+        except Exception as e:
+            self.stderr.write(self.style.ERROR(f'Telegram refused: {e}'))
+            return
+        found = {}
+        for u in updates:
+            chat = (u.get('my_chat_member') or u.get('channel_post') or {}).get('chat') or {}
+            if chat.get('type') == 'channel':
+                found[chat['id']] = chat.get('title') or chat.get('username')
+        if not found:
+            self.stderr.write('No channel seen yet. Add the bot to the channel as an admin (or remove and add it again, '
+                              'or post any message in the channel), then run this again within 24 hours.')
+            return
+        for cid, title in found.items():
+            self.stdout.write(self.style.SUCCESS(f'{title}:  TELEGRAM_CHANNEL_ID={cid}'))

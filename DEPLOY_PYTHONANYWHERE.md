@@ -100,12 +100,14 @@ Then **Reload** on the Web tab and restart the always-on task.
 
 ```
 TELEGRAM_BOT_TOKEN=123456789:AA...
-TELEGRAM_CHANNEL_ID=@yourchannel        # private channel: the -100... number
+TELEGRAM_CHANNEL_ID=@yourchannel        # private channel: the -100... number from --find-channel
 TELEGRAM_MIN_GRADE=A                    # B, A or A+
 ```
 
-4. Test: `python manage.py telegram_test` (posts a test chart), or `python manage.py telegram_test --last`.
-5. Restart the always-on task. From then on every new A/A+ scanner signal is posted with a chart,
+4. Private channel: put only the token in `.env` first, then `python manage.py telegram_test --find-channel`
+   prints `TELEGRAM_CHANNEL_ID=-100…`; copy that line into `.env`.
+5. Test: `python manage.py telegram_test` (posts a test chart), or `python manage.py telegram_test --last`.
+6. Restart the always-on task. From then on every new A/A+ scanner signal is posted with a chart,
    and the result (target / stop / expired) is posted as a reply to it.
 
 ## What changed so it behaves like the laptop
