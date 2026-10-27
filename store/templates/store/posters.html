@@ -1,0 +1,63 @@
+{% extends 'base_dashboard.html' %}
+
+{% block title %}Signal Posters · PATREOAIX{% endblock %}
+{% block page_title %}Signal Posters{% endblock %}
+
+{% block extra_head %}
+<style>
+  .pst-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:18px; }
+  .pst-card { background:var(--px-card, #121722); border:1px solid var(--px-border, #232a38); border-radius:16px; overflow:hidden; display:flex; flex-direction:column; }
+  .pst-card img { width:100%; aspect-ratio:9/16; object-fit:cover; display:block; background:#090c12; }
+  .pst-body { padding:12px; display:flex; flex-direction:column; gap:8px; }
+  .pst-cap { font-size:12px; white-space:pre-wrap; color:var(--px-muted, #8a93a6); max-height:84px; overflow:hidden; }
+  .pst-btns { display:flex; gap:8px; }
+  .pst-btns a, .pst-btns button { flex:1; text-align:center; font-size:13px; font-weight:600; padding:8px 0; border-radius:10px; cursor:pointer; border:0; }
+  .pst-dl { background:#f0b90b; color:#0b0e14; }
+  .pst-cp { background:var(--px-hover, #1d2432); color:var(--px-text, #e6e9ef); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="p-4 md:p-6 space-y-4">
+  <div class="text-sm" style="color:var(--px-muted)">
+    Every new A / A+ signal gets a TikTok-size poster (1080×1920), and a result poster when it closes.
+    On your phone: <b>Download</b>, then <b>Copy caption</b>, then post it as a TikTok photo.
+  </div>
+  {% if posters %}
+  <div class="pst-grid">
+    {% for p in posters %}
+    <div class="pst-card">
+      <a href="{{ p.url }}" target="_blank" rel="noopener"><img src="{{ p.url }}" alt="{{ p.name }}" loading="lazy"></a>
+      <div class="pst-body">
+        <div class="text-xs" style="color:var(--px-muted)">{{ p.date }} · {{ p.name }}</div>
+        <div class="pst-cap">{{ p.caption }}</div>
+        <div class="pst-btns">
+          <a class="pst-dl" href="{{ p.url }}" download="{{ p.name }}">Download</a>
+          <button class="pst-cp" type="button" data-caption="{{ p.caption }}">Copy caption</button>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="text-sm" style="color:var(--px-muted)">
+    No posters yet. They are made by the background scanner when it records a new signal, or run
+    <code>python manage.py make_posters --open</code> to make them for the signals open now.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('click', function (e) {
+  var b = e.target.closest('.pst-cp');
+  if (!b) return;
+  var text = b.getAttribute('data-caption');
+  var done = function () { var t = b.textContent; b.textContent = 'Copied ✓'; setTimeout(function () { b.textContent = t; }, 1500); };
+  if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(text).then(done); return; }
+  var ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); done(); } finally { ta.remove(); }
+});
+</script>
+{% endblock %}

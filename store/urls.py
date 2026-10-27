@@ -22,6 +22,7 @@ urlpatterns = [
     path('dashboard/', views.landing_page_view, name='landing'),
     path('index/', views.dashboard_view, name='index'),
     path('market-overview/', members_only(views.market_overview_view), name='market_overview'),
+    path('posters/', views.signal_posters, name='signal_posters'),
     path('markets/', views.market_overview, name='markets'),
     path('trade/close/<int:trade_id>/', mt5_views.close_trade_api, name='close_trade_api'),
     path('trade/close-all/', mt5_views.close_all_trades_api, name='close_all_trades_api'),

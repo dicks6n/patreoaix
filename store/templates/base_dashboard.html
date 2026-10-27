@@ -735,6 +735,11 @@
                     <a href="{% url 'bot' %}" class="nav-item {% if request.resolver_match.url_name == 'bot' %}nav-active{% endif %}">
                         <i class="fa-solid fa-robot"></i><span>Bot Center</span>
                     </a>
+                    {% if request.user.is_staff %}
+                    <a href="{% url 'signal_posters' %}" class="nav-item {% if request.resolver_match.url_name == 'signal_posters' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-image"></i><span>Signal Posters</span>
+                    </a>
+                    {% endif %}
                     <a href="{% url 'webhooks' %}" class="nav-item {% if request.resolver_match.url_name == 'webhooks' %}nav-active{% endif %}">
                         <i class="fa-solid fa-code"></i><span>Webhooks</span>
                     </a>

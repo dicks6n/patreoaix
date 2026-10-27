@@ -10559,3 +10559,10 @@ def api_deriv_demo_close(request):
     """POST {contract_id} → sells (closes) that demo contract at market."""
     from . import deriv_demo
     return _demo_post(request, lambda acc, d: deriv_demo.close_multiplier(acc, d.get('contract_id')))
+
+
+@staff_member_required
+def signal_posters(request):
+    """TikTok-size posters of the AI signals, with captions to copy (store/poster.py)."""
+    from . import poster
+    return render(request, 'store/posters.html', {'posters': poster.recent(60)})
