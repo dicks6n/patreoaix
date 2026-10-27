@@ -10564,5 +10564,70 @@ def api_deriv_demo_close(request):
 @staff_member_required
 def signal_posters(request):
     """TikTok-size posters of the AI signals, with captions to copy (store/poster.py)."""
-    from . import poster
-    return render(request, 'store/posters.html', {'posters': poster.recent(60)})
+    from . import poster, tiktok
+    account = None
+    if tiktok.connected():
+        try:
+            account = tiktok.user_info().get('display_name') or 'connected'
+        except Exception as e:
+            account = f'connected (could not read the account: {e})'
+    return render(request, 'store/posters.html', {
+        'posters': poster.recent(60), 'tiktok_configured': tiktok.configured(), 'tiktok_account': account,
+        'tiktok_redirect': tiktok.redirect_uri(), 'tiktok_prefix': tiktok.poster_url('posters/'),
+    })
+
+
+@staff_member_required
+def tiktok_connect(request):
+    from . import tiktok
+    if not tiktok.configured():
+        messages.error(request, 'Set TIKTOK_CLIENT_KEY and TIKTOK_CLIENT_SECRET in .env first, then reload the site.')
+        return redirect('signal_posters')
+    return redirect(tiktok.auth_url(request))
+
+
+@staff_member_required
+def tiktok_callback(request):
+    from . import tiktok
+    if request.GET.get('error'):
+        messages.error(request, f"TikTok: {request.GET.get('error_description') or request.GET['error']}")
+        return redirect('signal_posters')
+    try:
+        tiktok.finish_login(request, request.GET.get('code', ''), request.GET.get('state', ''))
+        messages.success(request, 'TikTok connected. New signal posters will be posted automatically.')
+    except Exception as e:
+        messages.error(request, f'TikTok login failed: {e}')
+    return redirect('signal_posters')
+
+
+@staff_member_required
+@require_POST
+def tiktok_disconnect(request):
+    from . import tiktok
+    tiktok.disconnect()
+    messages.success(request, 'TikTok disconnected.')
+    return redirect('signal_posters')
+
+
+@staff_member_required
+@require_POST
+def tiktok_post_poster(request):
+    """Post one poster from the page now (the 'Post to TikTok' button)."""
+    import os
+    from . import poster, tiktok
+    url = request.POST.get('url', '')
+    prefix = f"{settings.MEDIA_URL}posters/"
+    rel = url[len(settings.MEDIA_URL):] if url.startswith(prefix) and '..' not in url else ''
+    if not rel or not os.path.exists(os.path.join(settings.MEDIA_ROOT, rel)):
+        messages.error(request, 'Poster not found.')
+        return redirect('signal_posters')
+    caption = ''
+    txt = os.path.join(settings.MEDIA_ROOT, rel[:-4] + '.txt')
+    if os.path.exists(txt):
+        caption = open(txt, encoding='utf-8').read()
+    try:
+        pid = tiktok.post_photo(tiktok.poster_url(rel), caption.split('\n', 1)[0] or 'PATREOAIX AI signal', caption)
+        messages.success(request, f'Sent to TikTok (publish id {pid}). It appears on your account in a minute or two.')
+    except Exception as e:
+        messages.error(request, f'TikTok refused the post: {e}')
+    return redirect('signal_posters')

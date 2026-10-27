@@ -345,5 +345,13 @@ TELEGRAM_ENABLED = os.getenv('TELEGRAM_ENABLED', 'True')
 TELEGRAM_SCAN_POSTS = os.getenv('TELEGRAM_SCAN_POSTS', 'True')                 # a list of strong setups after each scan
 TELEGRAM_SCAN_REPEAT_MINUTES = os.getenv('TELEGRAM_SCAN_REPEAT_MINUTES', '60')  # same list again after; 0 = every scan
 
+# ── TikTok: signal posters as photo posts (store/tiktok.py has the setup steps) ──
+TIKTOK_CLIENT_KEY = os.getenv('TIKTOK_CLIENT_KEY', '')
+TIKTOK_CLIENT_SECRET = os.getenv('TIKTOK_CLIENT_SECRET', '')
+TIKTOK_ENABLED = os.getenv('TIKTOK_ENABLED', 'True')
+TIKTOK_MIN_GRADE = os.getenv('TIKTOK_MIN_GRADE', 'A')            # A or A+
+TIKTOK_DAILY_LIMIT = os.getenv('TIKTOK_DAILY_LIMIT', '10')       # posts per day (TikTok limits posting too)
+TIKTOK_POST_RESULTS = os.getenv('TIKTOK_POST_RESULTS', 'True')   # also post the TARGET HIT / STOPPED OUT poster
+
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'

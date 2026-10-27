@@ -14,11 +14,56 @@
   .pst-btns a, .pst-btns button { flex:1; text-align:center; font-size:13px; font-weight:600; padding:8px 0; border-radius:10px; cursor:pointer; border:0; }
   .pst-dl { background:#f0b90b; color:#0b0e14; }
   .pst-cp { background:var(--px-hover, #1d2432); color:var(--px-text, #e6e9ef); }
+  .pst-tt { background:var(--px-card, #121722); border:1px solid var(--px-border, #232a38); border-radius:16px; padding:14px 16px; }
+  .pst-tt-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .pst-tt-head .pst-dl, .pst-tt-head .pst-cp { padding:8px 14px; border-radius:10px; font-size:13px; font-weight:600; border:0; cursor:pointer; }
+  .pst-tt-text { font-size:13px; color:var(--px-muted, #8a93a6); margin-top:10px; line-height:1.6; }
+  ol.pst-tt-text { padding-left:18px; list-style:decimal; }
+  .pst-tt-text code { font-size:12px; word-break:break-all; }
+  .pst-pill { font-size:12px; padding:3px 10px; border-radius:999px; background:var(--px-hover, #1d2432); color:var(--px-muted, #8a93a6); }
+  .pst-on { background:rgba(22,199,132,.15); color:#16c784; }
+  .pst-msg { padding:10px 14px; border-radius:12px; font-size:14px; }
+  .pst-ok { background:rgba(22,199,132,.12); color:#16c784; }
+  .pst-err { background:rgba(234,57,67,.12); color:#ea3943; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="p-4 md:p-6 space-y-4">
+  {% for m in messages %}
+  <div class="pst-msg {% if m.tags == 'error' %}pst-err{% else %}pst-ok{% endif %}">{{ m }}</div>
+  {% endfor %}
+
+  <div class="pst-tt">
+    <div class="pst-tt-head">
+      <i class="fa-brands fa-tiktok"></i>
+      <b>TikTok</b>
+      {% if tiktok_account %}
+        <span class="pst-pill pst-on">Connected: {{ tiktok_account }}</span>
+      {% else %}
+        <span class="pst-pill">Not connected</span>
+      {% endif %}
+      <span style="flex:1"></span>
+      {% if tiktok_account %}
+        <form method="post" action="{% url 'tiktok_disconnect' %}">{% csrf_token %}<button class="pst-cp" type="submit">Disconnect</button></form>
+      {% elif tiktok_configured %}
+        <a class="pst-dl" href="{% url 'tiktok_connect' %}">Connect TikTok</a>
+      {% endif %}
+    </div>
+    {% if tiktok_account %}
+      <div class="pst-tt-text">New A / A+ signal posters (and their results) are posted to TikTok automatically by the background scanner.
+        Until TikTok approves your app they are posted as private (only you can see them).</div>
+    {% else %}
+      <ol class="pst-tt-text">
+        <li>developers.tiktok.com → create an app → add <b>Login Kit</b> and <b>Content Posting API</b> (Direct Post on). Scopes: user.info.basic, video.publish.</li>
+        <li>Login Kit redirect URI: <code>{{ tiktok_redirect }}</code></li>
+        <li>Content Posting API → verify URL prefix: <code>{{ tiktok_prefix }}</code></li>
+        <li>.env: <code>TIKTOK_CLIENT_KEY=…</code> and <code>TIKTOK_CLIENT_SECRET=…</code>, reload the site{% if not tiktok_configured %} (not set yet){% endif %}.</li>
+        <li>Press <b>Connect TikTok</b> here and allow access.</li>
+      </ol>
+    {% endif %}
+  </div>
+
   <div class="text-sm" style="color:var(--px-muted)">
     Every new A / A+ signal gets a TikTok-size poster (1080×1920), and a result poster when it closes.
     On your phone: <b>Download</b>, then <b>Copy caption</b>, then post it as a TikTok photo.
@@ -35,6 +80,12 @@
           <a class="pst-dl" href="{{ p.url }}" download="{{ p.name }}">Download</a>
           <button class="pst-cp" type="button" data-caption="{{ p.caption }}">Copy caption</button>
         </div>
+        {% if tiktok_account %}
+        <form method="post" action="{% url 'tiktok_post_poster' %}" class="pst-btns">{% csrf_token %}
+          <input type="hidden" name="url" value="{{ p.url }}">
+          <button class="pst-cp" type="submit"><i class="fa-brands fa-tiktok"></i> Post to TikTok now</button>
+        </form>
+        {% endif %}
       </div>
     </div>
     {% endfor %}
