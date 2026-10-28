@@ -285,7 +285,7 @@ def results_card(title, subtitle, sigs, opened, still_open):
         y += 86
     if still_open:
         d.text((60, H - 150), f'{still_open} signal{"s" if still_open != 1 else ""} still running', font=font(28, False), fill=MUTE)
-    d.text((W / 2, H - 84), f"Free AI signals · {(getattr(settings, 'SITE_DOMAIN', '') or 'patreoaix.com').upper()}",
+    d.text((W / 2, H - 84), f"Free AI signals · {(getattr(settings, 'PUBLIC_HOST', '') or 'www.patreoaix.com').upper()}",
            font=font(30), fill=AMBER, anchor='mm')
     out = io.BytesIO()
     img.save(out, format='PNG', optimize=True)

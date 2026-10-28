@@ -116,7 +116,10 @@ if not SECRET_KEY:
     raise RuntimeError('Set SECRET_KEY in .env on the server (python -c "import secrets; print(secrets.token_urlsafe(50))")')
 
 SITE_DOMAIN = os.getenv('SITE_DOMAIN', 'patreoaix.com')
-SITE_URL = os.getenv('SITE_URL', f'https://{SITE_DOMAIN}')
+# links in posts, emails and callbacks use the www address: PythonAnywhere serves www.<domain>; the bare domain
+# only works once the registrar forwards it to www (set SITE_URL=https://patreoaix.com to change this)
+SITE_URL = os.getenv('SITE_URL', f'https://www.{SITE_DOMAIN}').rstrip('/')
+PUBLIC_HOST = SITE_URL.split('://', 1)[-1]                       # what posters and captions print
 ON_PYTHONANYWHERE = bool(os.getenv('PYTHONANYWHERE_DOMAIN'))      # set by PythonAnywhere itself
 
 ALLOWED_HOSTS = [SITE_DOMAIN, f'www.{SITE_DOMAIN}', '.pythonanywhere.com', 'localhost', '127.0.0.1',

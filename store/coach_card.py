@@ -377,7 +377,7 @@ def render(view, tall=False, signal=None, result=False):
         d.rounded_rectangle([bar_x0, y + 28, bar_x1, y + 42], radius=7, fill=PANEL2)
         d.rounded_rectangle([bar_x0, y + 28, bar_x0 + (bar_x1 - bar_x0) * agree / voting, y + 42], radius=7, fill=side_col)
         d.text((W - pad - 24, y + 35), f'{agree}/{voting} strategies agree · {against} against', font=font(22), fill=TEXT, anchor='rm')
-    d.text((W / 2, H - 70), f"Free AI analysis · {(getattr(settings, 'SITE_DOMAIN', '') or 'patreoaix.com').upper()}",
+    d.text((W / 2, H - 70), f"Free AI analysis · {(getattr(settings, 'PUBLIC_HOST', '') or 'www.patreoaix.com').upper()}",
            font=font(28), fill=AMBER, anchor='mm')
     d.text((W / 2, H - 32), 'Not financial advice. Trade small, always use a stop.', font=font(20, False), fill=MUTE, anchor='mm')
     out = io.BytesIO()

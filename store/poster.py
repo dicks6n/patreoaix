@@ -176,7 +176,7 @@ def render_poster(sig, candles=None, result=False):
         _text(d, (x + cw / 2, y + 94), val, 42, TEXT, anchor='mm')
 
     # footer
-    site = (getattr(settings, 'SITE_DOMAIN', '') or 'patreoaix.com').upper()
+    site = (getattr(settings, 'PUBLIC_HOST', '') or 'www.patreoaix.com').upper()
     _text(d, (W / 2, H - 130), f'More signals: {site}', 34, AMBER, anchor='mm')
     _text(d, (W / 2, H - 76), 'Not financial advice. Trade small, always use a stop.', 26, MUTE, bold=False, anchor='mm')
     out = io.BytesIO()
@@ -201,8 +201,8 @@ def caption(sig, result=False):
     else:
         head = f"{'🟢' if sig.direction == 'BUY' else '🔴'} {sig.grade} {sig.direction} {sig.symbol} {sig.timeframe.upper()}"
     return (f"{head}\nEntry {f(sig.entry)} | SL {f(sig.stop_loss)} | TP {f(sig.take_profit)}\n"
-            f"AI signals daily: {getattr(settings, 'SITE_DOMAIN', '') or 'patreoaix.com'}\n"
-            f"Subscribe for every signal: {getattr(settings, 'SITE_DOMAIN', '') or 'patreoaix.com'}/subscribe\n"
+            f"AI signals daily: {(getattr(settings, 'PUBLIC_HOST', '') or 'www.patreoaix.com')}\n"
+            f"Subscribe for every signal: {(getattr(settings, 'PUBLIC_HOST', '') or 'www.patreoaix.com')}/subscribe\n"
             f"Not financial advice.\n"
             f"#{tag} #forex #trading #tradingsignals #forexsignals #daytrading #ai #patreoaix")
 
