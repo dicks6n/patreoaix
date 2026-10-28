@@ -1,0 +1,264 @@
+{% extends 'base_dashboard.html' %}
+
+{% block message_toasts %}{% endblock %}
+{% block title %}AI Copy Trading · PATREOAIX{% endblock %}
+{% block page_title %}AI Copy Trading{% endblock %}
+
+{% block extra_head %}
+<style>
+    .ct-wrap { display: flex; flex-direction: column; gap: 18px; max-width: 1100px; }
+    .ct-card { background: var(--px-panel); border: 1px solid var(--px-line); border-radius: 16px; padding: 18px; }
+    .ct-h { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+    .ct-h h2 { font-size: 16px; font-weight: 800; color: var(--px-text); }
+    .ct-h p, .ct-sub { font-size: 12px; color: var(--px-mute); }
+    .ct-msg { padding: 12px 14px; font-size: 13px; font-weight: 600; border-radius: 12px; background: var(--px-panel-2); color: var(--px-text); border: 1px solid var(--px-line); }
+    .ct-msg.error { border-color: var(--px-down); color: var(--px-down); }
+    .ct-msg.success { border-color: var(--px-up); }
+    .ct-hero { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .ct-hero h1 { font-size: 20px; font-weight: 900; color: var(--px-text); }
+    .ct-hero p { font-size: 13px; color: var(--px-dim); max-width: 560px; margin-top: 4px; }
+    .ct-switch { position: relative; width: 74px; height: 40px; flex: none; }
+    .ct-switch input { opacity: 0; width: 0; height: 0; }
+    .ct-switch span { position: absolute; inset: 0; border-radius: 40px; background: var(--px-panel-2); border: 1px solid var(--px-line); cursor: pointer; transition: .2s; }
+    .ct-switch span::before { content: ''; position: absolute; width: 30px; height: 30px; left: 4px; top: 4px; border-radius: 50%; background: var(--px-mute); transition: .2s; }
+    .ct-switch input:checked + span { background: var(--px-up); border-color: var(--px-up); }
+    .ct-switch input:checked + span::before { transform: translateX(34px); background: #fff; }
+    .ct-state { font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+    .ct-state.on { color: var(--px-up); } .ct-state.off { color: var(--px-mute); }
+    .ct-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+    .ct-field label { display: block; font-size: 11px; font-weight: 800; color: var(--px-mute); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+    .ct-field input[type=number], .ct-field input[type=text], .ct-field select { width: 100%; background: var(--px-panel-2); border: 1px solid var(--px-line); color: var(--px-text); border-radius: 10px; padding: 9px 11px; font-size: 13px; }
+    .ct-field small { display: block; font-size: 11px; color: var(--px-mute); margin-top: 5px; }
+    .ct-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+    .ct-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 7px 10px; border-radius: 9px; background: var(--px-panel-2); border: 1px solid var(--px-line); color: var(--px-dim); cursor: pointer; }
+    .ct-chip input { accent-color: var(--px-accent); }
+    .ct-acct { display: flex; gap: 10px; flex-wrap: wrap; }
+    .ct-acct label { flex: 1 1 200px; display: flex; gap: 10px; align-items: flex-start; padding: 12px; border-radius: 12px; background: var(--px-panel-2); border: 1px solid var(--px-line); cursor: pointer; }
+    .ct-acct label.dis { opacity: .55; cursor: not-allowed; }
+    .ct-acct b { display: block; font-size: 13px; color: var(--px-text); }
+    .ct-acct span { font-size: 11.5px; color: var(--px-mute); }
+    .ct-btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 16px; border-radius: 10px; font-size: 13px; font-weight: 800; background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); border: 0; cursor: pointer; }
+    .ct-btn.ghost { background: var(--px-panel-2); color: var(--px-text); border: 1px solid var(--px-line); }
+    .ct-btn.sm { padding: 6px 10px; font-size: 11.5px; }
+    .ct-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
+    .ct-stat { background: var(--px-panel-2); border-radius: 12px; padding: 12px; text-align: center; }
+    .ct-stat span { display: block; font-size: 10.5px; color: var(--px-mute); font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
+    .ct-stat b { font-family: 'JetBrains Mono', monospace; font-size: 18px; color: var(--px-text); }
+    .ct-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .ct-table th { text-align: left; font-size: 10.5px; color: var(--px-mute); text-transform: uppercase; letter-spacing: .05em; padding: 8px; border-bottom: 1px solid var(--px-line); }
+    .ct-table td { padding: 8px; border-bottom: 1px solid var(--px-line-soft); color: var(--px-text); white-space: nowrap; }
+    .ct-table .mono { font-family: 'JetBrains Mono', monospace; }
+    .ct-scroll { overflow-x: auto; }
+    .ct-up { color: var(--px-up); } .ct-dn { color: var(--px-down); } .ct-mute { color: var(--px-mute); }
+    .ct-tag { font-size: 10.5px; font-weight: 800; padding: 3px 7px; border-radius: 6px; background: var(--px-panel-2); color: var(--px-mute); }
+    .ct-tag.OPEN { background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); }
+    .ct-tag.FAILED { background: var(--px-down-soft); color: var(--px-down); }
+    .ct-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 12.5px; color: var(--px-dim); }
+    .ct-steps div { background: var(--px-panel-2); border-radius: 12px; padding: 12px; }
+    .ct-steps b { color: var(--px-text); display: block; margin-bottom: 3px; }
+    .ct-warn { font-size: 11.5px; color: var(--px-mute); line-height: 1.5; }
+    @media (max-width: 640px) { .ct-card { padding: 14px; } .ct-hero h1 { font-size: 17px; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ct-wrap">
+    {% for m in messages %}<div class="ct-msg {{ m.tags }}">{{ m }}</div>{% endfor %}
+
+    <form method="post" class="ct-wrap" style="gap:18px" id="ctForm">{% csrf_token %}
+    <div class="ct-card">
+        <div class="ct-hero">
+            <div>
+                <h1><i class="fa-solid fa-robot mr-1"></i> Copy every A+ AI signal automatically</h1>
+                <p>Switch it on and every new A+ signal from the AI scanner opens on your Deriv account by itself, with the signal's stop loss and take profit set on Deriv. Nothing to watch, nothing to click.</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="ct-state {% if cfg.enabled %}on{% else %}off{% endif %}" id="ctState">{% if cfg.enabled %}On{% else %}Off{% endif %}</span>
+                <label class="ct-switch" title="AI Copy Trading on / off">
+                    <input type="checkbox" name="enabled" id="ctSwitch" {% if cfg.enabled %}checked{% endif %}>
+                    <span></span>
+                </label>
+            </div>
+        </div>
+        {% if not member %}
+        <div class="ct-msg" style="margin-top:14px">
+            <i class="fa-solid fa-crown mr-1"></i> AI Copy Trading is a Pro feature.
+            {% if trial_available %}<a href="{% url 'subscription_billing' %}" class="underline font-bold">Start your free {{ trial_days }}-day trial</a>{% else %}<a href="/subscribe/" class="underline font-bold">Subscribe</a>{% endif %} to switch it on.
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="ct-card">
+        <div class="ct-h"><h2>Account</h2><p>Where the copied trades open</p></div>
+        <div class="ct-acct">
+            <label>
+                <input type="radio" name="account" value="demo" {% if cfg.account != 'real' %}checked{% endif %}>
+                <div>
+                    <b>Deriv Demo</b>
+                    {% if demo %}<span>Connected · {{ demo.account_number|default:"demo account" }}</span>
+                    {% else %}<span>Not connected · <a href="{% url 'connect_deriv' %}" class="underline font-bold">Connect Deriv</a></span>{% endif %}
+                </div>
+            </label>
+            <label class="{% if not real_ok %}dis{% endif %}">
+                <input type="radio" name="account" value="real" {% if cfg.account == 'real' %}checked{% endif %} {% if not real_ok %}disabled{% endif %}>
+                <div>
+                    <b>Deriv Real</b>
+                    {% if real_ok %}<span>Real money · stake up to ${{ real_max|floatformat:0 }} per trade</span>
+                    {% else %}<span>Coming soon · practise on demo first</span>{% endif %}
+                </div>
+            </label>
+        </div>
+        {% if real_ok %}
+        <label class="ct-chip" style="margin-top:10px" id="ctConfirm">
+            <input type="checkbox" name="confirm_real" value="yes"> I understand copied trades on the real account can lose real money.
+        </label>
+        {% endif %}
+    </div>
+
+    <div class="ct-card">
+        <div class="ct-h"><h2>Settings</h2><p>Your risk, your rules</p></div>
+        <div class="ct-grid">
+            <div class="ct-field">
+                <label for="ctStake">Stake per trade (USD)</label>
+                <input type="number" id="ctStake" name="stake" min="1" step="0.5" value="{{ cfg.stake }}">
+                <small>The most one trade can lose on Deriv Multipliers.</small>
+            </div>
+            <div class="ct-field">
+                <label for="ctMult">Multiplier</label>
+                <select id="ctMult" name="multiplier">
+                    <option value="" {% if not cfg.multiplier %}selected{% endif %}>Auto (from the stop distance)</option>
+                    {% for m in mult_choices %}<option value="{{ m }}" {% if cfg.multiplier == m %}selected{% endif %}>x{{ m }}</option>{% endfor %}
+                </select>
+                <small>Auto keeps the stop within about 80% of the stake.</small>
+            </div>
+            <div class="ct-field">
+                <label for="ctGrade">Signals to copy</label>
+                <select id="ctGrade" name="min_grade">
+                    <option value="A+" {% if cfg.min_grade == 'A+' %}selected{% endif %}>A+ only (strongest)</option>
+                    <option value="A" {% if cfg.min_grade == 'A' %}selected{% endif %}>A and A+ (more trades)</option>
+                </select>
+            </div>
+            <div class="ct-field">
+                <label for="ctOpen">Max open at once</label>
+                <input type="number" id="ctOpen" name="max_open" min="1" max="10" value="{{ cfg.max_open }}">
+            </div>
+            <div class="ct-field">
+                <label for="ctDay">Max trades per day</label>
+                <input type="number" id="ctDay" name="max_per_day" min="1" max="30" value="{{ cfg.max_per_day }}">
+            </div>
+            <div class="ct-field">
+                <label for="ctSyms">Only these markets (optional)</label>
+                <input type="text" id="ctSyms" name="symbols" placeholder="e.g. XAUUSD, EURUSD, BTCUSD" value="{{ symbols_text }}">
+                <small>Empty = every market Deriv offers.</small>
+            </div>
+        </div>
+        <div class="ct-field" style="margin-top:14px">
+            <label>Trading styles</label>
+            <div class="ct-chips">
+                {% for key, label in styles %}
+                <label class="ct-chip"><input type="checkbox" name="style_{{ key }}" {% if key in sel_styles %}checked{% endif %}> {{ label }}</label>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="flex items-center gap-3 flex-wrap" style="margin-top:16px">
+            <button type="submit" class="ct-btn"><i class="fa-solid fa-floppy-disk"></i> Save</button>
+            <span class="ct-warn">Trading carries risk. Past signal results do not guarantee future results.</span>
+        </div>
+    </div>
+    </form>
+
+    <div class="ct-card">
+        <div class="ct-h"><h2>Your copied trades</h2>
+            <button type="button" class="ct-btn ghost sm" id="ctRefresh"><i class="fa-solid fa-rotate"></i> Refresh</button>
+        </div>
+        <div class="ct-stats">
+            <div class="ct-stat"><span>Trades</span><b id="stTrades">{{ stats.trades }}</b></div>
+            <div class="ct-stat"><span>Open</span><b id="stOpen">{{ stats.open }}</b></div>
+            <div class="ct-stat"><span>Win rate</span><b id="stWin">{% if stats.win_rate is not None %}{{ stats.win_rate }}%{% else %}–{% endif %}</b></div>
+            <div class="ct-stat"><span>Profit</span><b id="stProfit" class="{% if stats.profit > 0 %}ct-up{% elif stats.profit < 0 %}ct-dn{% endif %}">${{ stats.profit|floatformat:2 }}</b></div>
+        </div>
+        {% if rows %}
+        <div class="ct-scroll" style="margin-top:14px">
+            <table class="ct-table">
+                <thead><tr><th>Time</th><th>Market</th><th>Side</th><th>Stake</th><th>Stop / Target</th><th>Status</th><th>P/L</th><th></th></tr></thead>
+                <tbody>
+                {% for r in rows %}
+                <tr data-id="{{ r.id }}">
+                    <td class="ct-mute">{{ r.created_at|date:"d M H:i" }}</td>
+                    <td><b>{{ r.symbol }}</b> <span class="ct-mute">{{ r.signal.grade|default:"" }} · {{ r.account }}</span></td>
+                    <td class="{% if r.direction == 'BUY' %}ct-up{% else %}ct-dn{% endif %}"><b>{{ r.direction }}</b></td>
+                    <td class="mono">${{ r.stake }}{% if r.multiplier %} ×{{ r.multiplier }}{% endif %}</td>
+                    <td class="mono">{% if r.stop_loss %}−${{ r.stop_loss|floatformat:2 }}{% else %}–{% endif %} / {% if r.take_profit %}+${{ r.take_profit|floatformat:2 }}{% else %}–{% endif %}</td>
+                    <td><span class="ct-tag {{ r.status }}" data-status>{{ r.get_status_display }}</span>{% if r.note %}<div class="ct-mute" style="font-size:11px;white-space:normal;max-width:260px">{{ r.note }}</div>{% endif %}</td>
+                    <td class="mono {% if r.profit > 0 %}ct-up{% elif r.profit < 0 %}ct-dn{% endif %}" data-profit>{% if r.profit is not None %}{% if r.profit >= 0 %}+{% endif %}{{ r.profit|floatformat:2 }}{% else %}–{% endif %}</td>
+                    <td>{% if r.status == 'OPEN' %}<button type="button" class="ct-btn ghost sm" data-close="{{ r.id }}">Close</button>{% endif %}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="ct-sub" style="margin-top:12px">No copied trades yet. Switch copy trading on and the next {{ cfg.min_grade }} signal opens here.</p>
+        {% endif %}
+    </div>
+
+    <div class="ct-card">
+        <div class="ct-h"><h2>How it works</h2></div>
+        <div class="ct-steps">
+            <div><b>1 · The AI finds a setup</b>The scanner checks every market around the clock and grades each setup.</div>
+            <div><b>2 · It opens on Deriv</b>An A+ signal opens on your Deriv account as a Multipliers trade, in the signal's direction.</div>
+            <div><b>3 · Protected on Deriv</b>The stop loss and take profit live on Deriv itself, so the trade is protected even when you are offline.</div>
+            <div><b>4 · Closed with the signal</b>When the AI closes or retires the signal, your copy closes too. You can close any trade yourself.</div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    var csrf = document.querySelector('#ctForm [name=csrfmiddlewaretoken]').value;
+    var sw = document.getElementById('ctSwitch');
+    sw.addEventListener('change', function () {
+        var st = document.getElementById('ctState');
+        st.textContent = sw.checked ? 'On' : 'Off';
+        st.className = 'ct-state ' + (sw.checked ? 'on' : 'off');
+        document.getElementById('ctForm').submit();
+    });
+    function money(v) { return (v >= 0 ? '+' : '') + Number(v).toFixed(2); }
+    function refresh() {
+        fetch('{% url "api_copy_trading_sync" %}', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) {
+            if (!d.success) return;
+            Object.keys(d.rows || {}).forEach(function (id) {
+                var row = document.querySelector('tr[data-id="' + id + '"]'), x = d.rows[id];
+                if (!row || x.error) return;
+                var p = row.querySelector('[data-profit]');
+                if (x.profit != null) { p.textContent = money(x.profit); p.className = 'mono ' + (x.profit > 0 ? 'ct-up' : x.profit < 0 ? 'ct-dn' : ''); }
+                if (x.status === 'CLOSED') {
+                    var t = row.querySelector('[data-status]'); t.textContent = 'Closed'; t.className = 'ct-tag CLOSED';
+                    var b = row.querySelector('[data-close]'); if (b) b.remove();
+                }
+            });
+            var s = d.stats;
+            document.getElementById('stTrades').textContent = s.trades;
+            document.getElementById('stOpen').textContent = s.open;
+            document.getElementById('stWin').textContent = s.win_rate == null ? '–' : s.win_rate + '%';
+            var pr = document.getElementById('stProfit');
+            pr.textContent = '$' + Number(s.profit).toFixed(2); pr.className = s.profit > 0 ? 'ct-up' : s.profit < 0 ? 'ct-dn' : '';
+        }).catch(function () {});
+    }
+    document.getElementById('ctRefresh').addEventListener('click', refresh);
+    document.querySelectorAll('[data-close]').forEach(function (b) {
+        b.addEventListener('click', function () {
+            if (!confirm('Close this trade on Deriv now?')) return;
+            b.disabled = true;
+            var fd = new FormData(); fd.append('id', b.getAttribute('data-close'));
+            fetch('{% url "api_copy_trading_close" %}', { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-CSRFToken': csrf } })
+                .then(function (r) { return r.json(); }).then(function (d) {
+                    if (!d.success) { alert(d.error || 'Could not close the trade.'); b.disabled = false; return; }
+                    refresh();
+                });
+        });
+    });
+    {% if open_rows %}refresh(); setInterval(refresh, 30000);{% endif %}
+})();
+</script>
+{% endblock %}

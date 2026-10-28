@@ -10885,3 +10885,96 @@ def public_results_png(request):
     days = 1 if request.GET.get('days') == '1' else 30
     return HttpResponse(pr.results_png(days), content_type='image/png', headers={'Cache-Control': 'public, max-age=1800'})
 
+
+
+# ═══════════════════════════════════════════════════════════════
+# AI COPY TRADING (store/copy_trading.py)
+# ═══════════════════════════════════════════════════════════════
+COPY_STYLES = [('scalping', 'Scalping'), ('intraday', 'Intraday'), ('swing', 'Swing'), ('position', 'Position')]
+
+
+@login_required
+def copy_trading_page(request):
+    from . import copy_trading as ct, deriv_demo as dd
+    from .membership import is_member
+    from .models import CopyTrade
+    cfg = ct.settings_for(request.user)
+    member = is_member(request.user)
+    demo, real = dd.demo_account(request.user), dd.real_account(request.user)
+    real_ok = dd.real_allowed() and bool(real and real.real_enabled_at)
+    if request.method == 'POST':
+        p = request.POST
+        account = 'real' if p.get('account') == 'real' else 'demo'
+        try:
+            stake = Decimal(p.get('stake') or cfg.stake).quantize(Decimal('0.01'))
+        except (InvalidOperation, TypeError):
+            stake = cfg.stake
+        top = Decimal(str(dd.real_max_stake())) if account == 'real' else Decimal('2000')
+        cfg.stake = min(max(stake, Decimal('1.00')), top)
+        try:
+            cfg.multiplier = int(p['multiplier']) if p.get('multiplier') else None
+        except ValueError:
+            cfg.multiplier = None
+        cfg.min_grade = 'A' if p.get('min_grade') == 'A' else 'A+'
+        cfg.styles = [s for s, _ in COPY_STYLES if p.get(f'style_{s}')] or ['intraday']
+        cfg.symbols = [s.strip().upper() for s in (p.get('symbols') or '').replace(' ', ',').split(',') if s.strip()][:30]
+        for f, lo, hi in (('max_open', 1, 10), ('max_per_day', 1, 30)):
+            try:
+                setattr(cfg, f, min(max(int(p.get(f) or getattr(cfg, f)), lo), hi))
+            except ValueError:
+                pass
+        want_on = p.get('enabled') == 'on'
+        error = None
+        if want_on and not member:
+            error = 'AI Copy Trading is for Pro members. Start your free trial or subscribe to switch it on.'
+        elif want_on and account == 'demo' and not demo:
+            error = 'Connect your Deriv demo account first.'
+        elif want_on and account == 'real' and not real_ok:
+            error = 'Real-money copy trading is not available on your account yet. Use the demo account.'
+        elif want_on and account == 'real' and not cfg.enabled and p.get('confirm_real') != 'yes':
+            error = 'Tick the box to confirm you accept real-money risk.'
+        if error:
+            messages.error(request, error)
+            want_on = False
+        if want_on and not cfg.enabled:
+            cfg.enabled_at = timezone.now()
+            messages.success(request, f"AI Copy Trading is ON: new {cfg.min_grade} signals will be copied to your Deriv {account} account.")
+        elif cfg.enabled and not want_on and not error:
+            messages.info(request, 'AI Copy Trading is off. Trades already open keep their stop loss and take profit on Deriv.')
+        elif not error:
+            messages.success(request, 'Copy trading settings saved.')
+        cfg.enabled, cfg.account = want_on, account if account == 'demo' or real_ok else 'demo'
+        cfg.save()
+        return redirect('copy_trading')
+    rows = list(CopyTrade.objects.filter(user=request.user).select_related('signal')[:60])
+    return render(request, 'store/copy_trading.html', {
+        'cfg': cfg, 'member': member, 'demo': demo, 'real': real, 'real_ok': real_ok,
+        'real_max': dd.real_max_stake(), 'stats': ct.stats(request.user), 'rows': rows,
+        'open_rows': [r for r in rows if r.status == 'OPEN'], 'styles': COPY_STYLES,
+        'sel_styles': cfg.styles or ['intraday'], 'mult_choices': [50, 100, 200, 300, 500, 1000], 'symbols_text': ', '.join(cfg.symbols or []),
+    })
+
+
+@login_required
+def api_copy_trading_sync(request):
+    from . import copy_trading as ct
+    try:
+        rows = ct.sync(request.user)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': True, 'rows': rows, 'stats': ct.stats(request.user)})
+
+
+@login_required
+@require_POST
+def api_copy_trading_close(request):
+    from . import copy_trading as ct
+    from .models import CopyTrade
+    row = CopyTrade.objects.filter(user=request.user, pk=request.POST.get('id'), status='OPEN').first()
+    if not row:
+        return JsonResponse({'success': False, 'error': 'Trade not found or already closed.'})
+    try:
+        ct.close_row(row, 'You closed this trade.')
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': True, 'profit': row.profit})

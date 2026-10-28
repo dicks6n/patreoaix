@@ -762,6 +762,9 @@
                     <a href="{% url 'news_sentiment' %}" class="nav-item {% if request.resolver_match.url_name == 'news_sentiment' %}nav-active{% endif %}">
                         <i class="fa-solid fa-newspaper"></i><span>News &amp; Sentiment</span>
                     </a>
+                    <a href="{% url 'copy_trading' %}" class="nav-item {% if request.resolver_match.url_name == 'copy_trading' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-robot"></i><span>AI Copy Trading</span>
+                    </a>
                     <a href="{% url 'news_impact' %}" class="nav-item {% if request.resolver_match.url_name == 'news_impact' %}nav-active{% endif %}">
                         <i class="fa-solid fa-landmark"></i><span>News Impact (NFP · CPI · FOMC)</span>
                     </a>

@@ -1667,3 +1667,56 @@ class DepositBonus(models.Model):
 
     def __str__(self):
         return f'{self.user} bonus ${self.amount} ({"released" if self.released_at else "locked"})'
+
+
+# ============================================================
+# AI COPY TRADING (store/copy_trading.py)
+# ============================================================
+class CopyTradingSettings(models.Model):
+    """One switch: copy every A+ AI signal onto the customer's Deriv account (demo for now)."""
+    ACCOUNTS = [('demo', 'Deriv Demo'), ('real', 'Deriv Real')]
+    GRADES = [('A+', 'A+ only'), ('A', 'A and A+')]
+
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='copy_trading')
+    enabled = models.BooleanField(default=False)
+    account = models.CharField(max_length=5, choices=ACCOUNTS, default='demo')
+    stake = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('10.00'))
+    multiplier = models.PositiveIntegerField(null=True, blank=True, help_text='Empty = picked from the stop distance')
+    min_grade = models.CharField(max_length=2, choices=GRADES, default='A+')
+    styles = models.JSONField(default=list, blank=True)         # empty = intraday
+    symbols = models.JSONField(default=list, blank=True)        # empty = every market Deriv offers
+    max_open = models.PositiveIntegerField(default=3)
+    max_per_day = models.PositiveIntegerField(default=5)
+    enabled_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Copy trading {self.user} ({'on' if self.enabled else 'off'}, {self.account})"
+
+
+class CopyTrade(models.Model):
+    """One AI signal copied (or skipped) onto a customer's Deriv account."""
+    STATUSES = [('OPEN', 'Open'), ('CLOSED', 'Closed'), ('FAILED', 'Failed'), ('SKIPPED', 'Skipped')]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='copy_trades')
+    signal = models.ForeignKey('ScannerSignal', on_delete=models.SET_NULL, null=True, blank=True, related_name='copies')
+    account = models.CharField(max_length=5, default='demo')
+    symbol = models.CharField(max_length=20)
+    direction = models.CharField(max_length=4)
+    status = models.CharField(max_length=8, choices=STATUSES, default='OPEN', db_index=True)
+    contract_id = models.BigIntegerField(null=True, blank=True)
+    stake = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    multiplier = models.PositiveIntegerField(null=True, blank=True)
+    stop_loss = models.FloatField(null=True, blank=True)        # USD amounts sent to Deriv
+    take_profit = models.FloatField(null=True, blank=True)
+    profit = models.FloatField(null=True, blank=True)
+    note = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = ['user', 'signal']
+
+    def __str__(self):
+        return f"{self.user} {self.direction} {self.symbol} [{self.status}]"

@@ -383,6 +383,16 @@ def open_multipliers(acc):
         s.close()
 
 
+def contract_status(acc, contract_id):
+    """One contract as Deriv sees it now (open or already closed by its own stop loss / take profit)."""
+    s = _Session(acc)
+    try:
+        _require_mode(acc, s.auth)
+        return _position(_poc(s, int(contract_id)))
+    finally:
+        s.close()
+
+
 def close_multiplier(acc, contract_id):
     """Sell (close) one open contract at the market price."""
     try:
