@@ -344,6 +344,14 @@ TELEGRAM_MIN_GRADE = os.getenv('TELEGRAM_MIN_GRADE', 'A')       # A or A+
 TELEGRAM_ENABLED = os.getenv('TELEGRAM_ENABLED', 'True')
 TELEGRAM_SCAN_POSTS = os.getenv('TELEGRAM_SCAN_POSTS', 'True')                 # a list of strong setups after each scan
 TELEGRAM_SCAN_REPEAT_MINUTES = os.getenv('TELEGRAM_SCAN_REPEAT_MINUTES', '60')  # same list again after; 0 = every scan
+# daily content plan (store/telegram_schedule.py); hours in TELEGRAM_TIMEZONE (default TIME_ZONE)
+TELEGRAM_SCHEDULE = os.getenv('TELEGRAM_SCHEDULE', 'True')
+TELEGRAM_TIMEZONE = os.getenv('TELEGRAM_TIMEZONE', '')
+TELEGRAM_BRIEF_HOUR = os.getenv('TELEGRAM_BRIEF_HOUR', '8')        # morning brief
+TELEGRAM_RECAP_HOUR = os.getenv('TELEGRAM_RECAP_HOUR', '22')       # daily results card
+TELEGRAM_WEEKLY_DAY = os.getenv('TELEGRAM_WEEKLY_DAY', '6')        # weekly report: 0 = Monday … 6 = Sunday
+TELEGRAM_PULSE_HOURS = os.getenv('TELEGRAM_PULSE_HOURS', '3')      # market pulse when quiet this long; 0 = off
+TELEGRAM_NEWS_ALERTS = os.getenv('TELEGRAM_NEWS_ALERTS', 'True')   # 30 min before high-impact news
 
 # ── TikTok: signal posters as photo posts (store/tiktok.py has the setup steps) ──
 TIKTOK_CLIENT_KEY = os.getenv('TIKTOK_CLIENT_KEY', '')

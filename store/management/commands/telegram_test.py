@@ -4,6 +4,7 @@ python manage.py telegram_test --last       → (re)posts the newest recorded AI
 python manage.py telegram_test --open       → posts every open AI signal (any grade) not posted yet
 python manage.py telegram_test --all        → posts every AI signal of the last 7 days (--days N), open and closed;
                                               a closed one gets its result (TP / SL / expired) as a reply
+python manage.py telegram_test --now brief  → posts a scheduled post now: brief, pulse, recap or weekly
 python manage.py telegram_test --photo pic.jpg --caption "Text"   → posts any photo (a file or an https link);
                                                 --photo can be given several times
 python manage.py telegram_test --find-channel → lists the channels the bot was added to, with their ids
@@ -22,11 +23,12 @@ class Command(BaseCommand):
         parser.add_argument('--open', action='store_true', help='Post the open AI signals not posted yet')
         parser.add_argument('--all', action='store_true', help='Post every signal of the last --days days, open and closed')
         parser.add_argument('--days', type=int, default=7, help='How far back --all goes (default 7)')
+        parser.add_argument('--now', choices=['brief', 'pulse', 'recap', 'weekly'], help='Post one of the scheduled posts now')
         parser.add_argument('--photo', action='append', default=[], help='Post this photo (file path or https link); repeat for several')
         parser.add_argument('--caption', default='', help='Caption for --photo')
         parser.add_argument('--find-channel', action='store_true', help='Show the id of the channels the bot was added to')
 
-    def handle(self, *args, last=False, find_channel=False, open=False, photo=(), caption='', all=False, days=7, **opts):
+    def handle(self, *args, last=False, find_channel=False, open=False, photo=(), caption='', all=False, days=7, now=None, **opts):
         if find_channel:
             return self.find_channel()
         if not tg.enabled():
@@ -43,6 +45,15 @@ class Command(BaseCommand):
             return
         if photo:
             return self.post_photos(photo, caption)
+        if now:
+            from store import signal_alerts, telegram_schedule as ts
+            if now in ('brief', 'pulse'):
+                results, strength, _ = signal_alerts.confluence('intraday')
+                (ts.morning_brief if now == 'brief' else ts.market_pulse)(results, strength)
+            else:
+                (ts.daily_recap if now == 'recap' else ts.weekly_report)()
+            self.stdout.write(self.style.SUCCESS(f'Posted the {now}.'))
+            return
         if open or all:
             return self.post_signals(open_only=not all, days=days)
         if last:

@@ -44,9 +44,12 @@ class Command(BaseCommand):
             styles = [s.strip() for s in styles_opt.split(',') if s.strip()]
         else:
             styles = sorted({'intraday'} | set(SignalAlertSubscription.objects.filter(enabled=True).values_list('style', flat=True)))
+        latest = ([], {})
         for style in styles:
             t0 = time.time()
             results, strength = se.scan_all(style)
+            if style == 'intraday':
+                latest = (results, strength)
             sa.save_snapshot(style, results, strength, 'worker')
             new = sa.record_signals(results, style)
             from store import telegram_bot
@@ -59,3 +62,6 @@ class Command(BaseCommand):
                                                      f'SL {s.stop_loss} TP {s.take_profit} — notified {s.notified}'))
         for s in sa.update_outcomes():
             self.stdout.write(f'   ✓ {s.symbol} {s.direction} {s.outcome} {s.result_r:+.2f}R')
+        from store import telegram_schedule                # morning brief, pulse, news alerts, daily / weekly results
+        for name in telegram_schedule.safe_run(*latest):
+            self.stdout.write(f'   ✈ Telegram {name} posted')

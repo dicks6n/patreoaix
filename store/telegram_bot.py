@@ -43,6 +43,8 @@ def api(method, data=None, files=None, timeout=12):
         raise RuntimeError(f'Telegram HTTP {r.status_code}')
     if not body.get('ok'):
         raise RuntimeError(body.get('description') or f'Telegram HTTP {r.status_code}')
+    if method.startswith('send'):
+        cache.set('tg:last_post', __import__('time').time(), 7 * 86400)   # for the "channel is quiet" check
     return body['result']
 
 
