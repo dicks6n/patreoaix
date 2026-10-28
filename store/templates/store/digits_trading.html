@@ -222,6 +222,8 @@
     .acct-btn.on { border-color: #f59e0b; color: #fff; background: linear-gradient(135deg, rgba(217,119,6,.35), rgba(234,88,12,.25)); box-shadow: 0 0 18px rgba(217,119,6,.3); }
     .acct-btn.demo.on { border-color: #22d3ee; background: linear-gradient(135deg, rgba(8,145,178,.35), rgba(14,116,144,.2)); box-shadow: 0 0 18px rgba(34,211,238,.3); }
     .acct-btn:disabled { opacity: .55; cursor: not-allowed; }
+    .acct-btn.real.on { border-color: #f43f5e; background: linear-gradient(135deg, rgba(225,29,72,.4), rgba(190,18,60,.25)); box-shadow: 0 0 18px rgba(244,63,94,.35); }
+    .real-warn { margin-top: 8px; padding: 8px 10px; border-radius: 10px; font-size: 10.5px; font-weight: 700; color: #fecdd3; background: rgba(225,29,72,.18); border: 1px solid rgba(244,63,94,.5); }
     .acct-btn small { display: block; font-weight: 600; font-size: 9px; opacity: .8; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     /* ── scanner magic ── */
@@ -518,8 +520,13 @@
                             <i class="fa-solid fa-flask mr-1"></i>Deriv Demo
                             <small id="acctDemoInfo">checking…</small>
                         </button>
+                        <button type="button" id="acctReal" class="acct-btn real hidden" onclick="setTradeAccount('real')" disabled>
+                            <i class="fa-solid fa-sack-dollar mr-1"></i>Deriv Real
+                            <small id="acctRealInfo">checking…</small>
+                        </button>
                     </div>
                     <p id="acctDemoNote" class="text-[10px] text-slate-500 mt-1.5 hidden"></p>
+                    <p id="acctRealWarn" class="real-warn hidden"><i class="fa-solid fa-triangle-exclamation mr-1"></i>REAL MONEY: trades use your real Deriv balance. Each trade asks you to confirm.</p>
                 </div>
 
                 <div class="grid grid-cols-3 gap-1 bg-slate-950/80 p-1.5 rounded-xl border border-amber-800/40 relative z-10">
@@ -1538,8 +1545,9 @@
         if (!stakeInput || !buyButton || !payoutDisplay) return;
 
         const stake = stakeInput.value || 5;
-        buyButton.textContent = (typeof tradeAccount !== 'undefined' && tradeAccount === 'demo')
-            ? `Purchase on Deriv Demo @ ${parseFloat(stake).toFixed(2)} USD`
+        const acctNow = typeof tradeAccount !== 'undefined' ? tradeAccount : 'site';
+        buyButton.textContent = acctNow === 'real' ? `Purchase on Deriv REAL @ ${parseFloat(stake).toFixed(2)} USD`
+            : acctNow === 'demo' ? `Purchase on Deriv Demo @ ${parseFloat(stake).toFixed(2)} USD`
             : `Purchase Contract @ ${parseFloat(stake).toFixed(2)} USD`;
 
         let multiplier = 1.12;
@@ -1937,8 +1945,41 @@
     // ==========================================
     // TRADE ACCOUNT: site balance or the user's own Deriv DEMO account
     // ==========================================
-    var tradeAccount = 'site', demoAccount = null;     // var: read by updateBuyButtonLabel, which can run earlier
+    var tradeAccount = 'site', demoAccount = null, realAccount = null;     // var: read by updateBuyButtonLabel, which can run earlier
+    // the page never opens on the real account by itself: real is chosen each visit
     try { tradeAccount = localStorage.getItem('px-digits-account') === 'demo' ? 'demo' : 'site'; } catch (e) {}
+    const money = v => Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    async function loadRealAccount() {
+        const btn = document.getElementById('acctReal'), info = document.getElementById('acctRealInfo');
+        try {
+            const d = await (await fetch('/api/deriv/demo/account/?account=real', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })).json();
+            if (!d.real_allowed) { btn.classList.add('hidden'); realAccount = null; return; }
+            btn.classList.remove('hidden');
+            realAccount = d;
+            if (!d.connected) { btn.disabled = true; info.textContent = 'not connected'; return; }
+            btn.disabled = false;
+            if (!d.real_enabled) info.textContent = 'tap to turn on';
+            else if (d.success) info.textContent = `${d.loginid} · ${money(d.balance)} ${d.currency}`;
+            else info.textContent = 'token problem';
+        } catch (e) { info.textContent = 'unavailable'; }
+    }
+
+    async function enableRealTrading() {
+        const max = realAccount && realAccount.real_max_stake ? `$${money(realAccount.real_max_stake)}` : 'the site limit';
+        const ok = confirm('Turn on REAL-MONEY trading?\n\n'
+            + '• Trades will use the real balance of your own Deriv account.\n'
+            + '• You can lose your whole stake on every contract. Digit contracts are high risk.\n'
+            + `• Each contract is limited to ${max}, and every trade asks you to confirm.\n`
+            + '• AI signals and the scanner are estimates, not advice or a guarantee.\n\n'
+            + 'Press OK only if you accept these risks.');
+        if (!ok) return false;
+        const r = await fetch('/api/deriv/real/enable/', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() }, body: JSON.stringify({ accept: true }) });
+        const d = await r.json();
+        if (!d.success) { alert(d.error || 'Could not turn on real trading.'); return false; }
+        await loadRealAccount();
+        return !!(realAccount && realAccount.real_enabled && realAccount.success);
+    }
 
     async function loadDemoAccount() {
         const btn = document.getElementById('acctDemo'), info = document.getElementById('acctDemoInfo'), note = document.getElementById('acctDemoNote');
@@ -1961,14 +2002,22 @@
         setTradeAccount(tradeAccount, true);
     }
 
-    function setTradeAccount(acc, silent) {
+    async function setTradeAccount(acc, silent) {
         if (acc === 'demo' && !demoAccount) acc = 'site';
+        if (acc === 'real') {
+            if (!realAccount || !realAccount.connected) acc = 'site';
+            else if (!realAccount.real_enabled && !(await enableRealTrading())) return;
+            else if (!realAccount.success) { alert(realAccount.error || 'Your Deriv real account is not reachable right now.'); return; }
+            if (isAutoTrading) { alert('Stop the automated bot first: it runs on the site balance or Deriv Demo only.'); return; }
+        }
         tradeAccount = acc;
-        try { localStorage.setItem('px-digits-account', acc); } catch (e) {}
+        try { localStorage.setItem('px-digits-account', acc === 'real' ? 'site' : acc); } catch (e) {}
         document.getElementById('acctSite').classList.toggle('on', acc === 'site');
         document.getElementById('acctDemo').classList.toggle('on', acc === 'demo');
+        document.getElementById('acctReal').classList.toggle('on', acc === 'real');
+        document.getElementById('acctRealWarn').classList.toggle('hidden', acc !== 'real');
         const dur = document.getElementById('durationInput');
-        if (dur) dur.max = acc === 'demo' ? 10 : 20;
+        if (dur) dur.max = acc === 'site' ? 20 : 10;
         updateBuyButtonLabel();
     }
 
@@ -2148,7 +2197,16 @@
             return false;
         }
 
-        if (tradeAccount === 'demo' && duration > 10) {
+        if (tradeAccount === 'real' && realAccount && stake > realAccount.real_max_stake) {
+            statusMsg.classList.remove('hidden');
+            statusMsg.innerHTML = `
+                <div class="p-3 h-[180px] rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs font-bold text-center flex items-center justify-center">
+                    ❌ Real-money stake limit is $${money(realAccount.real_max_stake)} per contract
+                </div>`;
+            return false;
+        }
+
+        if (tradeAccount !== 'site' && duration > 10) {
             statusMsg.classList.remove('hidden');
             statusMsg.innerHTML = `
                 <div class="p-3 h-[180px] rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs font-bold text-center flex items-center justify-center">
@@ -2193,9 +2251,21 @@
             barrier: barrierValue,
             duration: duration
         };
+        if (tradeAccount === 'real') {
+            const what = contractType.replace('DIGIT', '') + (barrierValue != null ? ` ${barrierValue}` : '');
+            if (!confirm(`REAL MONEY\n\nBuy ${what} on ${derivSymbol} for $${money(stake)} (${duration} tick${duration > 1 ? 's' : ''}) `
+                         + `on your Deriv REAL account ${realAccount.loginid}?\n\nYou can lose the whole stake.`)) {
+                statusMsg.classList.add('hidden');
+                statusBadge.textContent = 'Ready';
+                statusBadge.className = 'text-[9px] bg-amber-500/20 border border-amber-400/40 px-2.5 py-1 rounded-full text-amber-300 font-bold shrink-0';
+                return false;
+            }
+            payload.account = 'real';
+            payload.confirm_real = true;
+        }
 
         try {
-            const onDemo = tradeAccount === 'demo';
+            const onDemo = tradeAccount !== 'site';
             const response = await fetch(onDemo ? '/api/deriv/demo/trade/' : "{% url 'execute_trade' %}", {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
@@ -2310,7 +2380,12 @@
                 statusBadge.textContent = isWin ? 'Won' : 'Lost';
                 statusBadge.className = `text-[9px] ${isWin ? 'bg-emerald-500/20 border-emerald-400/40 text-emerald-300' : 'bg-rose-500/20 border-rose-400/40 text-rose-300'} border px-2.5 py-1 rounded-full font-bold shrink-0`;
 
-                if (result.account === 'deriv_demo') {
+                if (result.account === 'deriv_real') {
+                    if (realAccount && result.new_balance != null) {
+                        realAccount.balance = result.new_balance;
+                        document.getElementById('acctRealInfo').textContent = `${result.loginid} · ${money(result.new_balance)} ${result.currency || ''}`;
+                    }
+                } else if (result.account === 'deriv_demo') {
                     if (demoAccount && result.new_balance != null) {
                         demoAccount.balance = result.new_balance;
                         document.getElementById('acctDemoInfo').textContent = `${result.loginid} · ${Number(result.new_balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${result.currency || ''}`;
@@ -2365,6 +2440,10 @@
     // AUTO BOT
     // ==========================================
     function toggleAutoBot() {
+        if (!isAutoTrading && tradeAccount === 'real') {
+            alert('The automated bot runs on the site balance or Deriv Demo only, not on real money.');
+            return;
+        }
         isAutoTrading = !isAutoTrading;
         const autoBtn = document.getElementById('toggleBotBtn');
         if (isAutoTrading) {
@@ -2608,6 +2687,7 @@
         // ✅ Deriv tick stream for the initially selected Volatility index
         connectDerivTicks(selectedSymbol);
         loadDemoAccount();
+        loadRealAccount();
 
         // ✅ REST fallback poll every 4s
         serverPollInterval = setInterval(pollServerPrices, 4000);

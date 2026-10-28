@@ -14,6 +14,8 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
 
+from .fields import EncryptedTokenField
+
 
 # ============================================================
 # USER PROFILE
@@ -336,9 +338,11 @@ class UserBrokerAccount(models.Model):
     broker = models.CharField(max_length=50, choices=BROKER_CHOICES, default='DERIV')
     account_number = models.CharField(max_length=100)
     server_name = models.CharField(max_length=100, blank=True, null=True, default='Deriv-Server')
-    # new-API OAuth access tokens are JWTs, longer than 255 characters
-    api_token = models.CharField(max_length=4096, blank=True, null=True)
+    # new-API OAuth access tokens are JWTs, longer than 255 characters; stored encrypted (store/fields.py)
+    api_token = EncryptedTokenField(max_length=8192, blank=True, null=True)
     is_active = models.BooleanField(default=True)
+    # the customer accepted the real-money risk warning for this (real) account; None = real trading not enabled
+    real_enabled_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     last_known_balance = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)

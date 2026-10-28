@@ -7,8 +7,11 @@ Flow (one websocket per trade):
     legacy a1- API token: authorize on the legacy socket (Deriv retired that host in 2026; kept as a fallback)
     → proposal (price of the contract) → buy → proposal_open_contract until sold → balance
 
-Real-money accounts are refused on purpose: only accounts Deriv listed as demo are used, and a legacy
-token is checked on every trade (authorize.is_virtual).
+Real-money accounts (the customer's own Deriv real account) are used only when all of these hold:
+  • the site owner turned it on: DERIV_REAL_TRADING=True and TOKEN_ENCRYPTION_KEY set (tokens encrypted),
+  • the customer accepted the real-money risk warning for that account (UserBrokerAccount.real_enabled_at),
+  • every real request says so explicitly (the views require confirm_real), within DERIV_REAL_MAX_STAKE.
+A demo account is checked to really be virtual on every trade (authorize.is_virtual), and vice versa.
 """
 import json
 import logging
@@ -32,13 +35,52 @@ class DemoTradeError(Exception):
     """Shown to the trader as-is."""
 
 
+def _accounts(user, kind):
+    from .models import UserBrokerAccount
+    rows = UserBrokerAccount.objects.filter(user=user, broker='DERIV', is_active=True, server_name=kind) \
+        .exclude(api_token__isnull=True).exclude(api_token='')
+    return [a for a in rows if a.api_token]           # a token that can't be decrypted reads as ''
+
+
 def demo_account(user):
     """The user's connected Deriv demo account (with a token), or None."""
-    from .models import UserBrokerAccount
-    for acc in UserBrokerAccount.objects.filter(user=user, broker='DERIV', is_active=True).exclude(api_token__isnull=True).exclude(api_token=''):
-        if acc.server_name == 'Deriv Demo':          # set from Deriv's own account list (is_demo / is_virtual)
-            return acc
-    return None
+    rows = _accounts(user, 'Deriv Demo')               # set from Deriv's own account list (is_demo / is_virtual)
+    return rows[0] if rows else None
+
+
+def real_account(user):
+    """The user's connected Deriv real-money account (USD first), or None."""
+    rows = _accounts(user, 'Deriv Real')
+    rows.sort(key=lambda a: (str(getattr(a, 'last_balance_currency', '') or 'USD').upper() != 'USD', a.id))
+    return rows[0] if rows else None
+
+
+def real_allowed():
+    """Owner switch + encrypted tokens. Without both, real-money trading is off for everyone."""
+    from django.conf import settings
+    from .fields import encryption_on
+    return str(getattr(settings, 'DERIV_REAL_TRADING', 'False')) == 'True' and encryption_on()
+
+
+def real_max_stake():
+    from django.conf import settings
+    try:
+        return max(0.35, float(getattr(settings, 'DERIV_REAL_MAX_STAKE', 50) or 50))
+    except (TypeError, ValueError):
+        return 50.0
+
+
+def is_real(acc):
+    return getattr(acc, 'server_name', '') == 'Deriv Real'
+
+
+def account_for(user, mode):
+    return real_account(user) if mode == 'real' else demo_account(user)
+
+
+def _check_stake(acc, stake):
+    if is_real(acc) and stake > real_max_stake():
+        raise DemoTradeError(f'Real-money stakes are limited to {real_max_stake():.2f} per contract on this site.')
 
 
 class _Session:
@@ -70,7 +112,7 @@ class _Session:
             raise DemoTradeError(f'Could not reach Deriv: {e}')
         bal = self.call({'balance': 1}, timeout=timeout).get('balance') or {}
         self.auth = {'loginid': bal.get('loginid') or acc.account_number, 'balance': bal.get('balance'),
-                     'currency': bal.get('currency') or 'USD', 'is_virtual': True}   # demo per Deriv's account list
+                     'currency': bal.get('currency') or 'USD', 'is_virtual': not is_real(acc)}   # per Deriv's account list
 
     def call(self, request, timeout=10):
         self.req += 1
@@ -113,17 +155,26 @@ class _Session:
             pass
 
 
-def _require_demo(auth):
-    if not auth.get('is_virtual'):
-        raise DemoTradeError(f"The connected token belongs to the REAL account {auth.get('loginid')}. "
-                             'Demo trading only runs on a demo (virtual) account: create the token on your demo account.')
+def _require_mode(acc, auth):
+    """The account is what the customer picked: demo really virtual, real really real, and real allowed."""
+    if not is_real(acc):
+        if not auth.get('is_virtual'):
+            raise DemoTradeError(f"The connected token belongs to the REAL account {auth.get('loginid')}. "
+                                 'Demo trading only runs on a demo (virtual) account: create the token on your demo account.')
+        return
+    if not real_allowed():
+        raise DemoTradeError('Real-money trading is not enabled on this site.')
+    if not getattr(acc, 'real_enabled_at', None):
+        raise DemoTradeError('Turn on real-money trading for your account first (accept the risk warning).')
+    if auth.get('is_virtual'):
+        raise DemoTradeError(f"{auth.get('loginid')} is a demo account, not a real one.")
 
 
 def account_info(acc):
     """{loginid, balance, currency} of the demo account, straight from Deriv."""
     s = _Session(acc)
     try:
-        _require_demo(s.auth)
+        _require_mode(acc, s.auth)
         return {'loginid': s.auth.get('loginid'), 'balance': float(s.auth.get('balance') or 0),
                 'currency': s.auth.get('currency') or 'USD'}
     finally:
@@ -144,7 +195,7 @@ def place_trade(acc, symbol, contract_type, stake, duration, barrier=None):
     """
     contract_type = (contract_type or '').upper()
     if symbol not in VOLATILITY:
-        raise DemoTradeError('Demo digit trading runs on the Volatility indices.')
+        raise DemoTradeError('Deriv digit trading runs on the Volatility indices.')
     if contract_type not in CONTRACTS:
         raise DemoTradeError(f'Unknown contract type {contract_type}.')
     try:
@@ -154,6 +205,7 @@ def place_trade(acc, symbol, contract_type, stake, duration, barrier=None):
         raise DemoTradeError('Invalid stake or duration.')
     if not MIN_STAKE <= stake <= MAX_STAKE:
         raise DemoTradeError(f'Stake must be between {MIN_STAKE} and {MAX_STAKE}.')
+    _check_stake(acc, stake)
     if not 1 <= duration <= MAX_TICKS:
         raise DemoTradeError(f'Deriv digit contracts run 1 to {MAX_TICKS} ticks.')
     proposal = {'proposal': 1, 'amount': stake, 'basis': 'stake', 'contract_type': contract_type,
@@ -165,7 +217,7 @@ def place_trade(acc, symbol, contract_type, stake, duration, barrier=None):
 
     s = _Session(acc)
     try:
-        _require_demo(s.auth)
+        _require_mode(acc, s.auth)
         proposal['currency'] = s.auth.get('currency') or 'USD'
         b = s.buy(proposal, stake)
         cid = b['contract_id']
@@ -197,7 +249,7 @@ def place_trade(acc, symbol, contract_type, stake, duration, barrier=None):
         sell = float(poc.get('sell_price') or 0)
         won = poc.get('status') == 'won' or (poc.get('status') is None and sell > 0)
         return {
-            'success': True, 'account': 'deriv_demo', 'loginid': s.auth.get('loginid'), 'currency': proposal['currency'],
+            'success': True, 'account': 'deriv_real' if is_real(acc) else 'deriv_demo', 'loginid': s.auth.get('loginid'), 'currency': proposal['currency'],
             'contract_id': cid, 'transaction_id': b.get('transaction_id'), 'longcode': b.get('longcode'),
             'buy_price': float(b.get('buy_price') or stake), 'won': bool(won), 'payout': sell,
             'profit': round(sell - float(b.get('buy_price') or stake), 2),
@@ -287,6 +339,7 @@ def open_multiplier(acc, symbol, side, stake, multiplier, stop_loss=None, take_p
         raise DemoTradeError('Invalid stake or multiplier.')
     if not 1 <= stake <= 2000:
         raise DemoTradeError('Stake must be between 1 and 2000 USD.')
+    _check_stake(acc, stake)
     proposal = {'proposal': 1, 'amount': stake, 'basis': 'stake', 'symbol': deriv_symbol(symbol),
                 'contract_type': 'MULTUP' if side == 'BUY' else 'MULTDOWN', 'multiplier': multiplier}
     limit = {}
@@ -303,12 +356,12 @@ def open_multiplier(acc, symbol, side, stake, multiplier, stop_loss=None, take_p
         proposal['limit_order'] = limit
     s = _Session(acc)
     try:
-        _require_demo(s.auth)
+        _require_mode(acc, s.auth)
         proposal['currency'] = s.auth.get('currency') or 'USD'
         b = s.buy(proposal, stake)
         pos = _position(_poc(s, b['contract_id']))
         balance = s.call({'balance': 1}).get('balance', {}).get('balance')
-        return {'success': True, 'account': 'deriv_demo', 'loginid': s.auth.get('loginid'), 'currency': proposal['currency'],
+        return {'success': True, 'account': 'deriv_real' if is_real(acc) else 'deriv_demo', 'loginid': s.auth.get('loginid'), 'currency': proposal['currency'],
                 'contract_id': b['contract_id'], 'buy_price': float(b.get('buy_price') or stake), 'longcode': b.get('longcode'),
                 'position': pos, 'new_balance': float(balance) if balance is not None else None}
     finally:
@@ -319,7 +372,7 @@ def open_multipliers(acc):
     """Every open Multipliers contract on the demo account, with live profit."""
     s = _Session(acc)
     try:
-        _require_demo(s.auth)
+        _require_mode(acc, s.auth)
         contracts = (s.call({'portfolio': 1}).get('portfolio') or {}).get('contracts') or []
         out = [_position(_poc(s, c['contract_id'])) for c in contracts
                if str(c.get('contract_type', '')).startswith('MULT')]
@@ -338,7 +391,7 @@ def close_multiplier(acc, contract_id):
         raise DemoTradeError('Invalid contract.')
     s = _Session(acc)
     try:
-        _require_demo(s.auth)
+        _require_mode(acc, s.auth)
         sold = s.call({'sell': contract_id, 'price': 0}, timeout=15)['sell']
         pos = _position(_poc(s, contract_id))
         balance = s.call({'balance': 1}).get('balance', {}).get('balance')

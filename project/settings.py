@@ -56,6 +56,11 @@ DERIV_PUBLIC_WS_URL = os.environ.get('DERIV_PUBLIC_WS_URL', '')
 # Register the live one in your Deriv app.
 DERIV_OAUTH_REDIRECT = os.environ.get('DERIV_OAUTH_REDIRECT', '')
 DERIV_OAUTH_SCOPES = 'read trade'
+# Real-money Deriv trading from the site (digits + Multipliers). Off unless both are set:
+#   DERIV_REAL_TRADING=True and TOKEN_ENCRYPTION_KEY (tokens are then stored encrypted, store/fields.py)
+DERIV_REAL_TRADING = os.environ.get('DERIV_REAL_TRADING', 'False')
+DERIV_REAL_MAX_STAKE = os.environ.get('DERIV_REAL_MAX_STAKE', '50')     # USD per contract
+TOKEN_ENCRYPTION_KEY = os.environ.get('TOKEN_ENCRYPTION_KEY', '')
 # =============================================
 # NOWCRYPTO API CONFIGURATION
 # =============================================

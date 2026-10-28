@@ -349,6 +349,8 @@
     .acct-btn.on { border-color: #f59e0b; color: #fff; background: linear-gradient(135deg, rgba(217,119,6,.35), rgba(234,88,12,.25)); box-shadow: 0 0 18px rgba(217,119,6,.3); }
     .acct-btn.demo.on { border-color: #22d3ee; background: linear-gradient(135deg, rgba(8,145,178,.35), rgba(14,116,144,.2)); box-shadow: 0 0 18px rgba(34,211,238,.3); }
     .acct-btn:disabled { opacity: .55; cursor: not-allowed; }
+    .acct-btn.real.on { border-color: #f43f5e; background: linear-gradient(135deg, rgba(225,29,72,.4), rgba(190,18,60,.25)); box-shadow: 0 0 18px rgba(244,63,94,.35); }
+    .real-warn { margin-top: 8px; padding: 8px 10px; border-radius: 10px; font-size: 10.5px; font-weight: 700; color: #fecdd3; background: rgba(225,29,72,.18); border: 1px solid rgba(244,63,94,.5); }
     .acct-btn small { display: block; font-weight: 600; font-size: 9px; opacity: .8; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #panel-ticket.dm-on .execution-btn { box-shadow: 0 0 0 1px rgba(34,211,238,.5), 0 8px 24px rgba(8,145,178,.25); }
 </style>
@@ -728,8 +730,10 @@
                     <div class="flex gap-2">
                         <button type="button" id="acct-site" class="acct-btn on" onclick="setTradeAcct('site')"><i class="fa-solid fa-wallet mr-1"></i>Site account<small>MT5-style lots</small></button>
                         <button type="button" id="acct-demo" class="acct-btn demo" onclick="setTradeAcct('demo')" disabled><i class="fa-solid fa-flask mr-1"></i>Deriv Demo<small id="acct-demo-info">checking…</small></button>
+                        <button type="button" id="acct-real" class="acct-btn real hidden" onclick="setTradeAcct('real')" disabled><i class="fa-solid fa-sack-dollar mr-1"></i>Deriv Real<small id="acct-real-info">checking…</small></button>
                     </div>
                     <p id="acct-demo-note" class="text-[10px] text-slate-500 mt-1.5 hidden"></p>
+                    <p id="acct-real-warn" class="real-warn hidden"><i class="fa-solid fa-triangle-exclamation mr-1"></i>REAL MONEY: orders use your real Deriv balance and always ask you to confirm.</p>
                 </div>
 
                 <div>
@@ -944,7 +948,7 @@
                 <button onclick="switchPositionTab('deriv')" id="ptab-deriv"
                         class="ptab-btn py-2.5 border-b-2 border-transparent text-slate-400 hover:text-white px-3 flex items-center gap-1.5 whitespace-nowrap transition text-[11px] hidden">
                     <i class="fa-solid fa-flask text-[10px] text-cyan-400"></i>
-                    Deriv Demo (<span id="deriv-count">0</span>)
+                    <span id="deriv-tab-name">Deriv Demo</span> (<span id="deriv-count">0</span>)
                 </button>
                 <button onclick="switchPositionTab('alerts')" id="ptab-alerts"
                         class="ptab-btn py-2.5 border-b-2 border-transparent text-slate-400 hover:text-white px-3 flex items-center gap-1.5 whitespace-nowrap transition text-[11px]">
@@ -1158,7 +1162,7 @@
         </div>
         <div id="tab-content-deriv" class="tab-content hidden">
             <div class="px-4 py-2.5 text-[11px] text-slate-400 border-b border-slate-800/60 flex items-center justify-between gap-2 flex-wrap">
-                <span>Open Multipliers contracts on your Deriv demo account <b class="text-cyan-400" id="deriv-loginid"></b> · they also show in Deriv → Reports.</span>
+                <span>Open Multipliers contracts on your Deriv <span id="deriv-kind">demo</span> account <b class="text-cyan-400" id="deriv-loginid"></b> · they also show in Deriv → Reports.</span>
                 <span class="font-mono">Balance <b class="text-white" id="deriv-balance">—</b> · Floating <b id="deriv-floating" class="pnl-neutral">$0.00</b></span>
             </div>
             <div class="overflow-x-auto">
@@ -3804,7 +3808,7 @@ function expiryFor() {
     return { expiration: 'GTC', expires_at: null };
 }
 async function placeOrder(side, opts = {}) {
-    if (tradeAcct === 'demo') return placeDemoOrder(side);
+    if (tradeAcct === 'demo' || tradeAcct === 'real') return placeDemoOrder(side);
     lastSide = side;
     const sym = tkSym(), s = specOf(sym), d = getDecimals(sym), f = v => Number(v).toFixed(d);
     const type = opts.market ? 'MARKET' : ordType;
@@ -4477,7 +4481,9 @@ window.addEventListener('load', function() {
 // DERIV DEMO — Multipliers on the user's own Deriv demo account
 // BUY = MULTUP, SELL = MULTDOWN; they show in Deriv → Reports too.
 // ═══════════════════════════════════════════════════════════
-var tradeAcct = 'site', demoAcc = null, derivTimer = null;
+var tradeAcct = 'site', demoAcc = null, realAcc = null, derivTimer = null;
+const derivMode = () => tradeAcct === 'real' ? 'real' : 'demo';
+const derivBody = body => tradeAcct === 'real' ? Object.assign(body, { account: 'real', confirm_real: true }) : body;
 const DM_SITE_ONLY = ['ord-type', 'ord-pending-box', 'order-volume', 'order-sl', 'margin-req'];
 const dmPost = (url, body) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken'), 'X-Requested-With': 'XMLHttpRequest' }, body: JSON.stringify(body) }).then(r => r.json());
 const dmGet = url => fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } }).then(r => r.json());
@@ -4509,13 +4515,52 @@ async function loadDemoAcc() {
     setTradeAcct(store.get('tr-account', 'site'));
 }
 
-function setTradeAcct(acc) {
+async function loadRealAcc() {
+    const btn = $t('acct-real'), info = $t('acct-real-info');
+    try {
+        const d = await dmGet('/api/deriv/demo/account/?account=real');
+        if (!d.real_allowed) { btn.classList.add('hidden'); realAcc = null; return; }
+        btn.classList.remove('hidden'); realAcc = d;
+        if (!d.connected) { btn.disabled = true; info.textContent = 'not connected'; return; }
+        btn.disabled = false;
+        info.textContent = !d.real_enabled ? 'tap to turn on' : d.success ? `${d.loginid} · ${fmtMoney(Number(d.balance))}` : 'token problem';
+        if (d.success) $t('ptab-deriv').classList.remove('hidden');
+    } catch (e) { info.textContent = 'unavailable'; }
+}
+
+function enableRealTrading() {
+    return new Promise(resolve => {
+        const max = realAcc && realAcc.real_max_stake ? fmtMoney(realAcc.real_max_stake) : 'the site limit';
+        openCustomModal({ title: 'Turn on real-money trading?', icon: 'warning', confirmText: 'I accept the risks',
+            message: 'Orders will use the real balance of your own Deriv account. Multipliers are leveraged: you can lose your whole stake quickly. '
+                   + `Each contract is limited to ${max} and every order asks you to confirm. AI signals are estimates, not advice.`,
+            onConfirm: async () => {
+                const d = await dmPost('/api/deriv/real/enable/', { accept: true });
+                if (!d.success) { showToast(d.error || 'Could not turn on real trading', 'error'); return resolve(false); }
+                await loadRealAcc();
+                resolve(!!(realAcc && realAcc.real_enabled && realAcc.success));
+            } });
+        setTimeout(() => resolve(false), 120000);           // modal dismissed
+    });
+}
+
+async function setTradeAcct(acc) {
     if (acc === 'demo' && !demoAcc) acc = 'site';
+    if (acc === 'real') {
+        if (!realAcc || !realAcc.connected) acc = 'site';
+        else if (!realAcc.real_enabled && !(await enableRealTrading())) return;
+        else if (!realAcc.success) { showToast(realAcc.error || 'Your Deriv real account is not reachable right now', 'error'); return; }
+    }
     tradeAcct = acc;
-    store.set('tr-account', acc);
-    const demo = acc === 'demo';
+    store.set('tr-account', acc === 'real' ? 'site' : acc);       // never reopen on real money by itself
+    const demo = acc === 'demo' || acc === 'real';
     $t('acct-site').classList.toggle('on', !demo);
-    $t('acct-demo').classList.toggle('on', demo);
+    $t('acct-demo').classList.toggle('on', acc === 'demo');
+    $t('acct-real').classList.toggle('on', acc === 'real');
+    $t('acct-real-warn').classList.toggle('hidden', acc !== 'real');
+    $t('deriv-tab-name').textContent = acc === 'real' ? 'Deriv Real' : 'Deriv Demo';
+    $t('deriv-kind').textContent = acc === 'real' ? 'REAL' : 'demo';
+    if (activePositionTab === 'deriv') loadDerivPositions();
     $t('panel-ticket').classList.toggle('dm-on', demo);
     $t('dm-block').classList.toggle('hidden', !demo);
     DM_SITE_ONLY.forEach(id => { const b = dmTopBlock($t(id)); if (b) b.style.display = demo ? 'none' : ''; });
@@ -4538,33 +4583,38 @@ async function placeDemoOrder(side) {
     const fb = $t('trade-execution-feedback');
     const fail = msg => { fb.className = 'p-3 bg-slate-950 border border-rose-800 rounded-xl text-center text-[11px] text-rose-400 font-mono'; fb.textContent = '❌ ' + msg; showToast(msg, 'error'); };
     if (!stake || stake < 1) return fail('Stake must be at least 1 USD');
+    const real = tradeAcct === 'real', where = real ? 'Deriv REAL' : 'Deriv demo';
+    if (real && realAcc && stake > realAcc.real_max_stake) return fail(`Real-money stake limit is ${fmtMoney(realAcc.real_max_stake)} per contract`);
     const go = async () => {
         fb.className = 'p-3 bg-slate-950 border border-cyan-800 rounded-xl text-center text-[11px] text-cyan-300 font-mono';
-        fb.textContent = `Opening ${side} ×${mult} on Deriv demo…`;
+        fb.textContent = `Opening ${side} ×${mult} on ${where}…`;
         try {
-            const d = await dmPost('/api/deriv/demo/open/', { symbol: sym, side, stake, multiplier: mult, stop_loss: sl, take_profit: tp });
-            if (!d.success) return fail(d.error || 'Deriv demo order failed');
+            const d = await dmPost('/api/deriv/demo/open/', derivBody({ symbol: sym, side, stake, multiplier: mult, stop_loss: sl, take_profit: tp }));
+            if (!d.success) return fail(d.error || `${where} order failed`);
             fb.className = 'p-3 bg-slate-950 border border-emerald-800 rounded-xl text-center text-[11px] text-emerald-400 font-mono';
-            fb.textContent = `✅ ${side} ${sym} ×${mult} · stake ${fmtMoney(d.buy_price)} · Deriv demo #${d.contract_id}`;
-            showToast(`Deriv demo ${side} ${sym} opened (#${d.contract_id})`, 'success');
-            if (d.new_balance != null && demoAcc) { demoAcc.balance = d.new_balance; $t('acct-demo-info').textContent = `${d.loginid} · ${fmtMoney(d.new_balance)}`; }
+            fb.textContent = `✅ ${side} ${sym} ×${mult} · stake ${fmtMoney(d.buy_price)} · ${where} #${d.contract_id}`;
+            showToast(`${where} ${side} ${sym} opened (#${d.contract_id})`, 'success');
+            const accObj = real ? realAcc : demoAcc, infoId = real ? 'acct-real-info' : 'acct-demo-info';
+            if (d.new_balance != null && accObj) { accObj.balance = d.new_balance; $t(infoId).textContent = `${d.loginid} · ${fmtMoney(d.new_balance)}`; }
             if (typeof beep === 'function') beep();
             switchPositionTab('deriv');
         } catch (e) { fail('Could not reach the server'); }
     };
-    if (oneClick) return go();
+    if (oneClick && !real) return go();                  // real money always asks
     const row = (k, v, c = 'text-white') => `<div class="flex justify-between mb-1"><span class="text-slate-500">${k}</span><span class="${c}">${v}</span></div>`;
-    openCustomModal({ title: `${buy ? 'Buy' : 'Sell'} ${sym} on Deriv demo?`, message: 'Deriv Multipliers contract on your demo account (virtual money).',
+    openCustomModal({ title: real ? `REAL MONEY: ${buy ? 'buy' : 'sell'} ${sym}?` : `${buy ? 'Buy' : 'Sell'} ${sym} on Deriv demo?`,
+        message: real ? `Deriv Multipliers contract on your REAL account ${realAcc ? realAcc.loginid : ''}. You can lose the whole stake.`
+                      : 'Deriv Multipliers contract on your demo account (virtual money).',
         details: row('Contract', `${buy ? 'MULTUP' : 'MULTDOWN'} ×${mult}`, buy ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold') + row('Stake', fmtMoney(stake))
                + row('Stop loss', sl ? fmtMoney(sl) : 'none', 'text-rose-400') + row('Take profit', tp ? fmtMoney(tp) : 'none', 'text-emerald-400'),
-        icon: 'warning', confirmText: `${buy ? 'Buy' : 'Sell'} on demo`, onConfirm: go });
+        icon: 'warning', confirmText: real ? `${buy ? 'Buy' : 'Sell'} with real money` : `${buy ? 'Buy' : 'Sell'} on demo`, onConfirm: go });
 }
 
 async function loadDerivPositions() {
     clearTimeout(derivTimer);
-    if (!demoAcc) return;
+    if (!(tradeAcct === 'real' ? realAcc && realAcc.success : demoAcc)) return;
     try {
-        const d = await dmGet('/api/deriv/demo/positions/');
+        const d = await dmGet(`/api/deriv/demo/positions/?account=${derivMode()}`);
         const body = $t('deriv-positions-body');
         if (!d.success) { body.innerHTML = `<tr><td colspan="10" class="px-3 py-6 text-center text-rose-400">${dmEsc(d.error)}</td></tr>`; }
         else {
@@ -4585,20 +4635,23 @@ async function loadDerivPositions() {
                 <td class="px-3 py-2 text-right text-slate-400">${p.stop_loss != null ? fmtMoney(-Math.abs(p.stop_loss)) : '—'} / ${p.take_profit != null ? fmtMoney(p.take_profit) : '—'}</td>
                 <td class="px-3 py-2 text-right font-bold ${p.profit > 0 ? 'text-emerald-400' : p.profit < 0 ? 'text-rose-400' : 'text-slate-300'}">${fmtMoney(p.profit)}</td>
                 <td class="px-3 py-2 text-right"><button class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-rose-600 text-[10px] font-bold text-white border border-slate-700 disabled:opacity-40" ${p.can_sell ? '' : 'disabled'} onclick="closeDerivPosition(${p.contract_id}, this)">Close</button></td>
-            </tr>`).join('') : '<tr><td colspan="10" class="px-3 py-6 text-center text-slate-500">No open Deriv demo contracts.</td></tr>';
+            </tr>`).join('') : `<tr><td colspan="10" class="px-3 py-6 text-center text-slate-500">No open Deriv ${derivMode()} contracts.</td></tr>`;
         }
     } catch (e) {}
     if (activePositionTab === 'deriv') derivTimer = setTimeout(() => { if (!document.hidden) loadDerivPositions(); else derivTimer = setTimeout(loadDerivPositions, 5000); }, 5000);
 }
 
 async function closeDerivPosition(id, btn) {
+    const real = tradeAcct === 'real';
+    if (real && !confirm(`Close REAL Deriv contract #${id} at the market price?`)) return;
     if (btn) { btn.disabled = true; btn.textContent = '…'; }
     try {
-        const d = await dmPost('/api/deriv/demo/close/', { contract_id: id });
+        const d = await dmPost('/api/deriv/demo/close/', derivBody({ contract_id: id }));
         if (!d.success) showToast(d.error || 'Close failed', 'error');
         else {
-            showToast(`Deriv demo #${id} closed · ${fmtMoney(d.profit || 0)}`, (d.profit || 0) >= 0 ? 'success' : 'error');
-            if (d.new_balance != null && demoAcc) { demoAcc.balance = d.new_balance; $t('acct-demo-info').textContent = `${demoAcc.loginid} · ${fmtMoney(d.new_balance)}`; }
+            showToast(`Deriv ${real ? 'REAL' : 'demo'} #${id} closed · ${fmtMoney(d.profit || 0)}`, (d.profit || 0) >= 0 ? 'success' : 'error');
+            const accObj = real ? realAcc : demoAcc;
+            if (d.new_balance != null && accObj) { accObj.balance = d.new_balance; $t(real ? 'acct-real-info' : 'acct-demo-info').textContent = `${accObj.loginid} · ${fmtMoney(d.new_balance)}`; }
         }
     } catch (e) { showToast('Could not reach the server', 'error'); }
     loadDerivPositions();
@@ -4607,7 +4660,8 @@ async function closeDerivPosition(id, btn) {
 window.addEventListener('DOMContentLoaded', () => {
     initProTrading();
     loadDemoAcc();
-    $t('order-symbol').addEventListener('change', () => { if (tradeAcct === 'demo') loadMultipliers(); });
+    loadRealAcc();
+    $t('order-symbol').addEventListener('change', () => { if (tradeAcct !== 'site') loadMultipliers(); });
     seedPricesFromServer();
     startBinanceWatchlistStream();
     restorePersistedUIState();

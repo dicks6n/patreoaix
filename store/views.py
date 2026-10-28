@@ -10513,70 +10513,130 @@ def api_deriv_ticks(request):
 # ═══════════════════════════════════════════════════════════════
 # DERIV DEMO TRADING (digits page → the user's own Deriv demo account)
 # ═══════════════════════════════════════════════════════════════
-def _demo_history_key(user):
-    return f'deriv:demo:history:{user.id}'
+def _demo_history_key(user, mode='demo'):
+    return f'deriv:{mode}:history:{user.id}'
+
+
+def _deriv_mode(value):
+    return 'real' if str(value or '').lower() == 'real' else 'demo'
+
+
+def _deriv_missing(mode):
+    if mode == 'real':
+        return ('No Deriv real account connected. On your dashboard use Connect Deriv and log in with the Deriv '
+                'login that has your real account.')
+    return 'No Deriv demo account connected. On your dashboard use Connect Deriv (or a Personal Access Token) so your demo account is listed.'
+
+
+def _real_status(user):
+    """What the page needs to offer real trading: allowed by the site, connected, opted in."""
+    from . import deriv_demo
+    acc = deriv_demo.real_account(user)
+    return {'real_allowed': deriv_demo.real_allowed(), 'real_connected': bool(acc),
+            'real_enabled': bool(acc and acc.real_enabled_at), 'real_max_stake': deriv_demo.real_max_stake()}
+
+
+def _real_confirmed(mode, data):
+    """Real money needs the page to say so explicitly on every request (a stray demo request can't spend it)."""
+    return mode != 'real' or data.get('confirm_real') is True
 
 
 @login_required
 def api_deriv_demo_account(request):
-    """GET → {success, connected, loginid, balance, currency, history} for the user's Deriv demo account."""
+    """GET ?account=demo|real → {success, connected, loginid, balance, currency, history, real_*} for that Deriv account."""
     from . import deriv_demo
-    acc = deriv_demo.demo_account(request.user)
-    history = cache.get(_demo_history_key(request.user)) or []
+    mode = _deriv_mode(request.GET.get('account'))
+    acc = deriv_demo.account_for(request.user, mode)
+    history = cache.get(_demo_history_key(request.user, mode)) or []
+    flags = _real_status(request.user)
     if not acc:
-        return JsonResponse({'success': True, 'connected': False, 'history': history,
-                             'error': 'No Deriv demo account connected. On your dashboard use Connect Deriv (or a Personal Access Token) so your demo account is listed.'})
+        return JsonResponse({'success': True, 'connected': False, 'history': history, 'error': _deriv_missing(mode), **flags})
+    if mode == 'real' and not (flags['real_allowed'] and flags['real_enabled']):
+        return JsonResponse({'success': True, 'connected': True, 'loginid': acc.account_number, 'history': history, **flags})
     try:
         info = deriv_demo.account_info(acc)
     except deriv_demo.DemoTradeError as e:
-        return JsonResponse({'success': False, 'connected': True, 'loginid': acc.account_number, 'error': str(e), 'history': history})
-    return JsonResponse({'success': True, 'connected': True, 'history': history, **info})
+        return JsonResponse({'success': False, 'connected': True, 'loginid': acc.account_number, 'error': str(e),
+                             'history': history, **flags})
+    return JsonResponse({'success': True, 'connected': True, 'history': history, **info, **flags})
+
+
+@login_required
+@require_POST
+def api_deriv_real_enable(request):
+    """POST {accept: true} → turn real-money trading on for the user's Deriv real account; {disable: true} → off."""
+    from . import deriv_demo
+    try:
+        data = json.loads(request.body or '{}')
+    except ValueError:
+        return JsonResponse({'success': False, 'error': 'Invalid request'}, status=400)
+    acc = deriv_demo.real_account(request.user)
+    if not acc:
+        return JsonResponse({'success': False, 'error': _deriv_missing('real')})
+    if data.get('disable'):
+        acc.real_enabled_at = None
+        acc.save(update_fields=['real_enabled_at'])
+        return JsonResponse({'success': True, 'real_enabled': False})
+    if not deriv_demo.real_allowed():
+        return JsonResponse({'success': False, 'error': 'Real-money trading is not enabled on this site.'})
+    if data.get('accept') is not True:
+        return JsonResponse({'success': False, 'error': 'Accept the risk warning to continue.'})
+    acc.real_enabled_at = timezone.now()
+    acc.save(update_fields=['real_enabled_at'])
+    logger.info(f'User {request.user.pk} enabled real Deriv trading on {acc.account_number}')
+    return JsonResponse({'success': True, 'real_enabled': True})
 
 
 @login_required
 @require_POST
 def api_deriv_demo_trade(request):
     """
-    POST {symbol, contract_type: DIGITEVEN…, amount, duration, barrier?} → buys one contract on the user's
-    Deriv DEMO account and waits for Deriv to settle it. Real-money accounts are refused.
+    POST {symbol, contract_type: DIGITEVEN…, amount, duration, barrier?, account: demo|real, confirm_real?}
+    → buys one digit contract on the user's Deriv account and waits for Deriv to settle it.
     """
     from . import deriv_demo
     try:
         data = json.loads(request.body or '{}')
     except ValueError:
         return JsonResponse({'success': False, 'error': 'Invalid request'}, status=400)
-    acc = deriv_demo.demo_account(request.user)
+    mode = _deriv_mode(data.get('account'))
+    if not _real_confirmed(mode, data):
+        return JsonResponse({'success': False, 'error': 'Confirm the real-money trade first.'})
+    acc = deriv_demo.account_for(request.user, mode)
     if not acc:
-        return JsonResponse({'success': False, 'error': 'No Deriv demo account connected. On your dashboard use Connect Deriv (or a Personal Access Token) so your demo account is listed.'})
+        return JsonResponse({'success': False, 'error': _deriv_missing(mode)})
     lock = f'deriv:demo:busy:{request.user.id}'
     if not cache.add(lock, 1, 60):          # one contract at a time per user (double clicks, bot + manual)
-        return JsonResponse({'success': False, 'error': 'A demo contract is still running. Wait for its result.'})
+        return JsonResponse({'success': False, 'error': 'A Deriv contract is still running. Wait for its result.'})
     try:
         res = deriv_demo.place_trade(acc, data.get('symbol'), data.get('contract_type'), data.get('amount'),
                                      data.get('duration', 1), data.get('barrier'))
     except deriv_demo.DemoTradeError as e:
         return JsonResponse({'success': False, 'error': str(e)})
     except Exception as e:
-        logger.exception(f'Deriv demo trade failed: {e}')
-        return JsonResponse({'success': False, 'error': 'Deriv demo trade failed. Check your Deriv statement before trying again.',
+        logger.exception(f'Deriv {mode} trade failed: {e}')
+        return JsonResponse({'success': False, 'error': 'Deriv trade failed. Check your Deriv statement before trying again.',
                              'detail': str(e)[:200]})
     finally:
         cache.delete(lock)
-    key = _demo_history_key(request.user)
+    key = _demo_history_key(request.user, mode)
     history = cache.get(key) or []
     history.insert(0, {k: res.get(k) for k in ('contract_id', 'won', 'profit', 'buy_price', 'final_digit', 'new_balance', 'currency')}
                    | {'symbol': data.get('symbol'), 'contract_type': data.get('contract_type'), 'barrier': data.get('barrier'),
                       'at': int(_time.time())})
     cache.set(key, history[:50], 30 * 86400)
+    if mode == 'real':
+        logger.info(f"Real Deriv digit trade user={request.user.pk} {acc.account_number} {data.get('contract_type')} "
+                    f"stake={data.get('amount')} contract={res.get('contract_id')} profit={res.get('profit')}")
     return JsonResponse(res)
 
 
-# ── Deriv demo Multipliers (trade.html) ──
-def _demo_guard(request):
+# ── Deriv Multipliers (trade.html), demo or real ──
+def _demo_guard(request, mode='demo'):
     from . import deriv_demo
-    acc = deriv_demo.demo_account(request.user)
+    acc = deriv_demo.account_for(request.user, mode)
     if not acc:
-        return None, JsonResponse({'success': False, 'connected': False, 'error': 'No Deriv demo account connected. On your dashboard use Connect Deriv (or a Personal Access Token) so your demo account is listed.'})
+        return None, JsonResponse({'success': False, 'connected': False, 'error': _deriv_missing(mode)})
     return acc, None
 
 
@@ -10590,9 +10650,9 @@ def api_deriv_demo_multipliers(request):
 
 @login_required
 def api_deriv_demo_positions(request):
-    """GET → open Multipliers contracts on the user's Deriv demo account."""
+    """GET ?account=demo|real → open Multipliers contracts on that Deriv account."""
     from . import deriv_demo
-    acc, err = _demo_guard(request)
+    acc, err = _demo_guard(request, _deriv_mode(request.GET.get('account')))
     if err:
         return err
     try:
@@ -10607,19 +10667,26 @@ def _demo_post(request, fn):
         data = json.loads(request.body or '{}')
     except ValueError:
         return JsonResponse({'success': False, 'error': 'Invalid request'}, status=400)
-    acc, err = _demo_guard(request)
+    mode = _deriv_mode(data.get('account'))
+    if not _real_confirmed(mode, data):
+        return JsonResponse({'success': False, 'error': 'Confirm the real-money order first.'})
+    acc, err = _demo_guard(request, mode)
     if err:
         return err
     lock = f'deriv:demo:busy:{request.user.id}'
     if not cache.add(lock, 1, 60):
-        return JsonResponse({'success': False, 'error': 'Another Deriv demo request is still running. Wait a moment.'})
+        return JsonResponse({'success': False, 'error': 'Another Deriv request is still running. Wait a moment.'})
     try:
-        return JsonResponse(fn(acc, data))
+        res = fn(acc, data)
+        if mode == 'real':
+            logger.info(f'Real Deriv request user={request.user.pk} {acc.account_number} {request.path} '
+                        f'{ {k: data.get(k) for k in ("symbol", "side", "stake", "multiplier", "contract_id")} } → {res.get("contract_id")}')
+        return JsonResponse(res)
     except deriv_demo.DemoTradeError as e:
         return JsonResponse({'success': False, 'error': str(e)})
     except Exception as e:
-        logger.exception(f'Deriv demo request failed: {e}')
-        return JsonResponse({'success': False, 'error': 'Deriv demo request failed. Check your Deriv statement before trying again.', 'detail': str(e)[:200]})
+        logger.exception(f'Deriv {mode} request failed: {e}')
+        return JsonResponse({'success': False, 'error': 'Deriv request failed. Check your Deriv statement before trying again.', 'detail': str(e)[:200]})
     finally:
         cache.delete(lock)
 
@@ -10627,7 +10694,7 @@ def _demo_post(request, fn):
 @login_required
 @require_POST
 def api_deriv_demo_open(request):
-    """POST {symbol, side: BUY|SELL, stake, multiplier, stop_loss?, take_profit?} → opens a Multipliers contract (demo)."""
+    """POST {symbol, side: BUY|SELL, stake, multiplier, stop_loss?, take_profit?, account, confirm_real?} → opens a Multipliers contract."""
     from . import deriv_demo
     return _demo_post(request, lambda acc, d: deriv_demo.open_multiplier(
         acc, d.get('symbol'), d.get('side'), d.get('stake'), d.get('multiplier'), d.get('stop_loss'), d.get('take_profit')))
@@ -10636,7 +10703,7 @@ def api_deriv_demo_open(request):
 @login_required
 @require_POST
 def api_deriv_demo_close(request):
-    """POST {contract_id} → sells (closes) that demo contract at market."""
+    """POST {contract_id, account, confirm_real?} → sells (closes) that contract at market."""
     from . import deriv_demo
     return _demo_post(request, lambda acc, d: deriv_demo.close_multiplier(acc, d.get('contract_id')))
 

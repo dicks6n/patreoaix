@@ -89,6 +89,7 @@ urlpatterns = [
     path('api/deriv/demo/positions/', views.api_deriv_demo_positions, name='api_deriv_demo_positions'),
     path('api/deriv/demo/open/', views.api_deriv_demo_open, name='api_deriv_demo_open'),
     path('api/deriv/demo/close/', views.api_deriv_demo_close, name='api_deriv_demo_close'),
+    path('api/deriv/real/enable/', views.api_deriv_real_enable, name='api_deriv_real_enable'),
 
     path('api/market-status/', views.api_market_status, name='api_market_status'),
     # MetaTrader & Trading Accounts (New Broker Suite)
