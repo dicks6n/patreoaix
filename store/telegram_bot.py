@@ -135,6 +135,13 @@ def signal_caption(sig, r=None):
     ]
     if sig.rr:
         lines.append(f"⚖️ Reward : risk  <b>{sig.rr:.2f}</b>")
+    try:
+        from .risk_calc import caption_line
+        size = caption_line(sig)
+        if size:
+            lines.append(size)
+    except Exception:
+        pass
     if r and r.get('agree'):
         lines.append(f"🧠 {len(r['agree'])}/{r.get('voting', len(r.get('scanners', [])))} scanners agree · quality {round(sig.quality)}")
     site = _cfg('SITE_URL')

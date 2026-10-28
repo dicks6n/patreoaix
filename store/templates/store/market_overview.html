@@ -125,6 +125,14 @@
     .coach-instr.IN_ZONE, .coach-instr.WAIT_PULLBACK { border-left-color: var(--px-accent); }
     .coach-instr.INVALID { border-left-color: var(--px-down); background: var(--px-down-soft); }
     .coach-sec { padding: 12px 14px; border-top: 1px solid var(--px-line-soft); }
+    .risk-calc { margin-top: 12px; padding: 12px; border-radius: 12px; background: var(--px-panel-2); border: 1px solid var(--px-line); }
+    .risk-calc .rc-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .risk-calc label { font-size: 10.5px; font-weight: 800; color: var(--px-mute); text-transform: uppercase; letter-spacing: .05em; }
+    .risk-calc input { width: 110px; background: var(--px-panel); border: 1px solid var(--px-line); color: var(--px-text); border-radius: 8px; padding: 6px 8px; font-size: 13px; font-family: 'JetBrains Mono', monospace; }
+    .risk-calc .rc-pct { font-size: 11.5px; font-weight: 800; padding: 6px 9px; border-radius: 8px; background: var(--px-panel); border: 1px solid var(--px-line); color: var(--px-dim); cursor: pointer; }
+    .risk-calc .rc-pct.on { background: var(--px-accent); border-color: var(--px-accent); color: var(--px-accent-ink, #0b0e14); }
+    .risk-calc .rc-out { margin-top: 10px; font-size: 13px; color: var(--px-text); line-height: 1.5; }
+    .risk-calc .rc-out b { font-family: 'JetBrains Mono', monospace; }
     .gauge { position: relative; display: flex; height: 12px; border-radius: 6px; overflow: hidden; }
     .gauge > span { height: 100%; }
     .g-wrap { position: relative; padding-top: 22px; }
@@ -309,6 +317,7 @@
                             <div class="flex items-center justify-between mb-2"><p class="lbl" id="co-plan-title">Coach plan</p><span class="text-[11px] px-muted" id="co-size"></span></div>
                             <div class="plan" id="co-plan"></div>
                             <div class="flex gap-2 mt-3 flex-wrap" id="co-actions"></div>
+                            <div class="risk-calc" id="co-calc" hidden></div>
                         </div>
                         <div class="coach-sec co-story" id="co-story"></div>
                         <div class="coach-sec">
@@ -914,6 +923,7 @@
             $('co-plan-title').textContent = 'Coach plan';
             $('co-plan').innerHTML = '<p class="text-[12px] px-muted col-span-full">No plan without a trend. The coach will build one when structure appears.</p>';
             $('co-size').textContent = '';
+            $('co-calc').hidden = true;
             $('co-actions').innerHTML = watchBtn();
         } else {
             const buy = p.side === 'BUY', verb = buy ? 'buy' : 'sell';
@@ -938,15 +948,43 @@
         }
         $('co-actions').querySelector('[data-act="watch"]').addEventListener('click', toggleWatch);
     }
+    // ── risk calculator: "With your $200 balance use 0.02 lots" ──
+    let calcBal = null, calcPct = 1;
+    try { calcBal = parseFloat(localStorage.getItem('px_calc_bal')) || null; calcPct = parseFloat(localStorage.getItem('px_calc_pct')) || 1; } catch (e) {}
     async function sizeHint() {
-        const c = detail.coach, p = c && c.plan, base = detail.plan || detail.watch || {};
+        const c = detail.coach, p = c && c.plan, base = detail.plan || detail.watch || {}, box = $('co-calc');
         $('co-size').textContent = '';
-        if (!p || !base.risk_per_lot_usd || base.entry === base.sl) return;
-        if (Date.now() - equityAt > 60000) { await loadEquity(); equityAt = Date.now(); }
-        if (!equity || detail.coach !== c) return;
-        const perLot = base.risk_per_lot_usd / Math.abs(base.entry - base.sl) * Math.abs(p.entry - p.sl);
-        const lots = Math.floor(equity * 0.01 / perLot * 100) / 100;
-        $('co-size').textContent = lots >= (base.volume_min || 0.01) ? `1% risk = ${lots.toFixed(2)} lots` : `1% risk is below the minimum lot (${PX.money(perLot * 0.01)} per 0.01)`;
+        if (!p || !base.risk_per_lot_usd || base.entry === base.sl) { box.hidden = true; return; }
+        if (!calcBal) {
+            if (Date.now() - equityAt > 60000) { await loadEquity(); equityAt = Date.now(); }
+            if (detail.coach !== c) return;
+        }
+        const perUnit = base.risk_per_lot_usd / Math.abs(base.entry - base.sl);
+        const perLot = perUnit * Math.abs(p.entry - p.sl), winLot = perUnit * Math.abs(p.tp1 - p.entry);
+        const minLot = base.volume_min || 0.01;
+        const bal = calcBal || (equity > 0 ? Math.round(equity * 100) / 100 : 200);
+        box.hidden = false;
+        box.innerHTML = `
+            <div class="flex items-center justify-between mb-2"><p class="lbl"><i class="fa-solid fa-calculator mr-1"></i>Risk calculator</p><span class="text-[11px] px-muted">${PX.money(perLot * 0.01)} risk per 0.01 lot</span></div>
+            <div class="rc-row">
+                <label for="rc-bal">Balance $</label><input id="rc-bal" type="number" min="1" step="10" value="${bal}">
+                ${[0.5, 1, 2, 5].map(v => `<button type="button" class="rc-pct ${v === calcPct ? 'on' : ''}" data-pct="${v}">${v}%</button>`).join('')}
+            </div>
+            <div class="rc-out" id="rc-out"></div>`;
+        const show = () => {
+            const b = parseFloat($('rc-bal').value) || 0, risk = b * calcPct / 100;
+            const lots = Math.floor(risk / perLot * 100) / 100;
+            $('rc-out').innerHTML = lots >= minLot
+                ? `With your <b>${PX.money(b)}</b> balance use <b>${lots.toFixed(2)} lots</b>. Stop loss costs <b class="px-down">${PX.money(lots * perLot)}</b> (${calcPct}%), target 1 pays <b class="px-up">${PX.money(lots * winLot)}</b>.`
+                : `${calcPct}% of ${PX.money(b)} is ${PX.money(risk)}, less than the smallest trade (${minLot} lots risks ${PX.money(perLot * minLot)}). Use a bigger balance or skip this one.` + (risk >= 1 ? ` Tip: on Deriv Multipliers a <b>${PX.money(risk)}</b> stake keeps the same risk (you can't lose more than the stake).` : '');
+            $('co-size').textContent = lots >= minLot ? `${calcPct}% risk = ${lots.toFixed(2)} lots` : '';
+        };
+        $('rc-bal').addEventListener('input', () => { calcBal = parseFloat($('rc-bal').value) || null; try { localStorage.setItem('px_calc_bal', calcBal || ''); } catch (e) {} show(); });
+        box.querySelectorAll('[data-pct]').forEach(b => b.addEventListener('click', () => {
+            calcPct = parseFloat(b.dataset.pct); try { localStorage.setItem('px_calc_pct', calcPct); } catch (e) {}
+            box.querySelectorAll('[data-pct]').forEach(x => x.classList.toggle('on', x === b)); show();
+        }));
+        show();
     }
 
     // ── watch: alert when a market reaches the zone or confirms ──
