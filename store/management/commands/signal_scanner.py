@@ -62,6 +62,9 @@ class Command(BaseCommand):
                                                      f'SL {s.stop_loss} TP {s.take_profit} — notified {s.notified}'))
         for s in sa.update_outcomes():
             self.stdout.write(f'   ✓ {s.symbol} {s.direction} {s.outcome} {s.result_r:+.2f}R')
+        from store import price_alerts                     # "tell me when gold reaches 4,050"
+        for w in price_alerts.safe_check():
+            self.stdout.write(f'   🔔 price alert {w.user} {w.symbol} {w.condition} {w.price}')
         from store import ai_learning                      # learn from the closed signals (once a day)
         ai_learning.safe_daily()
         from store import news_history                     # release history + reactions (at most hourly)

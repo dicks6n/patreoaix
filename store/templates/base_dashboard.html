@@ -7,6 +7,7 @@
     <meta name="theme-color" content="#0b0d12">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    {% include 'partials/pwa_head.html' %}
     <title>{% block title %}PATREOAIX - AI Trading Platform{% endblock %}</title>
 
     <!-- Theme must be applied before first paint -->
@@ -762,6 +763,9 @@
                     <a href="{% url 'news_sentiment' %}" class="nav-item {% if request.resolver_match.url_name == 'news_sentiment' %}nav-active{% endif %}">
                         <i class="fa-solid fa-newspaper"></i><span>News &amp; Sentiment</span>
                     </a>
+                    <a href="{% url 'price_alerts' %}" class="nav-item {% if request.resolver_match.url_name == 'price_alerts' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-bell"></i><span>Price Alerts</span>
+                    </a>
                     <a href="{% url 'copy_trading' %}" class="nav-item {% if request.resolver_match.url_name == 'copy_trading' %}nav-active{% endif %}">
                         <i class="fa-solid fa-robot"></i><span>AI Copy Trading</span>
                     </a>
@@ -1366,5 +1370,6 @@
     </script>
     <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
     {% block extra_js %}{% endblock %}
+    {% include 'partials/pwa_js.html' %}
 </body>
 </html>

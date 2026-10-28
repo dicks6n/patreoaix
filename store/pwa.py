@@ -3,7 +3,8 @@
 Installable web app ("Add to Home Screen"):
 
   /manifest.webmanifest  app name, icons, colours; opens straight into the MT5 terminal
-  /sw.js                 service worker (must live at the site root to control every page)
+  /sw.js                 service worker (must live at the site root to control every page); also shows
+                         push notifications (store/push.py)
   /offline/              shown when the app is opened without a connection
 
 The service worker never caches API calls, prices or form posts: trading data is
@@ -17,7 +18,7 @@ from django.templatetags.static import static
 from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_GET
 
-APP_VERSION = '2026-10-19.1'          # bump to make installed apps refresh their cache
+APP_VERSION = '2026-10-29.1'          # bump to make installed apps refresh their cache
 
 
 def _icon(path):
@@ -31,9 +32,9 @@ def _icon(path):
 @cache_control(max_age=3600, public=True)
 def manifest(request):
     icons = [
-        {'src': _icon('store/img/icons/icon-192.png'), 'sizes': '192x192', 'type': 'image/png', 'purpose': 'any'},
-        {'src': _icon('store/img/icons/icon-512.png'), 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any'},
-        {'src': _icon('store/img/icons/icon-maskable-512.png'), 'sizes': '512x512', 'type': 'image/png', 'purpose': 'maskable'},
+        {'src': _icon('store/icons/icon-192.png'), 'sizes': '192x192', 'type': 'image/png', 'purpose': 'any'},
+        {'src': _icon('store/icons/icon-512.png'), 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any'},
+        {'src': _icon('store/icons/icon-maskable-512.png'), 'sizes': '512x512', 'type': 'image/png', 'purpose': 'maskable'},
     ]
     data = {
         'id': '/terminal/',
@@ -53,6 +54,8 @@ def manifest(request):
             {'name': 'Terminal', 'url': '/terminal/?source=pwa', 'icons': [icons[0]]},
             {'name': 'Dashboard', 'url': '/?source=pwa', 'icons': [icons[0]]},
             {'name': 'Market overview', 'url': '/market-overview/?source=pwa', 'icons': [icons[0]]},
+            {'name': 'Price alerts', 'url': '/price-alerts/?source=pwa', 'icons': [icons[0]]},
+            {'name': 'Copy trading', 'url': '/copy-trading/?source=pwa', 'icons': [icons[0]]},
             {'name': 'Deposit', 'url': '/account-operations/funding/payment-methods/deposit?source=pwa', 'icons': [icons[0]]},
         ],
     }
@@ -66,7 +69,9 @@ const OFFLINE = '/offline/';
 const PRECACHE = [OFFLINE, __ICONS__];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(PRECACHE)).then(() => self.skipWaiting()));
+  // the offline page must cache; icons are best-effort so a missing static file never blocks the app
+  e.waitUntil(caches.open(CACHE).then(c => c.add(OFFLINE).then(() => Promise.all(PRECACHE.slice(1).map(u => c.add(u).catch(() => {})))))
+    .then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
@@ -99,13 +104,31 @@ self.addEventListener('fetch', e => {
 });
 
 self.addEventListener('message', e => { if (e.data === 'skip-waiting') self.skipWaiting(); });
+
+// push notifications (store/push.py): signals, price alerts, copy trades
+self.addEventListener('push', e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (err) { d = { title: 'PATREOAIX', body: e.data ? e.data.text() : '' }; }
+  e.waitUntil(self.registration.showNotification(d.title || 'PATREOAIX', {
+    body: d.body || '', icon: __ICON__, badge: __BADGE__, tag: d.tag || undefined, data: { url: d.url || '/' }, vibrate: [80, 40, 80],
+  }));
+});
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const url = new URL((e.notification.data && e.notification.data.url) || '/', self.location.origin).href;
+  e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+    for (const c of list) { if (c.url === url && 'focus' in c) return c.focus(); }
+    return clients.openWindow(url);
+  }));
+});
 """
 
 
 @require_GET
 def service_worker(request):
-    icons = [_icon(p) for p in ('store/img/icons/icon-192.png', 'store/img/icons/icon-512.png', 'store/img/icons/apple-touch-icon.png')]
-    js = SW.replace('__VERSION__', APP_VERSION).replace('__ICONS__', ', '.join(json.dumps(i) for i in icons))
+    icons = [_icon(p) for p in ('store/icons/icon-192.png', 'store/icons/icon-512.png', 'store/icons/apple-touch-icon.png')]
+    js = SW.replace('__VERSION__', APP_VERSION).replace('__ICONS__', ', '.join(json.dumps(i) for i in icons)) \
+        .replace('__ICON__', json.dumps(icons[0])).replace('__BADGE__', json.dumps(_icon('store/icons/favicon-32.png')))
     resp = HttpResponse(js, content_type='application/javascript')
     resp['Service-Worker-Allowed'] = '/'
     resp['Cache-Control'] = 'no-cache'
@@ -132,4 +155,4 @@ OFFLINE_HTML = """<!doctype html><html lang="en"><head><meta charset="utf-8">
 @require_GET
 @cache_control(max_age=86400, public=True)
 def offline(request):
-    return HttpResponse(OFFLINE_HTML.replace('__ICON__', _icon('store/img/icons/icon-192.png')))
+    return HttpResponse(OFFLINE_HTML.replace('__ICON__', _icon('store/icons/icon-192.png')))

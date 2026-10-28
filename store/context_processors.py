@@ -69,7 +69,8 @@ def promos(request):
     from . import bonus
     from .membership import TRIAL_DAYS
     return {'bonus_on': bonus.enabled(), 'bonus_pct': f'{bonus.pct():.0f}', 'bonus_cap': f'{bonus.cap():.0f}',
-            'bonus_x': f'{bonus.turnover_x():.0f}', 'trial_days': TRIAL_DAYS, 'referral_days': _ref_days()}
+            'bonus_x': f'{bonus.turnover_x():.0f}', 'trial_days': TRIAL_DAYS, 'referral_days': _ref_days(),
+            'vapid_public_key': getattr(settings, 'VAPID_PUBLIC_KEY', '') or ''}
 
 
 def _ref_days():

@@ -70,6 +70,11 @@ BONUS_TURNOVER_X = os.environ.get('BONUS_TURNOVER_X', '10')
 # or is verified), at most REFERRAL_MAX_REWARDS_PER_MONTH inviter rewards a month. 0 turns it off.
 REFERRAL_PRO_DAYS = os.environ.get('REFERRAL_PRO_DAYS', '7')
 REFERRAL_MAX_REWARDS_PER_MONTH = os.environ.get('REFERRAL_MAX_REWARDS_PER_MONTH', '10')
+
+# Push notifications (installable app / browser). Generate once: python manage.py vapid_keys
+VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY', '')
+VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY', '')
+VAPID_EMAIL = os.environ.get('VAPID_EMAIL', '')
 # =============================================
 # NOWCRYPTO API CONFIGURATION
 # =============================================

@@ -1,0 +1,165 @@
+{% extends 'base_dashboard.html' %}
+
+{% block message_toasts %}{% endblock %}
+{% block title %}Price Alerts · PATREOAIX{% endblock %}
+{% block page_title %}Price Alerts{% endblock %}
+
+{% block extra_head %}
+<style>
+    .pa-wrap { display: flex; flex-direction: column; gap: 18px; max-width: 900px; }
+    .pa-card { background: var(--px-panel); border: 1px solid var(--px-line); border-radius: 16px; padding: 18px; }
+    .pa-h { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+    .pa-h h2 { font-size: 16px; font-weight: 800; color: var(--px-text); }
+    .pa-h p, .pa-sub { font-size: 12px; color: var(--px-mute); }
+    .pa-msg { padding: 12px 14px; font-size: 13px; font-weight: 600; border-radius: 12px; background: var(--px-panel-2); color: var(--px-text); border: 1px solid var(--px-line); }
+    .pa-msg.error { border-color: var(--px-down); color: var(--px-down); }
+    .pa-msg.success { border-color: var(--px-up); }
+    .pa-form { display: grid; grid-template-columns: 1.2fr 1fr 1.4fr auto; gap: 10px; align-items: end; }
+    .pa-form label { display: block; font-size: 11px; font-weight: 800; color: var(--px-mute); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+    .pa-form input, .pa-form select { width: 100%; background: var(--px-panel-2); border: 1px solid var(--px-line); color: var(--px-text); border-radius: 10px; padding: 10px 11px; font-size: 14px; }
+    .pa-form input[name=price] { font-family: 'JetBrains Mono', monospace; }
+    .pa-now { font-size: 12px; color: var(--px-mute); margin-top: 8px; min-height: 18px; }
+    .pa-now b { color: var(--px-text); font-family: 'JetBrains Mono', monospace; }
+    .pa-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 11px 16px; border-radius: 10px; font-size: 13px; font-weight: 800; background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); border: 0; cursor: pointer; white-space: nowrap; }
+    .pa-btn.ghost { background: var(--px-panel-2); color: var(--px-text); border: 1px solid var(--px-line); }
+    .pa-btn.sm { padding: 6px 10px; font-size: 11.5px; }
+    .pa-list { display: flex; flex-direction: column; gap: 8px; }
+    .pa-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; background: var(--px-panel-2); }
+    .pa-ico { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex: none; font-size: 14px; }
+    .pa-ico.above { background: var(--px-up-soft); color: var(--px-up); }
+    .pa-ico.below { background: var(--px-down-soft); color: var(--px-down); }
+    .pa-item b { color: var(--px-text); font-size: 14px; }
+    .pa-item .mono { font-family: 'JetBrains Mono', monospace; }
+    .pa-item small { display: block; font-size: 11.5px; color: var(--px-mute); }
+    .pa-item form { margin-left: auto; }
+    .pa-push { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .pa-push p { font-size: 13px; color: var(--px-dim); flex: 1 1 260px; }
+    @media (max-width: 720px) { .pa-form { grid-template-columns: 1fr 1fr; } .pa-form .wide { grid-column: 1 / -1; } .pa-form .pa-btn { grid-column: 1 / -1; } .pa-card { padding: 14px; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pa-wrap">
+    {% for m in messages %}<div class="pa-msg {{ m.tags }}">{{ m }}</div>{% endfor %}
+
+    <div class="pa-card">
+        <div class="pa-h"><h2><i class="fa-solid fa-bell mr-1"></i> Tell me when…</h2><p>One alert fires once, on your phone and here</p></div>
+        <form method="post" class="pa-form" id="paForm">{% csrf_token %}
+            <div>
+                <label for="paSym">Market</label>
+                <select name="symbol" id="paSym">
+                    {% for s, n in symbols %}<option value="{{ s }}" {% if s == sel %}selected{% endif %}>{{ n }}{% if n != s %} · {{ s }}{% endif %}</option>{% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="paPrice">Reaches price</label>
+                <input type="text" inputmode="decimal" name="price" id="paPrice" placeholder="e.g. 4050" required autocomplete="off">
+            </div>
+            <div class="wide">
+                <label for="paNote">Note (optional)</label>
+                <input type="text" name="note" id="paNote" maxlength="140" placeholder="e.g. Sell at resistance">
+            </div>
+            <button type="submit" class="pa-btn"><i class="fa-solid fa-plus"></i> Set alert</button>
+        </form>
+        <div class="pa-now" id="paNow"></div>
+    </div>
+
+    <div class="pa-card">
+        <div class="pa-push">
+            <p id="paPushTxt"><i class="fa-solid fa-mobile-screen mr-1"></i> Get alerts, signals and copy trades as notifications on this phone or computer, even when the site is closed.</p>
+            <button type="button" class="pa-btn" id="paPushBtn" {% if not push_on %}hidden{% endif %}>Enable notifications</button>
+            {% if not push_on %}<span class="pa-sub">Phone notifications are coming soon. Alerts show in your notification bell meanwhile.</span>{% endif %}
+            <button type="button" class="pa-btn ghost" id="paInstallBtn" hidden><i class="fa-solid fa-download"></i> Install app</button>
+        </div>
+    </div>
+
+    <div class="pa-card">
+        <div class="pa-h"><h2>Active alerts</h2><p>{{ active|length }} active · checked every few minutes</p></div>
+        {% if active %}
+        <div class="pa-list">
+            {% for w in active %}
+            <div class="pa-item">
+                <div class="pa-ico {{ w.condition }}"><i class="fa-solid fa-arrow-{% if w.condition == 'above' %}up{% else %}down{% endif %}"></i></div>
+                <div>
+                    <b>{{ w.label }}</b> {{ w.get_condition_display|lower }} <b class="mono">{{ w.price_txt }}</b>
+                    <small>{{ w.symbol }} · set {{ w.created_at|date:"d M H:i" }}{% if w.note %} · {{ w.note }}{% endif %}</small>
+                </div>
+                <form method="post">{% csrf_token %}<input type="hidden" name="delete" value="{{ w.id }}"><button class="pa-btn ghost sm" type="submit" aria-label="Delete alert"><i class="fa-solid fa-trash"></i></button></form>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="pa-sub">No alerts yet. Pick a market and a price above.</p>
+        {% endif %}
+    </div>
+
+    {% if done %}
+    <div class="pa-card">
+        <div class="pa-h"><h2>Triggered</h2></div>
+        <div class="pa-list">
+            {% for w in done %}
+            <div class="pa-item" style="opacity:.8">
+                <div class="pa-ico {{ w.condition }}"><i class="fa-solid fa-check"></i></div>
+                <div>
+                    <b>{{ w.label }}</b> {{ w.get_condition_display|lower }} <b class="mono">{{ w.price_txt }}</b>
+                    <small>{% if w.triggered_at %}Hit {{ w.triggered_at|date:"d M H:i" }}{% if w.hit_txt %} at {{ w.hit_txt }}{% endif %}{% endif %}{% if w.note %} · {{ w.note }}{% endif %}</small>
+                </div>
+                <form method="post">{% csrf_token %}<input type="hidden" name="delete" value="{{ w.id }}"><button class="pa-btn ghost sm" type="submit" aria-label="Delete"><i class="fa-solid fa-xmark"></i></button></form>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var sym = document.getElementById('paSym'), now = document.getElementById('paNow'), price = document.getElementById('paPrice');
+    var last = null;
+    function load() {
+        now.textContent = '';
+        fetch('{% url "api_price_alert" %}?symbol=' + sym.value, { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) {
+            if (!d.success || d.price == null) return;
+            last = d.price; now.innerHTML = 'Now <b>' + d.price_txt + '</b>'; hint();
+        }).catch(function () {});
+    }
+    function hint() {
+        var v = parseFloat((price.value || '').replace(/,/g, ''));
+        if (!last || !v) return;
+        var pct = (v - last) / last * 100;
+        now.innerHTML = now.innerHTML.split(' · ')[0] + ' · alert when it ' + (v >= last ? 'rises' : 'falls') + ' ' + Math.abs(pct).toFixed(2) + '%';
+    }
+    sym.addEventListener('change', load); price.addEventListener('input', hint); load();
+
+    // phone notifications + install
+    var btn = document.getElementById('paPushBtn'), txt = document.getElementById('paPushTxt'), inst = document.getElementById('paInstallBtn');
+    function paint(state) {
+        if (!window.pxPush || btn.hidden && state !== 'install-first') return;
+        btn.disabled = false;
+        if (state === 'on') { btn.textContent = 'Notifications on ✓'; btn.className = 'pa-btn ghost'; btn.dataset.on = '1'; }
+        else if (state === 'blocked') { btn.textContent = 'Blocked in browser settings'; btn.className = 'pa-btn ghost'; btn.disabled = true; }
+        else if (state === 'install-first') { btn.textContent = 'How to enable on iPhone'; btn.dataset.ios = '1'; }
+        else if (state === 'unsupported') { btn.hidden = true; }
+        else { btn.textContent = 'Enable notifications'; btn.className = 'pa-btn'; btn.dataset.on = ''; }
+    }
+    window.addEventListener('load', function () {
+        if (!window.pxPush) return;
+        pxPush.state().then(paint);
+        if (!pxPush.standalone) inst.hidden = false;
+    });
+    btn.addEventListener('click', function () {
+        if (btn.dataset.ios) { alert('On iPhone: tap Share, then "Add to Home Screen". Open PATREOAIX from your Home Screen and tap Enable notifications again.'); return; }
+        btn.disabled = true;
+        (btn.dataset.on ? pxPush.disable() : pxPush.enable()).then(paint).catch(function (e) { alert(e.message); btn.disabled = false; });
+    });
+    inst.addEventListener('click', function () {
+        if (!window.pxInstall || !pxInstall()) {
+            if (window.pxPush && pxPush.ios) alert('On iPhone: tap Share, then "Add to Home Screen".');
+            else alert('Open your browser menu and choose "Install app" or "Add to Home screen".');
+        }
+    });
+})();
+</script>
+{% endblock %}

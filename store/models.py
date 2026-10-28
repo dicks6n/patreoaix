@@ -1720,3 +1720,52 @@ class CopyTrade(models.Model):
 
     def __str__(self):
         return f"{self.user} {self.direction} {self.symbol} [{self.status}]"
+
+
+# ============================================================
+# PUSH NOTIFICATIONS (store/push.py) + PRICE ALERTS (store/price_alerts.py)
+# ============================================================
+class PushSubscription(models.Model):
+    """A browser / installed-app push endpoint (Web Push) for one device of a user."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='push_subscriptions')
+    endpoint = models.TextField(unique=True)
+    p256dh = models.CharField(max_length=255)
+    auth = models.CharField(max_length=255)
+    user_agent = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_ok_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Push {self.user} ({self.user_agent[:40]})"
+
+
+class PriceWatch(models.Model):
+    """'Tell me when gold reaches 4,050': fires once, by push + in-app notification."""
+    CONDITIONS = [('above', 'Rises to'), ('below', 'Falls to')]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='price_watches')
+    symbol = models.CharField(max_length=20, db_index=True)
+    condition = models.CharField(max_length=5, choices=CONDITIONS)
+    price = models.FloatField()
+    note = models.CharField(max_length=140, blank=True)
+    active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    triggered_at = models.DateTimeField(null=True, blank=True)
+    triggered_price = models.FloatField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user} {self.symbol} {self.condition} {self.price}"
+
+
+@receiver(post_save, sender=Notification)
+def push_new_notification(sender, instance, created, **kwargs):
+    """Every in-app notification also goes to the user's phone / desktop (store/push.py; off without VAPID keys)."""
+    if not created:
+        return
+    from .push import enabled, safe_send
+    if enabled():
+        safe_send(instance.user, instance.title, instance.message, instance.action_url or '/',
+                  tag=f'n{instance.pk}')

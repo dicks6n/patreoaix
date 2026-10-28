@@ -10978,3 +10978,74 @@ def api_copy_trading_close(request):
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
     return JsonResponse({'success': True, 'profit': row.profit})
+
+
+# ═══════════════════════════════════════════════════════════════
+# INSTALLABLE APP (PWA) + PUSH NOTIFICATIONS + PRICE ALERTS
+# ═══════════════════════════════════════════════════════════════
+@login_required
+@require_POST
+def api_push_subscribe(request):
+    from . import push
+    if not push.enabled():
+        return JsonResponse({'success': False, 'error': 'Push notifications are not set up on this site yet.'})
+    try:
+        data = json.loads(request.body or '{}')
+        if data.get('unsubscribe'):
+            push.unsubscribe(request.user, data.get('endpoint', ''))
+            return JsonResponse({'success': True, 'subscribed': False})
+        push.subscribe(request.user, data, request.META.get('HTTP_USER_AGENT', ''))
+    except (ValueError, TypeError) as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+    if data.get('test', True):
+        push.safe_send(request.user, '🔔 Notifications are on', 'You will get signals, price alerts and copy trades here.', '/price-alerts/', tag='welcome')
+    return JsonResponse({'success': True, 'subscribed': True})
+
+
+@login_required
+def price_alerts_page(request):
+    from . import price_alerts as pa, push
+    from .models import PriceWatch
+    if request.method == 'POST':
+        if request.POST.get('delete'):
+            PriceWatch.objects.filter(user=request.user, pk=request.POST['delete']).delete()
+            messages.info(request, 'Alert deleted.')
+        else:
+            try:
+                w, now = pa.create(request.user, request.POST.get('symbol'), request.POST.get('price'), request.POST.get('note'))
+                verb = 'rises to' if w.condition == 'above' else 'falls to'
+                messages.success(request, f"Alert set: we'll tell you when {pa.name(w.symbol)} {verb} {pa.fmt(w.symbol, w.price)}"
+                                          + (f' (now {pa.fmt(w.symbol, now)}).' if now else '.'))
+            except ValueError as e:
+                messages.error(request, str(e))
+        return redirect('price_alerts')
+    watches = list(PriceWatch.objects.filter(user=request.user)[:80])
+    for w in watches:
+        w.label, w.price_txt = pa.name(w.symbol), pa.fmt(w.symbol, w.price)
+        w.hit_txt = pa.fmt(w.symbol, w.triggered_price) if w.triggered_price else ''
+    return render(request, 'store/price_alerts.html', {
+        'active': [w for w in watches if w.active], 'done': [w for w in watches if not w.active][:30],
+        'symbols': [(s, pa.name(s)) for s in pa.SYMBOLS], 'sel': (request.GET.get('symbol') or 'XAUUSD').upper(),
+        'push_on': push.enabled(),
+    })
+
+
+@login_required
+def api_price_alert(request):
+    """GET ?symbol= → current price; POST {symbol, price, note} → create (quick add from charts)."""
+    from . import price_alerts as pa
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body or '{}') if request.content_type == 'application/json' else request.POST
+            w, now = pa.create(request.user, data.get('symbol'), data.get('price'), data.get('note', ''))
+        except ValueError as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+        return JsonResponse({'success': True, 'id': w.id, 'condition': w.condition, 'now': now})
+    sym = (request.GET.get('symbol') or '').upper()
+    if sym not in pa.SYMBOLS:
+        return JsonResponse({'success': False, 'error': 'Unknown market.'})
+    try:
+        now = pa.last_price(sym)
+    except Exception:
+        now = None
+    return JsonResponse({'success': True, 'symbol': sym, 'price': now, 'price_txt': pa.fmt(sym, now) if now else None})

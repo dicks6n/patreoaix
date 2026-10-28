@@ -4,6 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0b0e14">
+    {% include 'partials/pwa_head.html' %}
     <title>PATREOAIX - AI Prediction Engine & Trading Hub</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -947,5 +949,6 @@
         })();
     </script>
     <a href="{% url 'subscribe' %}" class="lp-mbar"><i class="fa-solid fa-crown"></i> Subscribe{% if pro_price %} · ${{ pro_price|floatformat:"0" }}/mo{% endif %} <i class="fa-solid fa-arrow-right text-xs"></i></a>
+{% include 'partials/pwa_js.html' %}
 </body>
 </html>

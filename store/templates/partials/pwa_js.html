@@ -1,0 +1,86 @@
+{% load static %}
+<style>
+    .px-install { position: fixed; left: 12px; right: 12px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 70; display: none; align-items: center; gap: 12px;
+                  padding: 12px 14px; border-radius: 16px; background: #141821; border: 1px solid rgba(255,255,255,.12); box-shadow: 0 12px 40px rgba(0,0,0,.45); color: #e8ecf3; font-family: inherit; max-width: 460px; margin: 0 auto; }
+    .px-install.show { display: flex; }
+    .px-install img { width: 42px; height: 42px; border-radius: 11px; flex: none; }
+    .px-install b { display: block; font-size: 14px; }
+    .px-install span { font-size: 12px; color: #8b93a7; }
+    .px-install .go { margin-left: auto; background: #f5b301; color: #0b0e14; border: 0; border-radius: 10px; padding: 9px 14px; font-weight: 800; font-size: 13px; flex: none; cursor: pointer; }
+    .px-install .x { background: none; border: 0; color: #8b93a7; font-size: 18px; padding: 0 2px; cursor: pointer; flex: none; }
+    @media (min-width: 1024px) { .px-install { bottom: 20px; left: auto; right: 20px; } }
+</style>
+<div class="px-install" id="pxInstall" role="dialog" aria-label="Install the app">
+    <img src="{% static 'store/icons/icon-192.png' %}" alt="">
+    <div><b>Install PATREOAIX</b><span id="pxInstallTxt">Signals and price alerts on your home screen.</span></div>
+    <button type="button" class="go" id="pxInstallGo">Install</button>
+    <button type="button" class="x" id="pxInstallX" aria-label="Not now">&times;</button>
+</div>
+<script>
+(function () {
+    var VAPID = '{{ vapid_public_key|default:"" }}';
+    var standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    var ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+    var reg = null, deferred = null;
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function (r) { reg = r; }).catch(function () {});
+    }
+    // ── install card: Android / desktop Chrome get the real prompt; iPhone gets the Share → Add to Home Screen hint ──
+    var box = document.getElementById('pxInstall');
+    function dismissed() { try { return Date.now() - (+localStorage.getItem('px_install_x') || 0) < 7 * 864e5; } catch (e) { return false; } }
+    function show(txt) { if (standalone || dismissed() || !box) return; if (txt) document.getElementById('pxInstallTxt').innerHTML = txt; box.classList.add('show'); }
+    window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; setTimeout(function () { show(); }, 4000); });
+    if (ios && !standalone && /safari/i.test(navigator.userAgent) && !/crios|fxios/i.test(navigator.userAgent)) {
+        setTimeout(function () {
+            show('Tap <b style="display:inline">Share</b> <i class="fa-solid fa-arrow-up-from-bracket"></i> then <b style="display:inline">Add to Home Screen</b>.');
+            var go = document.getElementById('pxInstallGo'); if (go) go.style.display = 'none';
+        }, 5000);
+    }
+    document.getElementById('pxInstallGo').addEventListener('click', function () {
+        if (!deferred) return;
+        deferred.prompt();
+        deferred.userChoice.finally(function () { deferred = null; box.classList.remove('show'); });
+    });
+    document.getElementById('pxInstallX').addEventListener('click', function () {
+        box.classList.remove('show'); try { localStorage.setItem('px_install_x', Date.now()); } catch (e) {}
+    });
+    window.addEventListener('appinstalled', function () { box.classList.remove('show'); });
+    window.pxInstall = function () { if (deferred) { deferred.prompt(); return true; } show(); return false; };
+
+    // ── push notifications: window.pxPush.state() / .enable() / .disable() ──
+    function b64(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); s += '='.repeat((4 - s.length % 4) % 4); var r = atob(s), a = new Uint8Array(r.length); for (var i = 0; i < r.length; i++) a[i] = r.charCodeAt(i); return a; }
+    function csrf() { var m = document.cookie.match(/csrftoken=([^;]+)/); var i = document.querySelector('[name=csrfmiddlewaretoken]'); return m ? m[1] : (i ? i.value : ''); }
+    function post(body) {
+        return fetch('/api/push/subscribe/', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() }, body: JSON.stringify(body) }).then(function (r) { return r.json(); });
+    }
+    function ready() { return reg ? Promise.resolve(reg) : navigator.serviceWorker.ready; }
+    var supported = !!(VAPID && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window);
+    window.pxPush = {
+        supported: supported, ios: ios, standalone: standalone,
+        state: function () {
+            if (!supported) return Promise.resolve(ios && !standalone && VAPID ? 'install-first' : 'unsupported');
+            if (Notification.permission === 'denied') return Promise.resolve('blocked');
+            return ready().then(function (r) { return r.pushManager.getSubscription(); }).then(function (s) { return s ? 'on' : 'off'; });
+        },
+        enable: function () {
+            if (!supported) return Promise.reject(new Error(ios && !standalone ? 'On iPhone, add PATREOAIX to your Home Screen first, then open it from there.' : 'This browser cannot receive push notifications.'));
+            return Notification.requestPermission().then(function (p) {
+                if (p !== 'granted') throw new Error('Notifications were not allowed. Turn them on in your browser settings.');
+                return ready();
+            }).then(function (r) {
+                return r.pushManager.getSubscription().then(function (s) { return s || r.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(VAPID) }); });
+            }).then(function (s) { return post(s.toJSON()); }).then(function (d) { if (!d.success) throw new Error(d.error || 'Could not turn on notifications.'); return 'on'; });
+        },
+        disable: function () {
+            return ready().then(function (r) { return r.pushManager.getSubscription(); }).then(function (s) {
+                if (!s) return 'off';
+                return post({ unsubscribe: true, endpoint: s.endpoint }).then(function () { return s.unsubscribe(); }).then(function () { return 'off'; });
+            });
+        },
+    };
+    // Keep the server's copy fresh when the browser rotates the subscription
+    if (supported && Notification.permission === 'granted') {
+        ready().then(function (r) { return r.pushManager.getSubscription(); }).then(function (s) { if (s) post(Object.assign(s.toJSON(), { test: false })); }).catch(function () {});
+    }
+})();
+</script>
