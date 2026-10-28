@@ -504,6 +504,15 @@
         .sub-cta-go { font-size:11px; color:#f0b90b; }
         .sub-cta:hover { border-color:#f0b90b; }
         @media (max-width:480px) { .sub-btn span { display:none; } .sub-btn { padding:0 11px; } }
+        /* phones: the bottom bar already has the Trade button, so the header keeps only what fits */
+        @media (max-width:639px) {
+            #px-header .hdr-trade { display:none; }
+            .sub-badge span { display:none; }
+            .sub-badge { padding:0 9px; height:34px; }
+            #px-header { gap:6px; }
+            #px-header > .ml-auto { gap:6px; min-width:0; }
+        }
+        @media (max-width:374px) { #px-header .px-wordmark { display:none; } }
         .nav-section-label {
             padding: 0 12px; margin-bottom: 6px;
             font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
@@ -913,11 +922,11 @@
                 </div>
 
                 {% if is_member %}
-                <a href="{% url 'subscription_billing' %}" class="sub-badge" title="Your plan"><i class="fa-solid fa-crown"></i>{{ member_tier }}</a>
+                <a href="{% url 'subscription_billing' %}" class="sub-badge" title="Your plan: {{ member_tier }}"><i class="fa-solid fa-crown"></i><span>{{ member_tier }}</span></a>
                 {% else %}
                 <a href="{% url 'subscription_billing' %}" class="sub-btn"><i class="fa-solid fa-crown text-xs"></i><span>Subscribe</span></a>
                 {% endif %}
-                <a href="{% url 'digits_trading' %}" class="px-btn px-btn-primary">
+                <a href="{% url 'digits_trading' %}" class="px-btn px-btn-primary hdr-trade">
                     <i class="fa-solid fa-bolt text-xs"></i><span class="hidden sm:inline">Trade</span>
                 </a>
             </div>
