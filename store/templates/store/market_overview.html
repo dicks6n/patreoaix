@@ -408,18 +408,40 @@
                 <div class="flex items-center gap-2"><span id="om-sym" class="font-semibold px-strong">—</span><span id="om-sig" class="sig">—</span></div>
                 <span class="text-[12px] px-muted">Price <span id="om-price" class="px-num px-strong font-semibold">—</span></span>
             </div>
+            <div>
+                <span class="block text-[12px] px-dim mb-1.5">Execute on</span>
+                <div class="grid grid-cols-3 gap-2" id="om-acct">
+                    <button type="button" class="risk-btn on" data-a="site"><i class="fa-solid fa-wallet text-[10px]"></i> Site account</button>
+                    <button type="button" class="risk-btn" data-a="demo" disabled><i class="fa-solid fa-flask text-[10px]"></i> Deriv Demo</button>
+                    <button type="button" class="risk-btn" data-a="real" disabled><i class="fa-solid fa-sack-dollar text-[10px]"></i> Deriv Real</button>
+                </div>
+                <p id="om-acct-note" class="text-[11px] px-muted mt-1.5"></p>
+            </div>
             <label class="block hidden" id="om-pprice-row"><span class="block text-[12px] px-dim mb-1.5" id="om-pprice-lbl">Order price</span><input id="om-pprice" type="number" step="any" class="px-input w-full px-num"></label>
             <div class="grid grid-cols-2 gap-3">
                 <label class="block"><span class="block text-[12px] px-dim mb-1.5">Stop loss</span><input id="om-sl" type="number" step="any" class="px-input w-full px-num"></label>
                 <label class="block"><span class="block text-[12px] px-dim mb-1.5">Take profit</span><input id="om-tp" type="number" step="any" class="px-input w-full px-num"></label>
             </div>
-            <div>
+            <div class="om-deriv hidden space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <label class="block"><span class="block text-[12px] px-dim mb-1.5">Stake (USD)</span><input id="om-stake" type="number" min="1" step="1" value="10" class="px-input w-full px-num"></label>
+                    <label class="block"><span class="block text-[12px] px-dim mb-1.5">Multiplier</span><select id="om-mult" class="px-input w-full px-num"></select></label>
+                </div>
+                <div class="rounded-lg p-3 space-y-1.5 text-[12px]" style="background:var(--px-panel-2);border:1px solid var(--px-line-soft)">
+                    <div class="flex justify-between"><span class="px-dim">Deriv contract</span><span id="om-d-contract" class="px-num px-strong font-semibold">—</span></div>
+                    <div class="flex justify-between"><span class="px-dim">Stop loss (amount)</span><span id="om-d-sl" class="px-num px-down font-semibold">—</span></div>
+                    <div class="flex justify-between"><span class="px-dim">Take profit (amount)</span><span id="om-d-tp" class="px-num px-up font-semibold">—</span></div>
+                    <div class="flex justify-between"><span class="px-dim">Most you can lose</span><span id="om-d-max" class="px-num px-strong font-semibold">—</span></div>
+                </div>
+                <p class="text-[11px] px-muted">Your stop and target prices are turned into Deriv's stop-loss / take-profit amounts. The contract shows in your Deriv account under Reports.</p>
+            </div>
+            <div class="om-site">
                 <span class="block text-[12px] px-dim mb-1.5">Risk per trade <span class="px-muted">(of equity <span id="om-equity" class="px-num">—</span>)</span></span>
                 <div class="grid grid-cols-4 gap-2" id="om-risk">
                     <button type="button" class="risk-btn" data-r="0.5">0.5%</button><button type="button" class="risk-btn on" data-r="1">1%</button><button type="button" class="risk-btn" data-r="2">2%</button><button type="button" class="risk-btn" data-r="3">3%</button>
                 </div>
             </div>
-            <div>
+            <div class="om-site">
                 <span class="block text-[12px] px-dim mb-1.5">Volume (lots)</span>
                 <div class="flex items-center gap-2">
                     <button type="button" class="header-icon-btn" onclick="stepLots(-1)" aria-label="Less"><i class="fa-solid fa-minus"></i></button>
@@ -427,7 +449,7 @@
                     <button type="button" class="header-icon-btn" onclick="stepLots(1)" aria-label="More"><i class="fa-solid fa-plus"></i></button>
                 </div>
             </div>
-            <div class="rounded-lg p-3 space-y-1.5 text-[12px]" style="background:var(--px-panel-2);border:1px solid var(--px-line-soft)">
+            <div class="om-site rounded-lg p-3 space-y-1.5 text-[12px]" style="background:var(--px-panel-2);border:1px solid var(--px-line-soft)">
                 <div class="flex justify-between"><span class="px-dim">Margin required</span><span id="om-margin" class="px-num px-strong font-semibold">—</span></div>
                 <div class="flex justify-between"><span class="px-dim">Loss if stop loss hits</span><span id="om-loss" class="px-num px-down font-semibold">—</span></div>
                 <div class="flex justify-between"><span class="px-dim">Profit if take profit hits</span><span id="om-profit" class="px-num px-up font-semibold">—</span></div>
@@ -1052,6 +1074,105 @@
     async function loadEquity() {
         try { const d = await (await fetch('/api/mt5/metrics/', XHR)).json(); if (d.success) equity = d.equity; } catch (e) {}
     }
+    // ── where the order goes: the site account, or the user's own Deriv demo / real account (Multipliers) ──
+    let omAcct = 'site', derivAccts = { demo: null, real: null };
+    const jpost = (url, body) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF, 'X-Requested-With': 'XMLHttpRequest' }, body: JSON.stringify(body) }).then(r => r.json());
+    async function loadDerivAccts() {
+        const [d, r] = await Promise.all(['demo', 'real'].map(a => fetch(`/api/deriv/demo/account/?account=${a}`, XHR).then(x => x.json()).catch(() => null)));
+        derivAccts = { demo: d, real: r };
+        const bD = $('om-acct').querySelector('[data-a=demo]'), bR = $('om-acct').querySelector('[data-a=real]');
+        bD.disabled = !(d && d.connected && d.success);
+        bR.classList.toggle('hidden', !(r && r.real_allowed));
+        bR.disabled = !(r && r.connected);
+        $('om-acct').style.gridTemplateColumns = r && r.real_allowed ? 'repeat(3,1fr)' : 'repeat(2,1fr)';
+        if (!d || !d.connected) $('om-acct-note').innerHTML = 'Want to use your own Deriv account? <a href="/" style="text-decoration:underline">Connect Deriv</a> on the dashboard.';
+    }
+    function setAcct(a) {
+        if (a !== 'site' && om && om.pending) { $('om-acct-note').textContent = 'Deriv runs market orders only: use the site account for pending orders.'; a = 'site'; }
+        omAcct = a;
+        $('om-acct').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.a === a));
+        document.querySelectorAll('#order-modal .om-site').forEach(el => el.classList.toggle('hidden', a !== 'site'));
+        document.querySelectorAll('#order-modal .om-deriv').forEach(el => el.classList.toggle('hidden', a === 'site'));
+        const acc = derivAccts[a];
+        if (a === 'site') $('om-acct-note').textContent = 'Trades on your PATREOAIX trading account.';
+        else if (acc && acc.success) $('om-acct-note').innerHTML = `${a === 'real' ? '<b style="color:var(--px-down)">REAL MONEY</b> · ' : ''}Deriv ${a} ${acc.loginid} · balance ${PX.money(Number(acc.balance))}`;
+        $('om-confirm').querySelector('span').textContent = a === 'real' ? 'Confirm REAL order' : a === 'demo' ? 'Confirm on Deriv Demo' : (om && om.pending ? 'Place order' : 'Confirm order');
+        if (a !== 'site') loadMults();
+        derivPreview();
+    }
+    $('om-acct').addEventListener('click', async e => {
+        const b = e.target.closest('button[data-a]'); if (!b || b.disabled) return;
+        if (b.dataset.a === 'real') {
+            const r = derivAccts.real;
+            if (r && !r.real_enabled) {
+                const ok = confirm('Turn on REAL-MONEY trading?\n\nOrders will use the real balance of your own Deriv account. Multipliers are leveraged: you can lose your whole stake quickly. '
+                    + `Each contract is limited to $${r.real_max_stake}, and every order asks you to confirm. AI signals are estimates, not advice.\n\nPress OK only if you accept these risks.`);
+                if (!ok) return;
+                const d = await jpost('/api/deriv/real/enable/', { accept: true });
+                if (!d.success) { $('om-acct-note').textContent = d.error || 'Could not turn on real trading.'; return; }
+                await loadDerivAccts();
+            }
+            if (!(derivAccts.real && derivAccts.real.success)) { $('om-acct-note').textContent = (derivAccts.real && derivAccts.real.error) || 'Your Deriv real account is not reachable right now.'; return; }
+        }
+        setAcct(b.dataset.a);
+    });
+    let multFor = null;
+    async function loadMults() {
+        if (!om || multFor === om.symbol) return;
+        multFor = om.symbol;
+        const sel = $('om-mult');
+        try {
+            const d = await (await fetch(`/api/deriv/demo/multipliers/?symbol=${encodeURIComponent(om.symbol)}`, XHR)).json();
+            const list = d.multipliers || [100];
+            sel.innerHTML = list.map(m => `<option value="${m}">×${m}</option>`).join('');
+            sel.value = String(list.includes(100) ? 100 : list[0]);
+            if (!d.from_deriv) $('om-acct-note').textContent += ` · Deriv did not confirm Multipliers for ${om.symbol}: the order may be refused.`;
+        } catch (e) { sel.innerHTML = '<option value="100">×100</option>'; }
+        derivPreview();
+    }
+    // Multipliers P/L ≈ stake × multiplier × (price move / entry): turn the stop / target prices into amounts
+    function derivAmounts() {
+        const stake = parseFloat($('om-stake').value) || 0, mult = parseFloat($('om-mult').value) || 0;
+        const px = currentPrice(), sl = parseFloat($('om-sl').value), tp = parseFloat($('om-tp').value);
+        const amt = level => level && px ? stake * mult * Math.abs(level - px) / px : null;
+        return { stake, mult, px, sl, tp, slAmt: amt(sl), tpAmt: amt(tp) };
+    }
+    function derivPreview() {
+        if (!om || omAcct === 'site') return;
+        const a = derivAmounts(), warn = $('om-warn'), msgs = [];
+        $('om-d-contract').textContent = `${om.side === 'BUY' ? 'MULTUP' : 'MULTDOWN'} ×${a.mult || '—'}`;
+        $('om-d-sl').textContent = a.slAmt != null ? '-' + PX.money(Math.min(a.slAmt, a.stake)) : 'none';
+        $('om-d-tp').textContent = a.tpAmt != null ? '+' + PX.money(a.tpAmt) : 'none';
+        $('om-d-max').textContent = PX.money(a.stake);
+        if (a.slAmt != null && a.slAmt > a.stake) msgs.push(`At ×${a.mult} the stop is beyond the stake: Deriv closes the contract when the whole stake is lost. Pick a lower multiplier to keep your stop.`);
+        if (a.slAmt != null && a.slAmt < 0.1) msgs.push('The stop is too close for this stake and multiplier: raise the stake or the multiplier.');
+        if (om.side === 'BUY' && (a.sl >= a.px || a.tp <= a.px)) msgs.push('For a buy, the stop loss must be below the price and the take profit above it.');
+        if (om.side === 'SELL' && (a.sl <= a.px || a.tp >= a.px)) msgs.push('For a sell, the stop loss must be above the price and the take profit below it.');
+        const r = derivAccts.real;
+        if (omAcct === 'real' && r && a.stake > r.real_max_stake) msgs.push(`Real-money stakes are limited to $${r.real_max_stake} per contract.`);
+        warn.textContent = msgs.join(' ');
+        warn.classList.toggle('hidden', !msgs.length);
+    }
+    ['om-stake', 'om-mult'].forEach(id => $(id).addEventListener('input', derivPreview));
+    $('om-mult').addEventListener('change', derivPreview);
+    ['om-sl', 'om-tp'].forEach(id => $(id).addEventListener('input', derivPreview));
+    async function confirmDeriv() {
+        const a = derivAmounts(), real = omAcct === 'real';
+        if (!a.stake || a.stake < 1) throw new Error('Stake must be at least 1 USD.');
+        const body = { symbol: om.symbol, side: om.side, stake: a.stake, multiplier: a.mult, account: omAcct,
+                       stop_loss: a.slAmt != null ? Math.max(0.1, Math.min(a.slAmt, a.stake)).toFixed(2) : null,
+                       take_profit: a.tpAmt != null ? Math.max(0.1, a.tpAmt).toFixed(2) : null };
+        if (real) {
+            const acc = derivAccts.real;
+            if (!confirm(`REAL MONEY\n\n${om.side} ${om.symbol} ×${a.mult}, stake $${a.stake.toFixed(2)} on your Deriv REAL account ${acc.loginid}.\n`
+                + `Stop loss -$${body.stop_loss || '—'} · Take profit +$${body.take_profit || '—'}\n\nYou can lose the whole stake. Place this order?`)) return null;
+            body.confirm_real = true;
+        }
+        const d = await jpost('/api/deriv/demo/open/', body);
+        if (!d.success) throw new Error(d.error || 'Deriv refused the order');
+        return d;
+    }
+
     // spec: {side, sl, tp, pending?: {type: 'limit'|'stop', price}}; no spec = the scanner's own plan
     function openOrder(spec) {
         if (!detail) return;
@@ -1059,7 +1180,8 @@
         if (!spec) return;
         const base = detail.plan || detail.watch || {};
         const perUnit = base.risk_per_lot_usd && base.entry !== base.sl ? base.risk_per_lot_usd / Math.abs(base.entry - base.sl) : null;
-        om = { symbol: detail.symbol, side: spec.side, perUnit, mpl: base.margin_per_lot_usd, min: base.volume_min || 0.01, pending: spec.pending || null };
+        om = { symbol: detail.symbol, side: spec.side, perUnit, mpl: base.margin_per_lot_usd, min: base.volume_min || 0.01, pending: spec.pending || null,
+               entry: base.entry || detail.price };      // price to use until a live quote arrives
         const pend = om.pending;
         $('om-title').textContent = pend ? `Place ${spec.side.toLowerCase()} ${pend.type}` : 'Place order';
         $('om-sub').textContent = pend ? `Pending order: fills only if price reaches ${PX.fmt(om.symbol, pend.price)}` : 'Market execution with stop loss and take profit';
@@ -1074,6 +1196,9 @@
         $('order-modal').classList.remove('hidden');
         loadEquity().then(() => { $('om-equity').textContent = PX.money(equity); suggestLots(); });
         orderPrice();
+        multFor = null;
+        setAcct('site');                                    // real money is always chosen again on purpose
+        loadDerivAccts();
     }
     window.closeOrder = () => $('order-modal').classList.add('hidden');
     function currentPrice() {
@@ -1097,6 +1222,7 @@
     function orderPrice() { if (om) $('om-price').textContent = PX.fmt(om.symbol, currentPrice()); }
     function preview() {
         if (!om) return;
+        if (omAcct !== 'site') return derivPreview();
         const lots = parseFloat($('om-lots').value) || 0, sl = parseFloat($('om-sl').value), tp = parseFloat($('om-tp').value), px = currentPrice();
         const rpl = riskPerLot();
         const loss = rpl ? rpl * lots : null;
@@ -1123,6 +1249,19 @@
     $('om-sl').addEventListener('change', suggestLots);
     $('om-confirm').addEventListener('click', async () => {
         const btn = $('om-confirm');
+        if (omAcct !== 'site') {
+            btn.disabled = true; btn.querySelector('span').textContent = 'Sending to Deriv…';
+            try {
+                const d = await confirmDeriv();
+                if (d) {
+                    closeOrder();
+                    showMarketToast(`Deriv ${omAcct === 'real' ? 'REAL' : 'demo'}: ${om.side} ${om.symbol} ×${$('om-mult').value} opened · #${d.contract_id}`, 'success');
+                    loadDerivAccts();
+                }
+            } catch (e) { const w = $('om-warn'); w.textContent = e.message; w.classList.remove('hidden'); }
+            btn.disabled = false; setAcct(omAcct);
+            return;
+        }
         btn.disabled = true; btn.querySelector('span').textContent = 'Sending…';
         try {
             const lots = parseFloat($('om-lots').value), sl = parseFloat($('om-sl').value), tp = parseFloat($('om-tp').value);
