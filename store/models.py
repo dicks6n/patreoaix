@@ -427,6 +427,12 @@ class KYCProfile(models.Model):
     document_image = models.ImageField(upload_to='kyc_documents/', blank=True, null=True)
     selfie_image = models.ImageField(upload_to='kyc_selfies/', blank=True, null=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
+    # automatic verification (store/kyc_auto.py) and the reviewer's note
+    provider = models.CharField(max_length=20, blank=True, default='')          # '' = manual upload, 'didit'
+    provider_session = models.CharField(max_length=100, blank=True, default='', db_index=True)
+    provider_status = models.CharField(max_length=40, blank=True, default='')
+    admin_notes = models.TextField(blank=True, default='')                      # rejection reason shown to the user
+    verified_at = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.user.username} - {self.status}"

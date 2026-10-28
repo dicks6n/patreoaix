@@ -2,435 +2,116 @@
 
 {% block message_toasts %}{% endblock %}{# this page prints messages itself #}
 
-{% block title %}KYC Verification · PATREOAIX{% endblock %}
+{% block title %}Identity Verification · PATREOAIX{% endblock %}
 {% block page_title %}Identity Verification{% endblock %}
 
 {% block extra_head %}
+{% if kyc_state == 'PENDING' and auto_session %}<meta http-equiv="refresh" content="20">{% endif %}
 <style>
-    .px-card { background: var(--px-panel); border: 1px solid var(--px-line); border-radius: 14px; box-shadow: var(--px-shadow); }
-    .px-num { font-family: 'JetBrains Mono', monospace; }
-    .px-muted { color: var(--px-mute); } .px-dim { color: var(--px-dim); } .px-strong { color: var(--px-text); }
-
-    /* steps */
-    .kst { display: flex; align-items: center; gap: 6px; }
-    .kst .s { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
-    .kst .b { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; flex-shrink: 0;
-              background: var(--px-panel-2); color: var(--px-mute); border: 1px solid var(--px-line); }
-    .kst .t { font-size: 11.5px; font-weight: 600; color: var(--px-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .kst .s.on .b { background: var(--px-accent); color: #0b0e14; border-color: var(--px-accent); }
-    .kst .s.on .t { color: var(--px-text); }
-    .kst .s.done .b { background: var(--px-up); color: #fff; border-color: var(--px-up); }
-    .kst .line { height: 2px; flex: 1; background: var(--px-line); border-radius: 2px; min-width: 10px; }
-    @media (max-width: 640px) { .kst .t { display: none; } .kst .s { flex: 0; } }
-
-    /* document type */
-    .dt { cursor: pointer; }
-    .dt input { position: absolute; opacity: 0; pointer-events: none; }
-    .dt > div { padding: 16px; border-radius: 12px; border: 2px solid var(--px-line); background: var(--px-panel-2); text-align: center; transition: all .15s ease; }
-    .dt:hover > div { border-color: var(--px-mute); }
-    .dt input:checked + div { border-color: var(--px-accent); background: var(--px-accent-soft); }
-    .dt i { font-size: 22px; color: var(--px-accent); }
-
-    /* camera stage */
-    .stage { position: relative; width: 100%; aspect-ratio: 4 / 3; border-radius: 14px; overflow: hidden; background: #05070c; }
-    @media (max-width: 640px) { .stage { aspect-ratio: 3 / 4; } }
-    .stage video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-    .stage video.mirror { transform: scaleX(-1); }
-    .guide { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 0 9999px rgba(0,0,0,.55); border-radius: 14px; transition: border-color .2s ease; border: 3px solid rgba(255,255,255,.7); }
-    .guide.good { border-color: var(--px-up); }
-    .guide.oval { border-radius: 50%; }
-    .guide::before, .guide::after { content: ''; position: absolute; inset: -3px; border-radius: inherit; }
-    .scanline { position: absolute; left: 6%; right: 6%; height: 2px; background: linear-gradient(90deg, transparent, var(--px-accent), transparent); animation: scan 2.2s ease-in-out infinite; opacity: .8; }
-    @keyframes scan { 0%, 100% { top: 8%; } 50% { top: 90%; } }
-    .hint { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); padding: 7px 14px; border-radius: 20px; background: rgba(0,0,0,.72); color: #fff; font-size: 12.5px; font-weight: 600; white-space: nowrap; display: flex; align-items: center; gap: 8px; max-width: 92%; }
-    .hint.good { background: var(--px-up); }
-    .ring { position: absolute; right: 14px; top: 14px; width: 46px; height: 46px; }
-    .ring svg { transform: rotate(-90deg); }
-    .stage-msg { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; color: #e2e8f0; gap: 10px; font-size: 13px; }
-    .flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
-    .flash.go { animation: flash .35s ease; }
-    @keyframes flash { 0% { opacity: .9; } 100% { opacity: 0; } }
-
-    .thumb { border-radius: 12px; overflow: hidden; border: 1px solid var(--px-line); background: var(--px-panel-2); position: relative; aspect-ratio: 1.5; }
-    .thumb img { width: 100%; height: 100%; object-fit: cover; }
-    .thumb .lb { position: absolute; left: 8px; top: 8px; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 6px; background: rgba(0,0,0,.65); color: #fff; }
-    .thumb .ok { position: absolute; right: 8px; top: 8px; width: 22px; height: 22px; border-radius: 50%; background: var(--px-up); color: #fff; font-size: 11px; display: flex; align-items: center; justify-content: center; }
-    .k-in { width: 100%; height: 44px; padding: 0 14px; border-radius: 10px; background: var(--px-panel-2); border: 1px solid var(--px-line); color: var(--px-text); font-size: 15px; font-family: 'JetBrains Mono', monospace; outline: none; letter-spacing: .04em; }
-    .k-in:focus { border-color: var(--px-accent); }
-    .kchk { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--px-dim); }
-    .kchk i { width: 16px; text-align: center; }
-    .kchk.ok i { color: var(--px-up); } .kchk.bad i { color: var(--px-down); } .kchk.wait i { color: var(--px-mute); }
+    .kv-wrap { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+    .kv-card { background: var(--px-panel); border: 1px solid var(--px-line); border-radius: 16px; padding: 28px 22px; text-align: center; box-shadow: var(--px-shadow); }
+    .kv-icon { width: 76px; height: 76px; border-radius: 50%; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center; font-size: 32px; }
+    .kv-ok   { background: var(--px-up-soft); color: var(--px-up); }
+    .kv-wait { background: var(--px-accent-soft); color: var(--px-accent); }
+    .kv-bad  { background: var(--px-down-soft); color: var(--px-down); }
+    .kv-new  { background: var(--px-panel-2); color: var(--px-accent); }
+    .kv-card h2 { font-size: 22px; font-weight: 800; color: var(--px-text); }
+    .kv-card p { font-size: 14px; color: var(--px-dim); margin-top: 6px; line-height: 1.55; }
+    .kv-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 20px; text-align: left; }
+    .kv-fact { background: var(--px-panel-2); border-radius: 12px; padding: 12px 14px; }
+    .kv-fact span { display: block; font-size: 11px; color: var(--px-mute); text-transform: uppercase; letter-spacing: .05em; font-weight: 700; }
+    .kv-fact b { font-size: 14px; color: var(--px-text); }
+    .kv-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 22px; }
+    .kv-btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 12px; font-size: 14px; font-weight: 700; border: 0; cursor: pointer; }
+    .kv-primary { background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); }
+    .kv-ghost { background: var(--px-panel-2); color: var(--px-text); border: 1px solid var(--px-line); }
+    .kv-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 20px; }
+    .kv-step { background: var(--px-panel-2); border-radius: 12px; padding: 14px 10px; font-size: 12.5px; color: var(--px-dim); }
+    .kv-step i { display: block; font-size: 20px; color: var(--px-accent); margin-bottom: 8px; }
+    .kv-reason { margin-top: 16px; padding: 12px 14px; border-radius: 12px; text-align: left; font-size: 13.5px; background: var(--px-down-soft); color: var(--px-down); }
+    .kv-note { font-size: 12px; color: var(--px-mute); text-align: center; }
+    .kv-msg { padding: 12px 14px; border-radius: 12px; font-size: 13px; font-weight: 600; }
+    .kv-spin { animation: kvspin 1.4s linear infinite; }
+    @keyframes kvspin { to { transform: rotate(360deg); } }
+    @media (max-width: 480px) { .kv-steps { grid-template-columns: 1fr; } .kv-card { padding: 24px 16px; } }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto space-y-4">
+<div class="kv-wrap">
+    {% for m in messages %}
+    <div class="kv-msg" style="{% if m.tags == 'error' %}background:var(--px-down-soft);color:var(--px-down){% elif m.tags == 'success' %}background:var(--px-up-soft);color:var(--px-up){% else %}background:var(--px-accent-soft);color:var(--px-accent){% endif %}">{{ m }}</div>
+    {% endfor %}
 
-    <div>
-        <h2 class="text-xl sm:text-2xl font-semibold tracking-tight px-strong">Verify your identity</h2>
-        <p class="text-[13px] mt-1 px-dim">About 2 minutes. Your camera takes the photos automatically once each one is sharp and well lit.</p>
-    </div>
-
-    {% if existing and existing.status == 'REJECTED' %}
-    <div class="p-3.5 rounded-xl text-[12.5px] flex items-start gap-2.5" style="background:var(--px-down-soft);color:var(--px-down)">
-        <i class="fa-solid fa-circle-exclamation mt-0.5"></i><span>Your previous submission was not accepted. Please capture clear, uncovered photos and try again.</span>
-    </div>
-    {% endif %}
-    {% if messages %}
-    <div class="space-y-2">{% for message in messages %}
-        <div class="p-3.5 rounded-xl text-[12.5px] font-semibold flex items-start gap-2.5" style="{% if message.tags == 'error' %}background:var(--px-down-soft);color:var(--px-down){% elif message.tags == 'success' %}background:var(--px-up-soft);color:var(--px-up){% else %}background:var(--px-accent-soft);color:var(--px-accent){% endif %}">
-            <i class="fa-solid {% if message.tags == 'error' %}fa-circle-exclamation{% elif message.tags == 'success' %}fa-circle-check{% else %}fa-circle-info{% endif %} mt-0.5"></i><span>{{ message }}</span>
-        </div>{% endfor %}
-    </div>
-    {% endif %}
-
-    <!-- progress -->
-    <div class="px-card p-4">
-        <div class="kst" id="k-steps">
-            <div class="s" data-i="0"><span class="b">1</span><span class="t">Document</span></div><span class="line"></span>
-            <div class="s" data-i="1"><span class="b">2</span><span class="t">Front</span></div><span class="line"></span>
-            <div class="s" data-i="2"><span class="b">3</span><span class="t">Back</span></div><span class="line"></span>
-            <div class="s" data-i="3"><span class="b">4</span><span class="t">Selfie</span></div><span class="line"></span>
-            <div class="s" data-i="4"><span class="b">5</span><span class="t">Confirm</span></div>
+    {% if kyc_state == 'APPROVED' %}
+    <div class="kv-card">
+        <div class="kv-icon kv-ok"><i class="fa-solid fa-circle-check"></i></div>
+        <h2>Identity verified</h2>
+        <p>Your account is fully verified. You don't need to send your ID again.</p>
+        <div class="kv-facts">
+            <div class="kv-fact"><span>Status</span><b style="color:var(--px-up)">Verified</b></div>
+            {% if kyc_record.document_type %}<div class="kv-fact"><span>Document</span><b>{{ kyc_record.document_type }}</b></div>{% endif %}
+            {% if kyc_record.verified_at %}<div class="kv-fact"><span>Verified on</span><b>{{ kyc_record.verified_at|date:"d M Y" }}</b></div>{% endif %}
+            <div class="kv-fact"><span>Unlocked</span><b>Withdrawals &amp; payouts</b></div>
+        </div>
+        <div class="kv-btns">
+            <a href="{% url 'funding_deposit' %}" class="kv-btn kv-primary"><i class="fa-solid fa-wallet"></i> Deposit</a>
+            <a href="{% url 'market_overview' %}" class="kv-btn kv-ghost"><i class="fa-solid fa-chart-line"></i> AI signals</a>
         </div>
     </div>
 
-    <form method="POST" enctype="multipart/form-data" id="kyc-form">
-        {% csrf_token %}
-        <input type="file" name="document_file" id="f-front" class="hidden" accept="image/*,.pdf">
-        <input type="file" name="document_image" id="f-back" class="hidden" accept="image/*">
-        <input type="file" name="selfie_image" id="f-selfie" class="hidden" accept="image/*">
+    {% elif kyc_state == 'PENDING' %}
+    <div class="kv-card">
+        <div class="kv-icon kv-wait"><i class="fa-solid {% if auto_session and not in_review %}fa-circle-notch kv-spin{% else %}fa-hourglass-half{% endif %}"></i></div>
+        {% if auto_session and in_review %}
+            <h2>A specialist is checking your documents</h2>
+            <p>The automatic check needs a second look. This usually takes a few hours. We'll notify you as soon as it's done.</p>
+        {% elif auto_session %}
+            <h2>Checking your verification…</h2>
+            <p>This usually takes under two minutes after you finish the selfie. This page updates by itself.</p>
+            <p class="kv-note" style="margin-top:14px">Closed the verification before finishing?</p>
+            <form method="post" action="{% url 'kyc_auto_start' %}" class="kv-btns" style="margin-top:8px">{% csrf_token %}
+                <button class="kv-btn kv-ghost" type="submit"><i class="fa-solid fa-rotate-right"></i> Continue verification</button>
+            </form>
+        {% else %}
+            <h2>Your documents are under review</h2>
+            <p>Our team checks documents within 24 hours. We'll notify you as soon as you're verified.</p>
+        {% endif %}
+    </div>
 
-        <!-- STEP 0: document type -->
-        <section class="px-card p-5 kstep" data-step="0">
-            <h3 class="text-[15px] font-semibold px-strong">Which document will you use?</h3>
-            <p class="text-[12px] px-dim mt-0.5">It must be valid, original and show your photo.</p>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
-                <label class="dt relative"><input type="radio" name="document_type" value="national_id" checked><div><i class="fa-solid fa-id-card"></i><p class="text-[13px] font-semibold px-strong mt-2">National ID</p><p class="text-[11px] px-muted">front + back</p></div></label>
-                <label class="dt relative"><input type="radio" name="document_type" value="passport"><div><i class="fa-solid fa-passport"></i><p class="text-[13px] font-semibold px-strong mt-2">Passport</p><p class="text-[11px] px-muted">photo page</p></div></label>
-                <label class="dt relative"><input type="radio" name="document_type" value="drivers_license"><div><i class="fa-solid fa-car"></i><p class="text-[13px] font-semibold px-strong mt-2">Driver's licence</p><p class="text-[11px] px-muted">front + back</p></div></label>
-            </div>
-            <div class="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3 text-[12px]">
-                <div class="kchk"><i class="fa-solid fa-sun"></i>Good light, no glare</div>
-                <div class="kchk"><i class="fa-solid fa-expand"></i>Whole document in the frame</div>
-                <div class="kchk"><i class="fa-solid fa-hand"></i>Hold steady, it captures itself</div>
-            </div>
-            <button type="button" id="k-start" class="px-btn px-btn-primary w-full mt-5" style="height:46px"><i class="fa-solid fa-camera text-[12px]"></i>Start camera</button>
-            <p class="text-[11px] px-muted mt-2 text-center">Your browser will ask for camera access. Nothing is recorded; only the final photos are sent.</p>
-        </section>
+    {% elif kyc_state == 'REJECTED' %}
+    <div class="kv-card">
+        <div class="kv-icon kv-bad"><i class="fa-solid fa-circle-xmark"></i></div>
+        <h2>Verification not approved</h2>
+        <p>Please try again. Use a valid, unexpired ID and make sure the photo is sharp, well lit and shows all four corners.</p>
+        {% if rejection_reason %}<div class="kv-reason"><i class="fa-solid fa-circle-info"></i> {{ rejection_reason }}</div>{% endif %}
+        <div class="kv-btns">
+            {% if auto_kyc %}
+            <form method="post" action="{% url 'kyc_auto_start' %}">{% csrf_token %}
+                <button class="kv-btn kv-primary" type="submit"><i class="fa-solid fa-id-card"></i> Verify again</button>
+            </form>
+            {% else %}
+            <a href="{% url 'kyc_submit' %}" class="kv-btn kv-primary"><i class="fa-solid fa-id-card"></i> Submit documents again</a>
+            {% endif %}
+        </div>
+    </div>
 
-        <!-- STEPS 1–3: camera -->
-        <section class="px-card p-4 sm:p-5 kstep hidden" data-step="cam">
-            <div class="flex items-center justify-between gap-3 mb-3">
-                <div class="min-w-0"><h3 class="text-[15px] font-semibold px-strong" id="cam-title">Front of your document</h3><p class="text-[12px] px-dim" id="cam-sub">Fit the card inside the frame.</p></div>
-                <button type="button" id="cam-flip" class="header-icon-btn" title="Switch camera" aria-label="Switch camera"><i class="fa-solid fa-camera-rotate"></i></button>
-            </div>
-            <div class="stage" id="stage">
-                <video id="cam" playsinline muted autoplay></video>
-                <div class="guide" id="guide"><div class="scanline"></div></div>
-                <div class="ring" id="ring"><svg width="46" height="46" viewBox="0 0 46 46"><circle cx="23" cy="23" r="19" fill="rgba(0,0,0,.55)" stroke="rgba(255,255,255,.25)" stroke-width="4"/><circle id="ring-p" cx="23" cy="23" r="19" fill="none" stroke="var(--px-up)" stroke-width="4" stroke-linecap="round" stroke-dasharray="119.4" stroke-dashoffset="119.4"/></svg></div>
-                <div class="hint" id="hint"><i class="fa-solid fa-spinner fa-spin"></i><span>Starting camera…</span></div>
-                <div class="flash" id="flash"></div>
-                <div class="stage-msg hidden" id="cam-err"></div>
-            </div>
-            <div class="flex flex-wrap gap-2 mt-3">
-                <button type="button" id="cam-snap" class="px-btn px-btn-ghost flex-1 hidden"><i class="fa-solid fa-circle-dot text-[11px]"></i>Take photo now</button>
-                <button type="button" id="cam-upload" class="px-btn px-btn-ghost flex-1"><i class="fa-solid fa-upload text-[11px]"></i>Upload a photo instead</button>
-                <button type="button" id="cam-back" class="px-btn px-btn-ghost"><i class="fa-solid fa-arrow-left text-[11px]"></i>Back</button>
-            </div>
-            <input type="file" id="cam-file" accept="image/*" class="hidden">
-        </section>
-
-        <!-- STEP 4: confirm -->
-        <section class="px-card p-5 kstep hidden" data-step="4">
-            <h3 class="text-[15px] font-semibold px-strong">Check and submit</h3>
-            <p class="text-[12px] px-dim mt-0.5">Tap a photo to retake it.</p>
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4" id="thumbs"></div>
-
-            <div class="mt-5">
-                <label class="block text-[12px] font-semibold px-dim mb-1.5" for="id_number">Document number</label>
-                <input type="text" name="id_number" id="id_number" class="k-in" required minlength="4" maxlength="40" autocomplete="off" placeholder="As printed on your document">
-                <p class="text-[11px] mt-1.5" id="ocr-note" style="color:var(--px-mute)">We'll try to read it from your photo.</p>
-            </div>
-
-            <div class="mt-4 space-y-1.5" id="checks"></div>
-
-            <label class="flex items-start gap-2 mt-4 text-[12px] px-dim cursor-pointer"><input type="checkbox" id="k-agree" class="mt-0.5" required> <span>The photos show my own, original, valid document and my face, taken just now.</span></label>
-            <button type="submit" id="k-submit" class="px-btn px-btn-primary w-full mt-4" style="height:48px"><i class="fa-solid fa-paper-plane text-[12px]"></i>Submit for verification</button>
-            <p class="text-[11px] px-muted mt-2 text-center"><i class="fa-solid fa-lock mr-1"></i>Sent over an encrypted connection and only seen by our compliance team. Usually reviewed within 24 hours.</p>
-        </section>
-    </form>
+    {% else %}
+    <div class="kv-card">
+        <div class="kv-icon kv-new"><i class="fa-solid fa-id-card"></i></div>
+        <h2>Verify your identity in 2 minutes</h2>
+        <p>Unlock withdrawals, funded payouts and higher limits. Checked automatically, most people are verified instantly.</p>
+        <div class="kv-steps">
+            <div class="kv-step"><i class="fa-solid fa-id-card"></i>Scan your ID or passport</div>
+            <div class="kv-step"><i class="fa-solid fa-face-smile"></i>Take a quick selfie</div>
+            <div class="kv-step"><i class="fa-solid fa-bolt"></i>Get verified automatically</div>
+        </div>
+        <form method="post" action="{% url 'kyc_auto_start' %}" class="kv-btns">{% csrf_token %}
+            <button class="kv-btn kv-primary" type="submit"><i class="fa-solid fa-shield-halved"></i> Verify my identity</button>
+        </form>
+        <p class="kv-note" style="margin-top:14px">Secure check by our verification partner. Your ID images are not stored on PATREOAIX.</p>
+    </div>
+    <p class="kv-note"><a href="{% url 'kyc_submit' %}?manual=1" style="text-decoration:underline">Can't use the camera? Upload documents for manual review instead</a></p>
+    {% endif %}
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-(function () {
-    const $ = id => document.getElementById(id);
-    const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-    const docType = () => document.querySelector('input[name="document_type"]:checked').value;
-    const needsBack = () => docType() !== 'passport';
-
-    // capture plan
-    const SHOTS = {
-        front: { title: 'Front of your document', sub: 'Lay it flat. Fit the whole card inside the frame.', facing: 'environment', shape: 'card', input: 'f-front', label: 'Front' },
-        back:  { title: 'Back of your document', sub: 'Turn it over. Fit the whole card inside the frame.', facing: 'environment', shape: 'card', input: 'f-back', label: 'Back' },
-        selfie:{ title: 'Selfie', sub: 'Remove glasses or hat. Look straight at the camera.', facing: 'user', shape: 'oval', input: 'f-selfie', label: 'Selfie' },
-    };
-    const plan = () => needsBack() ? ['front', 'back', 'selfie'] : ['front', 'selfie'];
-    const files = {};             // key → File
-    let current = null, stream = null, facing = 'environment', loopT = null, good = 0, prev = null, startedAt = 0, retakeOnly = false;
-    const NEED = 9;               // consecutive good frames (~1.1 s) before the photo is taken
-
-    function setStep(i) {
-        document.querySelectorAll('#k-steps .s').forEach(s => {
-            const n = +s.dataset.i;
-            s.classList.toggle('on', n === i); s.classList.toggle('done', n < i);
-        });
-        document.querySelector('#k-steps .s[data-i="2"]').style.opacity = needsBack() ? '' : '.35';
-    }
-    function show(which) { document.querySelectorAll('.kstep').forEach(s => s.classList.toggle('hidden', s.dataset.step !== which)); window.scrollTo({ top: 0, behavior: 'smooth' }); }
-
-    // ── camera ──
-    async function openCamera() {
-        stopCamera();
-        const err = $('cam-err'); err.classList.add('hidden');
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return camError('This browser cannot open the camera here. The site must be opened over https, or use "Upload a photo instead".');
-        try {
-            stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: facing }, width: { ideal: 1920 }, height: { ideal: 1080 } } });
-        } catch (e) {
-            return camError(e.name === 'NotAllowedError' ? 'Camera access was blocked. Allow the camera in your browser settings, or use "Upload a photo instead".' : 'No camera found. Use "Upload a photo instead".');
-        }
-        const v = $('cam'); v.srcObject = stream;
-        v.classList.toggle('mirror', facing === 'user');
-        try { await v.play(); } catch (e) {}
-        await new Promise(r => v.videoWidth ? r() : v.addEventListener('loadedmetadata', r, { once: true }));
-        layoutGuide(); good = 0; prev = null; startedAt = Date.now();
-        $('cam-snap').classList.add('hidden');
-        loop();
-    }
-    function camError(msg) {
-        const err = $('cam-err'); err.innerHTML = `<i class="fa-solid fa-video-slash text-2xl" style="color:var(--px-accent)"></i><p>${msg}</p>`; err.classList.remove('hidden');
-        $('hint').style.display = 'none'; $('ring').style.display = 'none';
-    }
-    function stopCamera() { clearTimeout(loopT); if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; }
-
-    function layoutGuide() {
-        const st = $('stage'), g = $('guide'), sh = SHOTS[current];
-        const W = st.clientWidth, H = st.clientHeight;
-        let w, h;
-        if (sh.shape === 'oval') { h = H * 0.72; w = Math.min(W * 0.7, h * 0.78); g.classList.add('oval'); }
-        else { const ratio = docType() === 'passport' ? 1.42 : 1.586; w = W * 0.88; h = w / ratio; if (h > H * 0.8) { h = H * 0.8; w = h * ratio; } g.classList.remove('oval'); }
-        g.style.width = w + 'px'; g.style.height = h + 'px';
-        g.querySelector('.scanline').style.display = sh.shape === 'oval' ? 'none' : '';
-        $('hint').style.display = ''; $('ring').style.display = '';
-    }
-    // guide rectangle in video pixels (video is object-fit: cover)
-    function guideInVideo() {
-        const v = $('cam'), st = $('stage'), g = $('guide');
-        const W = st.clientWidth, H = st.clientHeight, vw = v.videoWidth, vh = v.videoHeight;
-        const s = Math.max(W / vw, H / vh), ox = (W - vw * s) / 2, oy = (H - vh * s) / 2;
-        const gw = g.offsetWidth, gh = g.offsetHeight, gx = (W - gw) / 2, gy = (H - gh) / 2;
-        let x = (gx - ox) / s, y = (gy - oy) / s, w = gw / s, h = gh / s;
-        if (v.classList.contains('mirror')) x = vw - x - w;
-        return { x: Math.max(0, x), y: Math.max(0, y), w: Math.min(w, vw), h: Math.min(h, vh) };
-    }
-
-    // ── quality analysis on a small copy of the guide area ──
-    const small = document.createElement('canvas'), sctx = small.getContext('2d', { willReadFrequently: true });
-    function analyse() {
-        const v = $('cam'), r = guideInVideo();
-        const W = 180, H = Math.round(W * r.h / r.w);
-        small.width = W; small.height = H;
-        sctx.drawImage(v, r.x, r.y, r.w, r.h, 0, 0, W, H);
-        const d = sctx.getImageData(0, 0, W, H).data, n = W * H, g = new Float32Array(n);
-        let sum = 0, sum2 = 0, glare = 0;
-        for (let i = 0, j = 0; i < d.length; i += 4, j++) {
-            const y = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-            g[j] = y; sum += y; sum2 += y * y; if (y > 248) glare++;
-        }
-        const mean = sum / n, std = Math.sqrt(Math.max(0, sum2 / n - mean * mean));
-        let lap = 0, lap2 = 0, cnt = 0;
-        for (let y = 1; y < H - 1; y += 1) for (let x = 1; x < W - 1; x += 1) {
-            const i = y * W + x, L = 4 * g[i] - g[i - 1] - g[i + 1] - g[i - W] - g[i + W];
-            lap += L; lap2 += L * L; cnt++;
-        }
-        const sharp = lap2 / cnt - (lap / cnt) ** 2;
-        let diff = 0;
-        if (prev && prev.length === n) { for (let i = 0; i < n; i += 3) diff += Math.abs(g[i] - prev[i]); diff /= n / 3; } else diff = 99;
-        prev = g;
-        return { mean, std, glare: glare / n, sharp, diff };
-    }
-
-    let faceDet = null;
-    try { if ('FaceDetector' in window) faceDet = new window.FaceDetector({ fastMode: true, maxDetectedFaces: 2 }); } catch (e) { faceDet = null; }
-    async function faceCheck() {
-        if (!faceDet) return { ok: true, msg: null };
-        try {
-            const faces = await faceDet.detect($('cam'));
-            if (!faces.length) return { ok: false, msg: 'Put your face inside the oval' };
-            if (faces.length > 1) return { ok: false, msg: 'Only one face, please' };
-            const r = guideInVideo(), b = faces[0].boundingBox, cx = b.x + b.width / 2, cy = b.y + b.height / 2;
-            const v = $('cam'), mx = v.classList.contains('mirror') ? v.videoWidth - cx : cx;
-            if (Math.abs(mx - (r.x + r.w / 2)) > r.w * 0.18 || Math.abs(cy - (r.y + r.h / 2)) > r.h * 0.18) return { ok: false, msg: 'Centre your face in the oval' };
-            if (b.width < r.w * 0.38) return { ok: false, msg: 'Move closer' };
-            if (b.width > r.w * 1.05) return { ok: false, msg: 'Move back a little' };
-            return { ok: true, msg: null };
-        } catch (e) { return { ok: true, msg: null }; }
-    }
-
-    async function loop() {
-        if (!stream) return;
-        const q = analyse(), sh = SHOTS[current];
-        let msg = null;
-        if (q.mean < 55) msg = 'Too dark: find more light';
-        else if (q.mean > 225 || q.glare > (sh.shape === 'oval' ? 0.08 : 0.025)) msg = 'Too bright or glare: tilt it away from the light';
-        else if (q.std < (sh.shape === 'oval' ? 18 : 24)) msg = sh.shape === 'oval' ? 'Put your face inside the oval' : 'Place your document inside the frame';
-        else if (q.diff > (sh.shape === 'oval' ? 9 : 6)) msg = 'Hold still…';
-        else if (q.sharp < (sh.shape === 'oval' ? 25 : 60)) msg = sh.shape === 'oval' ? 'Hold still: image is blurry' : 'Blurry: move a little further and let it focus';
-        if (!msg && sh.shape === 'oval') { const f = await faceCheck(); if (!f.ok) msg = f.msg; }
-        good = msg ? Math.max(0, good - 2) : good + 1;
-        const p = Math.min(1, good / NEED);
-        $('ring-p').style.strokeDashoffset = 119.4 * (1 - p);
-        $('guide').classList.toggle('good', !msg);
-        const hint = $('hint');
-        hint.classList.toggle('good', !msg);
-        hint.innerHTML = msg ? `<i class="fa-solid fa-circle-info"></i><span>${msg}</span>` : `<i class="fa-solid fa-check"></i><span>Perfect, hold it there…</span>`;
-        if (Date.now() - startedAt > 9000) $('cam-snap').classList.remove('hidden');
-        if (good >= NEED) return capture('auto');
-        loopT = setTimeout(loop, 120);
-    }
-
-    function capture(how) {
-        const v = $('cam'); if (!v.videoWidth) return;
-        clearTimeout(loopT);
-        const r = guideInVideo(), sh = SHOTS[current];
-        // a little margin around the guide so edges aren't cut
-        const m = sh.shape === 'oval' ? 0.25 : 0.06;
-        const x = Math.max(0, r.x - r.w * m), y = Math.max(0, r.y - r.h * m);
-        const w = Math.min(v.videoWidth - x, r.w * (1 + 2 * m)), h = Math.min(v.videoHeight - y, r.h * (1 + 2 * m));
-        const c = document.createElement('canvas');
-        const scale = Math.min(1, 1800 / Math.max(w, h));
-        c.width = Math.round(w * scale); c.height = Math.round(h * scale);
-        c.getContext('2d').drawImage(v, x, y, w, h, 0, 0, c.width, c.height);
-        $('flash').classList.remove('go'); void $('flash').offsetWidth; $('flash').classList.add('go');
-        c.toBlob(b => {
-            const f = new File([b], `${current}-${Date.now()}.jpg`, { type: 'image/jpeg' });
-            f._how = how; f._q = analyseStill(c);
-            accept(f);
-        }, 'image/jpeg', 0.92);
-    }
-    function analyseStill(c) { return { w: c.width, h: c.height }; }
-
-    function accept(f) {
-        files[current] = f;
-        if (current === 'front') readNumber(f);
-        stopCamera();
-        next();
-    }
-
-    // ── flow ──
-    function startShot(key) {
-        current = key;
-        const sh = SHOTS[key];
-        facing = sh.facing;
-        $('cam-title').textContent = sh.title; $('cam-sub').textContent = sh.sub;
-        setStep(key === 'front' ? 1 : key === 'back' ? 2 : 3);
-        show('cam');
-        openCamera();
-    }
-    function next() {
-        if (retakeOnly) { retakeOnly = false; return review(); }
-        const p = plan(), i = p.indexOf(current);
-        if (i >= 0 && i < p.length - 1) return startShot(p[i + 1]);
-        review();
-    }
-    function review() {
-        stopCamera(); current = null; setStep(4); show('4');
-        if (!needsBack()) delete files.back;
-        $('thumbs').innerHTML = plan().map(k => {
-            const f = files[k];
-            const src = f && f.type.startsWith('image/') ? URL.createObjectURL(f) : '';
-            return `<button type="button" class="thumb" data-k="${k}" title="Retake">${src ? `<img src="${src}" alt="${SHOTS[k].label}">` : `<div class="w-full h-full flex items-center justify-center px-dim text-[12px]"><i class="fa-regular fa-file-pdf text-2xl"></i></div>`}
-                <span class="lb">${SHOTS[k].label}</span>${f ? '<span class="ok"><i class="fa-solid fa-check"></i></span>' : ''}</button>`;
-        }).join('');
-        $('thumbs').querySelectorAll('.thumb').forEach(t => t.addEventListener('click', () => { retakeOnly = true; startShot(t.dataset.k); }));
-        renderChecks();
-    }
-    function renderChecks() {
-        const rows = [];
-        plan().forEach(k => {
-            const f = files[k];
-            rows.push(f ? `<div class="kchk ok"><i class="fa-solid fa-circle-check"></i>${SHOTS[k].label}: ${f._how === 'auto' ? 'captured automatically after the quality checks' : f._how === 'manual' ? 'taken manually' : 'uploaded'}</div>`
-                        : `<div class="kchk bad"><i class="fa-solid fa-circle-xmark"></i>${SHOTS[k].label} missing: tap its tile to capture it</div>`);
-        });
-        $('checks').innerHTML = rows.join('');
-        $('k-submit').disabled = plan().some(k => !files[k]);
-    }
-
-    // ── document number from the photo (on-device OCR, best effort) ──
-    let ocrJob = null;
-    function loadTesseract() {
-        if (window.Tesseract) return Promise.resolve();
-        return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
-    }
-    function pickNumber(text) {
-        const t = text.toUpperCase().replace(/[^A-Z0-9<\n ]/g, ' ');
-        // passport MRZ line 2: document number = first 9 characters
-        const mrz = t.split('\n').map(l => l.replace(/\s/g, '')).find(l => /^[A-Z0-9<]{9}\d[A-Z]{3}\d{6}/.test(l));
-        if (mrz) return mrz.slice(0, 9).replace(/</g, '');
-        const cands = (t.match(/\b[A-Z]{0,2}\d{6,10}[A-Z]?\b/g) || []).filter(c => !/^(19|20)\d{6}$/.test(c));   // skip dates like 19900101
-        cands.sort((a, b) => (/[A-Z]/.test(b) - /[A-Z]/.test(a)) || b.length - a.length);
-        return cands[0] || null;
-    }
-    function readNumber(file) {
-        if (!file.type.startsWith('image/')) return;
-        const note = $('ocr-note');
-        note.textContent = 'Reading the number from your photo…';
-        ocrJob = loadTesseract().then(() => Tesseract.recognize(file, 'eng')).then(r => {
-            const num = pickNumber(r.data.text || '');
-            const inp = $('id_number');
-            if (num && !inp.value) { inp.value = num; note.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles mr-1"></i>Read automatically from your photo. Please check it matches your document.'; note.style.color = 'var(--px-accent)'; }
-            else if (!num) { note.textContent = "We couldn't read the number. Please type it."; }
-        }).catch(() => { note.textContent = 'Type the number exactly as printed on your document.'; });
-    }
-
-    // ── controls ──
-    $('k-start').addEventListener('click', () => { Object.keys(files).forEach(k => delete files[k]); retakeOnly = false; startShot('front'); });
-    $('cam-snap').addEventListener('click', () => capture('manual'));
-    $('cam-flip').addEventListener('click', () => { facing = facing === 'user' ? 'environment' : 'user'; openCamera(); });
-    $('cam-back').addEventListener('click', () => {
-        stopCamera();
-        if (retakeOnly) { retakeOnly = false; return review(); }
-        const p = plan(), i = p.indexOf(current);
-        if (i > 0) startShot(p[i - 1]); else { setStep(0); show('0'); }
-    });
-    $('cam-upload').addEventListener('click', () => { $('cam-file').accept = current === 'front' ? 'image/*,.pdf' : 'image/*'; $('cam-file').click(); });
-    $('cam-file').addEventListener('change', e => {
-        const f = e.target.files[0]; e.target.value = '';
-        if (!f) return;
-        if (f.size > 10 * 1024 * 1024) { alert('That file is larger than 10 MB.'); return; }
-        f._how = 'upload';
-        accept(f);
-    });
-    window.addEventListener('resize', () => { if (stream) layoutGuide(); });
-    document.querySelectorAll('input[name="document_type"]').forEach(r => r.addEventListener('change', () => setStep(0)));
-
-    // put the captured files into the real form inputs, then submit normally (server keeps its rules)
-    $('kyc-form').addEventListener('submit', e => {
-        if (plan().some(k => !files[k])) { e.preventDefault(); renderChecks(); return; }
-        if (($('id_number').value || '').trim().length < 4) { e.preventDefault(); $('id_number').focus(); return; }
-        try {
-            plan().forEach(k => { const dt = new DataTransfer(); dt.items.add(files[k]); $(SHOTS[k].input).files = dt.files; });
-            if (!needsBack()) $('f-back').value = '';
-        } catch (er) {
-            e.preventDefault(); alert('This browser could not attach the photos. Please update it or use another browser.'); return;
-        }
-        const b = $('k-submit'); b.disabled = true; b.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[12px]"></i>Uploading…';
-    });
-
-    document.addEventListener('visibilitychange', () => { if (document.hidden) stopCamera(); else if (current && !stream) openCamera(); });
-    setStep(0);
-})();
-</script>
 {% endblock %}

@@ -100,6 +100,9 @@ urlpatterns = [
     # KYC & Compliance Suite (New)
     path('kyc/submit/', views.kyc_submit_view, name='kyc_submit'),
     path('kyc/status/', views.kyc_status_view, name='kyc_status'),
+    path('kyc/start/', views.kyc_auto_start, name='kyc_auto_start'),
+    path('kyc/return/', views.kyc_auto_return, name='kyc_auto_return'),
+    path('kyc/webhook/', views.kyc_webhook, name='kyc_webhook'),
 # urls.py snippet
     path('admin/messages/', views.admin_message_center_view, name='admin_message_center'),
     path('support/', views.ai_support_view, name='ai_support'),

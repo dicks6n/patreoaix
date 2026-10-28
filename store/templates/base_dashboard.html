@@ -1325,7 +1325,7 @@
         // ══════════════════════════════════════════
         function goToKyc() {
             const status = "{{ kyc_status|default:'MISSING'|escapejs }}";
-            window.location.href = status === 'PENDING' ? "{% url 'kyc_status' %}" : "{% url 'kyc_submit' %}";
+            window.location.href = "{% url 'kyc_status' %}";     // the status page knows what to show (or starts verification)
         }
         document.addEventListener('DOMContentLoaded', () => {
             const banner = document.getElementById('kyc-banner');

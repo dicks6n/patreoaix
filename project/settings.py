@@ -359,6 +359,11 @@ TELEGRAM_COACH_SYMBOLS = os.getenv('TELEGRAM_COACH_SYMBOLS', 'XAUUSD,EURUSD,GBPU
 TELEGRAM_COACH_MINUTES = os.getenv('TELEGRAM_COACH_MINUTES', '60')   # min gap per market (entries post at once)
 TELEGRAM_COACH_DAILY = os.getenv('TELEGRAM_COACH_DAILY', '12')       # coach posts per day
 
+# ── Automatic KYC (store/kyc_auto.py): Didit ID + selfie check; empty = manual upload reviewed by staff ──
+DIDIT_API_KEY = os.getenv('DIDIT_API_KEY', '')
+DIDIT_WORKFLOW_ID = os.getenv('DIDIT_WORKFLOW_ID', '')
+DIDIT_WEBHOOK_SECRET = os.getenv('DIDIT_WEBHOOK_SECRET', '')
+
 # ── TikTok: signal posters as photo posts (store/tiktok.py has the setup steps) ──
 TIKTOK_CLIENT_KEY = os.getenv('TIKTOK_CLIENT_KEY', '')
 TIKTOK_CLIENT_SECRET = os.getenv('TIKTOK_CLIENT_SECRET', '')

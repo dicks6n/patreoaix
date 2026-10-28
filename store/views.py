@@ -15,6 +15,7 @@ try:
 except ImportError:
     from backports.zoneinfo import ZoneInfo
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required 
 from django.views.decorators.http import require_POST , require_http_methods
@@ -5370,6 +5371,10 @@ def kyc_submit_view(request):
             messages.info(request, "Your KYC is already under review. Please wait for approval.")
             return redirect('kyc_status')
 
+    from . import kyc_auto
+    if request.method == 'GET' and kyc_auto.enabled() and not request.GET.get('manual'):
+        return redirect('kyc_status')
+
     if request.method == 'POST':
         document_type = request.POST.get('document_type', 'National ID')
         id_number = request.POST.get('id_number', '')
@@ -5389,6 +5394,7 @@ def kyc_submit_view(request):
 
         defaults = {
             'status': 'PENDING',
+            'provider': '', 'provider_session': '', 'provider_status': '', 'admin_notes': '',
             'document_type': document_type,
             'id_number': id_number,
             'document_file': document_file,
@@ -5497,48 +5503,99 @@ def admin_kyc_queue_view(request):
 
 @login_required
 def kyc_status_view(request):
-    """
-    KYC status page.
-    - If APPROVED  → show success/verified screen
-    - If PENDING   → show waiting screen
-    - If REJECTED  → show re-submit prompt
-    - If MISSING   → redirect to submit form
-    """
+    """KYC status: verified / under review / not approved / not started. Verified users are never asked again."""
+    from . import kyc_auto
     kyc_record = KYCProfile.objects.filter(user=request.user).first()
-
-    # Staff & superusers are always verified
     if request.user.is_staff or request.user.is_superuser:
-        return render(request, 'store/kyc_status.html', {
-            'kyc_status': 'APPROVED',
-            'kyc_record': kyc_record,
-            'is_verified': True,
-            'show_verified': True,
-        })
-
-    if not kyc_record:
-        # No record at all → send to submit form
-        return redirect('kyc_submit')
-
-    status = str(kyc_record.status or '').upper().strip()
-
-    # Normalize
-    if status in ('APPROVED', 'VERIFIED', 'VERIFICATION_SUCCESS'):
         normalized = 'APPROVED'
-    elif status in ('REJECTED', 'FAILED', 'DECLINED'):
-        normalized = 'REJECTED'
-    elif status in ('PENDING', 'UNDER_REVIEW', 'IN_REVIEW', 'PROCESSING'):
-        normalized = 'PENDING'
+    elif not kyc_record:
+        if not kyc_auto.enabled():
+            return redirect('kyc_submit')               # manual upload only
+        normalized = 'MISSING'
     else:
-        normalized = 'PENDING'
-
+        if kyc_record.provider == 'didit' and str(kyc_record.status).upper() == 'PENDING' \
+                and cache.add(f'kyc:refresh:{kyc_record.pk}', 1, 20):
+            try:
+                kyc_auto.refresh(kyc_record)            # the decision may have arrived
+            except Exception as e:
+                logger.info(f'KYC refresh {kyc_record.pk}: {e}')
+        status = str(kyc_record.status or '').upper().strip()
+        normalized = ('APPROVED' if status in ('APPROVED', 'VERIFIED', 'VERIFICATION_SUCCESS') else
+                      'REJECTED' if status in ('REJECTED', 'FAILED', 'DECLINED') else 'PENDING')
     return render(request, 'store/kyc_status.html', {
-        'kyc_status': normalized,
+        'kyc_state': normalized,
         'kyc_record': kyc_record,
-        'is_verified': normalized == 'APPROVED',
-        'show_verified': normalized == 'APPROVED',
-        # Include rejection reason if present
+        'auto_kyc': kyc_auto.enabled(),
+        'auto_session': bool(kyc_record and kyc_record.provider == 'didit'),
+        'in_review': bool(kyc_record and kyc_record.provider_status in ('in review', 'in_review', 'review')),
         'rejection_reason': getattr(kyc_record, 'admin_notes', '') or '',
     })
+
+
+@login_required
+@require_POST
+def kyc_auto_start(request):
+    """Start (or restart) automatic verification and send the customer to the provider's secure page."""
+    from . import kyc_auto
+    kyc = KYCProfile.objects.filter(user=request.user).first()
+    if kyc and str(kyc.status).upper() == 'APPROVED':
+        messages.info(request, 'Your identity is already verified ✅')
+        return redirect('kyc_status')
+    if not kyc_auto.enabled():
+        return redirect('kyc_submit')
+    try:
+        back = (getattr(settings, 'SITE_URL', '') or request.build_absolute_uri('/')).rstrip('/') + reverse('kyc_auto_return')
+        session_id, url = kyc_auto.start_session(request.user, back)
+    except Exception as e:
+        logger.warning(f'KYC session for {request.user.pk} failed: {e}')
+        messages.error(request, 'Automatic verification is unavailable right now. Please try again in a few minutes, '
+                                'or upload your documents manually.')
+        return redirect('kyc_status')
+    KYCProfile.objects.update_or_create(user=request.user, defaults={
+        'status': 'PENDING', 'provider': 'didit', 'provider_session': session_id, 'provider_status': 'not started',
+        'admin_notes': ''})
+    return redirect(url)
+
+
+@login_required
+def kyc_auto_return(request):
+    """The customer comes back from the provider: look the result up (not the link's own claims)."""
+    from . import kyc_auto
+    kyc = KYCProfile.objects.filter(user=request.user, provider='didit').first()
+    if kyc:
+        try:
+            status = kyc_auto.refresh(kyc)
+            if status == 'APPROVED':
+                messages.success(request, 'Identity verified ✅ Withdrawals and funded payouts are unlocked.')
+            elif status == 'REJECTED':
+                messages.error(request, 'Your verification was not approved. See the reason below and try again.')
+            else:
+                messages.info(request, 'Thanks! Your verification is being checked. This page updates by itself.')
+        except Exception as e:
+            logger.warning(f'KYC return {kyc.pk}: {e}')
+    return redirect('kyc_status')
+
+
+@csrf_exempt
+@require_POST
+def kyc_webhook(request):
+    """Provider → us when a session changes. The body only names the session; the result is fetched from the API."""
+    from . import kyc_auto
+    if not kyc_auto.signature_ok(request.body, request.headers.get('X-Signature', '')):
+        logger.info('KYC webhook: signature did not match (the decision is fetched from the API anyway)')
+    try:
+        data = json.loads(request.body.decode('utf-8') or '{}')
+    except ValueError:
+        return JsonResponse({'ok': False}, status=400)
+    sid = str(data.get('session_id') or '')
+    kyc = KYCProfile.objects.filter(provider='didit', provider_session=sid).first() if sid else None
+    if kyc:
+        try:
+            kyc_auto.refresh(kyc)
+        except Exception as e:
+            logger.warning(f'KYC webhook refresh {kyc.pk}: {e}')
+            return JsonResponse({'ok': False}, status=502)     # the provider retries
+    return JsonResponse({'ok': True})
 
 
 @staff_member_required
@@ -5554,6 +5611,8 @@ def update_kyc_status(request, pk):
 
         if action == 'APPROVE':
             kyc.status = 'APPROVED'
+            kyc.admin_notes = ''
+            kyc.verified_at = timezone.now()
             kyc.save()
 
             Notification.objects.create(
@@ -5575,6 +5634,7 @@ def update_kyc_status(request, pk):
 
         elif action == 'REJECT':
             kyc.status = 'REJECTED'
+            kyc.admin_notes = admin_notes or 'Documents unclear'
             kyc.save()
 
             Notification.objects.create(
@@ -5583,8 +5643,8 @@ def update_kyc_status(request, pk):
                 message=f"Your KYC was rejected. Reason: {admin_notes or 'Documents unclear'}",
                 category='KYC',
                 priority='error',
-                action_url='/kyc/submit/',
-                action_label='Re-submit',
+                action_url='/kyc/status/',
+                action_label='Try again',
             )
 
             # ✅ SMS
