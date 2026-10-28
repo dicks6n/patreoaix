@@ -69,4 +69,9 @@ def promos(request):
     from . import bonus
     from .membership import TRIAL_DAYS
     return {'bonus_on': bonus.enabled(), 'bonus_pct': f'{bonus.pct():.0f}', 'bonus_cap': f'{bonus.cap():.0f}',
-            'bonus_x': f'{bonus.turnover_x():.0f}', 'trial_days': TRIAL_DAYS}
+            'bonus_x': f'{bonus.turnover_x():.0f}', 'trial_days': TRIAL_DAYS, 'referral_days': _ref_days()}
+
+
+def _ref_days():
+    from .referral_rewards import days
+    return days()

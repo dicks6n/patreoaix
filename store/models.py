@@ -1218,6 +1218,8 @@ class Referral(models.Model):
 
     total_reward = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     reward_paid = models.BooleanField(default=False)
+    pro_days_given = models.BooleanField(default=False)    # the inviter's "+7 days of Pro" (store/referral_rewards.py)
+    pro_days_at = models.DateTimeField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     activated_at = models.DateTimeField(null=True, blank=True)
@@ -1383,6 +1385,8 @@ def first_deposit_bonus(sender, instance, created, **kwargs):
         try:
             from .bonus import on_deposit
             on_deposit(instance)
+            from .referral_rewards import safe as referral_reward
+            referral_reward(instance.user, 'made their first deposit')
         except Exception as e:
             import logging
             logging.getLogger(__name__).warning(f'first-deposit bonus failed: {e}')

@@ -66,6 +66,10 @@ TOKEN_ENCRYPTION_KEY = os.environ.get('TOKEN_ENCRYPTION_KEY', '')
 FIRST_DEPOSIT_BONUS_PCT = os.environ.get('FIRST_DEPOSIT_BONUS_PCT', '100')
 FIRST_DEPOSIT_BONUS_MAX = os.environ.get('FIRST_DEPOSIT_BONUS_MAX', '500')
 BONUS_TURNOVER_X = os.environ.get('BONUS_TURNOVER_X', '10')
+# Referrals: the invited friend and the inviter each get this many days of Pro (inviter: once the friend deposits
+# or is verified), at most REFERRAL_MAX_REWARDS_PER_MONTH inviter rewards a month. 0 turns it off.
+REFERRAL_PRO_DAYS = os.environ.get('REFERRAL_PRO_DAYS', '7')
+REFERRAL_MAX_REWARDS_PER_MONTH = os.environ.get('REFERRAL_MAX_REWARDS_PER_MONTH', '10')
 # =============================================
 # NOWCRYPTO API CONFIGURATION
 # =============================================

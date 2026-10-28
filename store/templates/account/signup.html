@@ -81,7 +81,7 @@
 
                     {% if ref_code %}
                     <div class="mb-4 p-3 rounded-xl text-xs flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-medium">
-                        <i class="fa-solid fa-gift"></i> Invited with code <span class="font-mono font-bold">{{ ref_code }}</span>
+                        <i class="fa-solid fa-gift"></i> Invited with code <span class="font-mono font-bold">{{ ref_code }}</span>{% if referral_days %} · {{ referral_days }} days of Pro free{% endif %}
                     </div>
                     {% endif %}
                     <!-- Django Messages -->

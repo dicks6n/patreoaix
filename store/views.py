@@ -420,9 +420,12 @@ def signup_view(request):
         except Exception as e:
             logger.warning(f"Session tracking failed: {e}")
         from .membership import start_trial, TRIAL_DAYS
-        trial = start_trial(auth_user)
+        from . import referral_rewards
+        invited = Referral.objects.filter(referred_user=auth_user).exists() and referral_rewards.days() > 0
+        trial_days = max(TRIAL_DAYS, referral_rewards.days()) if invited else TRIAL_DAYS
+        trial = start_trial(auth_user, days=trial_days)
         messages.success(request, f"Account created successfully! Welcome to PATREOAIX, {auth_user.username}."
-                         + (f" Your free {TRIAL_DAYS}-day Pro trial has started: every AI signal is unlocked." if trial else '')
+                         + (f" Your free {trial_days}-day Pro {'invite gift' if invited else 'trial'} has started: every AI signal is unlocked." if trial else '')
                          + (" 🎁 Deposit now and get a 100% bonus on your first deposit." if _bonus_on() else ''))
         return redirect(request.session.pop('after_signup', None) or "dashboard")
 
@@ -5625,6 +5628,8 @@ def update_kyc_status(request, pk):
             kyc.admin_notes = ''
             kyc.verified_at = timezone.now()
             kyc.save()
+            from .referral_rewards import safe as referral_reward
+            referral_reward(kyc.user, 'verified their identity')
 
             Notification.objects.create(
                 user=kyc.user,

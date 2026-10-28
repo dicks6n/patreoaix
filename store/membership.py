@@ -44,11 +44,12 @@ def trial_available(user):
     return bool(user.is_authenticated and not is_member(user) and not (p and p.trial_used))
 
 
-def start_trial(user, days=TRIAL_DAYS):
+def start_trial(user, days=None):
     """Give the user the free Pro trial once. Returns True when it started."""
     from datetime import timedelta
     from django.utils import timezone
     from .models import UserProfile, Notification
+    days = days or TRIAL_DAYS
     p, _ = UserProfile.objects.get_or_create(user=user)
     if p.trial_used or (p.is_active_subscription and p.subscription_tier != TRIAL_TIER):
         return False
@@ -132,3 +133,25 @@ def members_only(view, feature='Signals', message=MEMBERS_ONLY_MSG):
 
 def auto_trading_only(view):
     return members_only(view, feature='Automated trading', message=AUTO_TRADING_MSG)
+
+
+def grant_pro_days(user, days, title, message=''):
+    """Give `days` of Pro: extends a paid plan or a trial, or opens a Pro pass for a free account."""
+    from datetime import timedelta
+    from django.utils import timezone
+    from .models import UserProfile, Notification
+    p, _ = UserProfile.objects.get_or_create(user=user)
+    now = timezone.now()
+    tier = str(p.subscription_tier or '').upper()
+    if p.is_active_subscription and any(t in tier for t in MEMBER_TIERS):
+        p.subscription_expires_at = max(p.subscription_expires_at or now, now) + timedelta(days=days)
+    else:
+        p.subscription_tier, p.is_active_subscription = TRIAL_TIER, True
+        p.subscription_started_at, p.subscription_expires_at = now, now + timedelta(days=days)
+    p.save(update_fields=['subscription_tier', 'is_active_subscription', 'subscription_started_at', 'subscription_expires_at'])
+    try:
+        Notification.objects.create(user=user, title=title, category='ACCOUNT', priority='success',
+                                    message=message or f'{days} days of Pro added: every AI signal is unlocked.',
+                                    action_url='/market-overview/', action_label='See AI signals')
+    except Exception:
+        pass

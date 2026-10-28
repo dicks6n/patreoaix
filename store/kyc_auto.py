@@ -103,6 +103,9 @@ def apply_decision(kyc, decision):
     kyc.save()
     if kyc.status != old and kyc.status in ('APPROVED', 'REJECTED'):
         approved = kyc.status == 'APPROVED'
+        if approved:
+            from .referral_rewards import safe as referral_reward
+            referral_reward(kyc.user, 'verified their identity')
         try:
             Notification.objects.create(
                 user=kyc.user, category='KYC', priority='success' if approved else 'error',
