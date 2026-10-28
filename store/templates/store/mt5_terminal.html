@@ -1095,12 +1095,12 @@ main { padding: 0 !important; }
         <div class="mt5-set-title">Settings</div>
 
         <div class="mt5-set-card" style="position:relative;">
-            <div class="mt5-set-demo-ribbon">Real</div>
+            <div class="mt5-set-demo-ribbon" id="mt5-set-ribbon">Real</div>
             <div class="mt5-set-account-info">
                 <div class="mt5-set-account-name">{{ request.user.get_full_name|default:request.user.username }}</div>
-                <div class="mt5-set-account-broker">PATREOAIX Ltd.</div>
-                <div class="mt5-set-account-id">{{ request.user.id }} - PATREOAIX-Live</div>
-                <div class="mt5-set-account-server">Access Point 1</div>
+                <div class="mt5-set-account-broker" id="mt5-set-broker">PATREOAIX Ltd.</div>
+                <div class="mt5-set-account-id" id="mt5-set-login">{{ request.user.id }} - PATREOAIX-Live</div>
+                <div class="mt5-set-account-server" id="mt5-set-server">Access Point 1</div>
                 <a href="{% url 'profile' %}" class="mt5-set-account-link" aria-label="Account details"><span class="mt5-set-chevron"></span></a>
             </div>
             <a href="{% url 'profile' %}" class="mt5-set-row">
@@ -4932,8 +4932,25 @@ async function mt5SetAccount(key) {
     try { sessionStorage.setItem('mt5Acct', key === 'real' ? 'site' : key); } catch (e) {}
     mt5RenderAccounts();
     mt5ApplyAccount();
-    mt5Toast(key === 'site' ? 'PATREOAIX-Live account' : `Deriv ${key === 'real' ? 'REAL' : 'Demo'} account`, 'success');
-    mt5SwitchTab('trade');
+    document.getElementById('tab-settings')?.scrollTo({ top: 0, behavior: 'smooth' });     // the card at the top now shows it
+}
+// the account card at the top of Settings shows the account the terminal trades on (like MT5)
+function mt5RenderAccountHeader() {
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    const ribbon = document.getElementById('mt5-set-ribbon');
+    const acc = mt5DerivAccts[mt5Acct] || {};
+    if (mt5Acct === 'site') {
+        set('mt5-set-broker', 'PATREOAIX Ltd.');
+        set('mt5-set-login', `{{ request.user.id }} - PATREOAIX-Live`);
+        set('mt5-set-server', 'Access Point 1');
+        if (ribbon) { ribbon.textContent = 'Real'; ribbon.style.background = ''; }
+        return;
+    }
+    const real = mt5Acct === 'real';
+    set('mt5-set-broker', 'Deriv.com Limited');
+    set('mt5-set-login', `${acc.loginid || ''} - Deriv-${real ? 'Real' : 'Demo'}`);
+    set('mt5-set-server', acc.balance != null ? `Balance ${Number(acc.balance).toFixed(2)} ${acc.currency || 'USD'} · Multipliers` : 'Deriv API');
+    if (ribbon) { ribbon.textContent = real ? 'Real' : 'Demo'; ribbon.style.background = real ? '#f2524a' : '#ff9500'; }
 }
 function mt5ApplyAccount() {
     const deriv = mt5Acct !== 'site';
@@ -4943,6 +4960,7 @@ function mt5ApplyAccount() {
     });
     const box = document.getElementById('mt5-deriv-box');
     if (box) box.style.display = deriv ? '' : 'none';
+    mt5RenderAccountHeader();
     if (deriv) mt5DerivRefresh(); else { mt5DerivPositions = []; mt5FetchPositions(); mt5FetchMetrics(); mt5FetchOrders(); }
 }
 async function mt5DerivRefresh() {
