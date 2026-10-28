@@ -18,7 +18,7 @@ from .notifications import notify
 
 logger = logging.getLogger(__name__)
 
-TF_SECONDS = {'1m': 60, '5m': 300, '15m': 900, '30m': 1800, '1h': 3600, '4h': 14400, '1d': 86400}
+TF_SECONDS = {'1m': 60, '5m': 300, '15m': 900, '30m': 1800, '1h': 3600, '4h': 14400, '1d': 86400, '1w': 604800}
 EXPIRY_BARS = cs.HORIZON * 2         # same window the chart scanner backtest gives a trade
 COOLDOWN_BARS = 4                     # main-timeframe candles before the same call can repeat
 WORKER_FRESH = 180                    # seconds: the worker counts as running if it saved this recently

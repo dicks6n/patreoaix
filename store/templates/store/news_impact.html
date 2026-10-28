@@ -1,0 +1,167 @@
+{% extends 'base_dashboard.html' %}
+
+{% block message_toasts %}{% endblock %}
+{% block title %}News Impact · PATREOAIX{% endblock %}
+{% block page_title %}News Impact{% endblock %}
+
+{% block extra_head %}
+<style>
+    .ni-wrap { display: flex; flex-direction: column; gap: 18px; }
+    .ni-card { background: var(--px-panel); border: 1px solid var(--px-line); border-radius: 16px; padding: 18px; }
+    .ni-h { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+    .ni-h h2 { font-size: 16px; font-weight: 800; color: var(--px-text); }
+    .ni-h p { font-size: 12px; color: var(--px-mute); }
+    .ni-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+    .ni-ev { background: var(--px-panel-2); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+    .ni-ev h3 { font-size: 15px; font-weight: 800; color: var(--px-text); }
+    .ni-time { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--px-accent); font-weight: 700; }
+    .ni-kv { display: flex; gap: 14px; font-size: 12px; color: var(--px-dim); flex-wrap: wrap; }
+    .ni-kv b { color: var(--px-text); font-family: 'JetBrains Mono', monospace; }
+    .ni-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; }
+    .ni-stat { background: var(--px-panel); border-radius: 10px; padding: 8px; text-align: center; }
+    .ni-stat span { display: block; font-size: 10.5px; color: var(--px-mute); font-weight: 700; }
+    .ni-stat b { font-family: 'JetBrains Mono', monospace; font-size: 15px; color: var(--px-text); }
+    .ni-list { font-size: 12.5px; color: var(--px-dim); display: flex; flex-direction: column; gap: 4px; }
+    .ni-time-box { border-left: 3px solid var(--px-accent); padding: 8px 10px; border-radius: 8px; background: var(--px-panel); font-size: 12.5px; color: var(--px-text); font-weight: 600; }
+    .ni-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .ni-table th { text-align: left; font-size: 10.5px; color: var(--px-mute); text-transform: uppercase; letter-spacing: .05em; padding: 8px; border-bottom: 1px solid var(--px-line); }
+    .ni-table td { padding: 8px; border-bottom: 1px solid var(--px-line-soft); color: var(--px-text); white-space: nowrap; }
+    .ni-table .mono { font-family: 'JetBrains Mono', monospace; }
+    .ni-up { color: var(--px-up); } .ni-dn { color: var(--px-down); } .ni-mute { color: var(--px-mute); }
+    .ni-tag { font-size: 10.5px; font-weight: 800; padding: 3px 7px; border-radius: 6px; }
+    .ni-tag.beat { background: var(--px-up-soft); color: var(--px-up); }
+    .ni-tag.miss { background: var(--px-down-soft); color: var(--px-down); }
+    .ni-tag.line { background: var(--px-panel-2); color: var(--px-mute); }
+    .ni-scroll { overflow-x: auto; }
+    .ni-pick { display: flex; gap: 6px; flex-wrap: wrap; }
+    .ni-pick a { font-size: 11.5px; font-weight: 700; padding: 6px 10px; border-radius: 8px; background: var(--px-panel-2); color: var(--px-dim); border: 1px solid var(--px-line); }
+    .ni-pick a.on { background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); border-color: var(--px-accent); }
+    .ni-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 10px; font-size: 12px; font-weight: 700; background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); border: 0; cursor: pointer; }
+    svg.spark { display: block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ni-wrap">
+    {% for m in messages %}<div class="ni-card" style="padding:12px;font-size:13px;font-weight:600">{{ m }}</div>{% endfor %}
+
+    <div class="ni-card">
+        <div class="ni-h">
+            <h2><i class="fa-solid fa-landmark mr-1"></i> Coming big releases · the playbook</h2>
+            <p>From how the markets moved after the same release in the past (times in Nairobi time)</p>
+        </div>
+        {% if playbooks %}
+        <div class="ni-grid">
+            {% for pb in playbooks %}
+            <div class="ni-ev">
+                <div class="flex items-start justify-between gap-2">
+                    <div><h3>{{ pb.label }}</h3><span class="ni-time">{{ pb.when_local|date:"D d M · H:i" }}</span></div>
+                    {% if request.user.is_staff %}
+                    <form method="post">{% csrf_token %}<input type="hidden" name="send" value="{{ pb.key }}{{ pb.when|date:'YmdHi' }}"><button class="ni-btn" type="submit"><i class="fa-brands fa-telegram"></i> Send</button></form>
+                    {% endif %}
+                </div>
+                <div class="ni-kv"><span>Forecast <b>{{ pb.forecast|default:"—" }}</b></span><span>Previous <b>{{ pb.previous|default:"—" }}</b></span></div>
+                {% if pb.expectation %}<div class="ni-list">Consensus: {{ pb.expectation }}</div>{% endif %}
+                {% if pb.stats %}
+                <div class="ni-stats">
+                    {% for st in pb.stats %}
+                    <div class="ni-stat"><span>{{ st.symbol }}</span><b>±{{ st.abs_h1|floatformat:2 }}%</b><span>in 1 h · {{ st.n }}×</span></div>
+                    {% endfor %}
+                </div>
+                {% if pb.scenarios %}<div class="ni-list">{% for l in pb.scenarios %}<div>• If {{ l }}</div>{% endfor %}</div>{% endif %}
+                {% else %}
+                <div class="ni-list">No history stored yet for this release.</div>
+                {% endif %}
+                <div class="ni-time-box"><i class="fa-regular fa-clock mr-1"></i> {{ pb.timing }}{% if pb.second_wave %} Press conference ≈ {{ pb.second_wave|date:"H:i" }}: a second wave is common.{% endif %}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="ni-list">No big release (NFP, CPI, FOMC, PPI, ECB, BoE …) in the next 7 days, or the calendar can't be reached right now.</p>
+        {% endif %}
+    </div>
+
+    <div class="ni-card">
+        <div class="ni-h"><h2><i class="fa-solid fa-bolt mr-1"></i> Latest releases · how the chart went</h2><p>Move from the last price before the release · line = the first 4 hours</p></div>
+        {% if recent %}
+        <div class="ni-scroll">
+        <table class="ni-table">
+            <thead><tr><th>Release</th><th>When</th><th>Actual / Forecast</th><th>Market</th><th>15 min</th><th>1 h</th><th>4 h</th><th>First 4 h</th></tr></thead>
+            <tbody>
+            {% for r in recent %}
+                {% for x in r.reactions %}
+                <tr>
+                    {% if forloop.first %}
+                    <td rowspan="{{ r.reactions|length }}"><b>{{ r.label }}</b><br><span class="ni-tag {% if r.surprise > 0 %}beat{% elif r.surprise < 0 %}miss{% else %}line{% endif %}">{% if r.surprise > 0 %}Better{% elif r.surprise < 0 %}Worse{% else %}In line{% endif %}</span></td>
+                    <td rowspan="{{ r.reactions|length }}" class="mono">{{ r.event.when|date:"d M H:i" }}</td>
+                    <td rowspan="{{ r.reactions|length }}" class="mono">{{ r.event.actual|default_if_none:"—" }} / {{ r.event.forecast|default_if_none:"—" }}</td>
+                    {% endif %}
+                    <td><b>{{ x.symbol }}</b></td>
+                    <td class="mono {% if x.m15 > 0 %}ni-up{% elif x.m15 < 0 %}ni-dn{% endif %}">{{ x.m15|floatformat:2 }}%</td>
+                    <td class="mono {% if x.h1 > 0 %}ni-up{% elif x.h1 < 0 %}ni-dn{% endif %}">{{ x.h1|floatformat:2 }}%</td>
+                    <td class="mono {% if x.h4 > 0 %}ni-up{% elif x.h4 < 0 %}ni-dn{% endif %}">{{ x.h4|floatformat:2 }}%</td>
+                    <td><svg class="spark" width="120" height="28" data-path="{{ x.path|join:',' }}"></svg></td>
+                </tr>
+                {% empty %}
+                <tr><td><b>{{ r.label }}</b></td><td class="mono">{{ r.event.when|date:"d M H:i" }}</td><td class="mono">{{ r.event.actual|default_if_none:"—" }} / {{ r.event.forecast|default_if_none:"—" }}</td><td colspan="5" class="ni-mute">Price reaction not measured yet</td></tr>
+                {% endfor %}
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% else %}
+        <p class="ni-list">No history loaded yet. Run <code>python manage.py news_history --backfill 5</code> once on the server.</p>
+        {% endif %}
+    </div>
+
+    <div class="ni-card">
+        <div class="ni-h"><h2><i class="fa-solid fa-clock-rotate-left mr-1"></i> History: {{ sel_label }} → {{ lead }}</h2><p>The last 24 releases</p></div>
+        <div class="ni-pick" style="margin-bottom:14px">{% for k, label in events %}<a href="?event={{ k }}" class="{% if k == sel_key %}on{% endif %}">{{ label }}</a>{% endfor %}</div>
+        {% if history %}
+        <div class="ni-stats" style="margin-bottom:12px">
+            <div class="ni-stat"><span>Avg move 15 min</span><b>±{{ history.abs_m15|floatformat:2 }}%</b></div>
+            <div class="ni-stat"><span>Avg move 1 h</span><b>±{{ history.abs_h1|floatformat:2 }}%</b></div>
+            <div class="ni-stat"><span>Avg move 4 h</span><b>±{{ history.abs_h4|floatformat:2 }}%</b></div>
+            <div class="ni-stat"><span>First-hour range</span><b>{{ history.range_h1|floatformat:2 }}%</b></div>
+            <div class="ni-stat"><span>15-min move held</span><b>{% if history.continuation is not None %}{% widthratio history.continuation 1 100 %}%{% else %}—{% endif %}</b></div>
+        </div>
+        <div class="ni-scroll">
+        <table class="ni-table">
+            <thead><tr><th>Date</th><th>Actual / Forecast</th><th>Surprise</th><th>15 min</th><th>1 h</th><th>4 h</th><th>First 4 h</th></tr></thead>
+            <tbody>
+            {% for x in history.last %}
+            <tr>
+                <td class="mono">{{ x.when|date:"d M Y H:i" }}</td>
+                <td class="mono">{{ x.actual|default_if_none:"—" }} / {{ x.forecast|default_if_none:"—" }}</td>
+                <td><span class="ni-tag {% if x.surprise > 0 %}beat{% elif x.surprise < 0 %}miss{% else %}line{% endif %}">{% if x.surprise > 0 %}Better{% elif x.surprise < 0 %}Worse{% else %}In line{% endif %}</span></td>
+                <td class="mono {% if x.m15 > 0 %}ni-up{% elif x.m15 < 0 %}ni-dn{% endif %}">{{ x.m15|floatformat:2 }}%</td>
+                <td class="mono {% if x.h1 > 0 %}ni-up{% elif x.h1 < 0 %}ni-dn{% endif %}">{{ x.h1|floatformat:2 }}%</td>
+                <td class="mono {% if x.h4 > 0 %}ni-up{% elif x.h4 < 0 %}ni-dn{% endif %}">{{ x.h4|floatformat:2 }}%</td>
+                <td><svg class="spark" width="120" height="28" data-path="{{ x.path|join:',' }}"></svg></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% else %}
+        <p class="ni-list">No stored history for this release yet.</p>
+        {% endif %}
+        <p class="ni-list" style="margin-top:12px">History describes what happened before; the next release can move differently. Spreads widen at release time: trade small and always use a stop.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('svg.spark').forEach(svg => {
+    const v = (svg.dataset.path || '').split(',').filter(x => x !== '').map(Number);
+    if (v.length < 2) return;
+    const pts = [0].concat(v), w = +svg.getAttribute('width'), h = +svg.getAttribute('height');
+    const lo = Math.min(...pts), hi = Math.max(...pts), span = (hi - lo) || 1;
+    const xy = pts.map((p, i) => `${(i / (pts.length - 1) * (w - 4) + 2).toFixed(1)},${(h - 3 - (p - lo) / span * (h - 6)).toFixed(1)}`).join(' ');
+    const zero = (h - 3 - (0 - lo) / span * (h - 6)).toFixed(1);
+    const col = pts[pts.length - 1] >= 0 ? 'var(--px-up)' : 'var(--px-down)';
+    svg.innerHTML = `<line x1="2" x2="${w - 2}" y1="${zero}" y2="${zero}" stroke="var(--px-line)" stroke-dasharray="3 3"/><polyline points="${xy}" fill="none" stroke="${col}" stroke-width="1.8"/>`;
+});
+</script>
+{% endblock %}

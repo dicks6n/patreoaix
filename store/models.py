@@ -1535,7 +1535,7 @@ class PendingOrder(models.Model):
 # ═══════════════════════════════════════════════════════════════
 class SignalAlertSubscription(models.Model):
     """A user's choice to be notified when the background scanner finds a strong setup."""
-    STYLES = [('scalp', 'Scalp'), ('intraday', 'Intraday'), ('swing', 'Swing')]
+    STYLES = [('scalp', 'Scalp'), ('intraday', 'Intraday'), ('swing', 'Swing'), ('position', 'Position')]
     GRADES = [('A', 'A and A+'), ('A+', 'A+ only')]
 
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='signal_alerts')
@@ -1591,3 +1591,43 @@ class ScannerSnapshot(models.Model):
 
     def __str__(self):
         return f"{self.style} snapshot ({self.source}, {self.updated_at:%H:%M:%S})"
+
+
+# ============================================================
+# NEWS HISTORY: big economic releases and how the markets moved after them (store/news_history.py)
+# ============================================================
+class EconEvent(models.Model):
+    source_id = models.CharField(max_length=60, unique=True)          # e.g. tv-123456
+    key = models.CharField(max_length=20, db_index=True)              # NFP, CPI, FOMC … (news_history.EVENTS)
+    title = models.CharField(max_length=160)
+    currency = models.CharField(max_length=5, db_index=True)
+    when = models.DateTimeField(db_index=True)
+    actual = models.FloatField(null=True, blank=True)
+    forecast = models.FloatField(null=True, blank=True)
+    previous = models.FloatField(null=True, blank=True)
+    unit = models.CharField(max_length=12, blank=True, default='')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-when']
+
+    def __str__(self):
+        return f'{self.key} {self.when:%Y-%m-%d %H:%M} {self.title}'
+
+
+class NewsReaction(models.Model):
+    """How one market moved after one release: % change from the last price before it."""
+    event = models.ForeignKey(EconEvent, on_delete=models.CASCADE, related_name='reactions')
+    symbol = models.CharField(max_length=12)
+    price0 = models.FloatField()
+    m15 = models.FloatField(null=True, blank=True)
+    h1 = models.FloatField(null=True, blank=True)
+    h4 = models.FloatField(null=True, blank=True)
+    d1 = models.FloatField(null=True, blank=True)
+    up1h = models.FloatField(null=True, blank=True)       # highest point in the first hour, % (≥ 0)
+    down1h = models.FloatField(null=True, blank=True)     # lowest point in the first hour, % (≤ 0)
+    path = models.JSONField(default=list, blank=True)     # 15-minute closes for 4 h, % from price0
+    measured_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('event', 'symbol')

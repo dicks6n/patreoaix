@@ -161,6 +161,100 @@ def news_alert(e):
     _send(text)
 
 
+# ═══════════════════════════════════════════════════════════════
+# BIG RELEASES: playbook before, result after (store/news_history.py)
+# ═══════════════════════════════════════════════════════════════
+def _bias(results, symbol):
+    r = next((x for x in results or [] if x.get('symbol') == symbol), None)
+    if not r or not r.get('direction'):
+        return ''
+    return f"{r['direction']} {abs(r.get('confluence') or 0):.0f}%" + (f" ({r['grade']})" if r.get('grade') else '')
+
+
+def event_preview(e, results=None):
+    from . import news_card, news_history as nh
+    pb = nh.playbook(e['key'], e['date'], e.get('forecast'), e.get('previous'), tz=_tz())
+    wl = pb['when_local']
+    lines = [f"🏦 <b>{tg._esc(pb['label'])}</b> · today {wl:%H:%M} (Nairobi)" if wl.date() == now_local().date()
+             else f"🏦 <b>{tg._esc(pb['label'])}</b> · {wl:%a %d %b %H:%M} (Nairobi)"]
+    if e.get('forecast') or e.get('previous'):
+        lines.append(f"Forecast <code>{tg._esc(e.get('forecast') or '—')}</code> · Previous <code>{tg._esc(e.get('previous') or '—')}</code>")
+    if pb['expectation']:
+        lines.append(f"Consensus: {tg._esc(pb['expectation'])}")
+    if pb['stats']:
+        lines += ['', f"<b>What history says</b> (last {pb['stats'][0]['n']} releases)"]
+        for st in pb['stats'][:3]:
+            lines.append(f"• {st['symbol']}: ±{(st['abs_h1'] or 0):.2f}% in the first hour, ±{(st['abs_m15'] or 0):.2f}% in 15 min")
+        for line in nh.scenario_lines(pb['stats'][0], pb['currency']):
+            lines.append('• If ' + tg._esc(line))
+    bias = [f"{sym} {_bias(results, sym)}" for sym in nh.SYMBOLS[pb['currency']][:3] if _bias(results, sym)]
+    if bias:
+        lines += ['', '🧠 AI bias now: ' + ' · '.join(bias)]
+    lines += ['', f"⏱ <b>When to execute:</b> {tg._esc(pb['timing'])}"]
+    if pb['second_wave']:
+        lines.append(f"🎤 Press conference ≈ {pb['second_wave']:%H:%M}: expect a second wave of volatility.")
+    lines.append('\n<i>History is not a promise. Spreads widen at the release: small size, always a stop.</i>')
+    lines.append(_link(f"/news-impact/?event={pb['key']}", 'Full history on PATREOAIX'))
+    _photo(news_card.playbook_png(pb), '\n'.join(lines))
+
+
+def event_result(e):
+    """About an hour after the release: actual vs forecast and how the markets moved."""
+    from . import news_history as nh
+    key = e['key']
+    label, currency = nh.EVENTS[key][0], nh.EVENTS[key][1]
+    t0 = int(e['date'].timestamp())
+    moves = []
+    d = nh._Deriv()
+    try:
+        for sym in nh.SYMBOLS[currency][:3]:
+            m = nh._measure(d.candles(sym, t0 - 2 * 3600, int(time.time())), t0)
+            if m:
+                moves.append((sym, m))
+    finally:
+        d.close()
+    actual, forecast = e.get('actual'), e.get('forecast')
+    a, f = nh._num(actual), nh._num(forecast)
+    verdict = ''
+    if a is not None and f is not None:
+        good = nh.EVENTS[key][3]
+        verdict = ' · ✅ better than forecast' if (a > f) == good and a != f else ' · ❌ worse than forecast' if a != f else ' · ➖ as expected'
+    lines = [f"📊 <b>{tg._esc(label)}: the result</b>",
+             f"Actual <code>{tg._esc(actual or '—')}</code> · Forecast <code>{tg._esc(forecast or '—')}</code>{verdict}", '']
+    for sym, m in moves:
+        lines.append(f"• {sym}: {nh.fmt_pct(m['m15'])} in 15 min · {nh.fmt_pct(m['h1'])} after 1 h "
+                     f"(range {nh.fmt_pct(m['down1h'])} / {nh.fmt_pct(m['up1h'])})")
+    if not moves:
+        lines.append('Price data for the reaction is not available yet.')
+    lines.append(_link(f"/news-impact/?event={key}", 'See the chart history'))
+    _send('\n'.join(lines))
+
+
+def event_posts(now, results):
+    if _cfg('TELEGRAM_EVENT_POSTS', 'True') != 'True':
+        return []
+    from . import news_history as nh
+    from .calendar_feed import get_calendar
+    sent = []
+    lead = float(_cfg('TELEGRAM_EVENT_PREVIEW_MINUTES', 120))
+    utc = datetime.now(dt_tz.utc)
+    for e in nh.upcoming(hours=lead / 60 + 1):
+        mins = (e['date'] - utc).total_seconds() / 60
+        if 0 < mins <= lead and _once(f"tg:evprev:{e['key']}:{e['date']:%Y%m%d%H%M}", 3 * 86400):
+            event_preview(e, results)
+            sent.append(f"preview {e['key']}")
+            break                                            # one big post per pass
+    for e in get_calendar(2).get('events') or []:
+        key = nh.classify(e.get('event'), e.get('currency'))
+        d = e.get('date')
+        if key in nh.BIG and isinstance(d, datetime) and timedelta(minutes=62) <= utc - d <= timedelta(minutes=110) \
+                and _once(f"tg:evres:{key}:{d:%Y%m%d%H%M}", 3 * 86400):
+            event_result(dict(e, key=key))
+            sent.append(f'result {key}')
+            break
+    return sent
+
+
 COACH_POST = {   # verdict → (icon, word); other verdicts (stand aside, watch) are not posted
     'ENTER': ('✅', 'ENTRY CONFIRMED'),
     'GET_READY': ('🎯', 'GET READY'),
@@ -351,7 +445,8 @@ def run(results, strength):
                 news_alert(e)
                 sent.append('news')
 
-    name = coach_updates(now)
+    sent += event_posts(now, results)
+    name = None if sent else coach_updates(now)
     if name:
         sent.append(name)
 

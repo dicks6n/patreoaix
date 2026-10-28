@@ -39,6 +39,7 @@ STYLES = {
     'scalp':    ('5m',  '15m', '1h'),
     'intraday': ('15m', '1h',  '4h'),
     'swing':    ('1h',  '4h',  '1d'),
+    'position': ('4h',  '1d',  '1w'),       # weekly candles are built from daily ones (candles_for)
 }
 SCAN_SYMBOLS = [
     'XAUUSD', 'XAGUSD', 'USOIL', 'UKOIL',
@@ -46,7 +47,7 @@ SCAN_SYMBOLS = [
     'EURGBP', 'EURJPY', 'GBPJPY',
     'BTCUSD', 'ETHUSD', 'SOLUSD', 'BNBUSD', 'XRPUSD',
 ]
-CANDLE_TTL = {'5m': 60, '15m': 120, '30m': 240, '1h': 300, '4h': 900, '1d': 1800}
+CANDLE_TTL = {'5m': 60, '15m': 120, '30m': 240, '1h': 300, '4h': 900, '1d': 1800, '1w': 3600}
 BARS = 600                 # history pulled per timeframe
 HORIZON = 20               # bars a trade is given to work out (model label + backtest)
 FEATURES = ['trend', 'ema200', 'macd', 'rsi', 'structure', 'stoch', 'bands', 'pattern', 'levels', 'breakout', 'divergence', 'adx']
@@ -529,9 +530,37 @@ def train_and_backtest(s, last):
 # ═══════════════════════════════════════════════════════════════
 # DATA
 # ═══════════════════════════════════════════════════════════════
+WEEK = 7 * 86400
+MONDAY = 4 * 86400                          # the epoch started on a Thursday
+
+
+def _weekly(daily):
+    """Monday-to-Sunday candles from daily ones (few feeds serve weekly bars)."""
+    weeks = {}
+    for c in daily:
+        k = (c['time'] - MONDAY) // WEEK * WEEK + MONDAY
+        w = weeks.get(k)
+        if w is None:
+            weeks[k] = dict(c, time=k)
+        else:
+            w['high'], w['low'], w['close'] = max(w['high'], c['high']), min(w['low'], c['low']), c['close']
+            w['volume'] = (w.get('volume') or 0) + (c.get('volume') or 0)
+    return [weeks[k] for k in sorted(weeks)]
+
+
 def candles_for(symbol, tf):
     key = f'aiscan:c:{symbol}:{tf}'
     data = cache.get(key)
+    if data is None and tf == '1w':
+        from .views import get_candles
+        try:
+            daily, source = get_candles(symbol, '1d', 1500)
+        except Exception as e:
+            logger.warning(f'AI scan candles {symbol} 1d→1w: {e}')
+            daily, source = [], None
+        daily = sorted((c for c in daily or [] if c.get('time')), key=lambda c: c['time'])
+        data = {'candles': _weekly(daily), 'source': source}
+        cache.set(key, data, CANDLE_TTL['1w'] if data['candles'] else 60)
     if data is None:
         from .views import get_candles          # views imports a lot; keep it lazy
         try:

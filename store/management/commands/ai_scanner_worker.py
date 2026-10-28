@@ -24,7 +24,7 @@ from store.models import Notification, User
 ALERT_TTL_MINUTES = 30        # don't repeat the same signal for this long
 MIN_CONFIDENCE     = 72       # only alert when confidence >= this
 MIN_SCORE          = 25       # and |score| (blended, -100..100) >= this
-SCAN_STYLES        = ('scalp', 'intraday', 'swing')
+SCAN_STYLES        = ('scalp', 'intraday', 'swing', 'position')
 
 
 class Command(BaseCommand):

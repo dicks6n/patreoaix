@@ -62,6 +62,8 @@ class Command(BaseCommand):
                                                      f'SL {s.stop_loss} TP {s.take_profit} — notified {s.notified}'))
         for s in sa.update_outcomes():
             self.stdout.write(f'   ✓ {s.symbol} {s.direction} {s.outcome} {s.result_r:+.2f}R')
+        from store import news_history                     # release history + reactions (at most hourly)
+        news_history.safe_tick()
         from store import telegram_schedule                # morning brief, pulse, news alerts, daily / weekly results
         for name in telegram_schedule.safe_run(*latest):
             self.stdout.write(f'   ✈ Telegram {name} posted')

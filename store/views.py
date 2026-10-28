@@ -10799,3 +10799,40 @@ def subscribe_link(request):
     if request.user.is_authenticated:
         return redirect('subscription_billing')
     return redirect(f"{reverse('signup')}?next={reverse('subscription_billing')}")
+
+
+@login_required
+def news_impact(request):
+    """Big releases: the playbook for the coming ones, the latest results and how the charts moved."""
+    from . import news_history as nh, telegram_schedule as ts
+    tz = ts._tz()
+    try:
+        coming = nh.upcoming(hours=24 * 7)
+    except Exception as e:
+        logger.warning(f'news impact calendar: {e}')
+        coming = []
+    playbooks = []
+    for e in coming[:6]:
+        pb = nh.playbook(e['key'], e['date'], e.get('forecast'), e.get('previous'), tz=tz)
+        pb['scenarios'] = nh.scenario_lines(pb['stats'][0], pb['currency']) if pb['stats'] else []
+        playbooks.append(pb)
+    key = (request.GET.get('event') or '').upper()
+    key = key if key in nh.EVENTS else 'FOMC'
+    lead = nh.SYMBOLS[nh.EVENTS[key][1]][0]
+    history = nh.symbol_stats(key, lead, last=24)
+    if request.method == 'POST' and request.user.is_staff and request.POST.get('send'):
+        target = next((e for e in coming if f"{e['key']}{e['date']:%Y%m%d%H%M}" == request.POST['send']), None)
+        if target:
+            try:
+                from . import signal_alerts
+                results, _, _ = signal_alerts.confluence('intraday')
+                ts.event_preview(target, results)
+                messages.success(request, 'Playbook sent to the Telegram channel.')
+            except Exception as e:
+                messages.error(request, f'Telegram: {e}')
+        return redirect(f"{request.path}?event={key}")
+    return render(request, 'store/news_impact.html', {
+        'playbooks': playbooks, 'recent': nh.recent(12), 'events': [(k, v[0]) for k, v in nh.EVENTS.items()],
+        'sel_key': key, 'sel_label': nh.EVENTS[key][0], 'lead': lead, 'history': history,
+        'loaded': bool(history) or nh.recent(1),
+    })

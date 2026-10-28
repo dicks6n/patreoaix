@@ -61,12 +61,15 @@ def _clean(v):
 
 
 # ── 1. TradingView ──────────────────────────────────────────────
-def fetch_tradingview(days_ahead=7):
+def fetch_tradingview(days_ahead=7, start=None, end=None, countries=COUNTRIES):
+    """Events from yesterday to `days_ahead`, or for any past range (start / end datetimes, news history)."""
     now = datetime.now(dt_tz.utc)
+    start = start or (now - timedelta(days=1))
+    end = end or (now + timedelta(days=days_ahead))
     params = {
-        'from': (now - timedelta(days=1)).strftime('%Y-%m-%dT00:00:00.000Z'),
-        'to': (now + timedelta(days=days_ahead)).strftime('%Y-%m-%dT23:59:59.000Z'),
-        'countries': COUNTRIES,
+        'from': start.strftime('%Y-%m-%dT00:00:00.000Z'),
+        'to': end.strftime('%Y-%m-%dT23:59:59.000Z'),
+        'countries': countries,
     }
     headers = dict(BROWSER_HEADERS, Origin='https://www.tradingview.com', Referer='https://www.tradingview.com/')
     r = requests.get('https://economic-calendar.tradingview.com/events', params=params, headers=headers, timeout=10)
@@ -86,6 +89,8 @@ def fetch_tradingview(days_ahead=7):
         country = (item.get('country') or '').upper()
         events.append({
             'id': f"tv-{item.get('id') or len(events)}",
+            'indicator': item.get('indicator') or '',
+            'period': item.get('period') or '',
             'date': date,
             'country': country,
             'currency': item.get('currency') or COUNTRY_CURRENCY.get(country, ''),
