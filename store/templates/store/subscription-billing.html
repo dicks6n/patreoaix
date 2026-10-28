@@ -341,7 +341,7 @@
                             <input type="hidden" name="tier" value="pro">
                             <select name="payment_method"
                                     class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-[10px] font-bold text-slate-200 focus:outline-none focus:border-indigo-500 cursor-pointer">
-                                <option value="mpesa">M-Pesa STK</option>
+                                {% if mpesa_enabled %}<option value="mpesa">M-Pesa STK</option>{% endif %}
                                 <option value="balance">Balance (${{ account.balance|default:0|floatformat:2 }})</option>
                             </select>
                             <input type="text" name="phone_number" placeholder="2547XXXXXXXX"
@@ -390,7 +390,7 @@
                             <input type="hidden" name="tier" value="vip">
                             <select name="payment_method"
                                     class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-[10px] font-bold text-slate-200 focus:outline-none focus:border-amber-500 cursor-pointer">
-                                <option value="mpesa">M-Pesa STK</option>
+                                {% if mpesa_enabled %}<option value="mpesa">M-Pesa STK</option>{% endif %}
                                 <option value="balance">Balance (${{ account.balance|default:0|floatformat:2 }})</option>
                             </select>
                             <input type="text" name="phone_number" placeholder="2547XXXXXXXX"
@@ -622,8 +622,9 @@
                 const short = !mpesa && BALANCE < price;
                 note.classList.toggle('hidden', !short);
                 note.style.color = 'var(--px-down)';
-                note.textContent = short ? `Balance $${BALANCE.toFixed(2)} is below $${price}. Deposit first or pay with M-Pesa.` : '';
+                note.innerHTML = short ? `Balance $${BALANCE.toFixed(2)} is below $${price}. <a href="{% url 'funding_deposit' %}" style="text-decoration:underline">Deposit USDT first</a>{% if mpesa_enabled %} or pay with M-Pesa{% endif %}.` : '';
                 btn.disabled = short; btn.style.opacity = short ? '.5' : '';
+                note.style.pointerEvents = 'auto';
             }
             method.addEventListener('change', sync); sync();
             form.addEventListener('submit', e => {

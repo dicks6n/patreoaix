@@ -806,7 +806,7 @@ def subscription_billing(request):
 
     if request.method == 'POST':
         tier = request.POST.get('tier', 'pro').lower()
-        payment_method = request.POST.get('payment_method', 'mpesa')
+        payment_method = request.POST.get('payment_method', 'balance')
         raw_phone = request.POST.get('phone_number')
 
         if tier not in TIER_CONFIG:
@@ -821,6 +821,10 @@ def subscription_billing(request):
         # ============================================================
         # M-PESA PATH
         # ============================================================
+        mpesa_on = getattr(settings, 'MPESA_DEPOSITS_ENABLED', False)
+        if payment_method.lower() in ('mpesa', 'm-pesa') and not mpesa_on:
+            messages.error(request, 'M-Pesa is not available. Deposit USDT to your balance, then pay from the balance.')
+            return redirect('subscription_billing')
         if payment_method.lower() in ('mpesa', 'm-pesa'):
             if not raw_phone:
                 messages.error(request, 'M-Pesa phone number is required for STK push.')
@@ -915,6 +919,7 @@ def subscription_billing(request):
         'transactions': transactions,
         'subscription_expires_at': user_profile.subscription_expires_at,
         'days_remaining': user_profile.days_remaining(),
+        'mpesa_enabled': getattr(settings, 'MPESA_DEPOSITS_ENABLED', False),
     }
     return render(request, 'store/subscription-billing.html', context)
 
