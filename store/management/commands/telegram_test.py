@@ -2,6 +2,8 @@
 python manage.py telegram_test              → checks the bot token and channel, posts a test message + chart
 python manage.py telegram_test --last       → (re)posts the newest recorded AI signal
 python manage.py telegram_test --open       → posts the AI signals that are open now (made before the bot was set up)
+python manage.py telegram_test --photo pic.jpg --caption "Text"   → posts any photo (a file or an https link);
+                                                --photo can be given several times
 python manage.py telegram_test --find-channel → lists the channels the bot was added to, with their ids
                                                 (a private channel needs its -100… id, not the t.me/+ link)
 """
@@ -16,9 +18,11 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--last', action='store_true', help='Post the newest recorded AI signal')
         parser.add_argument('--open', action='store_true', help='Post the open AI signals not posted yet')
+        parser.add_argument('--photo', action='append', default=[], help='Post this photo (file path or https link); repeat for several')
+        parser.add_argument('--caption', default='', help='Caption for --photo')
         parser.add_argument('--find-channel', action='store_true', help='Show the id of the channels the bot was added to')
 
-    def handle(self, *args, last=False, find_channel=False, open=False, **opts):
+    def handle(self, *args, last=False, find_channel=False, open=False, photo=(), caption='', **opts):
         if find_channel:
             return self.find_channel()
         if not tg.enabled():
@@ -33,6 +37,8 @@ class Command(BaseCommand):
             self.stderr.write(self.style.ERROR(f'Telegram refused: {e}'))
             self.stderr.write('Check the token, the channel id, and that the bot is an admin of the channel.')
             return
+        if photo:
+            return self.post_photos(photo, caption)
         if open:
             from django.core.cache import cache
             from store.models import ScannerSignal
@@ -59,6 +65,30 @@ class Command(BaseCommand):
                files={'photo': ('test.png', png, 'image/png')})
         self.stdout.write(self.style.SUCCESS('Test message posted to the channel.'))
 
+    def post_photos(self, photos, caption):
+        """Any photo: a file on this computer or an https link. Over 10 MB (Telegram's photo limit) goes as a file."""
+        import mimetypes
+        import os
+        chat = tg._cfg('TELEGRAM_CHANNEL_ID')
+        for i, src in enumerate(photos):
+            data = {'chat_id': chat}
+            if caption and i == 0:
+                data['caption'] = caption[:1024]
+            try:
+                if src.startswith(('http://', 'https://')):
+                    msg = tg.api('sendPhoto', {**data, 'photo': src}, timeout=30)
+                else:
+                    path = os.path.expanduser(src)
+                    if not os.path.isfile(path):
+                        self.stderr.write(self.style.ERROR(f'File not found: {path}'))
+                        continue
+                    kind = 'photo' if os.path.getsize(path) <= 10 * 1024 * 1024 else 'document'
+                    with open(path, 'rb') as fh:
+                        msg = tg.api('sendPhoto' if kind == 'photo' else 'sendDocument', data, timeout=60,
+                                     files={kind: (os.path.basename(path), fh, mimetypes.guess_type(path)[0] or 'image/jpeg')})
+                self.stdout.write(self.style.SUCCESS(f"Posted {src} (message {msg['message_id']})"))
+            except Exception as e:
+                self.stderr.write(self.style.ERROR(f'{src}: Telegram refused: {e}'))
 
     def find_channel(self):
         if not tg._cfg('TELEGRAM_BOT_TOKEN'):
