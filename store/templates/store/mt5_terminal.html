@@ -733,6 +733,16 @@ main { padding: 0 !important; }
         color: #30d158; text-shadow: 0 0 3px var(--m-bg), 0 0 3px var(--m-bg);
     }
     .mt5-trade-lbl.sltp { color: #ff453a; }
+    .mt5-trade-lbl.buy { color: #1a8cff; } .mt5-trade-lbl.sell { color: #f2524a; }
+    /* one-click SELL / BUY twinkle on every tick (MT5) */
+    .oc-side.tick-up   { animation: mt5TickUp .5s ease-out; }
+    .oc-side.tick-down { animation: mt5TickDown .5s ease-out; }
+    @keyframes mt5TickUp   { 0% { filter: brightness(1.55); } 100% { filter: brightness(1); } }
+    @keyframes mt5TickDown { 0% { filter: brightness(.6); } 100% { filter: brightness(1); } }
+    .oc-side.tick-up b::after   { content: ' ▲'; font-size: 9px; animation: mt5TickFade .6s forwards; }
+    .oc-side.tick-down b::after { content: ' ▼'; font-size: 9px; animation: mt5TickFade .6s forwards; }
+    @keyframes mt5TickFade { 0%, 60% { opacity: 1; } 100% { opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { .oc-side.tick-up, .oc-side.tick-down { animation: none; } }
     .mt5-trade-lbl .pl { margin-left: 6px; }
     .mt5-trade-lbl .pl.pos { color: #0a84ff; } .mt5-trade-lbl .pl.neg { color: #ff453a; }
     .mt5-toast.error   { background: rgba(193,74,58,0.96); }
@@ -1027,7 +1037,8 @@ main { padding: 0 !important; }
 
         <div class="mt5-margin-call" id="mt5-margin-call" style="display:none;"></div>
 
-        <div style="padding-bottom: 4px;">
+        <div id="mt5-deriv-box" style="display:none;"></div>
+        <div id="mt5-site-metrics" style="padding-bottom: 4px;">
             <div class="mt5-detail-row"><span class="label">Balance:</span><span class="value" id="mt5-balance">{{ metrics.balance|floatformat:2 }}</span></div>
             <div class="mt5-detail-row"><span class="label">Equity:</span><span class="value" id="mt5-equity">{{ metrics.equity|floatformat:2 }}</span></div>
             <div class="mt5-detail-row"><span class="label">Margin:</span><span class="value" id="mt5-margin">{{ metrics.margin_used|floatformat:2 }}</span></div>
@@ -1114,6 +1125,11 @@ main { padding: 0 !important; }
                 <div class="mt5-set-row-text">Economic Calendar</div>
                 <div class="mt5-set-chevron"></div>
             </a>
+        </div>
+
+        <div class="mt5-set-title" style="font-size:20px;padding-top:0">Accounts</div>
+        <div class="mt5-set-card" id="mt5-acct-card">
+            <div class="mt5-set-row"><div class="mt5-set-row-text"><div class="mt5-set-row-sub">Loading accounts…</div></div></div>
         </div>
 
         <div class="mt5-set-card">
@@ -2442,6 +2458,7 @@ function mt5OpShow() {
 }
 function mt5OpenOrderPanel(symbol, type) {
     symbol = symbol || mt5ChartSymbol || MT5_SYMBOLS[0];
+    if (mt5Acct !== 'site') return mt5DerivOrderSheet(symbol);
     const s = mt5Spec(symbol);
     mt5Op = { mode: 'new', symbol, type: type || 'MARKET', volume: s.volume_min, price: null, stoplimit: null,
               sl: null, tp: null, expiration: 'GTC', pos: null, order: null };
@@ -2779,10 +2796,23 @@ async function mt5OpModifyOrder() {
 })();
 
 // one-click
+// the SELL / BUY buttons flash on every tick like MT5's one-click panel: brighter on an uptick, darker on a downtick
+let mt5OcLast = { sym: null, bid: null, ask: null };
+function mt5OcTwinkle(el, prev, now) {
+    if (!el || prev == null || now == null || prev === now) return;
+    const btn = el.closest('button');
+    if (!btn) return;
+    btn.classList.remove('tick-up', 'tick-down');
+    void btn.offsetWidth;                                 // restart the animation
+    btn.classList.add(now > prev ? 'tick-up' : 'tick-down');
+}
 function mt5UpdateOneClick() {
     const q = mt5Quote(mt5ChartSymbol);
-    document.getElementById('mt5-oc-bid').innerHTML = q ? mt5PriceHTML(q.bid, mt5ChartSymbol) : '—';
-    document.getElementById('mt5-oc-ask').innerHTML = q ? mt5PriceHTML(q.ask, mt5ChartSymbol) : '—';
+    const bidEl = document.getElementById('mt5-oc-bid'), askEl = document.getElementById('mt5-oc-ask');
+    if (q && mt5OcLast.sym === mt5ChartSymbol) { mt5OcTwinkle(bidEl, mt5OcLast.bid, q.bid); mt5OcTwinkle(askEl, mt5OcLast.ask, q.ask); }
+    mt5OcLast = { sym: mt5ChartSymbol, bid: q ? q.bid : null, ask: q ? q.ask : null };
+    bidEl.innerHTML = q ? mt5PriceHTML(q.bid, mt5ChartSymbol) : '—';
+    askEl.innerHTML = q ? mt5PriceHTML(q.ask, mt5ChartSymbol) : '—';
     document.getElementById('mt5-oc-vol').textContent = Number(mt5OneClickVol).toFixed(2);
 }
 function mt5OneClickVolume() {
@@ -2796,6 +2826,7 @@ function mt5OneClickVolume() {
     mt5UpdateOneClick();
 }
 async function mt5OneClick(direction) {
+    if (mt5Acct !== 'site') return mt5DerivOrderSheet(mt5ChartSymbol, direction);
     if (!mt5Load('mt5OneClickAccepted', false)) {
         if (!confirm('One Click Trading\n\nOrders are sent immediately with one tap, without confirmation. You accept the risk of trading this way.')) return;
         mt5Store('mt5OneClickAccepted', true);
@@ -2928,6 +2959,7 @@ function mt5SwitchTab(tab) {
 
 // metrics
 async function mt5FetchMetrics() {
+    if (mt5Acct !== 'site') return;
     try {
         const d = await mt5Get('/api/mt5/metrics/');
         if (!d.success) return;
@@ -3967,9 +3999,11 @@ function mt5ToggleFullscreen() {
 function mt5OpenTimeframeSheet() {
     mt5ActionSheet('Timeframe', MT5_TF_LIST.map(tf => ({ label: MT5_TF_LABEL[tf] + (tf === mt5ChartTimeframe ? '  ✓' : ''), fn: () => mt5SetTimeframe(tf) })));
 }
-// Trade levels drawn like MT5 mobile: green dashed line at the open price, red dashed SL/TP lines,
+// Trade levels drawn like MT5 mobile: the open price in the trade's colour (blue = buy, red = sell), red dashed SL/TP lines,
 // and the text ("sell 0.40  -12.40", "SL", "TP") on the left edge of the chart instead of next to the price axis.
 let mt5TradeLabels = [], mt5TradeLabelRaf = 0;
+const MT5_BUY_COLOR = '#1a8cff', MT5_SELL_COLOR = '#f2524a';
+var mt5Acct = 'site', mt5DerivPositions = [];          // the account the terminal trades on (accounts module below)
 function mt5DrawChartEntryLines() {
     if (!mt5CandleSeries) return;
     Object.keys(mt5ChartEntryLines).forEach(id => { try { mt5CandleSeries.removePriceLine(mt5ChartEntryLines[id]); } catch (e) {} });
@@ -3988,15 +4022,28 @@ function mt5DrawChartEntryLines() {
         box.appendChild(el);
         mt5TradeLabels.push({ el, price: Number(price), pos, pl: el.querySelector('.pl') });
     };
+    if (mt5Acct !== 'site') {                            // the Deriv account's open contracts
+        mt5DerivPositions.forEach(p => {
+            if (mt5DerivSiteSymbol(p.symbol) !== mt5ChartSymbol || !parseFloat(p.entry)) return;
+            const buy = p.side === 'BUY';
+            add(`d${p.contract_id}`, parseFloat(p.entry), buy ? MT5_BUY_COLOR : MT5_SELL_COLOR, LS.Dashed, buy ? 'buy' : 'sell',
+                `${buy ? 'buy' : 'sell'} ×${p.multiplier} $${Number(p.stake).toFixed(2)}<span class="pl"></span>`, { deriv: true, profit: p.profit });
+        });
+        mt5UpdateChartQuoteLines();
+        if (mt5TradeLabels.length && !mt5TradeLabelRaf) mt5TradeLabelRaf = requestAnimationFrame(mt5PlaceTradeLabels);
+        return;
+    }
     Object.values(mt5PositionsCache).forEach(p => {
         if (p.symbol !== mt5ChartSymbol) return;
-        add(`p${p.id}`, p.entry, '#30d158', LS.Dashed, '', `${p.direction === 'BUY' ? 'buy' : 'sell'} ${Number(p.volume).toFixed(2)}<span class="pl"></span>`, p);
+        const buy = p.direction === 'BUY';
+        add(`p${p.id}`, p.entry, buy ? MT5_BUY_COLOR : MT5_SELL_COLOR, LS.Dashed, buy ? 'buy' : 'sell', `${buy ? 'buy' : 'sell'} ${Number(p.volume).toFixed(2)}<span class="pl"></span>`, p);
         add(`sl${p.id}`, p.sl, '#ff453a', LS.Dashed, 'sltp', 'SL');
         add(`tp${p.id}`, p.tp, '#ff453a', LS.Dashed, 'sltp', 'TP');
     });
     Object.values(mt5OrdersCache).forEach(o => {
         if (o.symbol !== mt5ChartSymbol) return;
-        add(`o${o.id}`, o.price, '#30d158', LS.Dashed, '', `${mt5Escape(String(o.type).toLowerCase().replace(/_/g, ' '))} ${Number(o.volume).toFixed(2)}`);
+        const obuy = String(o.type).toUpperCase().startsWith('BUY');
+        add(`o${o.id}`, o.price, obuy ? MT5_BUY_COLOR : MT5_SELL_COLOR, LS.Dashed, obuy ? 'buy' : 'sell', `${mt5Escape(String(o.type).toLowerCase().replace(/_/g, ' '))} ${Number(o.volume).toFixed(2)}`);
         add(`osl${o.id}`, o.sl, '#ff453a', LS.Dashed, 'sltp', 'SL');
         add(`otp${o.id}`, o.tp, '#ff453a', LS.Dashed, 'sltp', 'TP');
     });
@@ -4014,7 +4061,7 @@ function mt5PlaceTradeLabels() {
         l.el.style.display = show ? '' : 'none';
         if (show) l.el.style.top = y + 'px';
         if (l.pl) {
-            const pr = mt5PositionLive(l.pos).profit;
+            const pr = l.pos.deriv ? l.pos.profit : mt5PositionLive(l.pos).profit;
             const txt = pr == null ? '' : mt5Signed(pr);
             if (l.pl.textContent !== txt) { l.pl.textContent = txt; l.pl.className = 'pl ' + mt5Cls(pr); }
         }
@@ -4029,7 +4076,7 @@ function mt5UpdateChartQuoteLines() {
         const LS = LWC().LineStyle;
         mt5QuoteLines = {
             series: mt5CandleSeries,
-            bid: mt5CandleSeries.createPriceLine({ price: q.bid, color: '#26a69a', lineWidth: 1, lineStyle: LS.Dashed, axisLabelVisible: true, title: '' }),
+            bid: mt5CandleSeries.createPriceLine({ price: q.bid, color: '#8e8e93', lineWidth: 1, lineStyle: LS.Solid, axisLabelVisible: true, title: '' }),
             ask: mt5CandleSeries.createPriceLine({ price: q.ask, color: 'rgba(0,0,0,0)', lineWidth: 1, lineStyle: LS.Dashed, axisLabelVisible: false, title: '' }),
         };
     } else {
@@ -4306,6 +4353,7 @@ function mt5ClearDrawings() {
 
 // positions
 async function mt5FetchPositions() {
+    if (mt5Acct !== 'site') return mt5DerivRefresh();
     try {
         const d = await mt5Get('/api/open-positions/');
         if (!d.success) return;
@@ -4485,6 +4533,7 @@ async function mt5CloseBy(p, o) {
 
 // orders
 async function mt5FetchOrders() {
+    if (mt5Acct !== 'site') return;
     try {
         const d = await mt5Get('/api/mt5/orders/');
         if (!d.success) return;
@@ -4826,6 +4875,165 @@ function mt5CloseDOM() {
     if (mt5DomWs) { try { mt5DomWs.close(); } catch (e) {} mt5DomWs = null; }
     mt5DomSym = null;
 }
+</script>
+
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// ACCOUNTS (Settings → Accounts, like MT5): the PATREOAIX account and the user's connected Deriv accounts.
+// On a Deriv account the Trade tab shows its balance and open Multipliers contracts, and orders go to Deriv
+// (stake × multiplier). Real money is never chosen by itself and every real order asks to confirm.
+// ═══════════════════════════════════════════════════════════
+var mt5DerivAccts = { demo: null, real: null };
+try { if (sessionStorage.getItem('mt5Acct') === 'demo') mt5Acct = 'demo'; } catch (e) {}
+const mt5DerivSiteSymbol = s => String(s || '').replace(/^(frx|cry)/, '');
+
+async function mt5LoadAccounts() {
+    const [d, r] = await Promise.all(['demo', 'real'].map(a => mt5Get(`/api/deriv/demo/account/?account=${a}`).catch(() => null)));
+    mt5DerivAccts = { demo: d, real: r };
+    if (mt5Acct === 'demo' && !(d && d.success)) mt5Acct = 'site';
+    mt5RenderAccounts();
+    mt5ApplyAccount();
+}
+function mt5AcctRow(key, title, sub, ribbonColor, ok) {
+    const on = mt5Acct === key;
+    return `<button type="button" class="mt5-set-row" ${ok ? `onclick="mt5SetAccount('${key}')"` : 'disabled style="opacity:.55"'}>
+        <div class="mt5-set-icon" style="background:${ribbonColor};"><i class="fa-solid ${key === 'site' ? 'fa-p' : key === 'real' ? 'fa-sack-dollar' : 'fa-flask'}"></i></div>
+        <div class="mt5-set-row-text"><div class="mt5-set-row-label">${title}</div><div class="mt5-set-row-sub">${sub}</div></div>
+        ${on ? '<i class="fa-solid fa-check" style="color:var(--m-blue);font-size:17px"></i>' : '<div class="mt5-set-chevron"></div>'}
+    </button>`;
+}
+function mt5RenderAccounts() {
+    const box = document.getElementById('mt5-acct-card');
+    if (!box) return;
+    const d = mt5DerivAccts.demo, r = mt5DerivAccts.real;
+    const money = a => `${Number(a.balance).toFixed(2)} ${a.currency || 'USD'}`;
+    let html = mt5AcctRow('site', 'PATREOAIX-Live', `{{ request.user.id }} · site trading account`, 'linear-gradient(135deg,#f0b90b,#d99a00)', true);
+    if (d && d.connected) html += mt5AcctRow('demo', `Deriv Demo · ${mt5Escape(d.loginid || '')}`, d.success ? `Balance ${money(d)} · Multipliers` : mt5Escape(d.error || 'unavailable'), 'linear-gradient(135deg,#34c759,#28a745)', !!d.success);
+    if (r && r.real_allowed && r.connected) html += mt5AcctRow('real', `Deriv Real · ${mt5Escape(r.loginid || '')}`, !r.real_enabled ? 'Tap to turn on real-money trading' : r.success ? `REAL MONEY · balance ${money(r)}` : mt5Escape(r.error || 'unavailable'), 'linear-gradient(135deg,#f2524a,#c9302c)', true);
+    if (!(d && d.connected)) html += `<a href="/connect-deriv/" class="mt5-set-row"><div class="mt5-set-icon" style="background:linear-gradient(135deg,#ff444f,#d0353f);"><i class="fa-solid fa-link"></i></div><div class="mt5-set-row-text"><div class="mt5-set-row-label">Connect Deriv</div><div class="mt5-set-row-sub">Log in with Deriv to trade your own demo / real account here</div></div><div class="mt5-set-chevron"></div></a>`;
+    box.innerHTML = html;
+}
+async function mt5SetAccount(key) {
+    if (key === 'real') {
+        const r = mt5DerivAccts.real;
+        if (!r || !r.connected) return;
+        if (!r.real_enabled) {
+            if (!confirm('Turn on REAL-MONEY trading?\n\nOrders will use the real balance of your own Deriv account. Multipliers are leveraged: you can lose your whole stake quickly. '
+                + `Each contract is limited to $${r.real_max_stake} and every order asks you to confirm. AI signals are estimates, not advice.\n\nPress OK only if you accept these risks.`)) return;
+            const res = await mt5Post('/api/deriv/real/enable/', { accept: true });
+            if (!res.success) { mt5Toast(res.error || 'Could not turn on real trading', 'error'); return; }
+            await mt5LoadAccounts();
+            if (!(mt5DerivAccts.real && mt5DerivAccts.real.success)) return;
+        } else if (!r.success) { mt5Toast(r.error || 'Your Deriv real account is not reachable', 'error'); return; }
+    }
+    mt5Acct = key;
+    try { sessionStorage.setItem('mt5Acct', key === 'real' ? 'site' : key); } catch (e) {}
+    mt5RenderAccounts();
+    mt5ApplyAccount();
+    mt5Toast(key === 'site' ? 'PATREOAIX-Live account' : `Deriv ${key === 'real' ? 'REAL' : 'Demo'} account`, 'success');
+    mt5SwitchTab('trade');
+}
+function mt5ApplyAccount() {
+    const deriv = mt5Acct !== 'site';
+    ['mt5-site-metrics', 'mt5-open-positions', 'mt5-pending-orders', 'mt5-margin-call'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = deriv ? 'none' : (id === 'mt5-margin-call' ? el.style.display : '');
+    });
+    const box = document.getElementById('mt5-deriv-box');
+    if (box) box.style.display = deriv ? '' : 'none';
+    if (deriv) mt5DerivRefresh(); else { mt5DerivPositions = []; mt5FetchPositions(); mt5FetchMetrics(); mt5FetchOrders(); }
+}
+async function mt5DerivRefresh() {
+    if (mt5Acct === 'site') return;
+    const acc = mt5DerivAccts[mt5Acct] || {};
+    let d;
+    try { d = await mt5Get(`/api/deriv/demo/positions/?account=${mt5Acct}`); } catch (e) { return; }
+    const box = document.getElementById('mt5-deriv-box');
+    if (!d.success) { if (box) box.innerHTML = `<div class="mt5-detail-row"><span class="label">${mt5Escape(d.error || 'Deriv unavailable')}</span></div>`; return; }
+    mt5DerivPositions = (d.positions || []);
+    const total = mt5DerivPositions.reduce((a, p) => a + (p.profit || 0), 0);
+    const tp = document.getElementById('mt5-total-pnl');
+    if (tp) { tp.innerHTML = `${mt5Signed(total)} <span class="cur">${d.currency || 'USD'}</span>`; tp.className = 'mt5-trade-total ' + mt5Cls(total); }
+    const real = mt5Acct === 'real';
+    const row = (k, v) => `<div class="mt5-detail-row"><span class="label">${k}</span><span class="value">${v}</span></div>`;
+    let html = `<div class="mt5-detail-row"><span class="label" style="font-weight:700;color:${real ? 'var(--m-red)' : 'var(--m-blue)'}">${real ? 'DERIV REAL · REAL MONEY' : 'DERIV DEMO'} · ${mt5Escape(d.loginid || acc.loginid || '')}</span><span class="value"></span></div>`
+        + row('Balance:', d.balance != null ? Number(d.balance).toFixed(2) : '—')
+        + row('Equity:', d.balance != null ? (Number(d.balance) + mt5DerivPositions.reduce((a, p) => a + (p.bid_price || 0), 0)).toFixed(2) : '—')
+        + `<div class="mt5-pos-section-header"><span class="title">Positions</span></div>`;
+    html += mt5DerivPositions.length ? mt5DerivPositions.map(p => {
+        const buy = p.side === 'BUY';
+        return `<div class="mt5-detail-row" style="cursor:pointer" onclick="mt5DerivPositionSheet(${p.contract_id})">
+            <span class="label"><b>${mt5Escape(mt5DerivSiteSymbol(p.symbol))}</b>, <span style="color:${buy ? 'var(--m-blue)' : 'var(--m-red)'}">${buy ? 'buy' : 'sell'} ×${p.multiplier}</span><br>
+            <span style="font-size:12px;color:var(--m-dim)">stake ${Number(p.stake).toFixed(2)} · ${mt5Escape(p.entry)} → ${mt5Escape(p.current)}</span></span>
+            <span class="value ${mt5Cls(p.profit)}">${mt5Signed(p.profit)}</span></div>`;
+    }).join('') : '<div class="mt5-detail-row"><span class="label" style="color:var(--m-dim)">No open Deriv contracts</span></div>';
+    if (box) box.innerHTML = html;
+    mt5DrawChartEntryLines();
+}
+function mt5DerivPositionSheet(cid) {
+    const p = mt5DerivPositions.find(x => x.contract_id === cid);
+    if (!p) return;
+    mt5ActionSheet(`${mt5DerivSiteSymbol(p.symbol)} ${p.side === 'BUY' ? 'buy' : 'sell'} ×${p.multiplier} · ${mt5Signed(p.profit)}`, [
+        { label: 'Close position', fn: async () => {
+            if (mt5Acct === 'real' && !confirm(`Close REAL Deriv contract #${cid} at the market price?`)) return;
+            const res = await mt5Post('/api/deriv/demo/close/', Object.assign({ contract_id: cid }, mt5Acct === 'real' ? { account: 'real', confirm_real: true } : {}));
+            if (!res.success) mt5Toast(res.error || 'Close failed', 'error');
+            else mt5Toast(`#${cid} closed · ${mt5Signed(res.profit || 0)}`, (res.profit || 0) >= 0 ? 'success' : 'error');
+            mt5DerivRefresh(); mt5LoadAccounts();
+        } },
+        { label: 'Chart', fn: () => { mt5ChartSymbol = mt5DerivSiteSymbol(p.symbol); mt5SwitchTab('chart'); } },
+    ]);
+}
+// order sheet for a Deriv account: stake, multiplier, optional stop loss / take profit amounts, SELL / BUY
+function mt5DerivOrderSheet(symbol, side) {
+    const real = mt5Acct === 'real', acc = mt5DerivAccts[mt5Acct] || {};
+    document.getElementById('mt5-deriv-sheet')?.remove();
+    const stake = mt5Load('mt5DerivStake', 10), max = real ? acc.real_max_stake : null;
+    document.body.insertAdjacentHTML('beforeend', `
+    <div id="mt5-deriv-sheet" style="position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.45);display:flex;align-items:flex-end" onclick="if(event.target===this)this.remove()">
+      <div style="width:100%;background:var(--m-bg);color:var(--m-text);border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));font-family:inherit">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <b style="font-size:17px">${mt5Escape(symbol)} · Deriv ${real ? 'REAL' : 'Demo'}</b>
+          <span style="font-size:12px;color:var(--m-dim)">${mt5Escape(acc.loginid || '')}</span></div>
+        ${real ? '<div style="font-size:12px;font-weight:700;color:var(--m-red);margin-bottom:10px">REAL MONEY: you can lose the whole stake.</div>' : ''}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px">
+          <label>Stake (USD)<input id="mdo-stake" type="number" min="1" step="1" value="${stake}" style="width:100%;margin-top:4px;padding:10px;border-radius:10px;background:var(--m-panel);color:var(--m-text);border:1px solid var(--m-line2)"></label>
+          <label>Multiplier<select id="mdo-mult" style="width:100%;margin-top:4px;padding:10px;border-radius:10px;background:var(--m-panel);color:var(--m-text);border:1px solid var(--m-line2)"><option>100</option></select></label>
+          <label>Stop loss ($, optional)<input id="mdo-sl" type="number" min="0" step="0.1" style="width:100%;margin-top:4px;padding:10px;border-radius:10px;background:var(--m-panel);color:var(--m-text);border:1px solid var(--m-line2)"></label>
+          <label>Take profit ($, optional)<input id="mdo-tp" type="number" min="0" step="0.1" style="width:100%;margin-top:4px;padding:10px;border-radius:10px;background:var(--m-panel);color:var(--m-text);border:1px solid var(--m-line2)"></label>
+        </div>
+        ${max ? `<div style="font-size:11px;color:var(--m-dim);margin-top:6px">Real stakes are limited to $${max} per contract.</div>` : ''}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px">
+          <button type="button" id="mdo-sell" style="padding:14px;border-radius:12px;border:0;font-weight:800;color:#fff;background:var(--m-red)">SELL</button>
+          <button type="button" id="mdo-buy" style="padding:14px;border-radius:12px;border:0;font-weight:800;color:#fff;background:var(--m-blue)">BUY</button>
+        </div>
+      </div>
+    </div>`);
+    mt5Get(`/api/deriv/demo/multipliers/?symbol=${encodeURIComponent(symbol)}`).then(d => {
+        const list = d.multipliers || [100], sel = document.getElementById('mdo-mult');
+        if (sel) { sel.innerHTML = list.map(m => `<option value="${m}">×${m}</option>`).join(''); sel.value = String(list.includes(100) ? 100 : list[0]); }
+    }).catch(() => {});
+    const go = async dir => {
+        const st = parseFloat(document.getElementById('mdo-stake').value), mult = Number(document.getElementById('mdo-mult').value);
+        const sl = parseFloat(document.getElementById('mdo-sl').value) || null, tp = parseFloat(document.getElementById('mdo-tp').value) || null;
+        if (!st || st < 1) return mt5Toast('Stake must be at least 1 USD', 'error');
+        if (max && st > max) return mt5Toast(`Real stakes are limited to $${max}`, 'error');
+        if (real && !confirm(`REAL MONEY\n\n${dir} ${symbol} ×${mult}, stake $${st.toFixed(2)} on your Deriv REAL account ${acc.loginid}.\nYou can lose the whole stake. Place this order?`)) return;
+        mt5Store('mt5DerivStake', st);
+        const body = { symbol, side: dir, stake: st, multiplier: mult, stop_loss: sl, take_profit: tp };
+        if (real) Object.assign(body, { account: 'real', confirm_real: true });
+        const res = await mt5Post('/api/deriv/demo/open/', body);
+        if (!res.success) return mt5Toast(res.error || 'Deriv refused the order', 'error');
+        document.getElementById('mt5-deriv-sheet')?.remove();
+        mt5Toast(`${dir.toLowerCase()} ${symbol} ×${mult} · Deriv #${res.contract_id}`, 'success');
+        mt5DerivRefresh(); mt5LoadAccounts();
+    };
+    document.getElementById('mdo-sell').onclick = () => go('SELL');
+    document.getElementById('mdo-buy').onclick = () => go('BUY');
+    if (side) document.getElementById(side === 'BUY' ? 'mdo-buy' : 'mdo-sell').focus();
+}
+document.addEventListener('DOMContentLoaded', () => { mt5LoadAccounts(); setInterval(() => { if (!document.hidden && mt5Acct !== 'site') mt5DerivRefresh(); }, 5000); });
 </script>
 
 {% endblock %}
