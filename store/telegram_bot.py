@@ -142,11 +142,12 @@ def signal_caption(sig, r=None):
     return '\n'.join(lines)
 
 
-def post_signal(sig, r=None):
-    """Post one new signal (chart + caption). Returns the Telegram message id, or None."""
+def post_signal(sig, r=None, force=False):
+    """Post one new signal (chart + caption). Returns the Telegram message id, or None.
+    force=True posts it whatever its grade (telegram_test --open / --all)."""
     if not enabled():
         return None
-    if GRADE_RANK.get(sig.grade, 0) < GRADE_RANK.get(_cfg('TELEGRAM_MIN_GRADE', 'A'), 2):
+    if not force and GRADE_RANK.get(sig.grade, 0) < GRADE_RANK.get(_cfg('TELEGRAM_MIN_GRADE', 'A'), 2):
         return None
     if not cache.add(f'tg:sent:{sig.id}', 1, 90 * 86400):     # posted already (scan ran twice)
         return cache.get(f'tg:msg:{sig.id}')
@@ -199,14 +200,14 @@ def post_scan(results, style):
     if not enabled() or _cfg('TELEGRAM_SCAN_POSTS', 'True') != 'True':
         return None
     floor = GRADE_RANK.get(_cfg('TELEGRAM_MIN_GRADE', 'A'), 2)
-    strong = [r for r in results if r.get('strong') and GRADE_RANK.get(r.get('grade'), 0) >= floor and (r.get('plan') or {}).get('entry')]
+    strong = [r for r in results if GRADE_RANK.get(r.get('grade'), 0) >= floor and (r.get('plan') or {}).get('entry')]
     if not strong:
         return None
     key = '|'.join(sorted(f"{r['symbol']}:{r['direction']}:{r['grade']}" for r in strong))
     repeat = int(_cfg('TELEGRAM_SCAN_REPEAT_MINUTES', '60') or 0) * 60
     if repeat and cache.get(f'tg:scan:{style}') == key:
         return None
-    lines = [f"🧠 <b>PATREOAIX AI scan · {style.title()}</b>  ({len(strong)} strong setup{'s' if len(strong) != 1 else ''})", '']
+    lines = [f"🧠 <b>PATREOAIX AI scan · {style.title()}</b>  ({len(strong)} setup{'s' if len(strong) != 1 else ''})", '']
     for r in strong[:15]:
         p, d = r['plan'], _digits(r['symbol'])
         f = lambda v: '—' if v is None else f'{v:.{d}f}'
