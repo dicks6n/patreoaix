@@ -657,6 +657,14 @@
             .px-toast { left: 16px; right: 16px; bottom: 96px; }
         }
 
+        /* phones: the header has several buttons right of the bell, so a dropdown anchored to the bell ran off the
+           left edge. Show the panels as sheets under the header, inside the screen. */
+        @media (max-width: 640px) {
+            #notif-dropdown { position: fixed; top: 60px; left: 10px; right: 10px; width: auto; max-width: none; }
+            #notif-list { max-height: calc(100dvh - 190px); }
+            #acct-menu { position: fixed; top: 60px; right: 10px; left: auto; max-width: calc(100vw - 20px); }
+            .px-notif-item { padding: 12px 14px; }
+        }
         /* notifications list */
         .px-notif-item { display: flex; gap: 12px; padding: 12px 16px; cursor: pointer; border-bottom: 1px solid var(--px-line-soft); }
         .px-notif-item:hover { background: var(--px-hover); }
