@@ -250,8 +250,9 @@ def health():
     # integrations
     add('Deriv app', 'ok' if getattr(settings, 'DERIV_APP_ID', '') else 'fail',
         'DERIV_APP_ID set' if getattr(settings, 'DERIV_APP_ID', '') else 'DERIV_APP_ID missing', 'Add DERIV_APP_ID to settings.py')
-    add('Deriv login redirect', 'ok' if getattr(settings, 'DERIV_OAUTH_REDIRECT', '') else 'warn',
-        getattr(settings, 'DERIV_OAUTH_REDIRECT', '') or 'Not set (uses this site\'s /deriv-callback/)', 'Register the same URL in your Deriv app')
+    add('Deriv login redirect', 'ok',
+        getattr(settings, 'DERIV_OAUTH_REDIRECT', '') or f"{getattr(settings, 'SITE_URL', '')}/deriv-callback/ (this site's own)",
+        'Register the same URL in your Deriv app')
     feeds = [n for n in ('TWELVEDATA_API_KEY', 'OANDA_API_KEY') if getattr(settings, n, '')]
     add('Forex / gold data keys', 'ok' if feeds else 'warn', ', '.join(feeds) if feeds else 'No TwelveData / OANDA key — forex falls back to Yahoo', 'Add TWELVEDATA_API_KEY')
     add('Email', 'ok' if getattr(settings, 'EMAIL_HOST', '') else 'warn', getattr(settings, 'EMAIL_HOST', '') or 'EMAIL_HOST not set — emails are not delivered', 'Configure EMAIL_HOST / EMAIL_HOST_USER')

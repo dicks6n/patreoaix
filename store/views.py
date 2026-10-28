@@ -1590,7 +1590,7 @@ def connect_deriv(request):
 
     # Legacy app (numeric app_id): old oauth.deriv.com redirect with acct1/token1
     app_id = getattr(settings, 'DERIV_APP_ID', '')
-    redirect_uri = getattr(settings, 'DERIV_OAUTH_REDIRECT', '')
+    redirect_uri = _deriv_redirect_uri(request)
 
     oauth_url = (
         f"https://oauth.deriv.com/oauth2/authorize"

@@ -51,10 +51,10 @@ DERIV_APP_ID = os.environ.get('DERIV_APP_ID', '34mjct1dBCmYao65TsMoD')
 DERIV_WS_APP_ID = os.environ.get('DERIV_WS_APP_ID', '1089')
 # Force a market-data socket URL (default: Deriv's new public endpoint, then the legacy one)
 DERIV_PUBLIC_WS_URL = os.environ.get('DERIV_PUBLIC_WS_URL', '')
-DERIV_OAUTH_REDIRECT = os.environ.get(
-    'DERIV_OAUTH_REDIRECT',
-    'http://127.0.0.1:8000/deriv-callback/'  # change in production
-)
+# Deriv login return address. Empty = this site's own /deriv-callback/ on the address the visitor uses
+# (https://www.patreoaix.com/deriv-callback/ live, http://127.0.0.1:8000/deriv-callback/ on the laptop).
+# Register the live one in your Deriv app.
+DERIV_OAUTH_REDIRECT = os.environ.get('DERIV_OAUTH_REDIRECT', '')
 DERIV_OAUTH_SCOPES = 'read trade'
 # =============================================
 # NOWCRYPTO API CONFIGURATION
