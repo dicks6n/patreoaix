@@ -735,10 +735,11 @@ main { padding: 0 !important; }
     .mt5-trade-lbl.sltp { color: #ff453a; }
     .mt5-trade-lbl.buy { color: #1a8cff; } .mt5-trade-lbl.sell { color: #f2524a; }
     /* one-click SELL / BUY twinkle on every tick (MT5) */
-    .oc-side.tick-up   { animation: mt5TickUp .5s ease-out; }
-    .oc-side.tick-down { animation: mt5TickDown .5s ease-out; }
-    @keyframes mt5TickUp   { 0% { filter: brightness(1.55); } 100% { filter: brightness(1); } }
-    @keyframes mt5TickDown { 0% { filter: brightness(.6); } 100% { filter: brightness(1); } }
+    /* uptick = blue, downtick = red (MT5 quote colours), fading back to the button's own colour */
+    .oc-side.tick-up   { animation: mt5TickUp .55s ease-out; }
+    .oc-side.tick-down { animation: mt5TickDown .55s ease-out; }
+    @keyframes mt5TickUp   { 0%, 35% { background: #1a8cff; box-shadow: 0 0 0 2px #1a8cff, 0 0 14px rgba(26,140,255,.75); } }
+    @keyframes mt5TickDown { 0%, 35% { background: #f2524a; box-shadow: 0 0 0 2px #f2524a, 0 0 14px rgba(242,82,74,.75); } }
     .oc-side.tick-up b::after   { content: ' ▲'; font-size: 9px; animation: mt5TickFade .6s forwards; }
     .oc-side.tick-down b::after { content: ' ▼'; font-size: 9px; animation: mt5TickFade .6s forwards; }
     @keyframes mt5TickFade { 0%, 60% { opacity: 1; } 100% { opacity: 0; } }
