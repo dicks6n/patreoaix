@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PATREOAIX Results · every AI signal, win or lose</title>
+<meta name="description" content="The full track record of PATREOAIX AI trading signals: win rate, results in R and every signal, recorded automatically.">
+<meta property="og:title" content="PATREOAIX AI signals: every result, win or lose">
+<meta property="og:description" content="{% if all.win_rate is not None %}{{ all.win_rate }}% reached target first · {% endif %}{{ all.signals }} signals tracked automatically against real candles.">
+<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% url 'public_results_png' %}">
+<meta property="og:url" content="{{ share_url }}">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    :root { --bg:#0b0e14; --panel:#121722; --panel2:#1a2130; --line:#232a38; --text:#e8ebf1; --dim:#9aa3b5; --mute:#6f7890;
+            --gold:#f0b90b; --up:#16c784; --down:#ea3943; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding-bottom: 80px; }
+    a { color: inherit; text-decoration: none; }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: rgba(11,14,20,.92); backdrop-filter: blur(8px); z-index: 5; }
+    .brand { display: flex; align-items: center; gap: 9px; font-weight: 800; letter-spacing: .04em; }
+    .brand i { width: 34px; height: 34px; border-radius: 10px; background: var(--gold); color: #0b0e14; display: inline-flex; align-items: center; justify-content: center; }
+    .brand b { color: var(--gold); }
+    .hbtn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 10px; font-weight: 800; font-size: 13px; }
+    .gold { background: linear-gradient(135deg,#ffd34d,#f0a500); color: #0b0e14; }
+    .ghost { color: var(--dim); }
+    h1 { font-size: clamp(28px, 6vw, 44px); line-height: 1.15; margin: 34px 0 8px; }
+    h1 span { color: var(--gold); }
+    .lead { color: var(--dim); max-width: 680px; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 24px 0; }
+    .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+    .stat span { display: block; font-size: 12px; color: var(--mute); text-transform: uppercase; letter-spacing: .05em; font-weight: 700; }
+    .stat b { font: 800 28px/1.2 'JetBrains Mono', ui-monospace, monospace; }
+    .stat small { color: var(--mute); font-size: 12px; }
+    .up { color: var(--up); } .down { color: var(--down); }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 18px; margin: 16px 0; }
+    .card h2 { font-size: 17px; margin: 0 0 12px; }
+    .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .tabs a { padding: 7px 12px; border-radius: 9px; font-size: 13px; font-weight: 700; background: var(--panel2); color: var(--dim); border: 1px solid var(--line); }
+    .tabs a.on { background: var(--gold); color: #0b0e14; border-color: var(--gold); }
+    #curve { width: 100%; height: 240px; display: block; }
+    .scroll { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    th { text-align: left; font-size: 11px; color: var(--mute); text-transform: uppercase; letter-spacing: .05em; padding: 9px; border-bottom: 1px solid var(--line); }
+    td { padding: 10px 9px; border-bottom: 1px solid rgba(35,42,56,.6); white-space: nowrap; }
+    .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+    .pill { font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 6px; }
+    .pill.TP { background: rgba(22,199,132,.14); color: var(--up); } .pill.SL { background: rgba(234,57,67,.14); color: var(--down); }
+    .pill.EXPIRED { background: var(--panel2); color: var(--mute); } .pill.OPEN { background: rgba(240,185,11,.14); color: var(--gold); }
+    .side.BUY { color: var(--up); font-weight: 800; } .side.SELL { color: var(--down); font-weight: 800; }
+    .share { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+    .share a, .share button { display: inline-flex; align-items: center; gap: 7px; padding: 10px 14px; border-radius: 11px; font-weight: 700; font-size: 13.5px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); cursor: pointer; font-family: inherit; }
+    .share .tg { background: #2aabee; color: #fff; border-color: #2aabee; }
+    .cta { text-align: center; padding: 28px 18px; background: linear-gradient(135deg, rgba(240,185,11,.16), rgba(240,165,0,.04)); border: 1px solid rgba(240,185,11,.4); }
+    .cta h2 { font-size: 22px; }
+    .note { color: var(--mute); font-size: 12.5px; }
+    .mbar { display: none; }
+    @media (max-width: 640px) {
+        .hide-sm { display: none; }
+        .mbar { display: flex; position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 9; justify-content: center; padding: 14px; border-radius: 14px; font-weight: 800; }
+    }
+</style>
+</head>
+<body>
+<header>
+    <a href="/" class="brand"><i class="fa-solid fa-chart-line"></i>PATREO<b>AIX</b></a>
+    <div style="display:flex;gap:6px;align-items:center">
+        <a href="{% url 'login' %}" class="hbtn ghost">Log in</a>
+        <a href="{% url 'subscribe' %}" class="hbtn gold"><i class="fa-solid fa-crown"></i> Subscribe</a>
+    </div>
+</header>
+
+<main class="wrap">
+    <h1>Every AI signal, <span>win or lose</span></h1>
+    <p class="lead">Each A / A+ setup is recorded the moment the AI finds it and checked automatically against the candles that follow. Nothing is edited or deleted{% if first %}; tracking since {{ first|date:"j F Y" }}{% endif %}.</p>
+    <div class="tabs">
+        <a href="?" class="{% if not style %}on{% endif %}">All styles</a>
+        <a href="?style=scalp" class="{% if style == 'scalp' %}on{% endif %}">Scalp</a>
+        <a href="?style=intraday" class="{% if style == 'intraday' %}on{% endif %}">Intraday</a>
+        <a href="?style=swing" class="{% if style == 'swing' %}on{% endif %}">Swing</a>
+        <a href="?style=position" class="{% if style == 'position' %}on{% endif %}">Position</a>
+    </div>
+
+    <div class="stats">
+        <div class="stat"><span>Signals</span><b>{{ all.signals }}</b><small>{{ all.open }} live now</small></div>
+        <div class="stat"><span>Target first</span><b class="up">{% if all.win_rate is not None %}{{ all.win_rate }}%{% else %}—{% endif %}</b><small>{{ all.wins }} wins · {{ all.losses }} losses</small></div>
+        <div class="stat"><span>Total result</span><b class="{% if all.total_r >= 0 %}up{% else %}down{% endif %}">{% if all.total_r >= 0 %}+{% endif %}{{ all.total_r }}R</b><small>R = the risk of one trade</small></div>
+        <div class="stat"><span>Last 30 days</span><b class="{% if last30.total_r >= 0 %}up{% else %}down{% endif %}">{% if last30.total_r >= 0 %}+{% endif %}{{ last30.total_r }}R</b><small>{% if last30.win_rate is not None %}{{ last30.win_rate }}% target first · {% endif %}{{ last30.closed }} closed</small></div>
+    </div>
+
+    <div class="card">
+        <h2>Growth of following every signal (in R)</h2>
+        {% if curve %}<svg id="curve" viewBox="0 0 1000 240" preserveAspectRatio="none"></svg>{% else %}<p class="note">The curve appears once signals have closed.</p>{% endif %}
+        <p class="note">Same risk on every signal (1R). Real results depend on your position size, spread and timing.</p>
+        <div class="share">
+            <a class="tg" href="https://t.me/share/url?url={{ share_url|urlencode }}&text={{ 'PATREOAIX AI signals: every result, win or lose'|urlencode }}" target="_blank" rel="noopener"><i class="fa-brands fa-telegram"></i> Telegram</a>
+            <button type="button" id="copy"><i class="fa-regular fa-copy"></i> Copy link</button>
+        </div>
+    </div>
+
+    {% if monthly %}
+    <div class="card"><h2>Month by month</h2><div class="scroll"><table>
+        <thead><tr><th>Month</th><th>Signals</th><th>Wins</th><th>Losses</th><th>Target first</th><th>Result</th></tr></thead>
+        <tbody>{% for m in monthly %}<tr><td>{{ m.month }}</td><td class="mono">{{ m.signals }}</td><td class="mono up">{{ m.wins }}</td><td class="mono down">{{ m.losses }}</td>
+            <td class="mono">{% if m.win_rate is not None %}{{ m.win_rate }}%{% else %}—{% endif %}</td>
+            <td class="mono {% if m.total_r >= 0 %}up{% else %}down{% endif %}">{% if m.total_r >= 0 %}+{% endif %}{{ m.total_r }}R</td></tr>{% endfor %}</tbody>
+    </table></div></div>
+    {% endif %}
+
+    {% if markets %}
+    <div class="card"><h2>By market</h2><div class="scroll"><table>
+        <thead><tr><th>Market</th><th>Closed</th><th>Target first</th><th>Result</th></tr></thead>
+        <tbody>{% for m in markets %}<tr><td><b>{{ m.symbol }}</b></td><td class="mono">{{ m.closed }}</td><td class="mono">{% if m.win_rate is not None %}{{ m.win_rate }}%{% else %}—{% endif %}</td>
+            <td class="mono {% if m.total_r >= 0 %}up{% else %}down{% endif %}">{% if m.total_r >= 0 %}+{% endif %}{{ m.total_r }}R</td></tr>{% endfor %}</tbody>
+    </table></div></div>
+    {% endif %}
+
+    <div class="card"><h2>Latest signals</h2><div class="scroll"><table>
+        <thead><tr><th>Date</th><th>Market</th><th>Signal</th><th class="hide-sm">Entry</th><th class="hide-sm">Stop</th><th class="hide-sm">Target</th><th>Result</th></tr></thead>
+        <tbody>
+        {% for s in recent %}
+        <tr>
+            <td class="mono">{{ s.created_at|date:"d M H:i" }}</td>
+            <td><b>{{ s.symbol }}</b> <span class="note">{{ s.timeframe|upper }}</span></td>
+            <td><span class="side {{ s.direction }}">{{ s.direction }}</span> <span class="note">{{ s.grade }}</span></td>
+            {% if s.outcome == 'OPEN' %}
+            <td class="hide-sm note" colspan="3"><i class="fa-solid fa-lock"></i> members only while live</td>
+            <td><span class="pill OPEN">Live</span></td>
+            {% else %}
+            <td class="mono hide-sm">{{ s.entry }}</td><td class="mono hide-sm down">{{ s.stop_loss }}</td><td class="mono hide-sm up">{{ s.take_profit }}</td>
+            <td><span class="pill {{ s.outcome }}">{% if s.outcome == 'TP' %}Target{% elif s.outcome == 'SL' %}Stopped{% else %}Expired{% endif %} {% if s.result_r >= 0 %}+{% endif %}{{ s.result_r }}R</span></td>
+            {% endif %}
+        </tr>
+        {% empty %}<tr><td colspan="7" class="note">The first signals will appear here.</td></tr>{% endfor %}
+        </tbody>
+    </table></div></div>
+
+    <div class="card cta">
+        <h2>Get every signal live, with entry, stop and target</h2>
+        <p class="lead" style="margin:6px auto 16px">Free {{ trial_days }}-day Pro trial on sign-up.{% if bonus_on %} {{ bonus_pct }}% bonus on your first deposit.{% endif %}</p>
+        <a href="{% url 'subscribe' %}" class="hbtn gold" style="font-size:15px;padding:13px 22px"><i class="fa-solid fa-crown"></i> Start free trial</a>
+    </div>
+    <p class="note">Results are calculated in R: +2R means the target was twice as far as the stop. Past results do not guarantee future results. Trading forex, CFDs, synthetic indices and crypto carries a high risk of loss. Not financial advice.</p>
+</main>
+<a href="{% url 'subscribe' %}" class="mbar gold"><i class="fa-solid fa-crown"></i>&nbsp;Start free trial</a>
+
+{{ curve|json_script:"curve-data" }}
+<script>
+(function () {
+    const pts = JSON.parse(document.getElementById('curve-data').textContent || '[]');
+    const svg = document.getElementById('curve');
+    if (svg && pts.length) {
+        const vals = [0].concat(pts.map(p => p.r)), W = 1000, H = 240, pad = 14;
+        const lo = Math.min(...vals), hi = Math.max(...vals), span = (hi - lo) || 1;
+        const X = i => pad + i / (vals.length - 1 || 1) * (W - 2 * pad), Y = v => H - pad - (v - lo) / span * (H - 2 * pad);
+        const line = vals.map((v, i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+        const col = vals[vals.length - 1] >= 0 ? '#16c784' : '#ea3943';
+        svg.innerHTML = `<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${col}" stop-opacity=".35"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></linearGradient></defs>
+            <line x1="${pad}" x2="${W - pad}" y1="${Y(0)}" y2="${Y(0)}" stroke="#2c3446" stroke-dasharray="6 6"/>
+            <polygon points="${X(0)},${Y(lo)} ${line} ${X(vals.length - 1)},${Y(lo)}" fill="url(#g)"/>
+            <polyline points="${line}" fill="none" stroke="${col}" stroke-width="3" vector-effect="non-scaling-stroke"/>`;
+    }
+    const btn = document.getElementById('copy');
+    if (btn) btn.addEventListener('click', () => {
+        const done = () => { btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied'; setTimeout(() => btn.innerHTML = '<i class="fa-regular fa-copy"></i> Copy link', 1500); };
+        if (navigator.clipboard) navigator.clipboard.writeText('{{ share_url|escapejs }}').then(done); else { prompt('Copy the link:', '{{ share_url|escapejs }}'); }
+    });
+})();
+</script>
+</body>
+</html>

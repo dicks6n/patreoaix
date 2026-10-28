@@ -10863,3 +10863,20 @@ def start_trial_view(request):
         return redirect('market_overview')
     messages.info(request, 'The free trial was already used on this account.')
     return redirect('subscription_billing')
+
+
+def public_results(request):
+    """The public track record: every signal, win or lose (no login)."""
+    from . import public_results as pr
+    style = request.GET.get('style') or None
+    style = style if style in ('scalp', 'intraday', 'swing', 'position') else None
+    data = pr.build(style=style)
+    share = f"{settings.SITE_URL.rstrip('/')}/results/"
+    return render(request, 'store/public_results.html', dict(data, style=style, share_url=share))
+
+
+def public_results_png(request):
+    from . import public_results as pr
+    days = 1 if request.GET.get('days') == '1' else 30
+    return HttpResponse(pr.results_png(days), content_type='image/png', headers={'Cache-Control': 'public, max-age=1800'})
+

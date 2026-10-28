@@ -23,6 +23,8 @@ urlpatterns = [
     path('index/', views.dashboard_view, name='index'),
     path('market-overview/', members_only(views.market_overview_view), name='market_overview'),
     path('posters/', views.signal_posters, name='signal_posters'),
+    path('results/', views.public_results, name='public_results'),
+    path('results/card.png', views.public_results_png, name='public_results_png'),
     path('news-impact/', members_only(views.news_impact, feature='News impact'), name='news_impact'),
     path('subscribe/', views.subscribe_link, name='subscribe'),
     path('pricing/', views.subscribe_link),
