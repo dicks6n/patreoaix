@@ -10653,7 +10653,7 @@ def signal_posters(request):
             account = f'connected (could not read the account: {e})'
     return render(request, 'store/posters.html', {
         'posters': poster.recent(60), 'tiktok_configured': tiktok.configured(), 'tiktok_account': account,
-        'tiktok_redirect': tiktok.redirect_uri(), 'tiktok_prefix': tiktok.poster_url('posters/'),
+        'tiktok_redirect': tiktok.redirect_uri(request), 'tiktok_prefix': tiktok.poster_url('posters/'),
     })
 
 

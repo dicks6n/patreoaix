@@ -74,8 +74,14 @@ def enabled():
     return configured() and connected() and _cfg('TIKTOK_ENABLED', 'True') == 'True'
 
 
-def redirect_uri():
-    return _cfg('TIKTOK_REDIRECT_URI') or f"{_cfg('SITE_URL').rstrip('/')}/tiktok/callback/"
+def redirect_uri(request=None):
+    """The callback on the address the visitor is using (patreoaix.com or www.patreoaix.com), so the login comes
+    back to the same session. Register both forms in the TikTok app; TIKTOK_REDIRECT_URI forces one."""
+    if _cfg('TIKTOK_REDIRECT_URI'):
+        return _cfg('TIKTOK_REDIRECT_URI')
+    if request is not None:
+        return request.build_absolute_uri('/tiktok/callback/')
+    return f"{_cfg('SITE_URL').rstrip('/')}/tiktok/callback/"
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -84,8 +90,9 @@ def redirect_uri():
 def auth_url(request):
     state = secrets.token_urlsafe(24)
     request.session['tiktok_state'] = state
+    request.session['tiktok_redirect'] = redirect_uri(request)      # the token exchange must send the same one
     q = {'client_key': _cfg('TIKTOK_CLIENT_KEY'), 'scope': SCOPES, 'response_type': 'code',
-         'redirect_uri': redirect_uri(), 'state': state}
+         'redirect_uri': request.session['tiktok_redirect'], 'state': state}
     return AUTH_URL + '?' + urllib.parse.urlencode(q)
 
 
@@ -105,7 +112,8 @@ def finish_login(request, code, state):
     expected = request.session.pop('tiktok_state', None)
     if not expected or not secrets.compare_digest(str(state), expected):
         raise RuntimeError('Login expired or did not start on this site. Press "Connect TikTok" again.')
-    tok = _token_request({'code': code, 'grant_type': 'authorization_code', 'redirect_uri': redirect_uri()})
+    back = request.session.pop('tiktok_redirect', None) or redirect_uri(request)
+    tok = _token_request({'code': code, 'grant_type': 'authorization_code', 'redirect_uri': back})
     _save(tok)
     return tok
 
