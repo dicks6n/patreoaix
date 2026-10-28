@@ -327,9 +327,12 @@ def scan_model(base):
 # CONFLUENCE
 # ═══════════════════════════════════════════════════════════════
 def grade_setup(base, scanners):
+    from .ai_learning import multipliers                 # learned daily from the closed signals
+    learned = multipliers()
+    w = lambda k: WEIGHT[k] * learned.get(k, 1.0)
     voting = [x for x in scanners if x['vote'] is not None and WEIGHT.get(x['key'])]
-    den = sum(WEIGHT[x['key']] for x in voting)
-    conf = (sum(WEIGHT[x['key']] * x['vote'] for x in voting) / den * 100) if den else 0
+    den = sum(w(x['key']) for x in voting)
+    conf = (sum(w(x['key']) * x['vote'] for x in voting) / den * 100) if den else 0
     direction = 'BUY' if conf > 0 else 'SELL'
     sign = 1 if conf > 0 else -1
     agree = [x['key'] for x in voting if x['vote'] * sign >= AGREE_MIN]

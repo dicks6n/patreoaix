@@ -1631,3 +1631,10 @@ class NewsReaction(models.Model):
 
     class Meta:
         unique_together = ('event', 'symbol')
+
+
+class AILearning(models.Model):
+    """What the scanner learned from its own closed signals (store/ai_learning.py), one row per kind."""
+    key = models.CharField(max_length=40, unique=True)
+    data = models.JSONField(default=dict)
+    updated_at = models.DateTimeField(auto_now=True)
