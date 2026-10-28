@@ -1,0 +1,46 @@
+{# Trial + first-deposit bonus banners (context: membership + promos context processors, bonus_status from the view) #}
+<style>
+    .pr-wrap { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+    .pr-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 14px; border: 1px solid rgba(240,185,11,.45);
+               background: linear-gradient(135deg, rgba(240,185,11,.16), rgba(240,165,0,.05)); color: var(--px-text); }
+    .pr-card .pr-ic { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 19px; background: #f0b90b; color: #0b0e14; flex-shrink: 0; }
+    .pr-card b { display: block; font-size: 14.5px; }
+    .pr-card small { display: block; font-size: 12px; color: var(--px-dim); margin-top: 2px; line-height: 1.45; }
+    .pr-card .pr-go { margin-left: auto; flex-shrink: 0; padding: 9px 14px; border-radius: 10px; font-size: 12.5px; font-weight: 800; background: #f0b90b; color: #0b0e14; border: 0; cursor: pointer; }
+    .pr-bar { height: 8px; border-radius: 4px; background: var(--px-panel-2); overflow: hidden; margin-top: 8px; max-width: 360px; }
+    .pr-bar span { display: block; height: 100%; background: #f0b90b; }
+    @media (max-width: 560px) { .pr-card { flex-wrap: wrap; } .pr-card .pr-go { margin-left: 56px; } }
+</style>
+<div class="pr-wrap">
+    {% if trial_available %}
+    <div class="pr-card">
+        <span class="pr-ic"><i class="fa-solid fa-crown"></i></span>
+        <span><b>Try Pro free for {{ trial_days }} days</b><small>Every AI signal, the entry coach, alerts and auto-trading. No payment needed; it ends by itself.</small></span>
+        <form method="post" action="{% url 'start_trial' %}">{% csrf_token %}<button class="pr-go" type="submit">Start free trial</button></form>
+    </div>
+    {% elif on_trial %}
+    <div class="pr-card">
+        <span class="pr-ic"><i class="fa-solid fa-hourglass-half"></i></span>
+        <span><b>Pro trial: {{ member_tier|cut:"TRIAL · " }} left</b><small>Subscribe before it ends to keep every AI signal and alert.</small></span>
+        <a class="pr-go" href="{% url 'subscription_billing' %}">Subscribe</a>
+    </div>
+    {% endif %}
+
+    {% if bonus_on %}
+        {% if bonus_status %}
+        <div class="pr-card">
+            <span class="pr-ic"><i class="fa-solid fa-gift"></i></span>
+            <span><b>{% if bonus_status.locked %}${{ bonus_status.amount }} deposit bonus · {{ bonus_status.progress }}% unlocked{% else %}${{ bonus_status.amount }} deposit bonus unlocked ✅{% endif %}</b>
+                <small>{% if bonus_status.locked %}Trade with it now. It becomes withdrawable after ${{ bonus_status.required }} of trading volume (${{ bonus_status.turnover }} done).{% else %}Your bonus is now part of your withdrawable balance.{% endif %}</small>
+                {% if bonus_status.locked %}<span class="pr-bar"><span style="width:{{ bonus_status.progress }}%"></span></span>{% endif %}
+            </span>
+        </div>
+        {% elif not has_deposit %}
+        <div class="pr-card">
+            <span class="pr-ic"><i class="fa-solid fa-gift"></i></span>
+            <span><b>{{ bonus_pct }}% bonus on your first deposit</b><small>Deposit $100, trade with $200 (bonus up to ${{ bonus_cap }}). The bonus can be withdrawn after trading {{ bonus_x }}× its amount. <a href="{% url 'terms' %}#bonus" style="text-decoration:underline">Terms</a></small></span>
+            <a class="pr-go" href="{% url 'funding_deposit' %}">Deposit</a>
+        </div>
+        {% endif %}
+    {% endif %}
+</div>

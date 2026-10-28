@@ -61,6 +61,11 @@ DERIV_OAUTH_SCOPES = 'read trade'
 DERIV_REAL_TRADING = os.environ.get('DERIV_REAL_TRADING', 'False')
 DERIV_REAL_MAX_STAKE = os.environ.get('DERIV_REAL_MAX_STAKE', '50')     # USD per contract
 TOKEN_ENCRYPTION_KEY = os.environ.get('TOKEN_ENCRYPTION_KEY', '')
+# First-deposit bonus (store/bonus.py): % of the first deposit, its cap, and the trading volume (× bonus)
+# needed before the bonus can be withdrawn. FIRST_DEPOSIT_BONUS_PCT=0 turns it off.
+FIRST_DEPOSIT_BONUS_PCT = os.environ.get('FIRST_DEPOSIT_BONUS_PCT', '100')
+FIRST_DEPOSIT_BONUS_MAX = os.environ.get('FIRST_DEPOSIT_BONUS_MAX', '500')
+BONUS_TURNOVER_X = os.environ.get('BONUS_TURNOVER_X', '10')
 # =============================================
 # NOWCRYPTO API CONFIGURATION
 # =============================================
@@ -204,6 +209,7 @@ TEMPLATES = [
                 'store.context_processors.kyc_status',
                 'store.context_processors.site_flags',
                 'store.context_processors.membership',
+                'store.context_processors.promos',
   #
             ],
         },

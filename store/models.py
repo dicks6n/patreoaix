@@ -25,6 +25,7 @@ class UserProfile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     subscription_tier = models.CharField(max_length=50, default='free')
     is_active_subscription = models.BooleanField(default=False)
+    trial_used = models.BooleanField(default=False)          # the free 3-day Pro trial (store/membership.py)
     is_kyc_verified = models.BooleanField(default=False)
     kyc_submitted_at = models.DateTimeField(null=True, blank=True)
 
@@ -1377,6 +1378,17 @@ def handle_payment_approval(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=Transaction)
+def first_deposit_bonus(sender, instance, created, **kwargs):
+    if created and instance.transaction_type == 'DEPOSIT' and getattr(instance, 'status', 'completed') == 'completed':
+        try:
+            from .bonus import on_deposit
+            on_deposit(instance)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f'first-deposit bonus failed: {e}')
+
+
+@receiver(post_save, sender=Transaction)
 def send_transaction_notification(sender, instance, created, **kwargs):
     if created and instance.transaction_type == 'DEPOSIT':
         Notification.objects.create(
@@ -1638,3 +1650,16 @@ class AILearning(models.Model):
     key = models.CharField(max_length=40, unique=True)
     data = models.JSONField(default=dict)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class DepositBonus(models.Model):
+    """The first-deposit bonus (store/bonus.py). Tradable at once; withdrawable after the trading requirement."""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='deposit_bonus')
+    deposit = models.DecimalField(max_digits=12, decimal_places=2)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    required_turnover = models.DecimalField(max_digits=14, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+    released_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f'{self.user} bonus ${self.amount} ({"released" if self.released_at else "locked"})'

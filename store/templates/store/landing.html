@@ -210,7 +210,11 @@
                 <i class="fa-brands fa-telegram"></i> Free signals on Telegram
             </a>
             {% endif %}
-            <a href="{% url 'signup' %}" class="lp-cta-2">Create free account <i class="fa-solid fa-arrow-right text-xs"></i></a>
+            <a href="{% url 'signup' %}" class="lp-cta-2">Free {{ trial_days }}-day Pro trial <i class="fa-solid fa-arrow-right text-xs"></i></a>
+        </div>
+        <div class="flex flex-wrap items-center justify-center gap-2 mt-5">
+            <span class="lp-chip"><i class="fa-solid fa-crown" style="color:#f0b90b"></i> {{ trial_days }} days of Pro free on sign-up</span>
+            {% if bonus_on %}<span class="lp-chip"><i class="fa-solid fa-gift" style="color:#f0b90b"></i> {{ bonus_pct }}% bonus on your first deposit</span>{% endif %}
         </div>
 
         <!-- Real numbers: the scanner's own track record and the platform -->
@@ -317,7 +321,7 @@
         <div class="text-center max-w-2xl mx-auto mb-16">
             <span class="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest">Pricing</span>
             <h2 class="text-3xl font-extrabold text-white mt-2">Simple & Transparent Pricing</h2>
-            <p class="text-slate-400 text-xs sm:text-sm mt-3">Start free. Subscribe for every AI signal, alerts and auto-trading. Pay with {% if mpesa_enabled %}M-Pesa or {% endif %}USDT (crypto).</p>
+            <p class="text-slate-400 text-xs sm:text-sm mt-3">Sign up and get {{ trial_days }} days of Pro free. Subscribe for every AI signal, alerts and auto-trading.{% if bonus_on %} {{ bonus_pct }}% bonus on your first deposit.{% endif %} Pay with {% if mpesa_enabled %}M-Pesa or {% endif %}USDT (crypto).</p>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-8">
@@ -344,7 +348,7 @@
                         {% endif %}
                     </ul>
                 </div>
-                <a href="{% if t.price %}{% url 'subscribe' %}{% else %}{% url 'signup' %}{% endif %}" class="mt-8 w-full py-3 rounded-xl text-center text-xs font-bold transition {% if t.key == 'pro' %}lp-cta justify-center{% else %}bg-slate-800 hover:bg-slate-700 text-white{% endif %}">{% if t.price %}Subscribe to {{ t.name }}{% else %}Create free account{% endif %}</a>
+                <a href="{% if t.price %}{% url 'subscribe' %}{% else %}{% url 'signup' %}{% endif %}" class="mt-8 w-full py-3 rounded-xl text-center text-xs font-bold transition {% if t.key == 'pro' %}lp-cta justify-center{% else %}bg-slate-800 hover:bg-slate-700 text-white{% endif %}">{% if t.price %}Subscribe to {{ t.name }}{% else %}Start free {{ trial_days }}-day Pro trial{% endif %}</a>
             </div>
             {% endfor %}
         </div>

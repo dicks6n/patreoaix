@@ -261,6 +261,7 @@ urlpatterns = [
     path('rewards/', views.survey_rewards_view, name='survey_rewards'),
     path('rewards/claim/<int:reward_id>/', views.claim_survey_reward, name='claim_survey_reward'),
     path('subscription/', views.subscription_billing, name='subscription_billing'),
+    path('subscription/trial/', views.start_trial_view, name='start_trial'),
     path('subscription/cancel/', views.cancel_subscription, name='cancel_subscription'),
     path('subscription/switch/<str:tier>/', views.switch_tier, name='switch_tier'),
     path('referrals/', views.referral_dashboard, name='referral_dashboard'),

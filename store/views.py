@@ -419,7 +419,11 @@ def signup_view(request):
                                        user_agent=request.META.get('HTTP_USER_AGENT', '')[:200])
         except Exception as e:
             logger.warning(f"Session tracking failed: {e}")
-        messages.success(request, f"Account created successfully! Welcome to PATREOAIX, {auth_user.username}.")
+        from .membership import start_trial, TRIAL_DAYS
+        trial = start_trial(auth_user)
+        messages.success(request, f"Account created successfully! Welcome to PATREOAIX, {auth_user.username}."
+                         + (f" Your free {TRIAL_DAYS}-day Pro trial has started: every AI signal is unlocked." if trial else '')
+                         + (" 🎁 Deposit now and get a 100% bonus on your first deposit." if _bonus_on() else ''))
         return redirect(request.session.pop('after_signup', None) or "dashboard")
 
     return render(request, "account/signup.html", {'ref_code': ref_code or ''})
@@ -921,6 +925,7 @@ def subscription_billing(request):
         'subscription_expires_at': user_profile.subscription_expires_at,
         'days_remaining': user_profile.days_remaining(),
         'mpesa_enabled': getattr(settings, 'MPESA_DEPOSITS_ENABLED', False),
+        'has_deposit': Transaction.objects.filter(user=request.user, transaction_type='DEPOSIT', status='completed').exists(),
     }
     return render(request, 'store/subscription-billing.html', context)
 
@@ -1245,12 +1250,15 @@ def request_withdrawal(request):
         status='PENDING'
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
-    available_balance = exchange_acc.balance - pending_total
+    from .bonus import locked_amount
+    locked = locked_amount(request.user)                       # first-deposit bonus not unlocked yet
+    available_balance = exchange_acc.balance - pending_total - locked
 
     if available_balance < amount:
         messages.error(
             request,
-            f'Insufficient available balance. You have ${available_balance:.2f} available.'
+            f'Insufficient available balance. You have ${max(available_balance, Decimal("0")):.2f} available'
+            + (f' (${locked:.2f} deposit bonus unlocks after its trading requirement).' if locked else '.')
         )
         return redirect('funding_deposit')
 
@@ -4812,6 +4820,9 @@ def funding_deposit(request):
         # M-Pesa is hidden on the page until MPESA_DEPOSITS_ENABLED = True in settings (the views still work)
         'mpesa_enabled': getattr(settings, 'MPESA_DEPOSITS_ENABLED', False),
     }
+    from . import bonus
+    context['bonus_status'] = bonus.status(request.user)
+    context['has_deposit'] = Transaction.objects.filter(user=request.user, transaction_type='DEPOSIT', status='completed').exists()
     return render(request, 'store/payment.html', context)
 
 
@@ -10836,3 +10847,19 @@ def news_impact(request):
         'sel_key': key, 'sel_label': nh.EVENTS[key][0], 'lead': lead, 'history': history,
         'loaded': bool(history) or nh.recent(1),
     })
+
+
+def _bonus_on():
+    from . import bonus
+    return bonus.enabled()
+
+
+@login_required
+@require_POST
+def start_trial_view(request):
+    from .membership import start_trial, TRIAL_DAYS
+    if start_trial(request.user):
+        messages.success(request, f'Your free {TRIAL_DAYS}-day Pro trial has started: every AI signal is unlocked.')
+        return redirect('market_overview')
+    messages.info(request, 'The free trial was already used on this account.')
+    return redirect('subscription_billing')

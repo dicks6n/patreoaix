@@ -705,10 +705,24 @@
         </div>
 
         <nav class="flex-1 overflow-y-auto no-scrollbar px-3 py-4 space-y-5">
-            {% if not is_member %}
+            {% if trial_available %}
+            <form method="post" action="{% url 'start_trial' %}">{% csrf_token %}
+                <button type="submit" class="sub-cta w-full text-left">
+                    <i class="fa-solid fa-crown"></i>
+                    <span><b>Try Pro free for {{ trial_days }} days</b><small>Every AI signal, alerts &amp; auto-trading</small></span>
+                    <i class="fa-solid fa-chevron-right sub-cta-go"></i>
+                </button>
+            </form>
+            {% elif not is_member %}
             <a href="{% url 'subscription_billing' %}" class="sub-cta">
                 <i class="fa-solid fa-crown"></i>
                 <span><b>Subscribe to Pro</b><small>Unlock AI signals, alerts &amp; auto-trading</small></span>
+                <i class="fa-solid fa-chevron-right sub-cta-go"></i>
+            </a>
+            {% elif on_trial %}
+            <a href="{% url 'subscription_billing' %}" class="sub-cta">
+                <i class="fa-solid fa-hourglass-half"></i>
+                <span><b>Pro trial · {{ member_tier|cut:"TRIAL · " }} left</b><small>Subscribe to keep every signal</small></span>
                 <i class="fa-solid fa-chevron-right sub-cta-go"></i>
             </a>
             {% endif %}

@@ -21,13 +21,72 @@ MEMBERS_ONLY_MSG = 'Signals are for Pro and VIP members. Starter accounts trade 
 AUTO_TRADING_MSG = 'Automated trading is for Pro and VIP members. Starter accounts trade manually: upgrade to unlock it.'
 
 
+TRIAL_TIER = 'pro_trial'          # the free trial: Pro features, ends by itself
+TRIAL_DAYS = 3
+
+
 def tier_of(user):
     from .models import UserProfile
     try:
         p = UserProfile.objects.filter(user=user).first()
     except Exception:
         p = None
+    if p is not None and p.subscription_tier == TRIAL_TIER and p.is_active_subscription:
+        from django.utils import timezone
+        if not p.subscription_expires_at or p.subscription_expires_at <= timezone.now():
+            _end_trial(p)
     return (str(getattr(p, 'subscription_tier', '') or 'free').upper().strip(), bool(getattr(p, 'is_active_subscription', False)))
+
+
+def trial_available(user):
+    from .models import UserProfile
+    p = UserProfile.objects.filter(user=user).first()
+    return bool(user.is_authenticated and not is_member(user) and not (p and p.trial_used))
+
+
+def start_trial(user, days=TRIAL_DAYS):
+    """Give the user the free Pro trial once. Returns True when it started."""
+    from datetime import timedelta
+    from django.utils import timezone
+    from .models import UserProfile, Notification
+    p, _ = UserProfile.objects.get_or_create(user=user)
+    if p.trial_used or (p.is_active_subscription and p.subscription_tier != TRIAL_TIER):
+        return False
+    now = timezone.now()
+    p.subscription_tier, p.is_active_subscription, p.trial_used = TRIAL_TIER, True, True
+    p.subscription_started_at, p.subscription_expires_at = now, now + timedelta(days=days)
+    p.save(update_fields=['subscription_tier', 'is_active_subscription', 'trial_used',
+                          'subscription_started_at', 'subscription_expires_at'])
+    try:
+        Notification.objects.create(user=user, title=f'🎉 Your {days}-day Pro trial has started', category='ACCOUNT',
+                                    priority='success', action_url='/market-overview/', action_label='See AI signals',
+                                    message='All AI signals, the entry coach, alerts and auto-trading are unlocked until '
+                                            f'{p.subscription_expires_at:%d %b %H:%M} UTC.')
+    except Exception:
+        pass
+    return True
+
+
+def _end_trial(p):
+    from .models import Notification
+    p.subscription_tier, p.is_active_subscription = 'free', False
+    p.save(update_fields=['subscription_tier', 'is_active_subscription'])
+    try:
+        Notification.objects.create(user=p.user, title='Your Pro trial has ended', category='ACCOUNT', priority='info',
+                                    action_url='/subscription/', action_label='Subscribe',
+                                    message='Subscribe to Pro to keep getting every AI signal, alerts and auto-trading.')
+    except Exception:
+        pass
+
+
+def trial_days_left(user):
+    from django.utils import timezone
+    from .models import UserProfile
+    p = UserProfile.objects.filter(user=user).first()
+    if not (p and p.subscription_tier == TRIAL_TIER and p.is_active_subscription and p.subscription_expires_at):
+        return None
+    secs = (p.subscription_expires_at - timezone.now()).total_seconds()
+    return max(0, int(secs // 86400) + (1 if secs % 86400 else 0))
 
 
 def is_member(user):

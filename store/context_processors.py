@@ -16,9 +16,12 @@ def membership(request):
     if not request.user.is_authenticated:
         return {'is_member': False, 'member_tier': ''}
     try:
-        from .membership import tier_of, MEMBER_TIERS
+        from .membership import tier_of, MEMBER_TIERS, trial_days_left, trial_available
         tier, active = tier_of(request.user)
-        return {'is_member': active and tier in MEMBER_TIERS, 'member_tier': tier if active else ''}
+        member = active and any(t in tier for t in MEMBER_TIERS)
+        days = trial_days_left(request.user) if member and 'TRIAL' in tier else None
+        return {'is_member': member, 'member_tier': (f'TRIAL · {days}d' if days is not None else tier) if member else '',
+                'on_trial': days is not None, 'trial_available': not member and trial_available(request.user)}
     except Exception:
         return {'is_member': False, 'member_tier': ''}
 
@@ -59,3 +62,11 @@ def kyc_status(request):
         return {'kyc_status': 'REJECTED'}
 
     return {'kyc_status': 'MISSING'}
+
+def promos(request):
+    """First-deposit bonus settings for the banners (store/bonus.py) and the trial length."""
+    from django.conf import settings
+    from . import bonus
+    from .membership import TRIAL_DAYS
+    return {'bonus_on': bonus.enabled(), 'bonus_pct': f'{bonus.pct():.0f}', 'bonus_cap': f'{bonus.cap():.0f}',
+            'bonus_x': f'{bonus.turnover_x():.0f}', 'trial_days': TRIAL_DAYS}
