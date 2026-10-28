@@ -89,6 +89,51 @@
         @keyframes pxBlink2 { 50% { opacity: 0; } }
         @media (max-width: 640px) { .px-ai-hud { display: none; } }
         @media (prefers-reduced-motion: reduce) { .px-ai-hud .blink { animation: none; } }
+        /* ── brand: gold accents, subscribe buttons, track record ── */
+        .lp-gold { color: #f0b90b !important; }
+        .lp-logo { width: 38px; height: 38px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; background: #f0b90b; color: #0b0e14; font-size: 17px; }
+        .lp-sub { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 10px; font-size: 12.5px; font-weight: 800;
+                  color: #0b0e14 !important; background: linear-gradient(135deg, #ffd34d, #f0a500); animation: lpPulse 2.4s infinite; white-space: nowrap; }
+        @keyframes lpPulse { 0% { box-shadow: 0 0 0 0 rgba(240,185,11,.55); } 70% { box-shadow: 0 0 0 10px rgba(240,185,11,0); } 100% { box-shadow: 0 0 0 0 rgba(240,185,11,0); } }
+        .lp-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 600;
+                   color: var(--px-text); background: color-mix(in srgb, #f0b90b 10%, transparent); border: 1px solid color-mix(in srgb, #f0b90b 35%, transparent); }
+        .lp-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--px-up); box-shadow: 0 0 0 0 var(--px-up); animation: lpDot 1.8s infinite; }
+        @keyframes lpDot { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--px-up) 60%, transparent); } 70% { box-shadow: 0 0 0 7px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+        .lp-cta { display: inline-flex; align-items: center; gap: 8px; padding: 13px 22px; border-radius: 13px; font-size: 14px; font-weight: 800;
+                  color: #0b0e14 !important; background: linear-gradient(135deg, #ffd34d, #f0a500); box-shadow: 0 10px 30px -10px rgba(240,165,0,.7); transition: transform .15s; }
+        .lp-cta:hover { transform: translateY(-1px); }
+        .lp-cta-2 { display: inline-flex; align-items: center; gap: 8px; padding: 13px 20px; border-radius: 13px; font-size: 14px; font-weight: 700;
+                    color: var(--px-text) !important; background: var(--px-panel-2); border: 1px solid var(--px-line); }
+        .lp-cta-2 .fa-telegram { color: #2aabee; font-size: 16px; }
+        .lp-stat { padding: 14px 10px; border-radius: 14px; background: var(--px-panel); border: 1px solid var(--px-line); display: flex; flex-direction: column; gap: 2px; }
+        .lp-stat b { font: 800 22px/1.2 'JetBrains Mono', monospace; color: var(--px-text); }
+        .lp-stat span { font-size: 11px; color: var(--px-mute); }
+        .lp-table-wrap { overflow-x: auto; border-radius: 18px; border: 1px solid var(--px-line); background: var(--px-panel); }
+        .lp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .lp-table th { text-align: left; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--px-mute); padding: 12px 14px; border-bottom: 1px solid var(--px-line); }
+        .lp-table td { padding: 12px 14px; border-bottom: 1px solid color-mix(in srgb, var(--px-line) 60%, transparent); color: var(--px-text); white-space: nowrap; }
+        .lp-table tr:last-child td { border-bottom: 0; }
+        .lp-table .mono { font-family: 'JetBrains Mono', monospace; }
+        .lp-table .dim { color: var(--px-mute); font-size: 11px; }
+        .lp-side { font-weight: 800; font-size: 11px; padding: 3px 8px; border-radius: 6px; }
+        .lp-side.BUY { color: var(--px-up); background: color-mix(in srgb, var(--px-up) 14%, transparent); }
+        .lp-side.SELL { color: var(--px-down); background: color-mix(in srgb, var(--px-down) 14%, transparent); }
+        .lp-grade { font-size: 11px; font-weight: 800; color: #f0b90b; border: 1px solid color-mix(in srgb, #f0b90b 50%, transparent); padding: 2px 6px; border-radius: 6px; }
+        .lp-oc { font-size: 11px; font-weight: 800; padding: 4px 9px; border-radius: 7px; }
+        .lp-oc.TP { color: var(--px-up); background: color-mix(in srgb, var(--px-up) 14%, transparent); }
+        .lp-oc.SL { color: var(--px-down); background: color-mix(in srgb, var(--px-down) 14%, transparent); }
+        .lp-oc.EX { color: var(--px-mute); background: var(--px-panel-2); }
+        .lp-oc.OPEN { color: #f0b90b; background: color-mix(in srgb, #f0b90b 14%, transparent); }
+        .lp-mbar { display: none; }
+        @media (max-width: 767px) {
+            .lp-table .hide-sm { display: none; }
+            .lp-mbar { display: flex; align-items: center; justify-content: center; gap: 8px; position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 60;
+                       padding: 14px; border-radius: 14px; font-weight: 800; font-size: 14px; color: #0b0e14 !important;
+                       background: linear-gradient(135deg, #ffd34d, #f0a500); box-shadow: 0 12px 30px -8px rgba(0,0,0,.6); }
+            body { padding-bottom: 76px; }
+            .lp-sub { padding: 0 11px; }
+        }
+        @media (prefers-reduced-motion: reduce) { .lp-sub, .lp-dot { animation: none; } }
     </style>
 </head>
 <body class="bg-darkBg text-slate-100 font-sans min-h-screen selection:bg-indigo-500 selection:text-white relative overflow-x-hidden">
@@ -105,24 +150,23 @@
     <div class="absolute top-1/3 right-10 w-[400px] h-[400px] bg-emerald-500/5 rounded-full blur-[100px] pointer-events-none"></div>
 
     <!-- Navigation Bar -->
-    <header class="border-b border-slate-800/80 bg-[#0d1322]/80 backdrop-blur-md px-6 py-4 flex items-center justify-between sticky top-0 z-50">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 font-bold text-lg shadow-inner">
-                <i class="fa-solid fa-brain"></i>
-            </div>
-            <span class="font-bold text-base tracking-wider text-white">PATREOAIX</span>
-        </div>
-        
-        <nav class="hidden md:flex items-center gap-8 text-xs font-medium text-slate-300">
-            <a href="#home" class="hover:text-white transition text-indigo-400 font-bold">Home</a>
-            <a href="#features" class="hover:text-white transition">Features</a>
+    <header class="border-b border-slate-800/80 bg-[#0d1322]/80 backdrop-blur-md px-4 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-50">
+        <a href="#home" class="flex items-center gap-2.5">
+            <span class="lp-logo"><i class="fa-solid fa-chart-line"></i></span>
+            <span class="font-extrabold text-base tracking-wider text-white">PATREO<span class="lp-gold">AIX</span></span>
+        </a>
+
+        <nav class="hidden md:flex items-center gap-7 text-xs font-semibold text-slate-300">
+            <a href="#results" class="hover:text-white transition">Results</a>
             <a href="#pricing" class="hover:text-white transition">Pricing</a>
+            <a href="#how" class="hover:text-white transition">How it works</a>
             <a href="#faq" class="hover:text-white transition">FAQ</a>
             <a href="#contact" class="hover:text-white transition">Contact</a>
         </nav>
 
-        <div class="flex items-center gap-3">
-            <a href="{% url 'login' %}" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs text-white font-bold transition shadow-lg shadow-indigo-600/20">Get Started</a>
+        <div class="flex items-center gap-2 sm:gap-3">
+            <a href="{% url 'login' %}" class="text-xs font-bold text-slate-300 hover:text-white px-2">Log in</a>
+            <a href="{% url 'subscribe' %}" class="lp-sub"><i class="fa-solid fa-crown text-[11px]"></i> Subscribe</a>
             <button type="button" id="px-theme" aria-label="Toggle light / dark" class="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 hover:text-white transition">
                 <i class="fa-solid fa-sun text-xs"></i>
             </button>
@@ -144,34 +188,38 @@
             <span style="left:92%;font-size:30px;animation-duration:22s;animation-delay:-1s">$</span>
             <span style="left:56%;font-size:13px;animation-duration:27s;animation-delay:-19s">GBP/JPY</span>
         </div>
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-mono font-medium mb-6">
-            <i class="fa-solid fa-sparkles text-[10px]"></i> Next-Gen AI Financial & Predictive Intelligence
+        <div class="lp-chip mb-6">
+            <span class="lp-dot"></span> AI scanner live · Gold · Forex · Crypto · Synthetic indices
         </div>
-        
+
         <h1 class="text-4xl sm:text-6xl font-extrabold text-white tracking-tight max-w-4xl mx-auto leading-tight">
-            Predict Markets with <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-emerald-400">Advanced AI Precision</span>
+            AI trading signals with <span class="text-transparent bg-clip-text">entry, stop loss &amp; take profit</span>
         </h1>
-        
+
         <p class="text-slate-400 text-sm sm:text-base max-w-2xl mx-auto mt-6">
-            Create powerful trading algorithms, run digital asset analytics, and automate execution effortlessly. From idea to profitable execution in minutes.
+            Our AI scans every market around the clock and tells you when to buy, when to sell and when to wait,
+            with the exact levels. Every signal is tracked against real candles, so you can see the results.
         </p>
 
-        <div class="flex flex-wrap items-center justify-center gap-4 mt-8">
-            <a href="{% url 'login' %}" class="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-emerald-600 hover:opacity-90 text-sm text-white font-bold transition shadow-xl shadow-indigo-600/25 flex items-center gap-2">
-                Get started for free <i class="fa-solid fa-arrow-right text-xs"></i>
+        <div class="flex flex-wrap items-center justify-center gap-3 mt-8">
+            <a href="{% url 'subscribe' %}" class="lp-cta">
+                <i class="fa-solid fa-crown"></i> Subscribe{% if pro_price %} · ${{ pro_price|floatformat:"0" }}/mo{% endif %}
             </a>
-            <a href="#features" class="px-6 py-3 rounded-xl bg-slate-800/80 border border-slate-700 hover:bg-slate-700 text-sm text-slate-200 font-bold transition">
-                Explore Platform
+            {% if telegram_url %}
+            <a href="{{ telegram_url }}" target="_blank" rel="noopener" class="lp-cta-2">
+                <i class="fa-brands fa-telegram"></i> Free signals on Telegram
             </a>
+            {% endif %}
+            <a href="{% url 'signup' %}" class="lp-cta-2">Create free account <i class="fa-solid fa-arrow-right text-xs"></i></a>
         </div>
 
-        <!-- Real platform numbers -->
-        {% if trader_count > 1 %}
-        <div class="mt-12 flex items-center justify-center gap-8 text-xs text-slate-400">
-            <span><strong class="text-white text-base font-mono">{{ trader_count }}</strong> registered traders</span>
-            {% if trade_count %}<span><strong class="text-white text-base font-mono">{{ trade_count }}</strong> trades executed</span>{% endif %}
+        <!-- Real numbers: the scanner's own track record and the platform -->
+        <div class="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
+            {% if track.signals %}<div class="lp-stat"><b>{{ track.signals }}</b><span>AI signals · 30 days</span></div>{% endif %}
+            {% if track.hit_rate is not None and track.closed >= 5 %}<div class="lp-stat"><b class="px-up">{% widthratio track.hit_rate 1 100 %}%</b><span>reached target first</span></div>{% endif %}
+            {% if track.avg_r is not None and track.closed >= 5 %}<div class="lp-stat"><b class="{% if track.avg_r >= 0 %}px-up{% else %}px-down{% endif %}">{% if track.avg_r >= 0 %}+{% endif %}{{ track.avg_r }}R</b><span>average result</span></div>{% endif %}
+            {% if trader_count > 1 %}<div class="lp-stat"><b>{{ trader_count }}</b><span>registered traders</span></div>{% endif %}
         </div>
-        {% endif %}
 
         <!-- Platform Preview Mockup Box -->
         <div class="mt-12 bg-cardBg border border-slate-800 rounded-3xl p-4 shadow-2xl relative">
@@ -228,8 +276,82 @@
         </div>
     </section>
 
+    <!-- Track record: real signals from the scanner -->
+    <section id="results" class="py-20 px-4 sm:px-6 max-w-7xl mx-auto">
+        <div class="text-center max-w-2xl mx-auto mb-10">
+            <span class="text-xs font-mono font-bold lp-gold uppercase tracking-widest">Track record</span>
+            <h2 class="text-3xl font-extrabold text-white mt-2">Every signal, win or lose</h2>
+            <p class="text-slate-400 text-xs sm:text-sm mt-3">Each A / A+ setup is recorded the moment the AI finds it and checked against the candles that follow. Nothing is edited afterwards.</p>
+        </div>
+        {% if track_rows %}
+        <div class="lp-table-wrap">
+            <table class="lp-table">
+                <thead><tr><th>Date</th><th>Market</th><th>Signal</th><th class="hide-sm">Entry</th><th class="hide-sm">Stop</th><th class="hide-sm">Target</th><th>Result</th></tr></thead>
+                <tbody>
+                {% for r in track_rows %}
+                <tr>
+                    <td class="mono">{{ r.when|date:"d M H:i" }}</td>
+                    <td><b>{{ r.symbol }}</b> <span class="dim">{{ r.timeframe|upper }}</span></td>
+                    <td><span class="lp-side {{ r.direction }}">{{ r.direction }}</span> <span class="lp-grade">{{ r.grade }}</span></td>
+                    <td class="mono hide-sm">{{ r.entry }}</td>
+                    <td class="mono hide-sm px-down">{{ r.sl }}</td>
+                    <td class="mono hide-sm px-up">{{ r.tp }}</td>
+                    <td>{% if r.outcome == 'TP' %}<span class="lp-oc TP">Target {% if r.result_r >= 0 %}+{% endif %}{{ r.result_r }}R</span>
+                        {% elif r.outcome == 'SL' %}<span class="lp-oc SL">Stopped {{ r.result_r }}R</span>
+                        {% elif r.outcome == 'EXPIRED' %}<span class="lp-oc EX">Expired {{ r.result_r }}R</span>
+                        {% else %}<span class="lp-oc OPEN">Live</span>{% endif %}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p class="text-[11px] text-slate-500 text-center mt-4">Members see every signal live, with the chart and the entry coach. Past results do not guarantee future results.</p>
+        {% else %}
+        <p class="text-center text-sm text-slate-400">The scanner's first signals will appear here.</p>
+        {% endif %}
+        <div class="flex justify-center mt-8"><a href="{% url 'subscribe' %}" class="lp-cta"><i class="fa-solid fa-crown"></i> Get every signal live</a></div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section id="pricing" class="py-20 px-6 max-w-7xl mx-auto">
+        <div class="text-center max-w-2xl mx-auto mb-16">
+            <span class="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest">Pricing</span>
+            <h2 class="text-3xl font-extrabold text-white mt-2">Simple & Transparent Pricing</h2>
+            <p class="text-slate-400 text-xs sm:text-sm mt-3">Start free. Subscribe for every AI signal, alerts and auto-trading. Pay with M-Pesa or crypto.</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-8">
+            {% for t in tiers %}
+            <div class="bg-cardBg {% if t.key == 'pro' %}border-2 border-indigo-500 shadow-2xl relative{% else %}border border-slate-800{% endif %} rounded-3xl p-8 flex flex-col justify-between">
+                {% if t.key == 'pro' %}<div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[10px] font-mono font-bold uppercase px-3 py-1 rounded-full">Most Popular</div>{% endif %}
+                <div>
+                    <h3 class="font-bold text-sm text-white uppercase tracking-wider">{{ t.name }}</h3>
+                    <div class="my-6">
+                        <span class="text-4xl font-extrabold text-white font-mono">${{ t.price|floatformat:"0" }}</span>
+                        {% if t.price %}<span class="text-slate-400 text-xs">/month</span>{% endif %}
+                    </div>
+                    <ul class="space-y-3 text-xs text-slate-300">
+                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400"></i> Trading terminal & live prices</li>
+                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400"></i> AI chart scanner & economic calendar</li>
+                        {% if t.funded %}
+                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400"></i> <b class="text-white">Every AI signal</b>&nbsp;with entry, SL &amp; TP</li>
+                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400"></i> Instant alerts &amp; the entry coach</li>
+                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400"></i> Auto-trading bots</li>
+                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400"></i> ${{ t.funded|floatformat:"0" }} funded trading account</li>
+                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400"></i> Copy-trade signals & AI Gold</li>
+                        {% else %}
+                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400"></i> Trade with your own deposit</li>
+                        {% endif %}
+                    </ul>
+                </div>
+                <a href="{% if t.price %}{% url 'subscribe' %}{% else %}{% url 'signup' %}{% endif %}" class="mt-8 w-full py-3 rounded-xl text-center text-xs font-bold transition {% if t.key == 'pro' %}lp-cta justify-center{% else %}bg-slate-800 hover:bg-slate-700 text-white{% endif %}">{% if t.price %}Subscribe to {{ t.name }}{% else %}Create free account{% endif %}</a>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
     <!-- How It Works Section -->
-    <section class="py-20 px-6 max-w-7xl mx-auto">
+    <section id="how" class="py-20 px-6 max-w-7xl mx-auto">
         <div class="text-center max-w-2xl mx-auto mb-16">
             <span class="text-xs font-mono font-bold text-indigo-400 uppercase tracking-widest">Easy Setup</span>
             <h2 class="text-3xl font-extrabold text-white mt-2">How PATREOAIX Works</h2>
@@ -365,41 +487,6 @@
     </section>
 
     {% endcomment %}
-
-    <!-- Pricing Section -->
-    <section id="pricing" class="py-20 px-6 max-w-7xl mx-auto">
-        <div class="text-center max-w-2xl mx-auto mb-16">
-            <span class="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest">Pricing</span>
-            <h2 class="text-3xl font-extrabold text-white mt-2">Simple & Transparent Pricing</h2>
-            <p class="text-slate-400 text-xs sm:text-sm mt-3">Start free. Upgrade when you want a funded account.</p>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-8">
-            {% for t in tiers %}
-            <div class="bg-cardBg {% if t.key == 'pro' %}border-2 border-indigo-500 shadow-2xl relative{% else %}border border-slate-800{% endif %} rounded-3xl p-8 flex flex-col justify-between">
-                {% if t.key == 'pro' %}<div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[10px] font-mono font-bold uppercase px-3 py-1 rounded-full">Most Popular</div>{% endif %}
-                <div>
-                    <h3 class="font-bold text-sm text-white uppercase tracking-wider">{{ t.name }}</h3>
-                    <div class="my-6">
-                        <span class="text-4xl font-extrabold text-white font-mono">${{ t.price|floatformat:"0" }}</span>
-                        {% if t.price %}<span class="text-slate-400 text-xs">/month</span>{% endif %}
-                    </div>
-                    <ul class="space-y-3 text-xs text-slate-300">
-                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400"></i> Trading terminal & live prices</li>
-                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400"></i> AI chart scanner & economic calendar</li>
-                        {% if t.funded %}
-                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400"></i> ${{ t.funded|floatformat:"0" }} funded trading account</li>
-                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400"></i> Copy-trade signals & AI Gold</li>
-                        {% else %}
-                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400"></i> Trade with your own deposit</li>
-                        {% endif %}
-                    </ul>
-                </div>
-                <a href="{% if t.price %}{% url 'login' %}?next={% url 'subscription_billing' %}{% else %}{% url 'signup' %}{% endif %}" class="mt-8 w-full py-3 rounded-xl {% if t.key == 'pro' %}bg-indigo-600 hover:bg-indigo-500{% else %}bg-slate-800 hover:bg-slate-700{% endif %} text-center text-xs text-white font-bold transition">{% if t.price %}Choose {{ t.name }}{% else %}Create free account{% endif %}</a>
-            </div>
-            {% endfor %}
-        </div>
-    </section>
 
     <!-- FAQ Section -->
     <section id="faq" class="py-20 px-6 max-w-4xl mx-auto">
@@ -852,5 +939,6 @@
             requestAnimationFrame(frame);
         })();
     </script>
+    <a href="{% url 'subscribe' %}" class="lp-mbar"><i class="fa-solid fa-crown"></i> Subscribe{% if pro_price %} · ${{ pro_price|floatformat:"0" }}/mo{% endif %} <i class="fa-solid fa-arrow-right text-xs"></i></a>
 </body>
 </html>

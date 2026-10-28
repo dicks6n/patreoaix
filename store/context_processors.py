@@ -11,6 +11,18 @@ def site_flags(request):
             'deriv_public_ws_url': _deriv_public_ws()}
 
 
+def membership(request):
+    """member_tier / is_member for the Subscribe button in the header and sidebar."""
+    if not request.user.is_authenticated:
+        return {'is_member': False, 'member_tier': ''}
+    try:
+        from .membership import tier_of, MEMBER_TIERS
+        tier, active = tier_of(request.user)
+        return {'is_member': active and tier in MEMBER_TIERS, 'member_tier': tier if active else ''}
+    except Exception:
+        return {'is_member': False, 'member_tier': ''}
+
+
 def _deriv_public_ws():
     from . import price_feed
     return price_feed.DERIV_PUBLIC_WS

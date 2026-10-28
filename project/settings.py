@@ -195,6 +195,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'store.context_processors.kyc_status',
                 'store.context_processors.site_flags',
+                'store.context_processors.membership',
   #
             ],
         },
@@ -342,6 +343,7 @@ TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')        # from @BotFathe
 TELEGRAM_CHANNEL_ID = os.getenv('TELEGRAM_CHANNEL_ID', '')      # @yourchannel or -100… (bot must be an admin)
 TELEGRAM_MIN_GRADE = os.getenv('TELEGRAM_MIN_GRADE', 'A')       # A or A+
 TELEGRAM_ENABLED = os.getenv('TELEGRAM_ENABLED', 'True')
+TELEGRAM_INVITE_URL = os.getenv('TELEGRAM_INVITE_URL', '')     # t.me link shown on the landing page and in posts
 TELEGRAM_SCAN_POSTS = os.getenv('TELEGRAM_SCAN_POSTS', 'True')                 # a list of strong setups after each scan
 TELEGRAM_SCAN_REPEAT_MINUTES = os.getenv('TELEGRAM_SCAN_REPEAT_MINUTES', '60')  # same list again after; 0 = every scan
 # daily content plan (store/telegram_schedule.py); hours in TELEGRAM_TIMEZONE (default TIME_ZONE)

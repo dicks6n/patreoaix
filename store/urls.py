@@ -23,6 +23,8 @@ urlpatterns = [
     path('index/', views.dashboard_view, name='index'),
     path('market-overview/', members_only(views.market_overview_view), name='market_overview'),
     path('posters/', views.signal_posters, name='signal_posters'),
+    path('subscribe/', views.subscribe_link, name='subscribe'),
+    path('pricing/', views.subscribe_link),
     path('privacy/', views.privacy_view, name='privacy'),
     path('terms/', views.terms_view, name='terms'),
     path('tiktok/connect/', views.tiktok_connect, name='tiktok_connect'),

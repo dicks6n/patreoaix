@@ -202,6 +202,7 @@ def caption(sig, result=False):
         head = f"{'🟢' if sig.direction == 'BUY' else '🔴'} {sig.grade} {sig.direction} {sig.symbol} {sig.timeframe.upper()}"
     return (f"{head}\nEntry {f(sig.entry)} | SL {f(sig.stop_loss)} | TP {f(sig.take_profit)}\n"
             f"AI signals daily: {getattr(settings, 'SITE_DOMAIN', '') or 'patreoaix.com'}\n"
+            f"Subscribe for every signal: {getattr(settings, 'SITE_DOMAIN', '') or 'patreoaix.com'}/subscribe\n"
             f"Not financial advice.\n"
             f"#{tag} #forex #trading #tradingsignals #forexsignals #daytrading #ai #patreoaix")
 

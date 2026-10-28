@@ -74,7 +74,7 @@ def _photo(png, caption):
 
 def _link(path, label):
     site = tg._cfg('SITE_URL')
-    return f'\n<a href="{site}{path}">{label}</a>' if site else ''
+    return (f'\n<a href="{site}{path}">{label}</a>  ·  👑 <a href="{site}/subscribe/">Subscribe</a>') if site else ''
 
 
 def _price(symbol, v):

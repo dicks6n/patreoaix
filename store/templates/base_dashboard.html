@@ -488,6 +488,22 @@
         .px-wordmark { font-weight: 800; letter-spacing: .06em; color: var(--px-text); font-size: 15px; }
         .px-wordmark b { color: var(--px-accent); font-weight: 800; }
 
+        /* Subscribe: header button, member badge, sidebar card */
+        .sub-btn { display:inline-flex; align-items:center; gap:7px; height:36px; padding:0 14px; border-radius:10px; font-size:13px; font-weight:700;
+                   color:#0b0e14; background:linear-gradient(135deg,#ffd34d,#f0a500); box-shadow:0 0 0 0 rgba(240,185,11,.55); animation:subpulse 2.4s infinite; white-space:nowrap; }
+        .sub-btn:hover { filter:brightness(1.06); }
+        @keyframes subpulse { 0%{box-shadow:0 0 0 0 rgba(240,185,11,.55)} 70%{box-shadow:0 0 0 9px rgba(240,185,11,0)} 100%{box-shadow:0 0 0 0 rgba(240,185,11,0)} }
+        .sub-badge { display:inline-flex; align-items:center; gap:6px; height:30px; padding:0 10px; border-radius:8px; font-size:11.5px; font-weight:800; letter-spacing:.04em;
+                     color:#f0b90b; background:rgba(240,185,11,.12); border:1px solid rgba(240,185,11,.35); }
+        .sub-cta { display:flex; align-items:center; gap:10px; padding:11px 12px; border-radius:12px; text-decoration:none;
+                   background:linear-gradient(135deg,rgba(240,185,11,.18),rgba(240,165,0,.06)); border:1px solid rgba(240,185,11,.4); color:var(--px-text); }
+        .sub-cta > i:first-child { color:#f0b90b; font-size:16px; }
+        .sub-cta span { display:flex; flex-direction:column; line-height:1.25; flex:1; }
+        .sub-cta b { font-size:13px; }
+        .sub-cta small { font-size:11px; color:var(--px-dim); }
+        .sub-cta-go { font-size:11px; color:#f0b90b; }
+        .sub-cta:hover { border-color:#f0b90b; }
+        @media (max-width:480px) { .sub-btn span { display:none; } .sub-btn { padding:0 11px; } }
         .nav-section-label {
             padding: 0 12px; margin-bottom: 6px;
             font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
@@ -672,20 +688,27 @@
         </div>
 
         <nav class="flex-1 overflow-y-auto no-scrollbar px-3 py-4 space-y-5">
+            {% if not is_member %}
+            <a href="{% url 'subscription_billing' %}" class="sub-cta">
+                <i class="fa-solid fa-crown"></i>
+                <span><b>Subscribe to Pro</b><small>Unlock AI signals, alerts &amp; auto-trading</small></span>
+                <i class="fa-solid fa-chevron-right sub-cta-go"></i>
+            </a>
+            {% endif %}
             <div>
                 <p class="nav-section-label">Trade</p>
                 <div class="space-y-0.5">
                     <a href="/" class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}nav-active{% endif %}">
                         <i class="fa-solid fa-table-columns"></i><span>Dashboard</span>
                     </a>
-                    <a href="{% url 'trade' %}" class="nav-item {% if request.resolver_match.url_name == 'trade' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-chart-column"></i><span>Live Trading</span>
+                    <a href="{% url 'market_overview' %}" class="nav-item {% if request.resolver_match.url_name == 'market_overview' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-earth-americas"></i><span>AI Signals &amp; Market Overview</span>
                     </a>
                     <a href="{% url 'digits_trading' %}" class="nav-item {% if request.resolver_match.url_name == 'digits_trading' %}nav-active{% endif %}">
                         <i class="fa-solid fa-bolt"></i><span>AI Signal Generator</span>
                     </a>
-                    <a href="{% url 'market_overview' %}" class="nav-item {% if request.resolver_match.url_name == 'market_overview' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-earth-americas"></i><span>Market Overview</span>
+                    <a href="{% url 'trade' %}" class="nav-item {% if request.resolver_match.url_name == 'trade' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-chart-column"></i><span>Live Trading</span>
                     </a>
                 </div>
             </div>
@@ -755,8 +778,11 @@
                     <a href="{% url 'referral_dashboard' %}" class="nav-item {% if request.resolver_match.url_name == 'referral_dashboard' %}nav-active{% endif %}">
                         <i class="fa-solid fa-user-group"></i><span>Referrals</span>
                     </a>
+                    <a href="{% url 'subscription_billing' %}" class="nav-item {% if request.resolver_match.url_name == 'subscription_billing' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-crown"></i><span>Subscription</span><span class="nav-pill">{% if is_member %}{{ member_tier }}{% else %}PRO{% endif %}</span>
+                    </a>
                     <a href="{% url 'funded' %}" class="nav-item {% if request.resolver_match.url_name == 'funded' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-credit-card"></i><span>Subscription</span><span class="nav-pill">PRO</span>
+                        <i class="fa-solid fa-credit-card"></i><span>Funded Accounts</span>
                     </a>
                     <a href="{% url 'ai_support' %}" class="nav-item {% if request.resolver_match.url_name == 'ai_support' %}nav-active{% endif %}">
                         <i class="fa-solid fa-circle-question"></i><span>Help Center</span>
@@ -878,6 +904,11 @@
                     </div>
                 </div>
 
+                {% if is_member %}
+                <a href="{% url 'subscription_billing' %}" class="sub-badge" title="Your plan"><i class="fa-solid fa-crown"></i>{{ member_tier }}</a>
+                {% else %}
+                <a href="{% url 'subscription_billing' %}" class="sub-btn"><i class="fa-solid fa-crown text-xs"></i><span>Subscribe</span></a>
+                {% endif %}
                 <a href="{% url 'digits_trading' %}" class="px-btn px-btn-primary">
                     <i class="fa-solid fa-bolt text-xs"></i><span class="hidden sm:inline">Trade</span>
                 </a>

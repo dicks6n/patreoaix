@@ -140,6 +140,7 @@ def signal_caption(sig, r=None):
     site = _cfg('SITE_URL')
     if site:
         lines.append(f'\n<a href="{site}/market-overview/?symbol={sig.symbol}&amp;style={sig.style}">Open the setup on PATREOAIX</a>')
+        lines.append(f'👑 <a href="{site}/subscribe/">Subscribe for every signal live</a>')
     lines.append('\n<i>Not financial advice. Trade small, always use the stop.</i>')
     return '\n'.join(lines)
 

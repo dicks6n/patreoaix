@@ -130,8 +130,20 @@ def landing_page_view(request):
         {'key': k, 'name': k.upper() if k == 'vip' else k.title(), 'price': v['price'], 'funded': v['funded_amount']}
         for k, v in TIER_CONFIG.items()
     ]
+    track, track_rows = {}, []
+    try:
+        from . import signal_alerts
+        from datetime import datetime as _dt
+        track_rows, track = signal_alerts.history(None, limit=8, days=30)
+        for r in track_rows:
+            r['when'] = _dt.fromisoformat(r['created_at'])
+    except Exception as e:
+        logger.warning(f'Landing track record unavailable: {e}')
     context = {
         'tiers': tiers,
+        'track': track, 'track_rows': track_rows,
+        'pro_price': TIER_CONFIG.get('pro', {}).get('price'),
+        'telegram_url': getattr(settings, 'TELEGRAM_INVITE_URL', ''),
         'trader_count': User.objects.count(),
         'trade_count': Trade.objects.count(),
         'support_email': getattr(settings, 'SUPPORT_EMAIL', 'support@patreoaiix.com'),
@@ -327,6 +339,9 @@ def signup_view(request):
 
     if ref_code:
         request.session['ref_code'] = ref_code.upper()
+    nxt = request.GET.get('next', '')
+    if nxt.startswith('/') and not nxt.startswith('//'):       # e.g. /subscribe → sign up → the plans page
+        request.session['after_signup'] = nxt
 
     if request.method == 'POST':
         username = (request.POST.get('username') or '').strip()
@@ -404,7 +419,7 @@ def signup_view(request):
         except Exception as e:
             logger.warning(f"Session tracking failed: {e}")
         messages.success(request, f"Account created successfully! Welcome to PATREOAIX, {auth_user.username}.")
-        return redirect("dashboard")
+        return redirect(request.session.pop('after_signup', None) or "dashboard")
 
     return render(request, "account/signup.html", {'ref_code': ref_code or ''})
 
@@ -10644,3 +10659,11 @@ def privacy_view(request):
 
 def terms_view(request):
     return _legal(request, 'store/legal/terms.html')
+
+
+def subscribe_link(request):
+    """Short link for posts and bios (patreoaix.com/subscribe): the plans page, or sign up first."""
+    from django.urls import reverse
+    if request.user.is_authenticated:
+        return redirect('subscription_billing')
+    return redirect(f"{reverse('signup')}?next={reverse('subscription_billing')}")
