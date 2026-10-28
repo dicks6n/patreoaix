@@ -1,0 +1,190 @@
+{% extends 'base_dashboard.html' %}
+
+{% block message_toasts %}{% endblock %}
+{% block title %}Trading Journal · PATREOAIX{% endblock %}
+{% block page_title %}Trading Journal{% endblock %}
+
+{% block extra_head %}
+<style>
+    .jr-wrap { display: flex; flex-direction: column; gap: 18px; max-width: 1100px; }
+    .jr-card { background: var(--px-panel); border: 1px solid var(--px-line); border-radius: 16px; padding: 18px; }
+    .jr-h { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+    .jr-h h2 { font-size: 16px; font-weight: 800; color: var(--px-text); }
+    .jr-h p, .jr-sub { font-size: 12px; color: var(--px-mute); }
+    .jr-msg { padding: 12px 14px; font-size: 13px; font-weight: 600; border-radius: 12px; background: var(--px-panel-2); color: var(--px-text); border: 1px solid var(--px-line); }
+    .jr-msg.error { border-color: var(--px-down); color: var(--px-down); }
+    .jr-msg.success { border-color: var(--px-up); }
+    .jr-weeknav { display: flex; align-items: center; gap: 8px; }
+    .jr-weeknav a, .jr-weeknav span.dis { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; background: var(--px-panel-2); border: 1px solid var(--px-line); color: var(--px-text); }
+    .jr-weeknav span.dis { opacity: .35; }
+    .jr-weeknav b { font-size: 13px; color: var(--px-text); min-width: 150px; text-align: center; }
+    .jr-review { display: grid; grid-template-columns: 120px 1fr; gap: 18px; align-items: start; }
+    .jr-grade { width: 120px; height: 120px; border-radius: 22px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--px-panel-2); border: 1px solid var(--px-line); }
+    .jr-grade b { font-size: 46px; font-weight: 900; line-height: 1; color: var(--px-accent); }
+    .jr-grade span { font-size: 10.5px; color: var(--px-mute); font-weight: 800; text-transform: uppercase; letter-spacing: .06em; margin-top: 6px; }
+    .jr-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; }
+    .jr-stat { background: var(--px-panel-2); border-radius: 12px; padding: 10px; text-align: center; }
+    .jr-stat span { display: block; font-size: 10.5px; color: var(--px-mute); font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
+    .jr-stat b { font-family: 'JetBrains Mono', monospace; font-size: 16px; color: var(--px-text); }
+    .jr-focus { margin-top: 12px; padding: 12px 14px; border-radius: 12px; border-left: 3px solid var(--px-accent); background: var(--px-panel-2); font-size: 13.5px; font-weight: 700; color: var(--px-text); }
+    .jr-items { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; margin-top: 14px; }
+    .jr-item { padding: 12px 14px; border-radius: 12px; background: var(--px-panel-2); border-left: 3px solid var(--px-line); }
+    .jr-item.warn { border-left-color: var(--px-down); }
+    .jr-item.good { border-left-color: var(--px-up); }
+    .jr-item.tip { border-left-color: var(--px-accent); }
+    .jr-item b { display: block; font-size: 13.5px; color: var(--px-text); margin-bottom: 3px; }
+    .jr-item p { font-size: 12.5px; color: var(--px-dim); line-height: 1.5; }
+    .jr-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .jr-table th { text-align: left; font-size: 10.5px; color: var(--px-mute); text-transform: uppercase; letter-spacing: .05em; padding: 8px; border-bottom: 1px solid var(--px-line); white-space: nowrap; }
+    .jr-table td { padding: 8px; border-bottom: 1px solid var(--px-line-soft); color: var(--px-text); white-space: nowrap; vertical-align: middle; }
+    .jr-table .mono { font-family: 'JetBrains Mono', monospace; }
+    .jr-table select, .jr-table input[type=text] { background: var(--px-panel-2); border: 1px solid var(--px-line); color: var(--px-text); border-radius: 8px; padding: 5px 6px; font-size: 12px; max-width: 140px; }
+    .jr-table input[type=text] { min-width: 160px; }
+    .jr-scroll { overflow-x: auto; }
+    .jr-up { color: var(--px-up); } .jr-dn { color: var(--px-down); } .jr-mute { color: var(--px-mute); }
+    .jr-src { font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 5px; background: var(--px-panel-2); color: var(--px-mute); text-transform: uppercase; }
+    .jr-saved { font-size: 11px; color: var(--px-up); opacity: 0; transition: opacity .3s; }
+    .jr-saved.on { opacity: 1; }
+    .jr-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; align-items: end; }
+    .jr-form label { display: block; font-size: 11px; font-weight: 800; color: var(--px-mute); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px; }
+    .jr-form input, .jr-form select { width: 100%; background: var(--px-panel-2); border: 1px solid var(--px-line); color: var(--px-text); border-radius: 10px; padding: 9px 10px; font-size: 13px; }
+    .jr-form .chk { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--px-dim); padding-bottom: 10px; }
+    .jr-form .chk input { width: auto; }
+    .jr-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: 800; background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); border: 0; cursor: pointer; }
+    .jr-btn.ghost { background: var(--px-panel-2); color: var(--px-text); border: 1px solid var(--px-line); }
+    .jr-btn.sm { padding: 5px 9px; font-size: 11px; }
+    details.jr-add summary { cursor: pointer; list-style: none; }
+    details.jr-add summary::-webkit-details-marker { display: none; }
+    @media (max-width: 640px) { .jr-review { grid-template-columns: 1fr; } .jr-grade { width: 100%; height: auto; flex-direction: row; gap: 12px; padding: 12px; } .jr-grade b { font-size: 34px; } .jr-grade span { margin-top: 0; } .jr-card { padding: 14px; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="jr-wrap">
+    {% for m in messages %}<div class="jr-msg {{ m.tags }}">{{ m }}</div>{% endfor %}
+
+    <div class="jr-card">
+        <div class="jr-h">
+            <h2><i class="fa-solid fa-brain mr-1"></i> AI coach · {% if is_this_week %}this week so far{% else %}weekly review{% endif %}</h2>
+            <div class="jr-weeknav">
+                <a href="?week={{ prev_week|date:'Y-m-d' }}" aria-label="Previous week"><i class="fa-solid fa-chevron-left"></i></a>
+                <b>{{ week|date:"d M" }} – {{ week_end|date:"d M Y" }}</b>
+                {% if next_week %}<a href="?week={{ next_week|date:'Y-m-d' }}" aria-label="Next week"><i class="fa-solid fa-chevron-right"></i></a>{% else %}<span class="dis"><i class="fa-solid fa-chevron-right"></i></span>{% endif %}
+            </div>
+        </div>
+        {% if review.stats.trades %}
+        <div class="jr-review">
+            <div class="jr-grade"><b>{{ review.grade }}</b><span>Week grade</span></div>
+            <div>
+                <div class="jr-stats">
+                    <div class="jr-stat"><span>Trades</span><b>{{ review.stats.trades }}</b></div>
+                    <div class="jr-stat"><span>Win rate</span><b>{{ review.stats.win_rate }}%</b></div>
+                    <div class="jr-stat"><span>Net</span><b class="{% if review.stats.net > 0 %}jr-up{% elif review.stats.net < 0 %}jr-dn{% endif %}">${{ review.stats.net|floatformat:2 }}</b></div>
+                    <div class="jr-stat"><span>Avg win</span><b class="jr-up">${{ review.stats.avg_win|floatformat:2 }}</b></div>
+                    <div class="jr-stat"><span>Avg loss</span><b class="jr-dn">${{ review.stats.avg_loss|floatformat:2 }}</b></div>
+                    <div class="jr-stat"><span>Profit factor</span><b>{% if review.stats.profit_factor is None %}–{% elif review.stats.profit_factor >= 99 %}∞{% else %}{{ review.stats.profit_factor }}{% endif %}</b></div>
+                </div>
+                {% if review.focus %}<div class="jr-focus"><i class="fa-solid fa-bullseye mr-1"></i> {{ review.focus }}</div>{% endif %}
+            </div>
+        </div>
+        <div class="jr-items">
+            {% for i in review.feedback %}
+            <div class="jr-item {{ i.kind }}"><b>{% if i.kind == 'warn' %}⚠️{% elif i.kind == 'good' %}✅{% else %}💡{% endif %} {{ i.title }}</b><p>{{ i.text }}</p></div>
+            {% endfor %}
+        </div>
+        {% if is_this_week %}<p class="jr-sub" style="margin-top:12px">The full review arrives on Monday morning as a notification.</p>{% endif %}
+        {% else %}
+        <p class="jr-sub">No closed trades this week. Trades from the terminal and AI Copy Trading appear here by themselves; add trades from other brokers below.</p>
+        {% endif %}
+    </div>
+
+    <div class="jr-card">
+        <details class="jr-add">
+            <summary class="jr-h" style="margin-bottom:0"><h2><i class="fa-solid fa-plus mr-1"></i> Add a trade from another broker</h2><p>Tap to open</p></summary>
+            <form method="post" class="jr-form" style="margin-top:14px">{% csrf_token %}
+                <input type="hidden" name="action" value="add"><input type="hidden" name="week" value="{{ week|date:'Y-m-d' }}">
+                <div><label>Market</label><input name="symbol" placeholder="XAUUSD" required></div>
+                <div><label>Side</label><select name="direction"><option>BUY</option><option>SELL</option></select></div>
+                <div><label>Lots</label><input name="lots" inputmode="decimal" placeholder="0.10"></div>
+                <div><label>Profit / loss $</label><input name="pnl" inputmode="decimal" placeholder="-12.50" required></div>
+                <div><label>Closed</label><input type="datetime-local" name="date"></div>
+                <div><label>Setup</label><select name="setup"><option value="">–</option>{% for k, v in setups %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+                <div><label>Feeling</label><select name="emotion"><option value="">–</option>{% for k, v in emotions %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+                <div><label>Followed plan?</label><select name="followed_plan"><option value="">–</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+                <label class="chk"><input type="checkbox" name="had_stop" checked> Had a stop loss</label>
+                <div style="grid-column:1/-1"><label>Note</label><input name="note" maxlength="2000" placeholder="Why did you take it? What would you do differently?"></div>
+                <button class="jr-btn" type="submit">Add trade</button>
+            </form>
+        </details>
+    </div>
+
+    <div class="jr-card">
+        <div class="jr-h"><h2>Trades this week</h2><p>Tag each trade: the coach learns your habits from it</p></div>
+        {% if entries %}
+        <div class="jr-scroll">
+            <table class="jr-table">
+                <thead><tr><th>Closed</th><th>Market</th><th>P/L</th><th>Setup</th><th>Feeling</th><th>Plan?</th><th>Note</th><th></th></tr></thead>
+                <tbody>
+                {% for e in entries %}
+                <tr data-id="{{ e.id }}">
+                    <td class="jr-mute">{{ e.closed_at|date:"D H:i" }}</td>
+                    <td><b>{{ e.symbol }}</b> <span class="{% if e.direction == 'BUY' %}jr-up{% else %}jr-dn{% endif %}">{{ e.direction }}</span>{% if e.lots %} <span class="jr-mute mono">{{ e.lots|floatformat:2 }}</span>{% endif %}<br><span class="jr-src">{{ e.get_source_display }}</span>{% if not e.had_stop %} <span class="jr-src" style="color:var(--px-down)">no stop</span>{% endif %}{% if e.close_reason %} <span class="jr-src">{{ e.close_reason }}</span>{% endif %}</td>
+                    <td class="mono {% if e.pnl > 0 %}jr-up{% elif e.pnl < 0 %}jr-dn{% endif %}">{% if e.pnl >= 0 %}+{% endif %}{{ e.pnl|floatformat:2 }}</td>
+                    <td><select data-f="setup"><option value="">–</option>{% for k, v in setups %}<option value="{{ k }}" {% if e.setup == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></td>
+                    <td><select data-f="emotion"><option value="">–</option>{% for k, v in emotions %}<option value="{{ k }}" {% if e.emotion == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></td>
+                    <td><select data-f="followed_plan"><option value="">–</option><option value="yes" {% if e.followed_plan == True %}selected{% endif %}>Yes</option><option value="no" {% if e.followed_plan == False %}selected{% endif %}>No</option></select></td>
+                    <td><input type="text" data-f="note" value="{{ e.note }}" maxlength="2000" placeholder="Add a note"> <span class="jr-saved">Saved</span></td>
+                    <td>{% if e.source == 'manual' %}<form method="post" onsubmit="return confirm('Delete this entry?')">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="{{ e.id }}"><input type="hidden" name="week" value="{{ week|date:'Y-m-d' }}"><button class="jr-btn ghost sm" type="submit" aria-label="Delete"><i class="fa-solid fa-trash"></i></button></form>{% endif %}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="jr-sub">No trades in this week.</p>
+        {% endif %}
+    </div>
+
+    <div class="jr-card">
+        <div class="jr-h"><h2>All time</h2></div>
+        <div class="jr-stats">
+            <div class="jr-stat"><span>Trades</span><b>{{ all_time.trades }}</b></div>
+            <div class="jr-stat"><span>Win rate</span><b>{% if all_time.win_rate is not None %}{{ all_time.win_rate }}%{% else %}–{% endif %}</b></div>
+            <div class="jr-stat"><span>Net</span><b class="{% if all_time.net > 0 %}jr-up{% elif all_time.net < 0 %}jr-dn{% endif %}">${{ all_time.net|floatformat:2 }}</b></div>
+            <div class="jr-stat"><span>Best trade</span><b class="jr-up">${{ all_time.best|floatformat:2 }}</b></div>
+            <div class="jr-stat"><span>Worst trade</span><b class="jr-dn">${{ all_time.worst|floatformat:2 }}</b></div>
+        </div>
+        {% if weeks %}
+        <div class="jr-scroll" style="margin-top:14px">
+            <table class="jr-table">
+                <thead><tr><th>Week</th><th>Grade</th><th>Trades</th><th>Net</th></tr></thead>
+                <tbody>{% for w in weeks %}<tr><td><a href="?week={{ w.week_start|date:'Y-m-d' }}" class="underline">{{ w.week_start|date:"d M Y" }}</a></td><td><b>{{ w.grade|default:"–" }}</b></td><td>{{ w.stats.trades }}</td><td class="mono {% if w.stats.net > 0 %}jr-up{% elif w.stats.net < 0 %}jr-dn{% endif %}">${{ w.stats.net|floatformat:2 }}</td></tr>{% endfor %}</tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var csrf = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value;
+    function save(row, el) {
+        var fd = new FormData();
+        fd.append('action', 'tag'); fd.append('id', row.dataset.id); fd.append(el.dataset.f, el.value);
+        fetch('', { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function (r) { return r.json(); }).then(function (d) {
+                var s = row.querySelector('.jr-saved'); if (!s) return;
+                s.textContent = d.success ? 'Saved' : (d.error || 'Not saved'); s.classList.add('on');
+                setTimeout(function () { s.classList.remove('on'); }, 1500);
+            });
+    }
+    document.querySelectorAll('tr[data-id]').forEach(function (row) {
+        row.querySelectorAll('select[data-f]').forEach(function (el) { el.addEventListener('change', function () { save(row, el); }); });
+        var n = row.querySelector('input[data-f=note]'), t;
+        if (n) n.addEventListener('input', function () { clearTimeout(t); t = setTimeout(function () { save(row, n); }, 700); });
+    });
+})();
+</script>
+{% endblock %}

@@ -1769,3 +1769,59 @@ def push_new_notification(sender, instance, created, **kwargs):
     if enabled():
         safe_send(instance.user, instance.title, instance.message, instance.action_url or '/',
                   tag=f'n{instance.pk}')
+
+
+# ============================================================
+# TRADING JOURNAL + WEEKLY AI REVIEW (store/journal.py)
+# ============================================================
+class JournalEntry(models.Model):
+    """One closed trade in the journal: imported from the terminal / copy trading, or added by hand."""
+    SOURCES = [('site', 'PATREOAIX terminal'), ('copy', 'AI Copy Trading'), ('manual', 'Other broker')]
+    SETUPS = [('ai_signal', 'AI signal'), ('trend', 'Trend follow'), ('pullback', 'Pullback'), ('breakout', 'Breakout'),
+              ('reversal', 'Reversal'), ('news', 'News'), ('gut', 'Gut feeling'), ('other', 'Other')]
+    EMOTIONS = [('calm', 'Calm'), ('confident', 'Confident'), ('fearful', 'Fearful'), ('greedy', 'Greedy'),
+                ('revenge', 'Revenge / angry'), ('bored', 'Bored'), ('fomo', 'FOMO')]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='journal_entries')
+    source = models.CharField(max_length=6, choices=SOURCES, default='manual')
+    trade = models.OneToOneField('Trade', on_delete=models.SET_NULL, null=True, blank=True, related_name='journal')
+    copy_trade = models.OneToOneField('CopyTrade', on_delete=models.SET_NULL, null=True, blank=True, related_name='journal')
+    symbol = models.CharField(max_length=20)
+    direction = models.CharField(max_length=4)
+    lots = models.FloatField(null=True, blank=True)
+    entry_price = models.FloatField(null=True, blank=True)
+    exit_price = models.FloatField(null=True, blank=True)
+    had_stop = models.BooleanField(default=True)
+    pnl = models.FloatField(default=0)
+    close_reason = models.CharField(max_length=10, blank=True)
+    opened_at = models.DateTimeField(null=True, blank=True)
+    closed_at = models.DateTimeField(db_index=True)
+    setup = models.CharField(max_length=10, choices=SETUPS, blank=True)
+    emotion = models.CharField(max_length=10, choices=EMOTIONS, blank=True)
+    followed_plan = models.BooleanField(null=True, blank=True)
+    note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-closed_at']
+
+    def __str__(self):
+        return f"{self.user} {self.direction} {self.symbol} {self.pnl:+.2f}"
+
+
+class WeeklyReview(models.Model):
+    """The AI coach's review of one trading week (Monday to Sunday)."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='weekly_reviews')
+    week_start = models.DateField()
+    stats = models.JSONField(default=dict)
+    feedback = models.JSONField(default=list)          # [{kind, title, text}]
+    focus = models.CharField(max_length=255, blank=True)
+    grade = models.CharField(max_length=2, blank=True)
+    created_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-week_start']
+        unique_together = ['user', 'week_start']
+
+    def __str__(self):
+        return f"Review {self.user} {self.week_start}"

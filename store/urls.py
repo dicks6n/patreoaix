@@ -194,7 +194,8 @@ urlpatterns = [
     path('ai-summary/', views.ai_market_summary, name='ai_market_summary'),
     path('prediction-models/', members_only(views.ai_prediction_models), name='ai_prediction_models'),
     path('risk-analyzer/', views.ai_risk_analyzer, name='ai_risk_analyzer'),
-    path('trade-journal/', views.ai_trade_journal, name='ai_trade_journal'),
+    path('trade-journal/', views.journal_page, name='ai_trade_journal'),
+    path('trade-journal/old/', views.ai_trade_journal, name='ai_trade_journal_old'),
     path('strategy-builder/', views.ai_strategy_builder, name='ai_strategy_builder'),
     path('run-sentiment/', views.run_sentiment_analysis_view, name='run_sentiment_analysis'),
 

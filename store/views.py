@@ -11049,3 +11049,53 @@ def api_price_alert(request):
     except Exception:
         now = None
     return JsonResponse({'success': True, 'symbol': sym, 'price': now, 'price_txt': pa.fmt(sym, now) if now else None})
+
+
+# ═══════════════════════════════════════════════════════════════
+# TRADING JOURNAL + WEEKLY AI REVIEW (store/journal.py)
+# ═══════════════════════════════════════════════════════════════
+@login_required
+def journal_page(request):
+    from . import journal as jr
+    from .models import JournalEntry, WeeklyReview
+    from datetime import date as _date
+    if request.method == 'POST':
+        act = request.POST.get('action')
+        try:
+            if act == 'add':
+                jr.add_manual(request.user, request.POST)
+                messages.success(request, 'Trade added to your journal.')
+            elif act == 'tag':
+                jr.tag(request.user, request.POST.get('id'), request.POST)
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({'success': True})
+                messages.success(request, 'Saved.')
+            elif act == 'delete':
+                JournalEntry.objects.filter(user=request.user, pk=request.POST.get('id'), source='manual').delete()
+                messages.info(request, 'Entry deleted.')
+        except (ValueError, JournalEntry.DoesNotExist) as e:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'error': str(e) or 'Not found.'})
+            messages.error(request, str(e) or 'Not found.')
+        return redirect(f"{reverse('ai_trade_journal')}?week={request.POST.get('week', '')}")
+    jr.sync(request.user)
+    this_week = jr.week_start()
+    try:
+        week = jr.week_start(_date.fromisoformat(request.GET.get('week') or ''))
+    except ValueError:
+        week = this_week
+    week = min(week, this_week)
+    if week == this_week:
+        rv = jr.review(request.user, week, save=False)         # live, so far this week
+    else:
+        rv = WeeklyReview.objects.filter(user=request.user, week_start=week).first() or jr.review(request.user, week)
+    a, b = jr._bounds(week)
+    entries = list(JournalEntry.objects.filter(user=request.user, closed_at__gte=a, closed_at__lt=b)[:200])
+    weeks = list(WeeklyReview.objects.filter(user=request.user).values('week_start', 'grade', 'stats')[:12])
+    return render(request, 'store/journal.html', {
+        'review': rv, 'entries': entries, 'week': week, 'week_end': week + timedelta(days=6),
+        'is_this_week': week == this_week, 'prev_week': week - timedelta(days=7),
+        'next_week': week + timedelta(days=7) if week < this_week else None, 'weeks': weeks,
+        'setups': JournalEntry.SETUPS, 'emotions': JournalEntry.EMOTIONS,
+        'all_time': jr.stats(list(JournalEntry.objects.filter(user=request.user))),
+    })
