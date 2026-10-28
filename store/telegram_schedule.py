@@ -10,6 +10,8 @@ nothing else. Times are in TELEGRAM_TIMEZONE (default: the site's TIME_ZONE, Afr
   ⚠️ News alert          30 minutes before each high-impact economic event
   🏁 Daily results       TELEGRAM_RECAP_HOUR (22)   image card: today's closed signals, wins, losses, net R
   🏆 Weekly report       TELEGRAM_WEEKLY_DAY (6 = Sunday) at TELEGRAM_RECAP_HOUR - 2: last 7 days
+  ⏳ Coach updates       when the Market Overview verdict of a watched market changes to WAIT / GET READY /
+                         ENTRY CONFIRMED (TELEGRAM_COACH_SYMBOLS), with the same panel as an image
 
 Each post goes out once (cache keys per day / per event); TELEGRAM_SCHEDULE=False turns all of it off.
 """
@@ -159,6 +161,79 @@ def news_alert(e):
     _send(text)
 
 
+COACH_POST = {   # verdict → (icon, word); other verdicts (stand aside, watch) are not posted
+    'ENTER': ('✅', 'ENTRY CONFIRMED'),
+    'GET_READY': ('🎯', 'GET READY'),
+    'WAIT_PULLBACK': ('⏳', 'WAIT'),
+    'WAIT_NEWS': ('📰', 'WAIT FOR THE NEWS'),
+}
+
+
+def coach_symbols():
+    raw = _cfg('TELEGRAM_COACH_SYMBOLS', 'XAUUSD,EURUSD,GBPUSD,USDJPY,BTCUSD,USOIL')
+    return [x.strip().upper() for x in raw.split(',') if x.strip()]
+
+
+def coach_caption(view):
+    v, c = view['verdict'], view.get('coach') or {}
+    icon, word = COACH_POST.get(v.get('action'), ('📊', v.get('action', '')))
+    lines = [f"{icon} <b>{tg._esc(view['symbol'])} {view['tf'].upper()} · {word}</b>",
+             tg._esc(v.get('headline', '')), '',
+             tg._esc(c.get('instruction') or c.get('headline') or '')]
+    plan = c.get('plan') or {}
+    if v.get('action') in ('ENTER', 'GET_READY') and plan.get('entry') is not None:
+        p = lambda x: _price(view['symbol'], x)
+        lines += ['', f"🎯 Entry <code>{p(plan.get('entry'))}</code> · 🛑 SL <code>{p(plan.get('sl'))}</code> · "
+                      f"✅ TP <code>{p(plan.get('tp1'))}</code>" + (f" · R:R {plan['rr']:.1f}" if plan.get('rr') else '')]
+    lines.append(f"\n🧠 Conviction {v.get('conviction', 0)}% · {len(v.get('agree') or [])}/{v.get('voting', 0)} strategies agree")
+    lines.append(_link(f"/market-overview/?symbol={view['symbol']}&amp;style={view.get('style', 'intraday')}", 'Open the full analysis'))
+    lines.append('\n<i>Not financial advice. Wait for your own confirmation and always use a stop.</i>')
+    return '\n'.join(lines)
+
+
+def coach_updates(now):
+    """At most one post per pass: the first watched market whose verdict changed to something worth telling."""
+    from . import coach_card
+    if _cfg('TELEGRAM_COACH_UPDATES', 'True') != 'True':
+        return None
+    day = f'{now:%Y%m%d}'
+    if (cache.get(f'tg:coach:n:{day}') or 0) >= int(_cfg('TELEGRAM_COACH_DAILY', 12)):
+        return None
+    gap = float(_cfg('TELEGRAM_COACH_MINUTES', 60)) * 60
+    for sym in coach_symbols():
+        if not cache.add(f'tg:coach:chk:{sym}', 1, 300):      # look at each market every 5 minutes
+            continue
+        try:
+            view = coach_card.build_view(sym, 'intraday')
+        except Exception as e:
+            logger.info(f'coach update {sym}: {e}')
+            continue
+        if not view:
+            continue
+        v = view['verdict']
+        state = f"{v.get('action')}:{v.get('side')}:{(view.get('coach') or {}).get('state')}"
+        last = cache.get(f'tg:coach:last:{sym}')
+        if state == last:
+            continue
+        cache.set(f'tg:coach:last:{sym}', state, 3 * 86400)
+        if v.get('action') not in COACH_POST:
+            continue                                         # stand aside / watch: remembered, not posted
+        entering = v.get('action') == 'ENTER'
+        if not entering and not (7 <= now.hour < 23):
+            continue
+        if not entering and time.time() - (cache.get(f'tg:coach:at:{sym}') or 0) < gap:
+            continue
+        _photo(coach_card.render(view), coach_caption(view))
+        cache.set(f'tg:coach:at:{sym}', time.time(), 86400)
+        cache.add(f'tg:coach:n:{day}', 0, 2 * 86400)
+        try:
+            cache.incr(f'tg:coach:n:{day}')
+        except ValueError:
+            pass
+        return f'coach {sym} {v.get("action")}'
+    return None
+
+
 def _period(days):
     """[start, end) of the last `days` days including today, in the channel's timezone."""
     today = now_local().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -275,6 +350,10 @@ def run(results, strength):
             if _once(key):
                 news_alert(e)
                 sent.append('news')
+
+    name = coach_updates(now)
+    if name:
+        sent.append(name)
 
     if pulse_h and 7 <= now.hour < 23 and results and quiet_for() >= pulse_h * 3600 and not sent:
         if _once(f'tg:sched:pulse:{day}:{now.hour}', 3600):

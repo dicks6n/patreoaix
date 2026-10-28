@@ -156,10 +156,12 @@ def post_signal(sig, r=None, force=False):
     chat, caption = _cfg('TELEGRAM_CHANNEL_ID'), signal_caption(sig, r)
     msg = None
     try:
-        from . import chart_scanner
-        candles = chart_scanner.candles_for(sig.symbol, sig.timeframe)['candles']
-        png = render_chart(sig.symbol, sig.timeframe, sig.direction, candles, sig.entry, sig.stop_loss,
-                           sig.take_profit, sig.take_profit_2, _digits(sig.symbol))
+        from . import chart_scanner, coach_card
+        png = coach_card.for_signal(sig)                       # looks like the Market Overview panel
+        if not png:
+            candles = chart_scanner.candles_for(sig.symbol, sig.timeframe)['candles']
+            png = render_chart(sig.symbol, sig.timeframe, sig.direction, candles, sig.entry, sig.stop_loss,
+                               sig.take_profit, sig.take_profit_2, _digits(sig.symbol))
         msg = api('sendPhoto', {'chat_id': chat, 'caption': caption, 'parse_mode': 'HTML'},
                   files={'photo': (f'{sig.symbol}.png', png, 'image/png')}, timeout=20)
     except Exception as e:

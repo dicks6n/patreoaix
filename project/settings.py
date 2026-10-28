@@ -352,6 +352,10 @@ TELEGRAM_RECAP_HOUR = os.getenv('TELEGRAM_RECAP_HOUR', '22')       # daily resul
 TELEGRAM_WEEKLY_DAY = os.getenv('TELEGRAM_WEEKLY_DAY', '6')        # weekly report: 0 = Monday … 6 = Sunday
 TELEGRAM_PULSE_HOURS = os.getenv('TELEGRAM_PULSE_HOURS', '3')      # market pulse when quiet this long; 0 = off
 TELEGRAM_NEWS_ALERTS = os.getenv('TELEGRAM_NEWS_ALERTS', 'True')   # 30 min before high-impact news
+TELEGRAM_COACH_UPDATES = os.getenv('TELEGRAM_COACH_UPDATES', 'True')  # WAIT / GET READY / ENTRY CONFIRMED posts
+TELEGRAM_COACH_SYMBOLS = os.getenv('TELEGRAM_COACH_SYMBOLS', 'XAUUSD,EURUSD,GBPUSD,USDJPY,BTCUSD,USOIL')
+TELEGRAM_COACH_MINUTES = os.getenv('TELEGRAM_COACH_MINUTES', '60')   # min gap per market (entries post at once)
+TELEGRAM_COACH_DAILY = os.getenv('TELEGRAM_COACH_DAILY', '12')       # coach posts per day
 
 # ── TikTok: signal posters as photo posts (store/tiktok.py has the setup steps) ──
 TIKTOK_CLIENT_KEY = os.getenv('TIKTOK_CLIENT_KEY', '')

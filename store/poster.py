@@ -213,7 +213,9 @@ def save_poster(sig, result=False, candles=None):
     path = os.path.join(settings.MEDIA_ROOT, rel)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'wb') as fh:
-        fh.write(render_poster(sig, candles, result))
+        from . import coach_card                               # Market-Overview look; the plain poster if the analysis fails
+        fh.write((coach_card.for_signal(sig, tall=True, result=result) if candles is None else None)
+                 or render_poster(sig, candles, result))
     with open(path[:-4] + '.txt', 'w', encoding='utf-8') as fh:
         fh.write(caption(sig, result))
     return rel
