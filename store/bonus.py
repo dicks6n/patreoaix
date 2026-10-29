@@ -48,6 +48,30 @@ def on_deposit(tx):
     earlier = Transaction.objects.filter(user=tx.user, transaction_type='DEPOSIT', status='completed').exclude(pk=tx.pk)
     if earlier.exists():
         return None                                          # not the first deposit
+    from . import academy
+    if academy.required_for_bonus() and not academy.graduated(tx.user):
+        try:                                                 # granted at graduation (claim_after_academy)
+            Notification.objects.create(
+                user=tx.user, title=f'🎓 Unlock your {pct():.0f}% deposit bonus',
+                message='Finish the short beginner academy (about 20 minutes) and your first-deposit bonus is added right away.',
+                category='ACCOUNT', priority='info', action_url='/academy/', action_label='Start the academy')
+        except Exception:
+            pass
+        return None
+    return _grant(tx)
+
+
+def claim_after_academy(user):
+    """Academy graduation with ACADEMY_REQUIRED_FOR_BONUS: give the bonus on the first deposit already made."""
+    from .models import DepositBonus, Transaction
+    if not enabled() or DepositBonus.objects.filter(user=user).exists():
+        return None
+    first = Transaction.objects.filter(user=user, transaction_type='DEPOSIT', status='completed').order_by('id').first()
+    return _grant(first) if first else None
+
+
+def _grant(tx):
+    from .models import DepositBonus, Notification, Transaction
     amount = min(Decimal(tx.amount) * pct() / 100, cap()).quantize(Decimal('0.01'))
     if amount <= 0:
         return None

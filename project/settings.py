@@ -75,6 +75,11 @@ REFERRAL_MAX_REWARDS_PER_MONTH = os.environ.get('REFERRAL_MAX_REWARDS_PER_MONTH'
 VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY', '')
 VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY', '')
 VAPID_EMAIL = os.environ.get('VAPID_EMAIL', '')
+
+# Beginner academy (/academy/): finishing all lessons gives ACADEMY_PRO_DAYS of Pro once. With
+# ACADEMY_REQUIRED_FOR_BONUS=True the first-deposit bonus is only paid after the academy is finished.
+ACADEMY_PRO_DAYS = os.environ.get('ACADEMY_PRO_DAYS', '3')
+ACADEMY_REQUIRED_FOR_BONUS = os.environ.get('ACADEMY_REQUIRED_FOR_BONUS', 'False')
 # =============================================
 # NOWCRYPTO API CONFIGURATION
 # =============================================

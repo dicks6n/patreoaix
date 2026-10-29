@@ -1,0 +1,85 @@
+{% extends 'base_dashboard.html' %}
+
+{% block message_toasts %}{% endblock %}
+{% block title %}{{ lesson.title }} · Academy · PATREOAIX{% endblock %}
+{% block page_title %}Beginner Academy{% endblock %}
+
+{% block extra_head %}
+<style>
+    .al-wrap { display: flex; flex-direction: column; gap: 18px; max-width: 760px; }
+    .al-card { background: var(--px-panel); border: 1px solid var(--px-line); border-radius: 16px; padding: 20px; }
+    .al-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--px-mute); font-weight: 700; }
+    .al-top a { color: var(--px-dim); }
+    .al-card h1 { font-size: 21px; font-weight: 900; color: var(--px-text); margin: 10px 0 14px; line-height: 1.3; }
+    .al-body p { font-size: 14.5px; line-height: 1.7; color: var(--px-dim); margin-bottom: 14px; }
+    .al-body b { color: var(--px-text); }
+    .al-q { padding: 14px; border-radius: 14px; background: var(--px-panel-2); margin-bottom: 12px; border: 1px solid var(--px-line); }
+    .al-q.wrong { border-color: var(--px-down); }
+    .al-q.right { border-color: var(--px-up); }
+    .al-q h3 { font-size: 14px; font-weight: 800; color: var(--px-text); margin-bottom: 10px; }
+    .al-opt { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: var(--px-panel); border: 1px solid var(--px-line); margin-top: 6px; font-size: 13.5px; color: var(--px-text); cursor: pointer; }
+    .al-opt input { accent-color: var(--px-accent); }
+    .al-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 12px 18px; border-radius: 12px; font-size: 14px; font-weight: 800; background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); border: 0; cursor: pointer; }
+    .al-btn.ghost { background: var(--px-panel-2); color: var(--px-text); border: 1px solid var(--px-line); }
+    .al-res { margin-top: 12px; padding: 12px 14px; border-radius: 12px; font-size: 13.5px; font-weight: 700; display: none; }
+    .al-res.ok { display: block; background: var(--px-up-soft); color: var(--px-up); }
+    .al-res.no { display: block; background: var(--px-down-soft); color: var(--px-down); }
+    .al-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="al-wrap">
+    <div class="al-card">
+        <div class="al-top"><a href="{% url 'academy' %}"><i class="fa-solid fa-arrow-left mr-1"></i> Academy</a><span>Lesson {{ n }} of {{ total }} · {{ lesson.mins }} min{% if done %} · <span style="color:var(--px-up)">Passed ✓</span>{% endif %}</span></div>
+        <h1><i class="fa-solid {{ lesson.icon }} mr-1" style="color:var(--px-accent)"></i> {{ lesson.title }}</h1>
+        <div class="al-body">{% for p in lesson.body %}<p>{{ p|safe }}</p>{% endfor %}</div>
+    </div>
+
+    <div class="al-card">
+        <h1 style="font-size:17px;margin-top:0">Quick quiz</h1>
+        <form id="alQuiz">
+            {% for q in quiz %}
+            <div class="al-q" data-i="{{ q.i }}">
+                <h3>{{ forloop.counter }}. {{ q.q }}</h3>
+                {% for j, o in q.options %}<label class="al-opt"><input type="radio" name="q{{ q.i }}" value="{{ j }}" required> {{ o }}</label>{% endfor %}
+            </div>
+            {% endfor %}
+            <button class="al-btn" type="submit" id="alSubmit">Check my answers</button>
+        </form>
+        <div class="al-res" id="alRes"></div>
+        <div class="al-actions" id="alNext" {% if not done %}hidden{% endif %}>
+            {% if next %}<a class="al-btn" href="{% url 'academy_lesson' next.key %}">Next lesson: {{ next.title }} →</a>{% endif %}
+            <a class="al-btn ghost" href="{% url 'academy' %}">All lessons</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var form = document.getElementById('alQuiz'), res = document.getElementById('alRes');
+    function csrf() { var m = document.cookie.match(/csrftoken=([^;]+)/); return m ? m[1] : ''; }
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var answers = [].map.call(form.querySelectorAll('.al-q'), function (q) { var c = q.querySelector('input:checked'); return c ? +c.value : -1; });
+        document.getElementById('alSubmit').disabled = true;
+        fetch('', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() }, body: JSON.stringify({ answers: answers }) })
+            .then(function (r) { return r.json(); }).then(function (d) {
+                document.getElementById('alSubmit').disabled = false;
+                form.querySelectorAll('.al-q').forEach(function (q, i) { q.classList.remove('right', 'wrong'); q.classList.add(d.correct[i] ? 'right' : 'wrong'); });
+                if (d.passed) {
+                    res.className = 'al-res ok';
+                    res.textContent = d.graduated_now ? '🎓 All lessons done! You unlocked ' + (d.reward || 'your graduate badge') + '.' : '✅ ' + d.score + '/' + d.total + ': lesson passed!';
+                    document.getElementById('alNext').hidden = false;
+                } else {
+                    res.className = 'al-res no';
+                    res.textContent = d.score + '/' + d.total + ' correct. Read the lesson again and fix the questions marked in red.';
+                }
+                res.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }).catch(function () { document.getElementById('alSubmit').disabled = false; });
+    });
+})();
+</script>
+{% endblock %}

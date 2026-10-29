@@ -1825,3 +1825,17 @@ class WeeklyReview(models.Model):
 
     def __str__(self):
         return f"Review {self.user} {self.week_start}"
+
+
+class AcademyProgress(models.Model):
+    """A passed academy lesson (store/academy.py); lesson '_graduated' marks the rewards as given."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='academy_progress')
+    lesson = models.CharField(max_length=20)
+    score = models.PositiveSmallIntegerField(default=0)
+    passed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['user', 'lesson']
+
+    def __str__(self):
+        return f"{self.user} {self.lesson}"

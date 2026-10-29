@@ -1,0 +1,72 @@
+{% extends 'base_dashboard.html' %}
+
+{% block message_toasts %}{% endblock %}
+{% block title %}Beginner Academy · PATREOAIX{% endblock %}
+{% block page_title %}Beginner Academy{% endblock %}
+
+{% block extra_head %}
+<style>
+    .ac-wrap { display: flex; flex-direction: column; gap: 18px; max-width: 900px; }
+    .ac-card { background: var(--px-panel); border: 1px solid var(--px-line); border-radius: 16px; padding: 18px; }
+    .ac-hero h1 { font-size: 20px; font-weight: 900; color: var(--px-text); }
+    .ac-hero p { font-size: 13px; color: var(--px-dim); margin-top: 4px; max-width: 620px; line-height: 1.5; }
+    .ac-bar { height: 10px; border-radius: 10px; background: var(--px-panel-2); overflow: hidden; margin-top: 14px; }
+    .ac-bar i { display: block; height: 100%; background: var(--px-accent); border-radius: 10px; }
+    .ac-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--px-mute); margin-top: 6px; font-weight: 700; }
+    .ac-rewards { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+    .ac-reward { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; color: var(--px-text); padding: 8px 12px; border-radius: 10px; background: var(--px-panel-2); border: 1px solid var(--px-line); }
+    .ac-reward i { color: var(--px-accent); }
+    .ac-reward.got { border-color: var(--px-up); }
+    .ac-list { display: flex; flex-direction: column; gap: 10px; }
+    .ac-lesson { display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 14px; background: var(--px-panel-2); border: 1px solid var(--px-line); color: var(--px-text); transition: border-color .15s; }
+    .ac-lesson:hover { border-color: var(--px-accent); }
+    .ac-num { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex: none; background: var(--px-panel); color: var(--px-accent); font-size: 16px; }
+    .ac-lesson.done .ac-num { background: var(--px-up-soft); color: var(--px-up); }
+    .ac-lesson b { display: block; font-size: 14px; }
+    .ac-lesson small { font-size: 12px; color: var(--px-mute); }
+    .ac-go { margin-left: auto; font-size: 12px; font-weight: 800; color: var(--px-accent); white-space: nowrap; }
+    .ac-lesson.done .ac-go { color: var(--px-up); }
+    .ac-btn { display: inline-flex; align-items: center; gap: 6px; padding: 11px 16px; border-radius: 10px; font-size: 13px; font-weight: 800; background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); margin-top: 14px; }
+    .ac-grad { text-align: center; }
+    .ac-grad .big { font-size: 44px; }
+    .ac-grad h2 { font-size: 18px; font-weight: 900; color: var(--px-text); margin-top: 6px; }
+    .ac-grad p { font-size: 13px; color: var(--px-dim); margin-top: 4px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ac-wrap">
+    <div class="ac-card ac-hero">
+        <h1><i class="fa-solid fa-graduation-cap mr-1"></i> Learn to trade the safe way</h1>
+        <p>{{ total }} short lessons, about 3 minutes each, with a 3-question quiz. Everything a beginner needs before risking money: lots, stops, the 1% rule, reading AI signals and the mindset.</p>
+        <div class="ac-bar"><i style="width: {{ pct_done }}%"></i></div>
+        <div class="ac-meta"><span>{{ done_n }} of {{ total }} lessons</span><span>{{ pct_done }}%</span></div>
+        <div class="ac-rewards">
+            {% if pro_days %}<span class="ac-reward {% if graduated %}got{% endif %}"><i class="fa-solid fa-crown"></i> {{ pro_days }} days of Pro{% if graduated %} ✓{% endif %}</span>{% endif %}
+            {% if bonus_gated %}<span class="ac-reward {% if graduated %}got{% endif %}"><i class="fa-solid fa-gift"></i> Unlocks your {{ bonus_pct }}% first-deposit bonus{% if graduated %} ✓{% endif %}</span>{% endif %}
+            <span class="ac-reward {% if graduated %}got{% endif %}"><i class="fa-solid fa-award"></i> Academy graduate badge{% if graduated %} ✓{% endif %}</span>
+        </div>
+        {% if next %}<a class="ac-btn" href="{% url 'academy_lesson' next.key %}"><i class="fa-solid fa-play"></i> {% if done_n %}Continue: lesson {{ next.n }}{% else %}Start lesson 1{% endif %}</a>{% endif %}
+    </div>
+
+    {% if graduated %}
+    <div class="ac-card ac-grad">
+        <div class="big">🎓</div>
+        <h2>You are an academy graduate</h2>
+        <p>Your rewards are unlocked. Next: practise on a demo account with <a href="{% url 'copy_trading' %}" class="underline font-bold">AI Copy Trading</a> or the <a href="/market-overview/" class="underline font-bold">AI signals</a>.</p>
+    </div>
+    {% endif %}
+
+    <div class="ac-card">
+        <div class="ac-list">
+            {% for l in lessons %}
+            <a class="ac-lesson {% if l.done %}done{% endif %}" href="{% url 'academy_lesson' l.key %}">
+                <span class="ac-num">{% if l.done %}<i class="fa-solid fa-check"></i>{% else %}<i class="fa-solid {{ l.icon }}"></i>{% endif %}</span>
+                <span><b>{{ l.n }}. {{ l.title }}</b><small>{{ l.mins }} min · 3 questions</small></span>
+                <span class="ac-go">{% if l.done %}Passed{% else %}Start →{% endif %}</span>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

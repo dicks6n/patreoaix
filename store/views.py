@@ -11099,3 +11099,44 @@ def journal_page(request):
         'setups': JournalEntry.SETUPS, 'emotions': JournalEntry.EMOTIONS,
         'all_time': jr.stats(list(JournalEntry.objects.filter(user=request.user))),
     })
+
+
+# ═══════════════════════════════════════════════════════════════
+# BEGINNER ACADEMY (store/academy.py)
+# ═══════════════════════════════════════════════════════════════
+@login_required
+def academy_page(request):
+    from . import academy, bonus
+    done = academy.passed(request.user)
+    lessons = [dict(l, done=l['key'] in done, n=i + 1) for i, l in enumerate(academy.LESSONS)]
+    nxt = next((l for l in lessons if not l['done']), None)
+    return render(request, 'store/academy.html', {
+        'lessons': lessons, 'done_n': len(done & set(academy.BY_KEY)), 'total': len(lessons), 'next': nxt,
+        'graduated': academy.graduated(request.user), 'pro_days': academy.pro_days(),
+        'bonus_gated': bonus.enabled() and academy.required_for_bonus(),
+        'pct_done': round(len(done & set(academy.BY_KEY)) / len(lessons) * 100),
+    })
+
+
+@login_required
+def academy_lesson(request, key):
+    from . import academy
+    lesson = academy.BY_KEY.get(key)
+    if not lesson:
+        raise Http404
+    if request.method == 'POST':
+        try:
+            answers = json.loads(request.body or '{}').get('answers', [])
+        except ValueError:
+            answers = []
+        res = academy.submit(request.user, key, answers)
+        if not res['passed']:
+            res['correct'] = [bool(x) for x in res['correct']]       # which ones to look at again, not the answers
+        return JsonResponse(dict(res, success=True))
+    idx = academy.LESSONS.index(lesson)
+    nxt = academy.LESSONS[idx + 1] if idx + 1 < len(academy.LESSONS) else None
+    return render(request, 'store/academy_lesson.html', {
+        'lesson': lesson, 'n': idx + 1, 'total': len(academy.LESSONS), 'next': nxt,
+        'quiz': [{'q': q, 'options': list(enumerate(opts)), 'i': i} for i, (q, opts, _) in enumerate(lesson['quiz'])],
+        'done': key in academy.passed(request.user), 'pro_days': academy.pro_days(),
+    })

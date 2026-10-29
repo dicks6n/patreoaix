@@ -763,6 +763,9 @@
                     <a href="{% url 'news_sentiment' %}" class="nav-item {% if request.resolver_match.url_name == 'news_sentiment' %}nav-active{% endif %}">
                         <i class="fa-solid fa-newspaper"></i><span>News &amp; Sentiment</span>
                     </a>
+                    <a href="{% url 'academy' %}" class="nav-item {% if request.resolver_match.url_name == 'academy' or request.resolver_match.url_name == 'academy_lesson' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-graduation-cap"></i><span>Beginner Academy</span>
+                    </a>
                     <a href="{% url 'price_alerts' %}" class="nav-item {% if request.resolver_match.url_name == 'price_alerts' %}nav-active{% endif %}">
                         <i class="fa-solid fa-bell"></i><span>Price Alerts</span>
                     </a>
