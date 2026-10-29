@@ -11140,3 +11140,23 @@ def academy_lesson(request, key):
         'quiz': [{'q': q, 'options': list(enumerate(opts)), 'i': i} for i, (q, opts, _) in enumerate(lesson['quiz'])],
         'done': key in academy.passed(request.user), 'pro_days': academy.pro_days(),
     })
+
+
+# ═══════════════════════════════════════════════════════════════
+# ADMIN REVENUE DASHBOARD (store/revenue.py)
+# ═══════════════════════════════════════════════════════════════
+@staff_member_required
+def admin_revenue(request):
+    from . import revenue
+    try:
+        days = int(request.GET.get('days', 30))
+    except ValueError:
+        days = 30
+    days = days if days in dict(revenue.PERIODS) else 30
+    data = revenue.build(days)
+    charts = [
+        {'title': 'Deposits per day', 'money': True, **revenue.bars(data['daily'], 'deposits')},
+        {'title': 'Subscription revenue per day', 'money': True, **revenue.bars(data['daily'], 'subs')},
+        {'title': 'New sign-ups per day', 'money': False, **revenue.bars(data['daily'], 'signups')},
+    ]
+    return render(request, 'store/admin_revenue.html', dict(data, charts=charts, days=days, periods=revenue.PERIODS))

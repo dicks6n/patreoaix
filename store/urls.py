@@ -300,6 +300,7 @@ urlpatterns = [
     path('auth/otp/verify/', views.verify_email_otp_view, name='verify_email_otp'),
     # Admin & Back-Office Extensions
     path('admin/hub/', views.admin_dashboard_hub_view, name='admin_dashboard_hub'),
+    path('admin/revenue/', views.admin_revenue, name='admin_revenue'),
     path('admin/hub/counts/', views.api_admin_hub_counts, name='api_admin_hub_counts'),
     path('admin/kyc/', views.admin_kyc_queue_view, name='admin_kyc_queue'),
     path('admin/risk/', views.admin_risk_dashboard_view, name='admin_risk_dashboard'),

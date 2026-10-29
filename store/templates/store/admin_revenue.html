@@ -1,0 +1,167 @@
+{% extends 'base_dashboard.html' %}
+
+{% block message_toasts %}{% endblock %}
+{% block title %}Revenue · Admin · PATREOAIX{% endblock %}
+{% block page_title %}Revenue dashboard{% endblock %}
+
+{% block extra_head %}
+<style>
+    .rv-wrap { display: flex; flex-direction: column; gap: 18px; }
+    .rv-card { background: var(--px-panel); border: 1px solid var(--px-line); border-radius: 16px; padding: 18px; }
+    .rv-h { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+    .rv-h h2 { font-size: 15px; font-weight: 800; color: var(--px-text); }
+    .rv-h p, .rv-sub { font-size: 12px; color: var(--px-mute); }
+    .rv-periods { display: flex; gap: 6px; flex-wrap: wrap; }
+    .rv-periods a { font-size: 12px; font-weight: 700; padding: 7px 11px; border-radius: 9px; background: var(--px-panel-2); color: var(--px-dim); border: 1px solid var(--px-line); }
+    .rv-periods a.on { background: var(--px-accent); border-color: var(--px-accent); color: var(--px-accent-ink, #0b0e14); }
+    .rv-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+    .rv-kpi { background: var(--px-panel); border: 1px solid var(--px-line); border-radius: 14px; padding: 14px 16px; }
+    .rv-kpi span { display: block; font-size: 11px; font-weight: 800; color: var(--px-mute); text-transform: uppercase; letter-spacing: .05em; }
+    .rv-kpi b { display: block; font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 700; color: var(--px-text); margin: 6px 0 4px; }
+    .rv-kpi small { font-size: 11.5px; color: var(--px-mute); }
+    .rv-delta { font-size: 11.5px; font-weight: 800; margin-right: 6px; }
+    .rv-delta.up { color: var(--px-up); } .rv-delta.dn { color: var(--px-down); } .rv-delta.flat { color: var(--px-mute); }
+    .rv-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; }
+    .rv-mini { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+    .rv-mini div { background: var(--px-panel-2); border-radius: 12px; padding: 10px 12px; }
+    .rv-mini span { display: block; font-size: 10.5px; font-weight: 800; color: var(--px-mute); text-transform: uppercase; letter-spacing: .05em; }
+    .rv-mini b { font-family: 'JetBrains Mono', monospace; font-size: 17px; color: var(--px-text); }
+    .rv-mini small { display: block; font-size: 11px; color: var(--px-mute); }
+    /* single-series bars: thin columns, 4px rounded tops on the baseline, 2px gaps, recessive axis */
+    .rv-chart { position: relative; height: 150px; display: flex; align-items: flex-end; gap: 2px; border-bottom: 1px solid var(--px-line); padding-top: 18px; }
+    .rv-bar { flex: 1 1 0; min-width: 2px; height: 100%; display: flex; align-items: flex-end; cursor: default; }
+    .rv-bar i { display: block; width: 100%; border-radius: 4px 4px 0 0; background: var(--px-accent); min-height: 0; }
+    .rv-bar:hover i, .rv-bar:focus i { filter: brightness(1.15); }
+    .rv-bar.zero i { height: 0 !important; }
+    .rv-axis { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--px-mute); margin-top: 6px; }
+    .rv-max { position: absolute; top: 0; left: 0; font-size: 10.5px; color: var(--px-mute); }
+    .rv-tip { position: fixed; z-index: 90; pointer-events: none; background: var(--px-panel-2); color: var(--px-text); border: 1px solid var(--px-line); border-radius: 8px; padding: 6px 9px; font-size: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.35); display: none; white-space: nowrap; }
+    .rv-tip b { font-family: 'JetBrains Mono', monospace; }
+    .rv-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .rv-table th { text-align: left; font-size: 10.5px; color: var(--px-mute); text-transform: uppercase; letter-spacing: .05em; padding: 8px; border-bottom: 1px solid var(--px-line); white-space: nowrap; }
+    .rv-table td { padding: 8px; border-bottom: 1px solid var(--px-line-soft); color: var(--px-text); white-space: nowrap; }
+    .rv-table .num { font-family: 'JetBrains Mono', monospace; text-align: right; }
+    .rv-table th.num { text-align: right; }
+    .rv-scroll { overflow-x: auto; }
+    .rv-tag { font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 5px; background: var(--px-panel-2); color: var(--px-mute); }
+    details summary { cursor: pointer; font-size: 12px; color: var(--px-dim); font-weight: 700; margin-top: 10px; }
+    @media (max-width: 640px) { .rv-card { padding: 14px; } .rv-kpi b { font-size: 20px; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="rv-wrap">
+    <div class="rv-h" style="margin-bottom:0">
+        <p>Compared with the {{ days }} days before · amounts in USD</p>
+        <div class="rv-periods">{% for d, label in periods %}<a href="?days={{ d }}" class="{% if d == days %}on{% endif %}">{{ label }}</a>{% endfor %}</div>
+    </div>
+
+    <div class="rv-kpis">
+        {% for k in kpis %}
+        <div class="rv-kpi">
+            <span>{{ k.label }}</span>
+            <b>{% if k.money %}${{ k.value|floatformat:"2g" }}{% else %}{{ k.value|floatformat:"0g" }}{% endif %}</b>
+            {% if k.delta is not None %}<span class="rv-delta {% if k.delta == 0 %}flat{% elif k.delta > 0 and not k.invert or k.delta < 0 and k.invert %}up{% else %}dn{% endif %}" style="display:inline">{% if k.delta > 0 %}▲{% elif k.delta < 0 %}▼{% else %}■{% endif %} {{ k.delta }}%</span>{% endif %}<small>{{ k.sub }}</small>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="rv-grid2">
+        <div class="rv-card">
+            <div class="rv-h"><h2>Subscribers now</h2><p>active plans</p></div>
+            <div class="rv-mini">
+                <div><span>Paying</span><b>{{ subs_now.paid }}</b></div>
+                <div><span>On trial</span><b>{{ subs_now.trial }}</b></div>
+                <div><span>Monthly run-rate</span><b>${{ subs_now.mrr|floatformat:"2g" }}</b><small>sum of last renewals</small></div>
+                <div><span>Trial → paid</span><b>{% if subs_now.trial_conv is not None %}{{ subs_now.trial_conv }}%{% else %}–{% endif %}</b><small>{{ subs_now.converted }} of {{ subs_now.tried }}</small></div>
+            </div>
+            {% if subs_now.tiers %}<p class="rv-sub" style="margin-top:10px">{% for t, n in subs_now.tiers %}<span class="rv-tag">{{ t }}</span> {{ n }}{% if not forloop.last %} · {% endif %}{% endfor %}</p>{% endif %}
+        </div>
+        <div class="rv-card">
+            <div class="rv-h"><h2>Users</h2><p>by last login</p></div>
+            <div class="rv-mini">
+                <div><span>Total</span><b>{{ users.total|floatformat:"0g" }}</b></div>
+                <div><span>Today</span><b>{{ users.dau|floatformat:"0g" }}</b></div>
+                <div><span>7 days</span><b>{{ users.wau|floatformat:"0g" }}</b></div>
+                <div><span>30 days</span><b>{{ users.mau|floatformat:"0g" }}</b></div>
+            </div>
+        </div>
+        <div class="rv-card">
+            <div class="rv-h"><h2>Owed / waiting</h2><p>right now</p></div>
+            <div class="rv-mini">
+                <div><span>Bonus still locked</span><b>${{ liabilities.bonus_locked|floatformat:"2g" }}</b><small>{{ liabilities.bonus_locked_n }} bonuses, turnover not reached</small></div>
+                <div><span>Pending withdrawals</span><b>${{ liabilities.pending_wd|floatformat:"2g" }}</b><small>{{ liabilities.pending_wd_n }} requests</small></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="rv-grid2">
+        {% for c in charts %}
+        <div class="rv-card">
+            <div class="rv-h"><h2>{{ c.title }}</h2><p>last {{ span }} days · total {% if c.money %}${{ c.total|floatformat:"2g" }}{% else %}{{ c.total|floatformat:"0g" }}{% endif %}</p></div>
+            <div class="rv-chart" role="img" aria-label="{{ c.title }}, last {{ span }} days">
+                <span class="rv-max">{% if c.max %}max {% if c.money %}${{ c.max|floatformat:"0g" }}{% else %}{{ c.max }}{% endif %}{% endif %}</span>
+                {% for b in c.bars %}<span class="rv-bar {% if not b.pct %}zero{% endif %}" tabindex="-1" data-tip="{{ b.day|date:'D d M' }}|{% if c.money %}${{ b.v|floatformat:"2g" }}{% else %}{{ b.v }}{% endif %}"><i style="height: {{ b.pct }}%"></i></span>{% endfor %}
+            </div>
+            <div class="rv-axis"><span>{{ c.bars.0.day|date:"d M" }}</span><span>today</span></div>
+        </div>
+        {% endfor %}
+        <div class="rv-card">
+            <div class="rv-h"><h2>Growth features</h2><p>last {{ days }} days / now</p></div>
+            <div class="rv-mini">{% for label, n, sub in growth %}<div><span>{{ label }}</span><b>{{ n|floatformat:"0g" }}</b><small>{{ sub }}</small></div>{% endfor %}</div>
+        </div>
+    </div>
+
+    <div class="rv-card">
+        <details>
+            <summary>Daily table (deposits, subscriptions, withdrawals, sign-ups)</summary>
+            <div class="rv-scroll" style="margin-top:10px">
+                <table class="rv-table">
+                    <thead><tr><th>Day</th><th class="num">Deposits</th><th class="num">Subscriptions</th><th class="num">Withdrawals</th><th class="num">Sign-ups</th></tr></thead>
+                    <tbody>{% for d in daily reversed %}<tr><td>{{ d.day|date:"D d M" }}</td><td class="num">${{ d.deposits|floatformat:"2g" }}</td><td class="num">${{ d.subs|floatformat:"2g" }}</td><td class="num">${{ d.withdrawals|floatformat:"2g" }}</td><td class="num">{{ d.signups }}</td></tr>{% endfor %}</tbody>
+                </table>
+            </div>
+        </details>
+    </div>
+
+    <div class="rv-grid2">
+        <div class="rv-card">
+            <div class="rv-h"><h2>Top depositors</h2><p>last {{ days }} days</p></div>
+            {% if top %}
+            <div class="rv-scroll"><table class="rv-table">
+                <thead><tr><th>User</th><th class="num">Deposits</th><th class="num">Total</th></tr></thead>
+                <tbody>{% for t in top %}<tr><td>{{ t.user__username }}</td><td class="num">{{ t.n }}</td><td class="num">${{ t.total|floatformat:"2g" }}</td></tr>{% endfor %}</tbody>
+            </table></div>
+            {% else %}<p class="rv-sub">No deposits in this period.</p>{% endif %}
+        </div>
+        <div class="rv-card">
+            <div class="rv-h"><h2>Latest money movements</h2></div>
+            <div class="rv-scroll"><table class="rv-table">
+                <thead><tr><th>When</th><th>User</th><th>Type</th><th>Status</th><th class="num">Amount</th></tr></thead>
+                <tbody>{% for t in recent %}<tr><td>{{ t.created_at|date:"d M H:i" }}</td><td>{{ t.user.username }}</td><td><span class="rv-tag">{{ t.transaction_type }}</span></td><td>{{ t.status }}</td><td class="num">${{ t.amount|floatformat:"2g" }}</td></tr>{% empty %}<tr><td colspan="5" class="rv-sub">Nothing yet.</td></tr>{% endfor %}</tbody>
+            </table></div>
+        </div>
+    </div>
+</div>
+<div class="rv-tip" id="rvTip"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var tip = document.getElementById('rvTip');
+    document.querySelectorAll('.rv-bar').forEach(function (b) {
+        function show(e) {
+            var p = b.dataset.tip.split('|');
+            tip.innerHTML = p[0] + ' · <b>' + p[1] + '</b>';
+            tip.style.display = 'block';
+            var r = b.getBoundingClientRect(), w = tip.offsetWidth;
+            tip.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + 'px';
+            tip.style.top = (r.top + r.height - (b.firstChild.offsetHeight || 0) - tip.offsetHeight - 8) + 'px';
+        }
+        b.addEventListener('mouseenter', show); b.addEventListener('click', show);
+        b.addEventListener('mouseleave', function () { tip.style.display = 'none'; });
+    });
+})();
+</script>
+{% endblock %}
