@@ -348,10 +348,12 @@ main { padding: 0 !important; }
     .mt5-hpos-row .pnl.pos { color: #0a84ff; }
     .mt5-hpos-row .pnl.neg { color: #ff453a; }
     .mt5-hpos-row .line-2 {
-        display: flex; justify-content: space-between; align-items: center;
+        display: flex; justify-content: space-between; align-items: center; gap: 10px;
         margin-top: 3px; font-size: 12px; color: #8e8e93;
         font-variant-numeric: tabular-nums;
     }
+    .mt5-hpos-row .line-2 span:first-child { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mt5-hpos-row .line-2 span:last-child { flex: none; }
 
     .mt5-hist-detail {
         display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin-top: 10px;
@@ -817,7 +819,7 @@ main { padding: 0 !important; }
     .mt5-pos-row .sym-line, .mt5-hpos-row .sym-line { font-family: var(--m-cond); font-size: 17px; font-weight: 700; gap: 0; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .mt5-pos-row .dir, .mt5-hpos-row .dir { font-family: var(--m-cond); font-size: 17px; font-weight: 500; margin-left: 5px; }
     .mt5-pos-row .dir.buy, .mt5-hpos-row .dir.buy { color: var(--m-blue); } .mt5-pos-row .dir.sell, .mt5-hpos-row .dir.sell { color: var(--m-red); }
-    .mt5-pos-row .pr, .mt5-hpos-row .pr { font-size: 15px; color: #8e8e93; margin-top: 3px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .mt5-pos-row .pr, .mt5-hpos-row .pr { font-size: 15px; color: #8e8e93; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
     .mt5-pos-row .pnl { font-family: var(--m-cond); font-size: 25px; font-weight: 700; color: var(--m-text); }
     .mt5-pos-row .pnl.pos, .mt5-hpos-row .pnl.pos { color: var(--m-blue); } .mt5-pos-row .pnl.neg, .mt5-hpos-row .pnl.neg { color: var(--m-red); }
     .mt5-hpos-row .right { text-align: right; }
@@ -825,6 +827,9 @@ main { padding: 0 !important; }
     .mt5-hpos-row .pnl.bal { color: var(--m-blue); }
     .mt5-hpos-row .when { font-size: 15px; color: #8e8e93; margin-top: 3px; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .mt5-hpos-row .mt5-hist-detail { grid-column: 1 / -1; }
+    .mt5-hpos-row > .line-1, .mt5-hpos-row > .line-2 { grid-column: 1 / -1; }     /* deals / orders: two full-width lines */
+    .mt5-hpos-row .sym-line .vol { margin-left: 5px; }
+    .px-install { bottom: calc(118px + env(safe-area-inset-bottom)) !important; }    /* above the terminal's tab bar */
 
     /* history */
     .mt5-history-pills { gap: 10px; padding: 8px 14px 10px; border-bottom: none; justify-content: space-between; }
@@ -4652,6 +4657,14 @@ async function mt5FetchHistory() {
     } catch (e) {}
 }
 function mt5ToggleHistoryRow(key) { mt5HistoryOpen[key] = !mt5HistoryOpen[key]; mt5RenderHistoryBody(); }
+// balance operations: a short comment like MT5 ("Deposit from wallet"), never the long transfer sentence
+function mt5BalanceNote(reason) {
+    const r = String(reason || '');
+    if (/from exchange account to trading account/i.test(r)) return 'Deposit from wallet';
+    if (/from trading account to exchange account/i.test(r)) return 'Withdrawal to wallet';
+    if (/^deposit$/i.test(r)) return '';
+    return mt5Escape(r);
+}
 function mt5RenderHistoryBody() {
     const container = document.getElementById('mt5-history-body');
     if (!container) return;
@@ -4678,7 +4691,7 @@ function mt5RenderHistoryBody() {
             if (p._balance) {
                 html += `
                 <div class="mt5-hpos-row">
-                    <div class="left"><div class="sym-line">${p.profit < 0 ? 'Withdrawal' : 'Balance'}</div><div class="pr">${p.reason && !/^deposit$/i.test(p.reason) ? mt5Escape(p.reason) : '&nbsp;'}</div></div>
+                    <div class="left"><div class="sym-line">${p.profit < 0 ? 'Withdrawal' : 'Balance'}</div><div class="pr">${mt5BalanceNote(p.reason) || '&nbsp;'}</div></div>
                     <div class="right"><div class="pnl bal">${mt5Money(p.profit)}</div><div class="when">${p.time}</div></div>
                 </div>`;
                 continue;
@@ -4730,7 +4743,7 @@ function mt5RenderHistoryBody() {
                     <div class="mt5-hpos-row">
                         <div class="line-1"><div class="sym-line"><span>Balance</span></div>
                             <div class="pnl ${mt5Cls(dl.profit)}">${mt5Money(dl.profit)}</div></div>
-                        <div class="line-2"><span>${mt5Escape(dl.reason)}</span><span>${dl.time}</span></div>
+                        <div class="line-2"><span>${mt5BalanceNote(dl.reason)}</span><span>${dl.time}</span></div>
                     </div>`;
                 continue;
             }
@@ -5087,6 +5100,110 @@ function mt5DerivOrderSheet(symbol, side) {
     if (side) document.getElementById(side === 'BUY' ? 'mdo-buy' : 'mdo-sell').focus();
 }
 document.addEventListener('DOMContentLoaded', () => { mt5LoadAccounts(); setInterval(() => { if (!document.hidden && mt5Acct !== 'site') mt5DerivRefresh(); }, 5000); });
+</script>
+
+<style>
+    #mt5-back-hint { position: fixed; left: 0; top: 45%; z-index: 400; width: 44px; height: 44px; margin-left: -48px; border-radius: 50%;
+        background: rgba(120,120,128,.32); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #fff;
+        display: flex; align-items: center; justify-content: center; font-size: 18px; pointer-events: none; opacity: 0; }
+    #mt5-back-hint.go { background: var(--m-blue, #0a84ff); }
+</style>
+<div id="mt5-back-hint"><i class="fa-solid fa-chevron-left"></i></div>
+<script>
+// ═══════════════════════════════════════════════════════════
+// GOING BACK & SWIPING (like a native app)
+//  • Swipe in from the left edge, the phone's back gesture/button or the browser back: close the open panel,
+//    otherwise go back to the previous tab (the app no longer jumps off the terminal).
+//  • Swipe left / right on Quotes, Trade, History and Settings: next / previous tab (the chart keeps its own pan).
+// ═══════════════════════════════════════════════════════════
+(function () {
+    const TABS = ['quotes', 'chart', 'trade', 'history', 'settings'];
+    const OVERLAYS = [                      // top-most first: [element id, how to close it]
+        ['mt5-deriv-sheet', () => document.getElementById('mt5-deriv-sheet')?.remove(), true],
+        ['mt5-dom-modal', () => mt5CloseDOM()],
+        ['mt5-ind-edit', () => mt5CloseIndicatorEditor()],
+        ['mt5-ind-panel', () => mt5CloseIndicators()],
+        ['mt5-journal-panel', () => mt5CloseJournal()],
+        ['mt5-sheet', () => mt5CloseSheet()],
+        ['mt5-symbol-sheet', () => mt5CloseActionSheet()],
+        ['mt5-order-panel', () => mt5CloseOrderPanel()],
+        ['mt5-symbols-panel', () => mt5CloseSymbolPicker()],
+        ['mt5-co-sheet', () => mt5ToggleChartOrder(false)],
+    ];
+    const openOverlay = () => OVERLAYS.find(([id, , always]) => {
+        const el = document.getElementById(id);
+        return el && (always || el.classList.contains('show'));
+    });
+
+    // remember the tabs visited, so "back" returns to the previous one
+    const stack = [];
+    const baseSwitch = window.mt5SwitchTab;
+    let restoring = false;
+    window.mt5SwitchTab = function (tab) {
+        const cur = typeof mt5CurrentTab !== 'undefined' ? mt5CurrentTab : null;
+        if (!restoring && cur && cur !== tab) { stack.push(cur); if (stack.length > 30) stack.shift(); }
+        return baseSwitch.apply(this, arguments);
+    };
+    window.mt5Back = function () {
+        const o = openOverlay();
+        if (o) { try { o[1](); } catch (e) { document.getElementById(o[0])?.classList.remove('show'); } return true; }
+        let prev = stack.pop();
+        while (prev && prev === mt5CurrentTab) prev = stack.pop();
+        if (!prev && mt5CurrentTab !== 'trade') prev = 'trade';
+        if (!prev) return false;
+        restoring = true;
+        try { mt5SwitchTab(prev); } finally { restoring = false; }
+        return true;
+    };
+
+    // phone back button / browser back / iOS back swipe go through mt5Back first
+    try {
+        history.pushState({ mt5: 1 }, '');
+        window.addEventListener('popstate', () => {
+            if (mt5Back()) history.pushState({ mt5: 1 }, '');
+            else history.back();
+        });
+    } catch (e) {}
+
+    // touch gestures
+    const hint = document.getElementById('mt5-back-hint');
+    let g = null;
+    const scrollsSideways = el => {
+        for (; el && el !== document.body; el = el.parentElement) {
+            if (el.scrollWidth > el.clientWidth + 4 && /(auto|scroll)/.test(getComputedStyle(el).overflowX)) return true;
+        }
+        return false;
+    };
+    document.addEventListener('touchstart', e => {
+        if (e.touches.length !== 1) { g = null; return; }
+        const t = e.touches[0];
+        g = { x: t.clientX, y: t.clientY, t: Date.now(), edge: t.clientX < 24, target: e.target, dx: 0, dy: 0 };
+    }, { passive: true });
+    document.addEventListener('touchmove', e => {
+        if (!g || e.touches.length !== 1) return;
+        const t = e.touches[0];
+        g.dx = t.clientX - g.x; g.dy = t.clientY - g.y;
+        if (g.edge && g.dx > 0 && Math.abs(g.dx) > Math.abs(g.dy)) {
+            const p = Math.min(1, g.dx / 110);
+            hint.style.opacity = p; hint.style.transform = `translateX(${Math.min(g.dx, 110) * 0.6 + 48}px)`;
+            hint.classList.toggle('go', p >= 1);
+        }
+    }, { passive: true });
+    document.addEventListener('touchend', () => {
+        if (!g) return;
+        const { dx, dy, edge, target } = g, quick = Date.now() - g.t < 700;
+        g = null;
+        hint.style.opacity = 0; hint.style.transform = ''; hint.classList.remove('go');
+        if (edge) { if (dx > 110 && Math.abs(dy) < 80) mt5Back(); return; }
+        if (!quick || Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 2) return;
+        if (openOverlay() || mt5CurrentTab === 'chart') return;
+        if (target.closest && target.closest('input, select, textarea, [contenteditable], .mt5-noswipe')) return;
+        if (scrollsSideways(target)) return;
+        const i = TABS.indexOf(mt5CurrentTab), j = i + (dx < 0 ? 1 : -1);
+        if (i >= 0 && j >= 0 && j < TABS.length) mt5SwitchTab(TABS[j]);
+    }, { passive: true });
+    document.addEventListener('touchcancel', () => { g = null; hint.style.opacity = 0; }, { passive: true });
+})();
 </script>
 
 {% endblock %}
