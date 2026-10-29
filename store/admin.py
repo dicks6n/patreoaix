@@ -181,3 +181,39 @@ class ReferralRewardAdmin(admin.ModelAdmin):
 class ReferralTierRewardAdmin(admin.ModelAdmin):
     list_display = ('tier', 'reward_percent', 'updated_at')
     list_editable = ('reward_percent',)
+
+# ── PATREOAIX Funded (store/prop_firm.py) ──
+from .models import PropAccount, PropPayout, PropTrader
+
+
+@admin.register(PropTrader)
+class PropTraderAdmin(admin.ModelAdmin):
+    list_display = ('code', 'user', 'created_at')
+    search_fields = ('code', 'user__username', 'user__email')
+
+
+@admin.register(PropAccount)
+class PropAccountAdmin(admin.ModelAdmin):
+    list_display = ('login', 'user', 'plan_type', 'size', 'phase', 'status', 'balance', 'price_paid', 'created_at')
+    list_filter = ('status', 'phase', 'plan_type', 'size')
+    search_fields = ('login', 'user__username', 'order_ref')
+    readonly_fields = ('login', 'previous', 'order_ref', 'created_at', 'ended_at')
+
+
+@admin.register(PropPayout)
+class PropPayoutAdmin(admin.ModelAdmin):
+    list_display = ('account', 'user', 'profit', 'split', 'amount', 'status', 'created_at')
+    list_filter = ('status',)
+    actions = ['approve_and_pay', 'reject_payout']
+
+    @admin.action(description='Approve and pay to wallet')
+    def approve_and_pay(self, request, queryset):
+        from . import prop_firm
+        for po in queryset.filter(status='PENDING'):
+            prop_firm.pay(po)
+
+    @admin.action(description='Reject (profit goes back to the account)')
+    def reject_payout(self, request, queryset):
+        from . import prop_firm
+        for po in queryset.filter(status='PENDING'):
+            prop_firm.reject(po, 'Rejected by staff')

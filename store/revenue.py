@@ -38,7 +38,9 @@ def _money_block(a, b):
         if not Transaction.objects.filter(user_id=uid, transaction_type='DEPOSIT', status='completed', created_at__lt=a).exists():
             first_ids.add(uid)
     deposits = _sum(dep)
+    fees = tx.filter(transaction_type='CHALLENGE_FEE')
     return {
+        'challenges': _sum(fees), 'challenges_n': fees.count(),
         'subs': subs, 'subs_n': tx.filter(transaction_type='SUBSCRIPTION').count(),
         'deposits': deposits, 'deposits_n': dep.count(), 'depositors': dep.values('user_id').distinct().count(),
         'first_depositors': len(first_ids), 'withdrawals': wd, 'net_deposits': deposits - wd,
@@ -52,13 +54,14 @@ def _money_block(a, b):
 def build(days=30):
     from django.contrib.auth.models import User
     from .models import (Transaction, DepositBonus, UserProfile, Referral, AcademyProgress, CopyTradingSettings,
-                         CopyTrade, PushSubscription, PriceWatch, PaymentRequest)
+                         CopyTrade, PushSubscription, PriceWatch, PaymentRequest, PropAccount, PropPayout)
     from .membership import MEMBER_TIERS, TRIAL_TIER
     now = timezone.now()
     a = now - timedelta(days=days)
     cur, prev = _money_block(a, now), _money_block(a - timedelta(days=days), a)
     kpis = [
         {'label': 'Subscription revenue', 'value': cur['subs'], 'money': True, 'delta': _delta(cur['subs'], prev['subs']), 'sub': f"{cur['subs_n']} payments"},
+        {'label': 'Challenge sales', 'value': cur['challenges'], 'money': True, 'delta': _delta(cur['challenges'], prev['challenges']), 'sub': f"{cur['challenges_n']} orders"},
         {'label': 'Deposits', 'value': cur['deposits'], 'money': True, 'delta': _delta(cur['deposits'], prev['deposits']),
          'sub': f"{cur['deposits_n']} from {cur['depositors']} users · {cur['first_depositors']} first-time"},
         {'label': 'Withdrawals', 'value': cur['withdrawals'], 'money': True, 'delta': _delta(cur['withdrawals'], prev['withdrawals']), 'sub': 'completed', 'invert': True},
@@ -111,6 +114,9 @@ def build(days=30):
         ('Copied trades', CopyTrade.objects.filter(created_at__gte=month, status__in=('OPEN', 'CLOSED')).count(), 'opened on Deriv'),
         ('Push devices', PushSubscription.objects.count(), 'phones / browsers'),
         ('Price alerts active', PriceWatch.objects.filter(active=True).count(), 'waiting to fire'),
+        ('Active challenges', PropAccount.objects.filter(status='ACTIVE').exclude(phase='funded').count(), 'phase 1 / 2 accounts'),
+        ('Funded traders', PropAccount.objects.filter(status='ACTIVE', phase='funded').values('user').distinct().count(), 'with a live funded account'),
+        ('Payouts waiting', PropPayout.objects.filter(status='PENDING').count(), 'approve in admin'),
     ]
 
     # daily series

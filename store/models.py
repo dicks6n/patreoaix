@@ -274,6 +274,10 @@ class Trade(models.Model):
         'self', null=True, blank=True, on_delete=models.CASCADE, related_name='partial_closes',
         help_text="Set on the closed part of a partially closed position."
     )
+    prop = models.ForeignKey(
+        'PropAccount', null=True, blank=True, on_delete=models.CASCADE, related_name='trades',
+        help_text="Set when the position belongs to a prop challenge / funded account (store/prop_firm.py)."
+    )
 
     def __str__(self):
         return f"{self.user.username} | {self.direction} {self.asset.symbol if self.asset else 'N/A'} | {self.status}"
@@ -1539,6 +1543,7 @@ class PendingOrder(models.Model):
     trade = models.ForeignKey('Trade', null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
     created_at = models.DateTimeField(auto_now_add=True)
     filled_at = models.DateTimeField(null=True, blank=True)
+    prop = models.ForeignKey('PropAccount', null=True, blank=True, on_delete=models.CASCADE, related_name='pending_orders')
 
     class Meta:
         ordering = ['-created_at']
@@ -1839,3 +1844,68 @@ class AcademyProgress(models.Model):
 
     def __str__(self):
         return f"{self.user} {self.lesson}"
+
+
+# ============================================================
+# PROP FIRM: challenges & funded accounts (store/prop_firm.py)
+# ============================================================
+class PropTrader(models.Model):
+    """The trader's public ID, e.g. PXT-482931 (on certificates, payouts and the leaderboard)."""
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='prop_trader')
+    code = models.CharField(max_length=12, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.code
+
+
+class PropAccount(models.Model):
+    """One purchased challenge account and its phases (each phase gets its own login, like MT5)."""
+    TYPES = [('two_step', '2-Step'), ('one_step', '1-Step')]
+    PHASES = [('1', 'Phase 1'), ('2', 'Phase 2'), ('funded', 'Funded')]
+    STATUSES = [('ACTIVE', 'Active'), ('PASSED', 'Passed'), ('FAILED', 'Breached'), ('CLOSED', 'Closed')]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='prop_accounts')
+    login = models.BigIntegerField(unique=True)
+    plan_type = models.CharField(max_length=10, choices=TYPES)
+    size = models.PositiveIntegerField()
+    phase = models.CharField(max_length=6, choices=PHASES, default='1')
+    status = models.CharField(max_length=6, choices=STATUSES, default='ACTIVE', db_index=True)
+    initial_balance = models.DecimalField(max_digits=12, decimal_places=2)
+    balance = models.DecimalField(max_digits=12, decimal_places=2)
+    day_start_balance = models.DecimalField(max_digits=12, decimal_places=2)
+    day_start_date = models.DateField(null=True, blank=True)
+    lowest_equity = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    price_paid = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    order_ref = models.CharField(max_length=20, blank=True, db_index=True)
+    previous = models.OneToOneField('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='next_phase')
+    fail_reason = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"#{self.login} {self.get_plan_type_display()} ${self.size:,} {self.get_phase_display()} [{self.status}]"
+
+
+class PropPayout(models.Model):
+    """A funded trader's profit withdrawal (profit split applied); staff approve it in the admin."""
+    STATUSES = [('PENDING', 'Pending'), ('PAID', 'Paid to wallet'), ('REJECTED', 'Rejected')]
+    account = models.ForeignKey(PropAccount, on_delete=models.CASCADE, related_name='payouts')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='prop_payouts')
+    profit = models.DecimalField(max_digits=12, decimal_places=2)
+    split = models.PositiveSmallIntegerField()
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    status = models.CharField(max_length=8, choices=STATUSES, default='PENDING')
+    note = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Payout #{self.account.login} ${self.amount} [{self.status}]"

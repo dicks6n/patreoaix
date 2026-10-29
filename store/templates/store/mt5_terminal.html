@@ -6,6 +6,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script>
+// the prop challenge / funded account the terminal trades on ('' = the PATREOAIX account); sent with every request
+var mt5Book = '';
+try { mt5Book = new URLSearchParams(location.search).get('book') || sessionStorage.getItem('mt5Book') || ''; } catch (e) {}
+if (!/^\d+$/.test(mt5Book)) mt5Book = '';
+const mt5BookHeader = () => (mt5Book ? { 'X-PX-Book': mt5Book } : {});
 // Ensure env(safe-area-inset-*) actually works on iOS: viewport-fit=cover must be on the meta tag.
 // base_dashboard.html's meta doesn't include it, so patch it before the body is parsed.
 try {
@@ -2201,7 +2206,7 @@ function mt5GetCookie(name) {
 async function mt5Post(url, body) {
     const r = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': mt5GetCookie('csrftoken'), 'X-Requested-With': 'XMLHttpRequest' },
+        headers: Object.assign({ 'Content-Type': 'application/json', 'X-CSRFToken': mt5GetCookie('csrftoken'), 'X-Requested-With': 'XMLHttpRequest' }, mt5BookHeader()),
         body: JSON.stringify(body || {}),
     });
     let d = {};
@@ -2210,7 +2215,7 @@ async function mt5Post(url, body) {
     return d;
 }
 async function mt5Get(url) {
-    const r = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    const r = await fetch(url, { headers: Object.assign({ 'X-Requested-With': 'XMLHttpRequest' }, mt5BookHeader()) });
     return r.json();
 }
 
@@ -4885,21 +4890,28 @@ function mt5CloseDOM() {
 // On a Deriv account the Trade tab shows its balance and open Multipliers contracts, and orders go to Deriv
 // (stake × multiplier). Real money is never chosen by itself and every real order asks to confirm.
 // ═══════════════════════════════════════════════════════════
-var mt5DerivAccts = { demo: null, real: null };
-try { if (sessionStorage.getItem('mt5Acct') === 'demo') mt5Acct = 'demo'; } catch (e) {}
+var mt5DerivAccts = { demo: null, real: null }, mt5PropAccts = [];
+try { if (sessionStorage.getItem('mt5Acct') === 'demo' && !mt5Book) mt5Acct = 'demo'; } catch (e) {}
+const mt5CurKey = () => (mt5Book ? 'prop:' + mt5Book : mt5Acct);
+const mt5CurProp = () => mt5PropAccts.find(a => String(a.login) === String(mt5Book));
 const mt5DerivSiteSymbol = s => String(s || '').replace(/^(frx|cry)/, '');
 
 async function mt5LoadAccounts() {
-    const [d, r] = await Promise.all(['demo', 'real'].map(a => mt5Get(`/api/deriv/demo/account/?account=${a}`).catch(() => null)));
+    const [d, r, p] = await Promise.all([
+        ...['demo', 'real'].map(a => mt5Get(`/api/deriv/demo/account/?account=${a}`).catch(() => null)),
+        mt5Get('/api/prop/accounts/').catch(() => null)]);
     mt5DerivAccts = { demo: d, real: r };
+    mt5PropAccts = (p && p.accounts) || [];
     if (mt5Acct === 'demo' && !(d && d.success)) mt5Acct = 'site';
+    if (mt5Book && !mt5CurProp()) { mt5Book = ''; try { sessionStorage.removeItem('mt5Book'); } catch (e) {} }   // passed / breached / not yours
     mt5RenderAccounts();
     mt5ApplyAccount();
 }
 function mt5AcctRow(key, title, sub, ribbonColor, ok) {
-    const on = mt5Acct === key;
+    const on = mt5CurKey() === key;
+    const icon = key === 'site' ? 'fa-p' : key === 'real' ? 'fa-sack-dollar' : key.startsWith('prop:') ? 'fa-trophy' : 'fa-flask';
     return `<button type="button" class="mt5-set-row" ${ok ? `onclick="mt5SetAccount('${key}')"` : 'disabled style="opacity:.55"'}>
-        <div class="mt5-set-icon" style="background:${ribbonColor};"><i class="fa-solid ${key === 'site' ? 'fa-p' : key === 'real' ? 'fa-sack-dollar' : 'fa-flask'}"></i></div>
+        <div class="mt5-set-icon" style="background:${ribbonColor};"><i class="fa-solid ${icon}"></i></div>
         <div class="mt5-set-row-text"><div class="mt5-set-row-label">${title}</div><div class="mt5-set-row-sub">${sub}</div></div>
         ${on ? '<i class="fa-solid fa-check" style="color:var(--m-blue);font-size:17px"></i>' : '<div class="mt5-set-chevron"></div>'}
     </button>`;
@@ -4912,10 +4924,24 @@ function mt5RenderAccounts() {
     let html = mt5AcctRow('site', 'PATREOAIX-Live', `{{ request.user.id }} · site trading account`, 'linear-gradient(135deg,#f0b90b,#d99a00)', true);
     if (d && d.connected) html += mt5AcctRow('demo', `Deriv Demo · ${mt5Escape(d.loginid || '')}`, d.success ? `Balance ${money(d)} · Multipliers` : mt5Escape(d.error || 'unavailable'), 'linear-gradient(135deg,#34c759,#28a745)', !!d.success);
     if (r && r.real_allowed && r.connected) html += mt5AcctRow('real', `Deriv Real · ${mt5Escape(r.loginid || '')}`, !r.real_enabled ? 'Tap to turn on real-money trading' : r.success ? `REAL MONEY · balance ${money(r)}` : mt5Escape(r.error || 'unavailable'), 'linear-gradient(135deg,#f2524a,#c9302c)', true);
+    mt5PropAccts.forEach(a => {
+        html += mt5AcctRow('prop:' + a.login, `${mt5Escape(a.name)} · ${a.login}`, `${a.funded ? 'FUNDED' : mt5Escape(a.phase)} · balance ${Number(a.balance).toFixed(2)} USD`,
+            a.funded ? 'linear-gradient(135deg,#34c759,#1e8e3e)' : 'linear-gradient(135deg,#5e5ce6,#3a38b8)', true);
+    });
+    html += `<a href="/funded/" class="mt5-set-row"><div class="mt5-set-icon" style="background:linear-gradient(135deg,#f0b90b,#d99a00);"><i class="fa-solid fa-trophy"></i></div><div class="mt5-set-row-text"><div class="mt5-set-row-label">${mt5PropAccts.length ? 'Buy another challenge' : 'Get funded'}</div><div class="mt5-set-row-sub">Challenge accounts from $5K to $200K</div></div><div class="mt5-set-chevron"></div></a>`;
     if (!(d && d.connected)) html += `<a href="/connect-deriv/" class="mt5-set-row"><div class="mt5-set-icon" style="background:linear-gradient(135deg,#ff444f,#d0353f);"><i class="fa-solid fa-link"></i></div><div class="mt5-set-row-text"><div class="mt5-set-row-label">Connect Deriv</div><div class="mt5-set-row-sub">Log in with Deriv to trade your own demo / real account here</div></div><div class="mt5-set-chevron"></div></a>`;
     box.innerHTML = html;
 }
 async function mt5SetAccount(key) {
+    if (key.startsWith('prop:')) {
+        mt5Book = key.slice(5); mt5Acct = 'site';
+        try { sessionStorage.setItem('mt5Book', mt5Book); sessionStorage.setItem('mt5Acct', 'site'); } catch (e) {}
+        mt5RenderAccounts(); mt5ApplyAccount();
+        document.getElementById('tab-settings')?.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+    }
+    mt5Book = '';
+    try { sessionStorage.removeItem('mt5Book'); } catch (e) {}
     if (key === 'real') {
         const r = mt5DerivAccts.real;
         if (!r || !r.connected) return;
@@ -4939,6 +4965,14 @@ function mt5RenderAccountHeader() {
     const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
     const ribbon = document.getElementById('mt5-set-ribbon');
     const acc = mt5DerivAccts[mt5Acct] || {};
+    const prop = mt5Book && mt5CurProp();
+    if (prop) {
+        set('mt5-set-broker', 'PATREOAIX Funded');
+        set('mt5-set-login', `${prop.login} - PATREOAIX-${prop.funded ? 'Funded' : 'Challenge'}`);
+        set('mt5-set-server', `${prop.name} · ${prop.phase}`);
+        if (ribbon) { ribbon.textContent = prop.funded ? 'Funded' : 'Challenge'; ribbon.style.background = prop.funded ? '#34c759' : '#5e5ce6'; }
+        return;
+    }
     if (mt5Acct === 'site') {
         set('mt5-set-broker', 'PATREOAIX Ltd.');
         set('mt5-set-login', `{{ request.user.id }} - PATREOAIX-Live`);

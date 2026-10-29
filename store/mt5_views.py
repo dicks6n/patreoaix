@@ -55,6 +55,21 @@ def _require_kyc(user):
         raise TradeError("KYC verification required to trade.")
 
 
+def _book(request, tradable=False):
+    """The account the terminal works on: None = the PATREOAIX trading account, or a prop challenge / funded
+    account picked in Settings → Accounts (header X-PX-Book or ?book=<login>)."""
+    from .models import PropAccount
+    login = request.headers.get('X-PX-Book') or request.GET.get('book') or ''
+    if not str(login).isdigit():
+        return None
+    prop = PropAccount.objects.filter(user=request.user, login=int(login)).first()
+    if prop is None:
+        raise TradeError("Account not found")
+    if tradable and prop.status != 'ACTIVE':
+        raise TradeError(f"Account #{prop.login} is {prop.get_status_display().lower()}: pick another account in Settings")
+    return prop
+
+
 def _fmt_time(dt):
     return timezone.localtime(dt).strftime('%Y.%m.%d %H:%M:%S') if dt else ''
 
@@ -131,9 +146,21 @@ def api_mt5_quotes(request):
 def api_mt5_metrics(request):
     """Account figures. Also runs the order engine for this user (pending fills, S/L, T/P, stop out)."""
     mt5.process_user_orders(request.user)
-    m = mt5.get_metrics(request.user)
+    try:
+        prop = _book(request)
+    except TradeError as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+    m = mt5.get_metrics(request.user, prop)
+    extra = {}
+    if prop is not None:
+        from . import prop_firm
+        prop.refresh_from_db()
+        o = prop_firm.objectives(prop, m)
+        extra['prop'] = {'login': prop.login, 'status': prop.status, 'phase': prop.get_phase_display(),
+                         'daily_left': float(o['daily_left']), 'max_left': float(o['max_left']),
+                         'profit_pct': float(o['profit_pct']), 'target_progress': o.get('target_progress')}
     return JsonResponse({
-        'success': True,
+        'success': True, **extra,
         'balance': float(m['balance']),
         'profit': float(m['profit']),
         'swap': float(m['swap']),
@@ -193,9 +220,13 @@ def _position_dict(t):
 
 @login_required
 def api_open_positions(request):
-    trades = Trade.objects.filter(user=request.user, status='OPEN').select_related('asset').order_by('date_opened')
+    try:
+        prop = _book(request)
+    except TradeError as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+    trades = Trade.objects.filter(user=request.user, status='OPEN', prop=prop).select_related('asset').order_by('date_opened')
     positions = [_position_dict(t) for t in trades]
-    m = mt5.get_metrics(request.user)
+    m = mt5.get_metrics(request.user, prop)
     return JsonResponse({
         'success': True,
         'positions': positions,
@@ -221,12 +252,14 @@ def execute_trade(request):
         from .views import execute_trade as legacy_execute
         return legacy_execute(request)
 
-    _require_kyc(request.user)
+    prop = _book(request, tradable=True)
+    if prop is None:                       # challenge accounts are simulated capital: KYC comes at payout time
+        _require_kyc(request.user)
     trade = mt5.open_position(
         request.user, data.get('symbol'), contract,
-        data.get('volume', data.get('amount')), data.get('sl'), data.get('tp'),
+        data.get('volume', data.get('amount')), data.get('sl'), data.get('tp'), prop=prop,
     )
-    m = mt5.get_metrics(request.user)
+    m = mt5.get_metrics(request.user, prop)
     return JsonResponse({
         'success': True,
         'trade_id': trade.id,
@@ -309,7 +342,8 @@ def close_all_trades_api(request):
     or the older form {trades: {id: …}} to close exactly those positions.
     """
     data = _json_body(request)
-    qs = Trade.objects.filter(user=request.user, status='OPEN',
+    prop = _book(request)
+    qs = Trade.objects.filter(user=request.user, status='OPEN', prop=prop,
                               direction__in=TRADE_DIRECTIONS).select_related('asset')
     if data.get('symbol'):
         qs = qs.filter(asset__symbol=str(data['symbol']).upper())
@@ -344,7 +378,7 @@ def close_all_trades_api(request):
         except TradeError as e:
             errors.append({'id': tid, 'error': str(e)})
     if balance is None:
-        balance = mt5.get_metrics(request.user)['balance']
+        balance = mt5.get_metrics(request.user, prop)['balance']
     return JsonResponse({
         'success': won + lost > 0,
         'closed_count': won + lost,
@@ -409,7 +443,11 @@ def _order_dict(o):
 
 @login_required
 def api_mt5_orders(request):
-    qs = PendingOrder.objects.filter(user=request.user, status='PENDING').order_by('-created_at')
+    try:
+        prop = _book(request)
+    except TradeError as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+    qs = PendingOrder.objects.filter(user=request.user, status='PENDING', prop=prop).order_by('-created_at')
     return JsonResponse({'success': True, 'orders': [_order_dict(o) for o in qs]})
 
 
@@ -424,9 +462,11 @@ def _pending_args(data):
 def api_place_pending_order(request):
     """Body: {symbol, order_type, volume, price, stoplimit?, sl?, tp?, expiration: GTC|DAY|SPECIFIED, expires_at?}"""
     data = _json_body(request)
-    _require_kyc(request.user)
+    prop = _book(request, tradable=True)
+    if prop is None:
+        _require_kyc(request.user)
     o = mt5.place_pending(request.user, data.get('symbol'), data.get('order_type'), data.get('volume'),
-                          **_pending_args(data))
+                          prop=prop, **_pending_args(data))
     return JsonResponse({'success': True, 'order': _order_dict(o)})
 
 
@@ -452,7 +492,7 @@ def api_cancel_pending_order(request, order_id):
 @trade_api
 def api_cancel_all_pending_orders(request):
     n = 0
-    for oid in PendingOrder.objects.filter(user=request.user, status='PENDING').values_list('id', flat=True):
+    for oid in PendingOrder.objects.filter(user=request.user, status='PENDING', prop=_book(request)).values_list('id', flat=True):
         try:
             mt5.cancel_pending(request.user, oid)
             n += 1
@@ -496,9 +536,13 @@ def _in_range(dt, start, end):
 def api_mt5_history(request):
     user = request.user
     start, end = _history_range(request)
+    try:
+        prop = _book(request)
+    except TradeError as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
 
     rows = list(
-        Trade.objects.filter(user=user, direction__in=TRADE_DIRECTIONS)
+        Trade.objects.filter(user=user, direction__in=TRADE_DIRECTIONS, prop=prop)
         .exclude(status__in=('PENDING', 'CANCELLED'))
         .select_related('asset')
     )
@@ -507,7 +551,7 @@ def api_mt5_history(request):
     for t in rows:
         if t.parent_id:
             slices.setdefault(t.parent_id, []).append(t)
-    filled_from = {o.trade_id: o for o in PendingOrder.objects.filter(user=user, status='FILLED', trade__isnull=False)}
+    filled_from = {o.trade_id: o for o in PendingOrder.objects.filter(user=user, status='FILLED', trade__isnull=False, prop=prop)}
 
     positions, deals, orders = [], [], []
     for root in roots.values():
@@ -578,7 +622,7 @@ def api_mt5_history(request):
             })
 
     # Cancelled / expired / rejected pending orders
-    for o in PendingOrder.objects.filter(user=user).exclude(status__in=('PENDING', 'FILLED')):
+    for o in PendingOrder.objects.filter(user=user, prop=prop).exclude(status__in=('PENDING', 'FILLED')):
         ts = o.created_at
         if not _in_range(ts, start, end):
             continue
@@ -591,7 +635,12 @@ def api_mt5_history(request):
 
     # Balance operations on the trading account (transfers in / out)
     deposit = withdrawal = Decimal('0')
-    for tx in Transaction.objects.filter(user=user, transaction_type='INTERNAL_TRANSFER'):
+    if prop is not None and _in_range(prop.created_at, start, end):        # the challenge's starting balance
+        deposit += Decimal(str(prop.initial_balance))
+        deals.append({'ticket': 0, 'symbol': '', 'direction': 'balance', 'entry': '', 'volume': 0, 'price': 0,
+                      'time': _fmt_time(prop.created_at), 'profit': float(prop.initial_balance), 'swap': 0.0,
+                      'commission': 0.0, 'reason': f'{prop.get_phase_display()} balance #{prop.login}', '_ts': prop.created_at})
+    for tx in (Transaction.objects.filter(user=user, transaction_type='INTERNAL_TRANSFER') if prop is None else []):
         if not _in_range(tx.created_at, start, end):
             continue
         d = (tx.details or '').lower()
@@ -615,7 +664,7 @@ def api_mt5_history(request):
             r.pop('_ts', None)
 
     trade_deals = [d for d in deals if d['direction'] != 'balance']
-    acc = Account.objects.filter(user=user, account_type='TRADING').first()
+    acc = prop if prop is not None else Account.objects.filter(user=user, account_type='TRADING').first()
     return JsonResponse({
         'success': True,
         'positions': positions[:500],

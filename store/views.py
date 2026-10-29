@@ -3938,7 +3938,7 @@ def bot_control_view(request):
             from . import mt5_service
             bots.update(is_running=False)
             closed, failed = 0, 0
-            for t in Trade.objects.filter(user=request.user, status='OPEN', direction__in=('BUY', 'SELL')):
+            for t in Trade.objects.filter(user=request.user, status='OPEN', prop__isnull=True, direction__in=('BUY', 'SELL')):
                 try:
                     mt5_service.close_position(request.user, t.id, reason='CLIENT')
                     closed += 1
@@ -11160,3 +11160,62 @@ def admin_revenue(request):
         {'title': 'New sign-ups per day', 'money': False, **revenue.bars(data['daily'], 'signups')},
     ]
     return render(request, 'store/admin_revenue.html', dict(data, charts=charts, days=days, periods=revenue.PERIODS))
+
+
+# ═══════════════════════════════════════════════════════════════
+# PATREOAIX FUNDED: prop challenges (store/prop_firm.py)
+# ═══════════════════════════════════════════════════════════════
+@login_required
+def prop_dashboard(request):
+    from . import prop_firm as pf, mt5_service as mt5
+    from .models import PropAccount, PropPayout
+    if request.method == 'POST':
+        act = request.POST.get('action')
+        try:
+            if act == 'buy':
+                accs = pf.buy(request.user, request.POST.get('plan_type'), request.POST.get('size'), request.POST.get('qty') or 1)
+                messages.success(request, f"{len(accs)} account{'s' if len(accs) > 1 else ''} ready: "
+                                          + ', '.join(f'#{a.login}' for a in accs) + '. Good luck!')
+            elif act == 'payout':
+                po = pf.request_payout(request.user, int(request.POST.get('login') or 0))
+                messages.success(request, f'Payout of ${po.amount} requested.')
+        except (pf.PropError, ValueError) as e:
+            messages.error(request, str(e) or 'Something went wrong.')
+        return redirect('funded')
+    for p in PropAccount.objects.filter(user=request.user, status='ACTIVE'):
+        try:
+            mt5.check_stop_out(request.user, p)
+            pf.check(p)
+        except Exception as e:
+            logger.warning(f'prop check {p.login}: {e}')
+    accounts = list(PropAccount.objects.filter(user=request.user))
+    active = []
+    for a in accounts:
+        a.tier = pf.TIER_NAMES.get(a.size, '')
+        if a.status == 'ACTIVE':
+            a.obj = pf.objectives(a)
+            a.payout = pf.payout_status(a) if a.phase == 'funded' else None
+            active.append(a)
+    from .models import Account
+    wallet = Account.objects.filter(user=request.user, account_type='EXCHANGE').first()
+    return render(request, 'store/prop_dashboard.html', {
+        'trader_id': pf.trader_id(request.user) if accounts else None,
+        'catalog': pf.catalog(), 'sizes': pf.SIZES, 'tiers': pf.TIER_NAMES, 'active': active,
+        'past': [a for a in accounts if a.status != 'ACTIVE'][:30],
+        'payouts': PropPayout.objects.filter(user=request.user)[:20],
+        'wallet': wallet.balance if wallet else 0, 'max_per_order': pf.MAX_PER_ORDER,
+        'bulk': sorted(pf.BULK_DISCOUNT.items()), 'max_alloc': pf.MAX_ALLOCATION, 'max_active': pf.MAX_ACTIVE_ACCOUNTS,
+        'leverage': pf.LEVERAGE, 'payout_days': pf.PAYOUT_EVERY_DAYS, 'prices_json': json.dumps(pf.PRICES),
+        'bulk_json': json.dumps(pf.BULK_DISCOUNT),
+        'funded_n': sum(1 for a in accounts if a.phase == 'funded'),
+    })
+
+
+@login_required
+def api_prop_accounts(request):
+    """Active challenge / funded accounts for the terminal's Settings → Accounts."""
+    from .models import PropAccount
+    rows = [{'login': a.login, 'name': f"{a.get_plan_type_display()} ${a.size // 1000}K", 'phase': a.get_phase_display(),
+             'balance': float(a.balance), 'size': a.size, 'funded': a.phase == 'funded'}
+            for a in PropAccount.objects.filter(user=request.user, status='ACTIVE')]
+    return JsonResponse({'success': True, 'accounts': rows})

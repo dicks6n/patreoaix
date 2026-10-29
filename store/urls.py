@@ -155,7 +155,9 @@ urlpatterns = [
     path('api/live-breakout-predictions/', members_only(views.get_live_breakout_predictions_api), name='live_breakout_predictions_api'),
     # AI, Signals & Trading Tools
     path('trade/', views.trade_view, name='trade'),
-    path('funded/', views.funded_view, name='funded'),
+    path('funded/', views.prop_dashboard, name='funded'),
+    path('funded/legacy/', views.funded_view, name='funded_legacy'),
+    path('api/prop/accounts/', views.api_prop_accounts, name='api_prop_accounts'),
     path('funded/ai-gold/toggle/', views.execute_funded_ai_gold, name='execute_funded_ai_gold'),
     path('api/verify-crypto-txid/', views.verify_crypto_txid, name='verify_crypto_txid'),
     path('api/candles/', views.api_candles, name='api_candles'),

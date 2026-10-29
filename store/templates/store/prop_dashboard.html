@@ -1,0 +1,262 @@
+{% extends 'base_dashboard.html' %}
+
+{% block message_toasts %}{% endblock %}
+{% block title %}PATREOAIX Funded · Challenges{% endblock %}
+{% block page_title %}Funded Accounts{% endblock %}
+
+{% block extra_head %}
+<style>
+    .pf-wrap { display: flex; flex-direction: column; gap: 18px; max-width: 1150px; }
+    .pf-card { background: var(--px-panel); border: 1px solid var(--px-line); border-radius: 16px; padding: 18px; }
+    .pf-h { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+    .pf-h h2 { font-size: 16px; font-weight: 800; color: var(--px-text); }
+    .pf-h p, .pf-sub { font-size: 12px; color: var(--px-mute); }
+    .pf-msg { padding: 12px 14px; font-size: 13px; font-weight: 600; border-radius: 12px; background: var(--px-panel-2); color: var(--px-text); border: 1px solid var(--px-line); }
+    .pf-msg.error { border-color: var(--px-down); color: var(--px-down); }
+    .pf-msg.success { border-color: var(--px-up); }
+    .pf-hero { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: center; }
+    .pf-hero h1 { font-size: 22px; font-weight: 900; color: var(--px-text); line-height: 1.25; }
+    .pf-hero h1 span { color: var(--px-accent); }
+    .pf-hero p { font-size: 13px; color: var(--px-dim); margin-top: 6px; max-width: 600px; line-height: 1.5; }
+    .pf-id { display: inline-flex; flex-direction: column; gap: 2px; padding: 12px 16px; border-radius: 14px; background: var(--px-panel-2); border: 1px solid var(--px-line); }
+    .pf-id span { font-size: 10.5px; font-weight: 800; color: var(--px-mute); text-transform: uppercase; letter-spacing: .06em; }
+    .pf-id b { font-family: 'JetBrains Mono', monospace; font-size: 18px; color: var(--px-accent); letter-spacing: .04em; }
+    .pf-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .pf-badge { font-size: 11.5px; font-weight: 700; padding: 6px 10px; border-radius: 9px; background: var(--px-panel-2); color: var(--px-dim); border: 1px solid var(--px-line); }
+    .pf-badge i { color: var(--px-accent); margin-right: 4px; }
+    .pf-types { display: inline-flex; padding: 4px; border-radius: 12px; background: var(--px-panel-2); border: 1px solid var(--px-line); gap: 4px; }
+    .pf-types button { padding: 8px 16px; border-radius: 9px; font-size: 13px; font-weight: 800; color: var(--px-dim); background: none; border: 0; cursor: pointer; }
+    .pf-types button.on { background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); }
+    .pf-sizes { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 14px; }
+    .pf-size { position: relative; text-align: left; padding: 14px; border-radius: 14px; background: var(--px-panel-2); border: 2px solid var(--px-line); cursor: pointer; color: var(--px-text); }
+    .pf-size.on { border-color: var(--px-accent); }
+    .pf-size small { display: block; font-size: 10.5px; font-weight: 800; color: var(--px-mute); text-transform: uppercase; letter-spacing: .06em; }
+    .pf-size b { display: block; font-family: 'JetBrains Mono', monospace; font-size: 20px; margin: 4px 0; }
+    .pf-size em { font-style: normal; font-size: 13px; font-weight: 800; color: var(--px-accent); }
+    .pf-size .pop { position: absolute; top: -9px; right: 10px; font-size: 9.5px; font-weight: 900; padding: 2px 7px; border-radius: 6px; background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); text-transform: uppercase; }
+    .pf-cols { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; margin-top: 16px; }
+    .pf-rules { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .pf-rules td { padding: 9px 4px; border-bottom: 1px solid var(--px-line-soft); color: var(--px-dim); }
+    .pf-rules td:last-child { text-align: right; color: var(--px-text); font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .pf-buy { padding: 16px; border-radius: 14px; background: var(--px-panel-2); border: 1px solid var(--px-line); display: flex; flex-direction: column; gap: 12px; }
+    .pf-qty { display: flex; align-items: center; gap: 10px; }
+    .pf-qty button { width: 38px; height: 38px; border-radius: 10px; background: var(--px-panel); border: 1px solid var(--px-line); color: var(--px-text); font-size: 18px; font-weight: 800; cursor: pointer; }
+    .pf-qty b { font-family: 'JetBrains Mono', monospace; font-size: 20px; min-width: 28px; text-align: center; color: var(--px-text); }
+    .pf-line { display: flex; justify-content: space-between; font-size: 13px; color: var(--px-dim); }
+    .pf-line b { color: var(--px-text); font-family: 'JetBrains Mono', monospace; }
+    .pf-total { display: flex; justify-content: space-between; align-items: baseline; padding-top: 10px; border-top: 1px solid var(--px-line); }
+    .pf-total span { font-size: 13px; font-weight: 800; color: var(--px-text); }
+    .pf-total b { font-family: 'JetBrains Mono', monospace; font-size: 24px; color: var(--px-accent); }
+    .pf-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 12px 16px; border-radius: 12px; font-size: 14px; font-weight: 800; background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); border: 0; cursor: pointer; }
+    .pf-btn.ghost { background: var(--px-panel-2); color: var(--px-text); border: 1px solid var(--px-line); }
+    .pf-btn.sm { padding: 8px 12px; font-size: 12px; border-radius: 10px; }
+    .pf-btn[disabled] { opacity: .5; cursor: not-allowed; }
+    .pf-accs { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 14px; }
+    .pf-acc { padding: 16px; border-radius: 14px; background: var(--px-panel-2); border: 1px solid var(--px-line); display: flex; flex-direction: column; gap: 12px; }
+    .pf-acc-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+    .pf-acc-top b { font-size: 15px; color: var(--px-text); display: block; }
+    .pf-acc-top small { font-size: 11.5px; color: var(--px-mute); font-family: 'JetBrains Mono', monospace; }
+    .pf-phase { font-size: 10.5px; font-weight: 900; padding: 4px 8px; border-radius: 7px; text-transform: uppercase; letter-spacing: .05em; background: var(--px-panel); color: var(--px-dim); white-space: nowrap; }
+    .pf-phase.funded { background: var(--px-up-soft); color: var(--px-up); }
+    .pf-kv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .pf-kv div { background: var(--px-panel); border-radius: 10px; padding: 8px; }
+    .pf-kv span { display: block; font-size: 10px; font-weight: 800; color: var(--px-mute); text-transform: uppercase; letter-spacing: .05em; }
+    .pf-kv b { font-family: 'JetBrains Mono', monospace; font-size: 13.5px; color: var(--px-text); }
+    .pf-obj { display: flex; flex-direction: column; gap: 8px; }
+    .pf-obj-row { font-size: 12px; color: var(--px-dim); }
+    .pf-obj-row .t { display: flex; justify-content: space-between; margin-bottom: 4px; }
+    .pf-obj-row .t b { color: var(--px-text); font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+    .pf-bar { height: 7px; border-radius: 7px; background: var(--px-panel); overflow: hidden; }
+    .pf-bar i { display: block; height: 100%; border-radius: 7px; background: var(--px-up); }
+    .pf-bar.risk i { background: var(--px-accent); }
+    .pf-bar.risk.hot i { background: var(--px-down); }
+    .pf-acc-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pf-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .pf-table th { text-align: left; font-size: 10.5px; color: var(--px-mute); text-transform: uppercase; letter-spacing: .05em; padding: 8px; border-bottom: 1px solid var(--px-line); white-space: nowrap; }
+    .pf-table td { padding: 8px; border-bottom: 1px solid var(--px-line-soft); color: var(--px-text); white-space: nowrap; }
+    .pf-table .mono { font-family: 'JetBrains Mono', monospace; }
+    .pf-scroll { overflow-x: auto; }
+    .pf-up { color: var(--px-up); } .pf-dn { color: var(--px-down); } .pf-mute { color: var(--px-mute); }
+    .pf-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 12.5px; color: var(--px-dim); }
+    .pf-steps div { background: var(--px-panel-2); border-radius: 12px; padding: 12px; line-height: 1.5; }
+    .pf-steps b { display: block; color: var(--px-text); margin-bottom: 3px; }
+    @media (max-width: 860px) { .pf-cols { grid-template-columns: 1fr; } }
+    @media (max-width: 640px) { .pf-card { padding: 14px; } .pf-hero h1 { font-size: 19px; } .pf-accs { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pf-wrap">
+    {% for m in messages %}<div class="pf-msg {{ m.tags }}">{{ m }}</div>{% endfor %}
+
+    <div class="pf-card">
+        <div class="pf-hero">
+            <div>
+                <h1>Trade our capital. Keep up to <span>90%</span> of the profit.</h1>
+                <p>Pass a challenge on simulated capital from $5K to $200K, then trade a funded account and get paid every {{ payout_days }} days. Buy as many accounts as you like, up to ${{ max_alloc|floatformat:"0g" }} in total.</p>
+                <div class="pf-badges">
+                    <span class="pf-badge"><i class="fa-solid fa-bolt"></i>1:{{ leverage }} leverage</span>
+                    <span class="pf-badge"><i class="fa-solid fa-infinity"></i>No time limit</span>
+                    <span class="pf-badge"><i class="fa-solid fa-mobile-screen"></i>Trade in the MT5 terminal</span>
+                    <span class="pf-badge"><i class="fa-solid fa-robot"></i>AI signals allowed</span>
+                </div>
+            </div>
+            {% if trader_id %}<div class="pf-id"><span>Your trader ID</span><b>{{ trader_id }}</b><span style="text-transform:none;letter-spacing:0;font-weight:600">{{ active|length }} active · {{ funded_n }} funded</span></div>{% endif %}
+        </div>
+    </div>
+
+    {% if active %}
+    <div class="pf-card">
+        <div class="pf-h"><h2><i class="fa-solid fa-layer-group mr-1"></i> My accounts</h2><p>{{ active|length }} of {{ max_active }} active</p></div>
+        <div class="pf-accs">
+            {% for a in active %}
+            <div class="pf-acc">
+                <div class="pf-acc-top">
+                    <div><b>{{ a.get_plan_type_display }} · ${{ a.size|floatformat:"0g" }}</b><small>#{{ a.login }} · {{ a.tier }}</small></div>
+                    <span class="pf-phase {% if a.phase == 'funded' %}funded{% endif %}">{% if a.phase == 'funded' %}Funded{% else %}{{ a.get_phase_display }}{% endif %}</span>
+                </div>
+                <div class="pf-kv">
+                    <div><span>Balance</span><b>{{ a.obj.balance|floatformat:"2g" }}</b></div>
+                    <div><span>Equity</span><b>{{ a.obj.equity|floatformat:"2g" }}</b></div>
+                    <div><span>Profit</span><b class="{% if a.obj.profit > 0 %}pf-up{% elif a.obj.profit < 0 %}pf-dn{% endif %}">{{ a.obj.profit_pct }}%</b></div>
+                </div>
+                <div class="pf-obj">
+                    {% if a.obj.target_pct %}
+                    <div class="pf-obj-row"><div class="t"><span>Profit target {{ a.obj.target_pct }}%</span><b>{{ a.obj.profit|floatformat:2 }} / {{ a.obj.target|floatformat:"0g" }}</b></div><div class="pf-bar"><i style="width:{{ a.obj.target_progress }}%"></i></div></div>
+                    {% endif %}
+                    <div class="pf-obj-row"><div class="t"><span>Daily loss left ({{ a.obj.daily_pct }}%)</span><b>{{ a.obj.daily_left|floatformat:"2g" }}</b></div><div class="pf-bar risk {% if a.obj.daily_used_pct > 70 %}hot{% endif %}"><i style="width:{{ a.obj.daily_used_pct }}%"></i></div></div>
+                    <div class="pf-obj-row"><div class="t"><span>Max loss left ({{ a.obj.max_pct }}%)</span><b>{{ a.obj.max_left|floatformat:"2g" }}</b></div><div class="pf-bar risk {% if a.obj.max_used_pct > 70 %}hot{% endif %}"><i style="width:{{ a.obj.max_used_pct }}%"></i></div></div>
+                    <div class="pf-obj-row"><div class="t"><span>Trading days (min {{ a.obj.min_days }})</span><b>{{ a.obj.days }}{% if a.obj.days_ok %} ✓{% endif %}</b></div></div>
+                </div>
+                <div class="pf-acc-actions">
+                    <a class="pf-btn sm" href="/terminal/?book={{ a.login }}"><i class="fa-solid fa-chart-line"></i> Trade</a>
+                    {% if a.payout %}
+                    <form method="post">{% csrf_token %}<input type="hidden" name="action" value="payout"><input type="hidden" name="login" value="{{ a.login }}">
+                        <button class="pf-btn ghost sm" type="submit" {% if not a.payout.ok %}disabled title="{{ a.payout.why }}"{% endif %} onclick="return confirm('Request a payout of ${{ a.payout.share }} ({{ a.payout.split }}% of the profit)? The account balance resets to ${{ a.size }}.')"><i class="fa-solid fa-money-bill-transfer"></i> Payout ${{ a.payout.share }}</button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% if a.payout and not a.payout.ok %}<p class="pf-sub">{{ a.payout.why }}</p>{% endif %}
+                {% if a.obj.target_hit and not a.obj.days_ok %}<p class="pf-sub" style="color:var(--px-up)">Target reached! Trade on {{ a.obj.min_days }} different days to pass.</p>{% endif %}
+                {% if a.obj.target_hit and a.obj.days_ok and a.obj.open_positions %}<p class="pf-sub" style="color:var(--px-up)">Target reached: close your open positions to pass.</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="pf-card" id="buy">
+        <div class="pf-h"><h2><i class="fa-solid fa-cart-shopping mr-1"></i> Buy a challenge</h2>
+            <div class="pf-types" id="pfTypes">{% for c in catalog %}<button type="button" data-type="{{ c.key }}" class="{% if forloop.first %}on{% endif %}">{{ c.name }}</button>{% endfor %}</div>
+        </div>
+        {% for c in catalog %}<p class="pf-sub" data-blurb="{{ c.key }}" {% if not forloop.first %}hidden{% endif %}>{{ c.blurb }}</p>{% endfor %}
+        <div class="pf-sizes" id="pfSizes">
+            {% for s in sizes %}
+            <button type="button" class="pf-size {% if s == 25000 %}on{% endif %}" data-size="{{ s }}">
+                {% if s == 25000 %}<span class="pop">Popular</span>{% endif %}
+                <small>{% for k, v in tiers.items %}{% if k == s %}{{ v }}{% endif %}{% endfor %}</small>
+                <b>${{ s|floatformat:"0g" }}</b><em data-price>$</em>
+            </button>
+            {% endfor %}
+        </div>
+        <div class="pf-cols">
+            <div>
+                {% for c in catalog %}
+                <table class="pf-rules" data-rules="{{ c.key }}" {% if not forloop.first %}hidden{% endif %}>
+                    {% for p in c.targets.items %}<tr><td>Profit target · Phase {{ p.0 }}</td><td>{{ p.1 }}% <span class="pf-mute" data-amt="{{ p.1 }}"></span></td></tr>{% endfor %}
+                    <tr><td>Maximum daily loss</td><td>{{ c.daily }}% <span class="pf-mute" data-amt="{{ c.daily }}"></span></td></tr>
+                    <tr><td>Maximum overall loss</td><td>{{ c.max }}% <span class="pf-mute" data-amt="{{ c.max }}"></span></td></tr>
+                    <tr><td>Minimum trading days</td><td>{{ c.min_days }} per phase</td></tr>
+                    <tr><td>Profit split (funded)</td><td>{{ c.split }}%</td></tr>
+                    <tr><td>Leverage</td><td>1:{{ leverage }}</td></tr>
+                    <tr><td>Time limit</td><td>None</td></tr>
+                    <tr><td>Payouts</td><td>every {{ payout_days }} days</td></tr>
+                </table>
+                {% endfor %}
+            </div>
+            <form method="post" class="pf-buy" id="pfBuy">{% csrf_token %}
+                <input type="hidden" name="action" value="buy">
+                <input type="hidden" name="plan_type" id="pfType" value="{{ catalog.0.key }}">
+                <input type="hidden" name="size" id="pfSize" value="25000">
+                <input type="hidden" name="qty" id="pfQtyIn" value="1">
+                <div class="pf-line"><span>Accounts</span>
+                    <div class="pf-qty"><button type="button" id="pfMinus" aria-label="One less">−</button><b id="pfQty">1</b><button type="button" id="pfPlus" aria-label="One more">+</button></div>
+                </div>
+                <div class="pf-line"><span>Bundle discount</span><b id="pfDisc">–</b></div>
+                <p class="pf-sub">{% for n, p in bulk %}{{ n }}+ accounts: {{ p }}% off{% if not forloop.last %} · {% endif %}{% endfor %}</p>
+                <div class="pf-line"><span>Your wallet</span><b>${{ wallet|floatformat:"2g" }}</b></div>
+                <div class="pf-total"><span>Total</span><b id="pfTotal">$0</b></div>
+                <button class="pf-btn" type="submit" id="pfGo"><i class="fa-solid fa-lock"></i> Pay from wallet</button>
+                <a class="pf-sub" href="/account-operations/funding/payment-methods/deposit" style="text-align:center;text-decoration:underline">Deposit USDT to your wallet</a>
+            </form>
+        </div>
+    </div>
+
+    <div class="pf-card">
+        <div class="pf-h"><h2>How it works</h2></div>
+        <div class="pf-steps">
+            <div><b>1 · Buy a challenge</b>Pick a size and a plan. Your account number arrives instantly; buy several to trade different styles.</div>
+            <div><b>2 · Pass the target</b>Reach the profit target without hitting the daily or maximum loss, on at least 3 trading days. No time limit.</div>
+            <div><b>3 · Get funded</b>Pass and a funded account with a new number opens by itself. Verify your identity once.</div>
+            <div><b>4 · Get paid</b>Request your share of the profit every {{ payout_days }} days; it is paid into your wallet.</div>
+        </div>
+        <p class="pf-sub" style="margin-top:12px">Daily loss counts from the higher of balance or equity at 00:00 UTC; maximum loss is fixed from the starting balance. Breaking a rule closes the account. Challenge and funded accounts are simulated capital; payouts are paid by PATREOAIX from your profit split.</p>
+    </div>
+
+    {% if past or payouts %}
+    <div class="pf-card">
+        <div class="pf-h"><h2>History</h2></div>
+        {% if payouts %}
+        <div class="pf-scroll" style="margin-bottom:14px"><table class="pf-table">
+            <thead><tr><th>Payout</th><th>Account</th><th>Profit</th><th>Split</th><th>Amount</th><th>Status</th></tr></thead>
+            <tbody>{% for p in payouts %}<tr><td>{{ p.created_at|date:"d M Y" }}</td><td class="mono">#{{ p.account.login }}</td><td class="mono">${{ p.profit }}</td><td>{{ p.split }}%</td><td class="mono pf-up">${{ p.amount }}</td><td>{{ p.get_status_display }}</td></tr>{% endfor %}</tbody>
+        </table></div>
+        {% endif %}
+        {% if past %}
+        <div class="pf-scroll"><table class="pf-table">
+            <thead><tr><th>Account</th><th>Plan</th><th>Phase</th><th>Result</th><th>Ended</th><th>Reason</th></tr></thead>
+            <tbody>{% for a in past %}<tr><td class="mono">#{{ a.login }}</td><td>{{ a.get_plan_type_display }} ${{ a.size|floatformat:"0g" }}</td><td>{{ a.get_phase_display }}</td>
+                <td class="{% if a.status == 'PASSED' %}pf-up{% elif a.status == 'FAILED' %}pf-dn{% endif %}"><b>{{ a.get_status_display }}</b></td><td>{{ a.ended_at|date:"d M Y" }}</td><td class="pf-mute" style="white-space:normal;min-width:220px">{{ a.fail_reason }}</td></tr>{% endfor %}</tbody>
+        </table></div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <p class="pf-sub"><a href="{% url 'funded_legacy' %}" class="underline">Subscription funded balance &amp; AI Gold</a></p>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var PRICES = {{ prices_json|safe }}, BULK = {{ bulk_json|safe }}, MAX = {{ max_per_order }};
+    var type = document.getElementById('pfType').value, size = 25000, qty = 1;
+    function disc(q) { var d = 0; Object.keys(BULK).forEach(function (n) { if (q >= +n) d = Math.max(d, BULK[n]); }); return d; }
+    function fmt(v) { return '$' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: v % 1 ? 2 : 0 }); }
+    function paint() {
+        document.querySelectorAll('#pfTypes button').forEach(function (b) { b.classList.toggle('on', b.dataset.type === type); });
+        document.querySelectorAll('[data-blurb]').forEach(function (e) { e.hidden = e.dataset.blurb !== type; });
+        document.querySelectorAll('[data-rules]').forEach(function (e) { e.hidden = e.dataset.rules !== type; });
+        document.querySelectorAll('#pfSizes .pf-size').forEach(function (b) {
+            b.classList.toggle('on', +b.dataset.size === size);
+            b.querySelector('[data-price]').textContent = fmt(PRICES[type][b.dataset.size]);
+        });
+        document.querySelectorAll('[data-amt]').forEach(function (e) { e.textContent = '(' + fmt(size * e.dataset.amt / 100) + ')'; });
+        var d = disc(qty), total = Math.round(PRICES[type][size] * qty * (100 - d)) / 100;
+        document.getElementById('pfQty').textContent = qty;
+        document.getElementById('pfDisc').textContent = d ? d + '% off' : '–';
+        document.getElementById('pfTotal').textContent = fmt(total);
+        document.getElementById('pfType').value = type; document.getElementById('pfSize').value = size; document.getElementById('pfQtyIn').value = qty;
+        document.getElementById('pfGo').innerHTML = '<i class="fa-solid fa-lock"></i> Pay ' + fmt(total) + ' from wallet';
+    }
+    document.querySelectorAll('#pfTypes button').forEach(function (b) { b.addEventListener('click', function () { type = b.dataset.type; paint(); }); });
+    document.querySelectorAll('#pfSizes .pf-size').forEach(function (b) { b.addEventListener('click', function () { size = +b.dataset.size; paint(); }); });
+    document.getElementById('pfMinus').addEventListener('click', function () { qty = Math.max(1, qty - 1); paint(); });
+    document.getElementById('pfPlus').addEventListener('click', function () { qty = Math.min(MAX, qty + 1); paint(); });
+    document.getElementById('pfBuy').addEventListener('submit', function (e) {
+        if (!confirm('Buy ' + qty + ' × ' + (type === 'two_step' ? '2-Step' : '1-Step') + ' $' + size.toLocaleString() + ' challenge for ' + document.getElementById('pfTotal').textContent + '?')) e.preventDefault();
+    });
+    paint();
+})();
+</script>
+{% endblock %}

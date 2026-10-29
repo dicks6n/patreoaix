@@ -464,8 +464,12 @@ def check_stops(spec, direction, sl, tp, ref_price, against_market=True):
 # ═══════════════════════════════════════════════════════════════
 # ACCOUNT METRICS
 # ═══════════════════════════════════════════════════════════════
-def _trading_account(user, lock=False):
-    from .models import Account
+def _trading_account(user, lock=False, prop=None):
+    """The cash behind the positions: the user's TRADING account, or a prop challenge / funded account."""
+    from .models import Account, PropAccount
+    if prop is not None:
+        qs = PropAccount.objects.select_for_update() if lock else PropAccount.objects
+        return qs.get(pk=getattr(prop, 'pk', prop))
     acc, _ = Account.objects.get_or_create(user=user, account_type='TRADING', defaults={'balance': ZERO})
     if lock:
         acc = Account.objects.select_for_update().get(pk=acc.pk)
@@ -498,7 +502,7 @@ def position_snapshot(trade):
     }
 
 
-def get_metrics(user):
+def get_metrics(user, prop=None):
     """
     MT5 account figures:
         balance       cash in the TRADING account
@@ -510,8 +514,8 @@ def get_metrics(user):
     """
     from .models import Trade
 
-    balance = q2(_trading_account(user).balance)
-    open_trades = list(Trade.objects.filter(user=user, status='OPEN').select_related('asset'))
+    balance = q2(_trading_account(user, prop=prop).balance)
+    open_trades = list(Trade.objects.filter(user=user, status='OPEN', prop=prop).select_related('asset'))
 
     profit = swap = margin = ZERO
     for t in open_trades:
@@ -572,7 +576,7 @@ REASON_LABELS = {'CLIENT': 'Client', 'SL': 'Stop Loss', 'TP': 'Take Profit', 'SO
 # ═══════════════════════════════════════════════════════════════
 # MARKET ORDERS
 # ═══════════════════════════════════════════════════════════════
-def _create_position(user, spec, direction, volume, price, sl, tp, account, comment=''):
+def _create_position(user, spec, direction, volume, price, sl, tp, account, comment='', prop=None):
     """Open a position at `price`. Caller holds the account lock and has checked margin."""
     from .models import Asset, Trade, Transaction
 
@@ -589,12 +593,13 @@ def _create_position(user, spec, direction, volume, price, sl, tp, account, comm
         entry_price=price, current_price=price, target_digit=None, status='OPEN',
         payout=ZERO, pnl=ZERO, stop_loss=sl, take_profit=tp,
         margin_used=margin, leverage=spec.leverage, contract_size=spec.contract_size,
-        commission=commission, swap=ZERO, swap_charged_at=timezone.now(),
+        commission=commission, swap=ZERO, swap_charged_at=timezone.now(), prop=prop,
     )
 
     if commission:
         account.balance += commission
         account.save(update_fields=['balance', 'updated_at'])
+    if commission and prop is None:                      # prop accounts are not wallet money
         Transaction.objects.create(
             user=user, amount=abs(commission), transaction_type='TRADE_COMMISSION',
             details=f"Commission #{ticket_for(trade)} {direction} {volume} {spec.symbol}",
@@ -608,8 +613,9 @@ def _create_position(user, spec, direction, volume, price, sl, tp, account, comm
     return trade
 
 
-def open_position(user, symbol, direction, volume, sl=None, tp=None):
+def open_position(user, symbol, direction, volume, sl=None, tp=None, prop=None):
     """Market Execution: fills at the server's ask (BUY) or bid (SELL)."""
+    _require_prop(user, prop)
     direction = (direction or '').upper()
     if direction not in ('BUY', 'SELL'):
         raise TradeError("Invalid order type")
@@ -626,13 +632,13 @@ def open_position(user, symbol, direction, volume, sl=None, tp=None):
     check_stops(spec, direction, sl, tp, close_price_for(direction, quote))
 
     with transaction.atomic():
-        account = _trading_account(user, lock=True)
+        account = _trading_account(user, lock=True, prop=prop)
         margin = calc_margin(spec.symbol, volume, price)
         commission = commission_per_side(spec.symbol, volume)
-        free = get_metrics(user)['free_margin']
+        free = get_metrics(user, prop)['free_margin']
         if free < margin - commission:
             raise TradeError(f"Not enough money. Required margin {margin:.2f}, free margin {free:.2f}")
-        trade = _create_position(user, spec, direction, volume, price, sl, tp, account)
+        trade = _create_position(user, spec, direction, volume, price, sl, tp, account, prop=prop)
 
     _notify(user, f"Position opened: {direction.lower()} {volume} {spec.symbol}",
             f"#{ticket_for(trade)} at {price} · margin {margin:.2f} USD")
@@ -691,7 +697,7 @@ def _realize(trade, volume, exit_price, reason, account, charge_commission=True)
             stop_loss=trade.stop_loss, take_profit=trade.take_profit,
             margin_used=ZERO, leverage=trade.leverage, contract_size=trade.contract_size,
             swap=swap_part, commission=comm_in_part, close_commission=comm_out,
-            date_closed=now, close_reason=reason,
+            date_closed=now, close_reason=reason, prop_id=trade.prop_id,
         )
         Trade.objects.filter(pk=closed.pk).update(date_opened=trade.date_opened)
         trade.stake = total - volume
@@ -704,13 +710,14 @@ def _realize(trade, volume, exit_price, reason, account, charge_commission=True)
     account.save(update_fields=['balance', 'updated_at'])
 
     label = REASON_LABELS.get(reason, reason)
-    Transaction.objects.create(
-        user=trade.user, amount=abs(net),
-        transaction_type='TRADE_PAYOUT' if status == 'WON' else 'TRADE_LOSS',
-        details=(f"[{label}] {'Partial close ' if not full else ''}#{ticket_for(trade)} "
-                 f"{trade.direction} {volume} {symbol} @ {exit_price} | "
-                 f"{'+' if net >= 0 else '-'}${abs(net):.2f}"),
-    )
+    if trade.prop_id is None:                            # prop accounts are not wallet money
+        Transaction.objects.create(
+            user=trade.user, amount=abs(net),
+            transaction_type='TRADE_PAYOUT' if status == 'WON' else 'TRADE_LOSS',
+            details=(f"[{label}] {'Partial close ' if not full else ''}#{ticket_for(trade)} "
+                     f"{trade.direction} {volume} {symbol} @ {exit_price} | "
+                     f"{'+' if net >= 0 else '-'}${abs(net):.2f}"),
+        )
     _broadcast('trade_closed', {
         'id': trade.id, 'ticket': ticket_for(trade), 'symbol': symbol, 'direction': trade.direction,
         'volume': float(volume), 'remaining': float(0 if full else total - volume),
@@ -743,7 +750,7 @@ def close_position(user, trade_id, volume=None, reason='CLIENT'):
         quote = live_quote(symbol)
         if quote is None:
             raise TradeError("No prices")
-        account = _trading_account(user, lock=True)
+        account = _trading_account(user, lock=True, prop=trade.prop_id)
         closed, net = _realize(trade, vol, close_price_for(trade.direction, quote), reason, account)
         remaining = Decimal('0') if vol >= total else total - vol
         return {'trade': trade, 'closed': closed, 'net': net, 'volume': vol,
@@ -768,10 +775,12 @@ def close_by(user, trade_id, by_id):
         sa = a.asset.symbol if a.asset else ''
         if sa != (b.asset.symbol if b.asset else '') or a.direction == b.direction:
             raise TradeError("Close By needs an opposite position on the same symbol")
+        if a.prop_id != b.prop_id:
+            raise TradeError("Close By needs both positions on the same account")
         require_market_open(sa)
         buy, sell = (a, b) if a.direction == 'BUY' else (b, a)
         vol = min(Decimal(str(buy.stake)), Decimal(str(sell.stake)))
-        account = _trading_account(user, lock=True)
+        account = _trading_account(user, lock=True, prop=a.prop_id)
         sell_open = Decimal(str(sell.entry_price))
         _, net1 = _realize(buy, vol, sell_open, 'CLOSE_BY', account, charge_commission=False)
         _, net2 = _realize(sell, vol, sell_open, 'CLOSE_BY', account, charge_commission=False)
@@ -865,9 +874,10 @@ def _parse_expiration(exp_type, expires_at):
 
 
 def place_pending(user, symbol, otype, volume, price, stoplimit=None, sl=None, tp=None,
-                  expiration='GTC', expires_at=None):
+                  expiration='GTC', expires_at=None, prop=None):
     from .models import PendingOrder
 
+    _require_prop(user, prop)
     otype = (otype or '').upper()
     if otype not in PENDING_TYPES:
         raise TradeError("Invalid order type")
@@ -887,17 +897,17 @@ def place_pending(user, symbol, otype, volume, price, stoplimit=None, sl=None, t
         raise TradeError("No prices")
     _validate_pending(spec, otype, price, stoplimit, sl, tp, quote)
 
-    if PendingOrder.objects.filter(user=user, status='PENDING').count() >= MAX_PENDING_ORDERS:
+    if PendingOrder.objects.filter(user=user, status='PENDING', prop=prop).count() >= MAX_PENDING_ORDERS:
         raise TradeError(f"Too many pending orders (max {MAX_PENDING_ORDERS})")
     margin = calc_margin(spec.symbol, volume, stoplimit or price)
-    free = get_metrics(user)['free_margin']
+    free = get_metrics(user, prop)['free_margin']
     if free < margin:
         raise TradeError(f"Not enough money. Required margin {margin:.2f}, free margin {free:.2f}")
 
     return PendingOrder.objects.create(
         user=user, symbol=spec.symbol, order_type=otype, volume=volume, price=price,
         stoplimit_price=stoplimit, stop_loss=sl, take_profit=tp,
-        expiration_type=exp_type, expires_at=exp_at,
+        expiration_type=exp_type, expires_at=exp_at, prop=prop,
     )
 
 
@@ -956,9 +966,13 @@ def _fill_order(order_id, fill_price):
         spec = get_spec(o.symbol)
         fill = Decimal(str(fill_price))
         direction = 'BUY' if o.order_type.startswith('BUY') else 'SELL'
-        account = _trading_account(o.user, lock=True)
+        if o.prop_id and not _prop_tradable(o.prop_id):
+            o.status, o.reason = 'CANCELLED', 'Account is no longer active'
+            o.save(update_fields=['status', 'reason'])
+            return None
+        account = _trading_account(o.user, lock=True, prop=o.prop_id)
         margin = calc_margin(spec.symbol, o.volume, fill)
-        if get_metrics(o.user)['free_margin'] < margin:
+        if get_metrics(o.user, o.prop)['free_margin'] < margin:
             o.status = 'REJECTED'
             o.reason = 'Not enough money'
             o.save(update_fields=['status', 'reason'])
@@ -967,7 +981,7 @@ def _fill_order(order_id, fill_price):
             return None
         trade = _create_position(o.user, spec, direction, Decimal(str(o.volume)), fill,
                                  o.stop_loss, o.take_profit, account,
-                                 comment=o.get_order_type_display())
+                                 comment=o.get_order_type_display(), prop=o.prop)
         o.status = 'FILLED'
         o.trade = trade
         o.filled_at = timezone.now()
@@ -1030,7 +1044,7 @@ def _close_by_server(trade_id, price, reason):
         trade = Trade.objects.select_for_update().select_related('asset').get(id=trade_id)
         if trade.status != 'OPEN':
             return None
-        account = _trading_account(trade.user, lock=True)
+        account = _trading_account(trade.user, lock=True, prop=trade.prop_id)
         closed, net = _realize(trade, trade.stake, price, reason, account)
     label = REASON_LABELS.get(reason, reason)
     _notify(trade.user, f"{label}: {trade.direction.lower()} {closed.stake} {trade.asset.symbol}",
@@ -1124,7 +1138,7 @@ def charge_swaps(user=None):
             row.save(update_fields=['swap', 'swap_charged_at'])
 
 
-def check_stop_out(user):
+def check_stop_out(user, prop=None):
     """
     Margin call at MARGIN_CALL_LEVEL (notification), stop out at STOP_OUT_LEVEL:
     close the most losing position until the margin level recovers.
@@ -1134,12 +1148,12 @@ def check_stop_out(user):
 
     closed = []
     for _ in range(50):
-        m = get_metrics(user)
+        m = get_metrics(user, prop)
         ml = m['margin_level']
         if ml is None or ml >= MARGIN_CALL_LEVEL:
             break
         if ml >= STOP_OUT_LEVEL:
-            key = f"mt5:margin_call:{user.id}"
+            key = f"mt5:margin_call:{user.id}:{getattr(prop, 'pk', prop) or ''}"
             if not cache.get(key):
                 cache.set(key, 1, 3600)
                 _notify(user, "Margin call",
@@ -1148,7 +1162,7 @@ def check_stop_out(user):
             break
 
         worst, worst_pnl, worst_price = None, None, None
-        for t in Trade.objects.filter(user=user, status='OPEN').select_related('asset'):
+        for t in Trade.objects.filter(user=user, status='OPEN', prop=prop).select_related('asset'):
             s = position_snapshot(t)
             if not is_fresh(s['quote']) or not _market_open(s['symbol'])[0]:
                 continue
@@ -1165,11 +1179,29 @@ def check_stop_out(user):
 
 def process_user_orders(user):
     """Run the whole engine for one user (cheap enough to call every couple of seconds)."""
+    from .models import PropAccount
     for fn in (process_pending_orders, charge_swaps, process_sl_tp, check_stop_out):
         try:
             fn(user)
         except Exception as e:
             logger.warning(f"{fn.__name__} failed for {getattr(user, 'id', '?')}: {e}")
+    for prop in PropAccount.objects.filter(user=user, status='ACTIVE'):   # challenge / funded accounts
+        try:
+            check_stop_out(user, prop)
+            from . import prop_firm
+            prop_firm.check(prop)
+        except Exception as e:
+            logger.warning(f"prop account {prop.login} check failed: {e}")
+
+
+def _prop_tradable(prop_id):
+    from .models import PropAccount
+    return PropAccount.objects.filter(pk=prop_id, status='ACTIVE').exists()
+
+
+def _require_prop(user, prop):
+    if prop is not None and (prop.user_id != user.id or not _prop_tradable(prop.pk)):
+        raise TradeError("This challenge account is no longer active")
 
 
 def process_all():
@@ -1180,6 +1212,9 @@ def process_all():
     price_feed.refresh_if_stale(max_age=2.0)
     ids = set(Trade.objects.filter(status='OPEN').values_list('user_id', flat=True))
     ids |= set(PendingOrder.objects.filter(status='PENDING').values_list('user_id', flat=True))
+    from .models import PropAccount                  # a challenge balance that just changed: check its rules too
+    ids |= set(PropAccount.objects.filter(status='ACTIVE', updated_at__gte=timezone.now() - timedelta(minutes=10))
+               .values_list('user_id', flat=True))
     for u in get_user_model().objects.filter(id__in=ids):
         process_user_orders(u)
 
