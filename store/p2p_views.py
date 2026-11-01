@@ -11,7 +11,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
-from . import p2p, p2p_markets, transfers
+from . import p2p, p2p_desk, p2p_markets, p2p_rates, transfers
 from .models import P2PAd, P2PMessage, P2POrder, P2PPaymentMethod
 
 
@@ -31,6 +31,7 @@ def _common(request):
 @login_required
 def market(request):
     p2p.safe_expire()
+    p2p_rates.safe_refresh()                    # margin ads follow the live market (at most once a minute)
     if request.method == 'POST':
         act = request.POST.get('action')
         try:
@@ -60,6 +61,14 @@ def market(request):
                               side='SELL' if side == 'buy' else 'BUY').exclude(user=request.user) \
         .exclude(user_id__in=p2p.blocked_ids(request.user)).select_related('user')
     ads = [a for a in qs.order_by('price' if side == 'buy' else '-price')[:100] if not method or method in a.methods]
+    stock = {}
+    for a in ads:                                    # hide desk sell offers the desk cannot fill even at the minimum
+        if a.pool:
+            k = (a.user_id, a.asset)
+            if k not in stock:
+                stock[k] = p2p.balance(a.user, a.asset)
+            a._stock = stock[k]
+    ads = [a for a in ads if not a.pool or a._stock * a.price >= a.min_fiat]
     try:
         want = float(str(request.GET.get('amount') or '').replace(',', '')) if request.GET.get('amount') else None
     except ValueError:
@@ -73,12 +82,16 @@ def market(request):
         a.method_opts = [(k, p2p.method_name(k), p2p.METHODS.get(k, ('', 'Number'))[1]) for k in a.methods]
         a.st = stats[a.user_id]
         a.method_names = [p2p.method_name(m) for m in a.methods]
+        if a.pool:                                   # desk sell offer: what the desk really holds right now
+            a.remaining = min(a.remaining, p2p.balance(a.user, a.asset))
         a.remaining_txt = p2p.fmt(a.asset, a.remaining)
         a.max_now = min(a.max_fiat, p2p._q(a.remaining * a.price))
+        a.desk = a.user.is_staff
     ctx = dict(_common(request), side=side, asset=asset, cur=cur, method=method, ads=ads, amount=request.GET.get('amount', ''),
                currency_groups=p2p.currency_groups(), methods=p2p.methods_for(cur), cur_name=p2p.CURRENCIES[cur][0], cur_flag=p2p.CURRENCIES[cur][1],
                my_methods=list(P2PPaymentMethod.objects.filter(user=request.user, is_active=True)),
                method_names=dict((k, v[0]) for k, v in p2p.METHODS.items()), tab='market',
+               market_now=p2p_rates.market_price(asset, cur),
                buy_pause=p2p.buy_pause(request.user) if side == 'buy' else None, now=timezone.now())
     resp = render(request, 'store/p2p_market.html', ctx)
     resp.set_cookie('p2p_cur', cur, max_age=365 * 86400, samesite='Lax')
@@ -268,3 +281,49 @@ def trader(request, username):
         feedback=P2PFeedback.objects.filter(to_user=u).select_related('from_user').order_by('-created_at')[:20],
         blocked=P2PBlock.objects.filter(user=request.user, blocked=u).exists(), me=u.id == request.user.id,
         kyc=transfers.kyc_ok(u), joined=u.date_joined))
+
+
+@login_required
+def rate(request):
+    """Live market price for the ad form: ?asset=BTC&cur=KES[&margin=2]."""
+    asset, cur = (request.GET.get('asset') or 'USDT').upper(), (request.GET.get('cur') or 'KES').upper()
+    if asset not in p2p.ASSETS or cur not in p2p.CURRENCIES:
+        return JsonResponse({'success': False})
+    m = p2p_rates.market_price(asset, cur)
+    if not m:
+        return JsonResponse({'success': False, 'error': 'No live rate right now'})
+    try:
+        margin = float(request.GET.get('margin') or 0)
+    except ValueError:
+        margin = 0
+    return JsonResponse({'success': True, 'market': float(m), 'price': float(p2p_rates.with_margin(m, margin)), 'asset': asset, 'cur': cur})
+
+
+@staff_member_required
+def desk(request):
+    """The admin's PATREOAIX Desk: post / refresh / pause offers in every currency for USDT, BTC and ETH."""
+    report = None
+    if request.method == 'POST':
+        act = request.POST.get('action')
+        try:
+            if act == 'post':
+                assets = [a for a in ('USDT', 'BTC', 'ETH') if request.POST.get('asset_' + a)] or ['USDT']
+                curs = request.POST.get('currencies', '').upper().replace(' ', ',').split(',')
+                curs = [c for c in curs if c] or None
+                opts = {k: request.POST.get(k) for k in ('buy_margin', 'sell_margin', 'min_usd', 'max_usd', 'buy_capacity_usd', 'sell_capacity_usd', 'time_limit')}
+                report = p2p_desk.post_all(request.user, assets, curs, opts)
+                messages.success(request, f"Desk updated: {report['created']} new offers, {report['updated']} refreshed.")
+            elif act in ('pause', 'resume'):
+                n = p2p_desk.set_all(request.user, 'PAUSED' if act == 'pause' else 'ACTIVE')
+                messages.info(request, f"{n} desk offers {'paused' if act == 'pause' else 'live again'}.")
+        except p2p.P2PError as e:
+            messages.error(request, str(e))
+        if report is None:
+            return redirect('p2p_desk')
+    from .models import P2PPaymentMethod
+    methods = [(p2p.method_name(m.method), m.account_number, 'every currency' if m.method in p2p_markets.UNIVERSAL else '')
+               for m in P2PPaymentMethod.objects.filter(user=request.user, is_active=True)]
+    rates_ok = len(p2p_rates.fx_table()) > 1
+    return render(request, 'store/p2p_desk.html', dict(
+        _common(request), tab='desk', summary=p2p_desk.summary(request.user), report=report, d=p2p_desk.DEFAULTS,
+        methods=methods, rates_ok=rates_ok, coin={a: p2p_rates.coin_usd(a) for a in ('USDT', 'BTC', 'ETH')}))

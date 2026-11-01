@@ -67,6 +67,8 @@ class Command(BaseCommand):
             self.stdout.write(f'   🔔 price alert {w.user} {w.symbol} {w.condition} {w.price}')
         from store import p2p                              # cancel unpaid P2P orders whose timer ran out
         p2p.safe_expire()
+        from store import p2p_rates                        # margin ads follow the live market
+        p2p_rates.safe_refresh()
         from store import journal                          # Monday: weekly AI review of every trader's journal
         n = journal.safe_weekly()
         if n:

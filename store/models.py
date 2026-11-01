@@ -1952,7 +1952,10 @@ class P2PAd(models.Model):
     side = models.CharField(max_length=4, choices=SIDES)
     asset = models.CharField(max_length=5, default='USDT', db_index=True)   # USDT, BTC, ETH
     currency = models.CharField(max_length=3, db_index=True)
-    price = models.DecimalField(max_digits=18, decimal_places=2)          # local money per 1 coin
+    price = models.DecimalField(max_digits=18, decimal_places=2)          # local money per 1 coin (live for margin ads)
+    price_type = models.CharField(max_length=6, default='fixed')            # fixed | margin (market ± margin %)
+    margin = models.DecimalField(max_digits=6, decimal_places=2, default=0) # % above (+) or below (−) the market
+    pool = models.BooleanField(default=False)                               # desk sell ad: coins taken from the wallet per order
     total = models.DecimalField(max_digits=20, decimal_places=8)          # coins
     remaining = models.DecimalField(max_digits=20, decimal_places=8)      # coins still available
     min_fiat = models.DecimalField(max_digits=14, decimal_places=2)

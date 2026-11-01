@@ -82,7 +82,13 @@
             </div>
             <div class="pp-grid">
                 <div class="pp-field"><label>Currency</label><select name="currency" id="adCur">{% for region, items in currency_groups %}<optgroup label="{{ region }}">{% for k, n, flag in items %}<option value="{{ k }}" {% if f.currency == k %}selected{% endif %}>{{ flag }} {{ k }} · {{ n }}</option>{% endfor %}</optgroup>{% endfor %}</select></div>
-                <div class="pp-field"><label>Price per coin (<span data-cur>KES</span>)</label><input name="price" inputmode="decimal" required placeholder="e.g. 130" value="{{ f.price|default:'' }}"></div>
+                <div class="pp-field"><label>Pricing</label>
+                    <select name="price_type" id="adPType">
+                        <option value="margin" {% if f.price_type != 'fixed' %}selected{% endif %}>Market price ± %</option>
+                        <option value="fixed" {% if f.price_type == 'fixed' %}selected{% endif %}>Fixed price</option>
+                    </select></div>
+                <div class="pp-field" id="adMarginBox"><label>Margin % (above + / below −)</label><input name="margin" id="adMargin" inputmode="decimal" placeholder="e.g. 2 or -1" value="{{ f.margin|default:'2' }}"></div>
+                <div class="pp-field" id="adPriceBox"><label>Price per coin (<span data-cur>KES</span>)</label><input name="price" id="adPrice" inputmode="decimal" placeholder="e.g. 130" value="{{ f.price|default:'' }}"></div>
                 <div class="pp-field"><label>Total amount (<span data-asset>USDT</span>)</label><input name="total" inputmode="decimal" required placeholder="e.g. 500" value="{{ f.total|default:'' }}"></div>
                 <div class="pp-field"><label>Min order (<span data-cur>KES</span>)</label><input name="min_fiat" inputmode="decimal" required placeholder="e.g. 1000" value="{{ f.min_fiat|default:'' }}"></div>
                 <div class="pp-field"><label>Max order (<span data-cur>KES</span>)</label><input name="max_fiat" inputmode="decimal" required placeholder="e.g. 50000" value="{{ f.max_fiat|default:'' }}"></div>
@@ -96,6 +102,7 @@
                 <p class="pp-sub" id="adNoMethods" hidden style="margin-top:6px">Add a payment method for this currency first (above).</p>
             </div>
             <div class="pp-field" style="margin-top:12px"><label>Terms (optional)</label><textarea name="terms" rows="2" maxlength="1000" placeholder="e.g. Send from your own M-Pesa number only. No third-party payments.">{{ f.terms|default:'' }}</textarea></div>
+            <div class="pp-msg" id="adRate" style="margin-top:12px;font-weight:600">Loading the live market price…</div>
             <p class="pp-sub" id="adHint" style="margin:10px 0"></p>
             <button class="pp-btn" type="submit" {% if not can_trade.0 %}disabled title="Verify your identity first"{% endif %}><i class="fa-solid fa-paper-plane"></i> Post ad</button>
         </form>
@@ -108,7 +115,7 @@
             <thead><tr><th>Type</th><th>Price</th><th>Available</th><th>Limits</th><th>Payment</th><th>Status</th><th></th></tr></thead>
             <tbody>{% for a in ads %}<tr>
                 <td><b class="{% if a.side == 'BUY' %}pp-up{% else %}pp-dn{% endif %}">{{ a.side|title }}</b> {{ a.asset }}</td>
-                <td class="pp-mono">{{ a.price|floatformat:"2g" }} {{ a.currency }}</td>
+                <td class="pp-mono">{{ a.price|floatformat:"2g" }} {{ a.currency }}{% if a.price_type == 'margin' %}<br><span class="pp-mute" style="font-size:11px">market {% if a.margin >= 0 %}+{% endif %}{{ a.margin|floatformat:"-2" }}%</span>{% endif %}{% if a.pool %}<br><span class="pp-tag">desk</span>{% endif %}</td>
                 <td class="pp-mono">{{ a.remaining_txt }} / {{ a.total_txt }}</td>
                 <td class="pp-mono">{{ a.min_fiat|floatformat:"0g" }} – {{ a.max_fiat|floatformat:"0g" }}</td>
                 <td>{% for n in a.method_names %}<span class="pp-tag">{{ n }}</span>{% endfor %}</td>
@@ -171,6 +178,25 @@
             : 'Your ' + asset + ' is locked in escrow when you post, and released to each buyer only when you confirm their payment.';
     }
     f.addEventListener('change', function (e) { if (e.target.name === 'side' || e.target.name === 'asset' || e.target === cur) sync(); });
+    // Paxful-style pricing: market ± margin, with the live rate shown while typing
+    var pType = document.getElementById('adPType'), mBox = document.getElementById('adMarginBox'), pBox = document.getElementById('adPriceBox');
+    var mIn = document.getElementById('adMargin'), pIn = document.getElementById('adPrice'), rateBox = document.getElementById('adRate'), rt = null;
+    function money(v) { return Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function rate() {
+        var margin = pType.value === 'margin';
+        mBox.hidden = !margin; pBox.hidden = margin; pIn.required = !margin;
+        var asset = f.querySelector('[name=asset]:checked').value, c = cur.value, m = parseFloat(mIn.value) || 0;
+        fetch('{% url "p2p_rate" %}?asset=' + asset + '&cur=' + c + '&margin=' + m, { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) {
+            if (!d.success) { rateBox.textContent = 'No live ' + asset + '/' + c + ' rate right now' + (margin ? ': use a fixed price.' : '.'); return; }
+            rateBox.innerHTML = 'Market: <b>' + money(d.market) + ' ' + c + '</b> per ' + asset +
+                (margin ? ' · your price: <b>' + money(d.price) + ' ' + c + '</b> (' + (m >= 0 ? '+' : '') + m + '%), it follows the market automatically'
+                        : (parseFloat(pIn.value) ? ' · your price is <b>' + (((parseFloat(pIn.value) / d.market) - 1) * 100).toFixed(2) + '%</b> vs market' : ''));
+        }).catch(function () {});
+    }
+    function later() { clearTimeout(rt); rt = setTimeout(rate, 250); }
+    pType.addEventListener('change', rate); mIn.addEventListener('input', later); pIn.addEventListener('input', later);
+    f.addEventListener('change', function (e) { if (e.target.name === 'asset' || e.target === cur) rate(); });
+    rate();
     sync();
 })();
 </script>

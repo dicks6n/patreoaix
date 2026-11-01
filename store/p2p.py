@@ -167,7 +167,24 @@ def post_ad(user, data):
     cur = (data.get('currency') or '').upper()
     if cur not in CURRENCIES:
         raise P2PError('Choose a currency.')
-    price, total = _q(_dec(data.get('price'), 'price')), _qa(asset, _dec(data.get('total'), 'amount'))
+    from . import p2p_rates
+    price_type = 'margin' if data.get('price_type') == 'margin' else 'fixed'
+    margin = D('0')
+    if price_type == 'margin':
+        try:
+            margin = D(str(data.get('margin') or '0').replace('%', '').strip()).quantize(D('0.01'))
+        except Exception:
+            raise P2PError('Enter the margin as a number, e.g. 2 for 2% above the market or -1 for 1% below.')
+        if not D('-20') <= margin <= D('50'):
+            raise P2PError('The margin must be between -20% and +50% of the market price.')
+        market = p2p_rates.market_price(asset, cur)
+        if not market:
+            raise P2PError(f'No live {asset}/{cur} market rate right now. Use a fixed price or try again in a few minutes.')
+        price = p2p_rates.with_margin(market, margin)
+    else:
+        price = _q(_dec(data.get('price'), 'price'))
+    total = _qa(asset, _dec(data.get('total'), 'amount'))
+    pool = bool(data.get('pool')) and user.is_staff and side == 'SELL'     # desk: coins taken per order
     lo, hi = _q(_dec(data.get('min_fiat'), 'minimum')), _q(_dec(data.get('max_fiat'), 'maximum'))
     if lo > hi:
         raise P2PError('The minimum order must be below the maximum.')
@@ -193,9 +210,10 @@ def post_ad(user, data):
         pms = []
     demo = not live()
     with transaction.atomic():
-        if side == 'SELL':
+        if side == 'SELL' and not pool:
             _move(user, asset, -total, demo, 'P2P_ESCROW', f'P2P sell ad: {fmt(asset, total)} {asset} locked')
         ad = P2PAd.objects.create(user=user, side=side, asset=asset, currency=cur, price=price, total=total, remaining=total,
+                                  price_type=price_type, margin=margin, pool=pool,
                                   min_fiat=lo, max_fiat=hi, methods=keys, time_limit=limit,
                                   terms=(data.get('terms') or '')[:1000], demo=demo)
         if pms:
@@ -309,6 +327,8 @@ def buy_pause(user):
 def express(user, side, asset, currency, fiat):
     """Pick the best offer that fits `fiat` and open the order. side: 'buy' or 'sell' (what the user wants)."""
     from .models import P2PAd, P2PPaymentMethod
+    from . import p2p_rates
+    p2p_rates.safe_refresh()
     fiat = _q(_dec(fiat, 'amount'))
     want_sell = side == 'sell'
     qs = P2PAd.objects.filter(status='ACTIVE', asset=asset, currency=currency, demo=not live(),
@@ -358,12 +378,14 @@ def open_order(user, ad_id, fiat=None, coins=None, method_id=None):
         if ad.demo != (not live()):
             raise P2PError('This ad belongs to the other mode (demo / live).')
         asset = ad.asset
+        from . import p2p_rates
+        price = p2p_rates.ad_price(ad)                 # margin ads: today's market ± margin, at this moment
         if coins not in (None, ''):
             amount = _qa(asset, _dec(coins, 'amount'))
-            fiat_amt = _q(amount * ad.price)
+            fiat_amt = _q(amount * price)
         else:
             fiat_amt = _q(_dec(fiat, 'amount'))
-            amount = _qa(asset, fiat_amt / ad.price)
+            amount = _qa(asset, fiat_amt / price)
         if fiat_amt < ad.min_fiat or fiat_amt > ad.max_fiat:
             raise P2PError(f'Order between {ad.min_fiat:,} and {ad.max_fiat:,} {ad.currency}.')
         if amount > ad.remaining:
@@ -371,10 +393,15 @@ def open_order(user, ad_id, fiat=None, coins=None, method_id=None):
         if amount <= 0:
             raise P2PError('The amount is too small.')
         fee = _qa(asset, amount * fee_pct() / 100)
-        if ad.side == 'SELL':                       # taker buys; escrow already locked by the ad
-            buyer, seller, escrow_in_ad = user, ad.user, True
+        if ad.side == 'SELL':                       # taker buys; escrow already locked by the ad (or, desk: taken now)
+            buyer, seller, escrow_in_ad = user, ad.user, not ad.pool
             pay_to = [{'method': method_name(p.method), 'name': p.account_name, 'number': p.account_number, 'bank': p.bank_name}
                       for p in ad.pay_methods.filter(is_active=True)]
+            if ad.pool:
+                try:
+                    _move(ad.user, asset, -amount, ad.demo, 'P2P_ESCROW', f'P2P desk sale: {fmt(asset, amount)} {asset} locked in escrow')
+                except P2PError:
+                    raise P2PError('This offer is temporarily out of stock. Try a smaller amount or another offer.')
         else:                                       # taker sells to the advertiser: lock the taker's USDT now
             buyer, seller, escrow_in_ad = ad.user, user, False
             pm = P2PPaymentMethod.objects.filter(user=user, pk=method_id, is_active=True, method__in=ad.methods).first()
@@ -390,7 +417,7 @@ def open_order(user, ad_id, fiat=None, coins=None, method_id=None):
             P2PAd.objects.filter(pk=ad.pk, status='ACTIVE').update(status='PAUSED')
         o = P2POrder.objects.create(
             ref='P2P' + secrets.token_hex(4).upper(), ad=ad, buyer=buyer, seller=seller, asset=asset, amount=amount, fee=fee,
-            price=ad.price, fiat_amount=fiat_amt, currency=ad.currency, pay_to=pay_to, escrow_in_ad=escrow_in_ad,
+            price=price, fiat_amount=fiat_amt, currency=ad.currency, pay_to=pay_to, escrow_in_ad=escrow_in_ad,
             demo=ad.demo, expires_at=timezone.now() + timedelta(minutes=ad.time_limit))
     _sys(o, f'Order created. {o.buyer.username} pays {o.fiat_amount:,} {o.currency} to {o.seller.username} within '
             f'{ad.time_limit} minutes. {fmt(asset, o.amount)} {asset} is locked in escrow.')

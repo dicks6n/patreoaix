@@ -1,0 +1,72 @@
+{% extends 'base_dashboard.html' %}
+
+{% block message_toasts %}{% endblock %}
+{% block title %}P2P Desk · Admin · PATREOAIX{% endblock %}
+{% block page_title %}P2P Desk 👑{% endblock %}
+{% block extra_head %}{% include 'partials/p2p_head.html' %}{% endblock %}
+
+{% block content %}
+<div class="pp-wrap">
+    {% include 'partials/p2p_nav.html' %}
+
+    <div class="pp-card">
+        <div class="pp-h"><h2>👑 PATREOAIX Desk</h2><p>Your official offers in every currency for USDT, BTC and ETH</p></div>
+        <div class="pp-grid">
+            <div class="pp-field"><label>Offers</label><b class="pp-mono" style="font-size:20px">{{ summary.total }}</b></div>
+            <div class="pp-field"><label>Live</label><b class="pp-mono" style="font-size:20px">{{ summary.active }}</b></div>
+            <div class="pp-field"><label>Buy / Sell</label><b class="pp-mono" style="font-size:20px">{{ summary.buy }} / {{ summary.sell }}</b></div>
+            <div class="pp-field"><label>Currencies</label><b class="pp-mono" style="font-size:20px">{{ summary.currencies }}</b></div>
+            <div class="pp-field"><label>Desk stock</label><b class="pp-mono" style="font-size:13px">{% for a, b in summary.balances.items %}{{ b }} {{ a }}<br>{% endfor %}</b></div>
+        </div>
+        <p class="pp-sub" style="margin-top:10px">Live prices: USDT ${{ coin.USDT|floatformat:2 }} · BTC {% if coin.BTC %}${{ coin.BTC|floatformat:"0g" }}{% else %}<b style="color:var(--px-down)">no price</b>{% endif %} · ETH {% if coin.ETH %}${{ coin.ETH|floatformat:"0g" }}{% else %}<b style="color:var(--px-down)">no price</b>{% endif %} · exchange rates {% if rates_ok %}<b style="color:var(--px-up)">live</b>{% else %}<b style="color:var(--px-down)">not loaded</b>{% endif %}</p>
+    </div>
+
+    {% if report %}
+    <div class="pp-card">
+        <div class="pp-h"><h2>Result</h2></div>
+        <p style="font-size:13px">{{ report.created }} new offers, {{ report.updated }} refreshed.</p>
+        {% if report.no_method %}<p class="pp-sub" style="margin-top:6px"><b>Buy offers only</b> (no payment method for selling) in: {{ report.no_method|join:", " }}. Add one universal method (Wise, bank transfer, PayPal…) in <a class="underline" href="{% url 'p2p_ads' %}#methods">My ads &amp; payment</a> to sell in every currency.</p>{% endif %}
+        {% if report.no_rate %}<p class="pp-sub" style="margin-top:6px">No exchange rate yet for: {{ report.no_rate|join:", " }}.</p>{% endif %}
+        {% if report.errors %}<p class="pp-sub" style="margin-top:6px;color:var(--px-down)">{{ report.errors|slice:":10"|join:" · " }}</p>{% endif %}
+    </div>
+    {% endif %}
+
+    <form method="post" class="pp-card">{% csrf_token %}
+        <input type="hidden" name="action" value="post">
+        <div class="pp-h"><h2>Post or refresh every offer</h2><p>Existing desk offers are updated, never duplicated</p></div>
+        <div class="pp-grid">
+            <div class="pp-field"><label>Desk buys at (market %)</label><input name="buy_margin" value="{{ d.buy_margin }}" inputmode="decimal"></div>
+            <div class="pp-field"><label>Desk sells at (market %)</label><input name="sell_margin" value="{{ d.sell_margin }}" inputmode="decimal"></div>
+            <div class="pp-field"><label>Min order (USD)</label><input name="min_usd" value="{{ d.min_usd }}" inputmode="decimal"></div>
+            <div class="pp-field"><label>Max order (USD)</label><input name="max_usd" value="{{ d.max_usd }}" inputmode="decimal"></div>
+            <div class="pp-field"><label>Buy up to (USD per offer)</label><input name="buy_capacity_usd" value="{{ d.buy_capacity_usd }}" inputmode="decimal"></div>
+            <div class="pp-field"><label>Sell up to (USD per offer)</label><input name="sell_capacity_usd" value="{{ d.sell_capacity_usd }}" inputmode="decimal"></div>
+            <div class="pp-field"><label>Time to pay</label><select name="time_limit"><option value="15">15 minutes</option><option value="30" selected>30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option></select></div>
+        </div>
+        <div class="pp-field" style="margin-top:12px"><label>Coins</label>
+            <label class="pp-tag" style="padding:7px 10px"><input type="checkbox" name="asset_USDT" checked> USDT</label>
+            <label class="pp-tag" style="padding:7px 10px"><input type="checkbox" name="asset_BTC" checked> BTC</label>
+            <label class="pp-tag" style="padding:7px 10px"><input type="checkbox" name="asset_ETH" checked> ETH</label>
+        </div>
+        <div class="pp-field" style="margin-top:12px"><label>Currencies (leave empty for all of them)</label><input name="currencies" placeholder="e.g. KES, UGX, NGN, USD (leave empty for every currency)"></div>
+        <p class="pp-sub" style="margin-top:10px">Buy offers: you pay each seller yourself from your own M-Pesa / bank, then they release the coins to you. Sell offers: coins come from your wallet when an order opens; if your balance is short, the order is refused. Prices follow the live market automatically.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+            <button class="pp-btn" type="submit" onclick="this.disabled=true;this.textContent='Posting… (about a minute)';this.form.submit()">👑 Post / refresh offers</button>
+        </div>
+    </form>
+
+    <div class="pp-card">
+        <div class="pp-h"><h2>Switch the desk</h2></div>
+        <form method="post" style="display:flex;gap:8px;flex-wrap:wrap">{% csrf_token %}
+            <button class="pp-btn ghost" name="action" value="pause">Pause all desk offers</button>
+            <button class="pp-btn ghost" name="action" value="resume">Resume all</button>
+        </form>
+    </div>
+
+    <div class="pp-card">
+        <div class="pp-h"><h2>Where buyers pay the desk</h2><p>Your payment methods</p></div>
+        {% for name, number, scope in methods %}<p style="font-size:13px;padding:6px 0;border-bottom:1px solid var(--px-line-soft)"><b>{{ name }}</b> · {{ number }}{% if scope %} <span class="pp-tag">{{ scope }}</span>{% endif %}</p>
+        {% empty %}<p class="pp-sub">None yet: without one, the desk can only <b>buy</b>. <a class="underline" href="{% url 'p2p_ads' %}#methods">Add your M-Pesa, bank, Wise…</a></p>{% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -23,6 +23,9 @@
     .pm-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 13px; margin-right: 8px; vertical-align: middle; }
     .pm-price { font-family: 'JetBrains Mono', monospace; font-size: 19px; font-weight: 800; color: var(--px-text); }
     .pm-price small { font-size: 11px; color: var(--px-mute); font-family: inherit; font-weight: 700; }
+    .pm-price .mg { display: block; font-size: 10.5px; font-weight: 800; color: var(--px-mute); font-family: inherit; margin-top: 2px; }
+    .pm-desk { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 900; padding: 2px 7px; border-radius: 6px; background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); margin-left: 6px; vertical-align: middle; }
+    .pm-ad.desk { background: linear-gradient(90deg, color-mix(in srgb, var(--px-accent) 8%, transparent), transparent 60%); border-radius: 12px; }
     .pm-lim { font-size: 12px; color: var(--px-dim); line-height: 1.6; }
     .pm-lim b { color: var(--px-text); font-family: 'JetBrains Mono', monospace; font-weight: 600; }
     .pm-take { grid-column: 1 / -1; display: none; padding: 14px; border-radius: 12px; background: var(--px-panel-2); border: 1px solid var(--px-line); }
@@ -82,12 +85,12 @@
     </div>
 
     <div class="pp-card">
-        <div class="pp-h"><h2>{% if side == 'buy' %}Buy {{ asset }} with {{ cur }}{% else %}Sell {{ asset }} for {{ cur }}{% endif %}</h2><p>{{ ads|length }} offer{{ ads|length|pluralize }} · {% if side == 'buy' %}cheapest first{% else %}best price first{% endif %}</p></div>
+        <div class="pp-h"><h2>{% if side == 'buy' %}Buy {{ asset }} with {{ cur }}{% else %}Sell {{ asset }} for {{ cur }}{% endif %}</h2><p>{% if market_now %}Market {{ market_now|floatformat:"2g" }} {{ cur }} · {% endif %}{{ ads|length }} offer{{ ads|length|pluralize }} · {% if side == 'buy' %}cheapest first{% else %}best price first{% endif %}</p></div>
         {% for a in ads %}
-        <div class="pm-ad">
-            <div class="pm-who"><span class="pm-avatar">{{ a.user.username|first|upper }}</span><a href="{% url 'p2p_trader' a.user.username %}"><b>{{ a.user.username }}</b></a>
+        <div class="pm-ad{% if a.desk %} desk{% endif %}">
+            <div class="pm-who"><span class="pm-avatar">{{ a.user.username|first|upper }}</span><a href="{% url 'p2p_trader' a.user.username %}"><b>{% if a.desk %}PATREOAIX Desk{% else %}{{ a.user.username }}{% endif %}</b></a>{% if a.desk %}<span class="pm-desk">👑 Official</span>{% endif %}
                 <small>{{ a.st.trades_30d }} trades (30d){% if a.st.completion is not None %} · {{ a.st.completion }}% completion{% endif %}{% if a.st.positive is not None %} · 👍 {{ a.st.positive }}%{% endif %}{% if a.st.release_min %} · releases in ~{{ a.st.release_min }} min{% endif %}</small></div>
-            <div class="pm-price">{{ a.price|floatformat:"2g" }} <small>{{ cur }}/{{ asset }}</small></div>
+            <div class="pm-price">{{ a.price|floatformat:"2g" }} <small>{{ cur }}/{{ asset }}</small>{% if a.price_type == 'margin' %}<span class="mg">{% if a.margin > 0 %}{{ a.margin|floatformat:"-2" }}% above market{% elif a.margin < 0 %}{{ a.margin|floatformat:"-2"|cut:"-" }}% below market{% else %}at market price{% endif %}</span>{% endif %}</div>
             <div class="pm-lim">Available <b>{{ a.remaining_txt }} {{ asset }}</b><br>Limit <b>{{ a.min_fiat|floatformat:"0g" }} – {{ a.max_now|floatformat:"0g" }}</b> {{ cur }}</div>
             <div class="pm-meth">{% for n in a.method_names %}<span class="pp-tag">{{ n }}</span>{% endfor %}<div class="pp-sub" style="margin-top:3px">Pay within {{ a.time_limit }} min</div></div>
             <button type="button" class="pp-btn {% if side == 'buy' %}buy{% else %}sell{% endif %}" data-open="{{ a.id }}">{% if side == 'buy' %}Buy{% else %}Sell{% endif %} {{ asset }}</button>
