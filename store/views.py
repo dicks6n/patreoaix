@@ -550,6 +550,13 @@ def api_referral_stats(request):
 # DASHBOARD & PROFILE VIEWS
 # ==========================================
 
+def home_view(request):
+    """www.patreoaix.com: the landing page for visitors, the dashboard for signed-in users."""
+    if request.user.is_authenticated:
+        return dashboard_view(request)
+    return landing_page_view(request)
+
+
 @login_required
 def dashboard_view(request):
     notifications = Notification.objects.filter(user=request.user)[:5]

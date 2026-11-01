@@ -15,7 +15,7 @@ from django.views.generic import RedirectView
 urlpatterns = [
     # Main Dashboard & Home
     path('landing/', views.landing_page_view, name='landing'),
-    path('', views.dashboard_view, name='dashboard'),
+    path('', views.home_view, name='dashboard'),          # visitors see the landing page, members the dashboard
     # installable web app (Add to Home Screen) — root paths so the service worker controls every page
     path('manifest.webmanifest', pwa.manifest, name='pwa_manifest'),
     path('sw.js', pwa.service_worker, name='pwa_sw'),
