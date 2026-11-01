@@ -943,7 +943,7 @@ main { padding: 0 !important; }
     <!-- Quotes -->
     <div id="tab-quotes" class="mt5-content" style="display:none;">
         <div class="mt5-head">
-            <button class="mt5-circle" onclick="mt5ToggleQuoteView()" title="Simple / advanced view"><i class="fa-solid fa-list-ul"></i></button>
+            <div style="display:flex;gap:10px"><button class="mt5-circle" onclick="mt5SwitchTab('settings')" title="Settings" aria-label="Settings"><i class="fa-solid fa-gear"></i></button><button class="mt5-circle" onclick="mt5ToggleQuoteView()" title="Simple / advanced view"><i class="fa-solid fa-list-ul"></i></button></div>
             <span class="mt5-head-title">Quotes</span>
             <div class="mt5-head-right">
                 <button class="mt5-circle" onclick="mt5OpenSymbolPicker()" title="Edit symbols"><i class="fa-solid fa-pen" id="mt5-quote-edit-ic"></i></button>
@@ -1103,9 +1103,19 @@ main { padding: 0 !important; }
         </div>
     </div>
 
+    <!-- Messages (like MT5: notifications and chats, one chat per sender) -->
+    <div id="tab-messages" class="mt5-content" style="display:none;">
+        <div class="mt5-head">
+            <div><button class="mt5-circle" onclick="mt5SwitchTab('settings')" title="Settings" aria-label="Settings"><i class="fa-solid fa-gear"></i></button></div>
+            <span class="mt5-head-title">Messages</span>
+            <div class="mt5-head-right"><button class="mt5-circle" onclick="mt5ReadAllChats()" title="Mark all as read" aria-label="Mark all as read"><i class="fa-solid fa-check-double"></i></button></div>
+        </div>
+        <div id="mt5-chat-list"><div class="mt5-empty-msg">Loading…</div></div>
+    </div>
+
     <!-- Settings -->
     <div id="tab-settings" class="mt5-content" style="display:none; background:var(--m-bg);">
-        <div class="mt5-set-title">Settings</div>
+        <div class="mt5-set-title" style="display:flex;align-items:center;gap:12px"><button class="mt5-circle" onclick="mt5Back()" aria-label="Back" style="width:40px;height:40px;font-size:16px"><i class="fa-solid fa-chevron-left"></i></button>Settings</div>
 
         <div class="mt5-set-card" style="position:relative;">
             <div class="mt5-set-demo-ribbon" id="mt5-set-ribbon">Real</div>
@@ -1258,8 +1268,8 @@ main { padding: 0 !important; }
     <button class="mt5-nav-item" data-tab="history" onclick="mt5SwitchTab('history')">
         <i class="fa-solid fa-clock-rotate-left"></i><span>History</span>
     </button>
-    <button class="mt5-nav-item" data-tab="settings" onclick="mt5SwitchTab('settings')">
-        <i class="fa-solid fa-gear"></i><span>Settings</span>
+    <button class="mt5-nav-item" data-tab="messages" onclick="mt5SwitchTab('messages')">
+        <span class="mt5-nav-ic"><i class="fa-regular fa-comment-dots"></i><b class="mt5-nav-badge" id="mt5-msg-badge" hidden>0</b></span><span>Messages</span>
     </button>
 </nav>
 
@@ -2957,7 +2967,7 @@ function mt5StartFallback() {
 // tabs
 function mt5SwitchTab(tab) {
     mt5CurrentTab = tab;
-    ['quotes', 'chart', 'trade', 'history', 'settings'].forEach(t => {
+    ['quotes', 'chart', 'trade', 'history', 'messages', 'settings'].forEach(t => {
         const el = document.getElementById(`tab-${t}`);
         if (el) el.style.display = 'none';
     });
@@ -2969,6 +2979,7 @@ function mt5SwitchTab(tab) {
     if (tab === 'quotes') mt5RenderQuotes();
     if (tab === 'trade') { mt5FetchPositions(); mt5FetchMetrics(); mt5FetchOrders(); }
     if (tab === 'history') mt5FetchHistory();
+    if (tab === 'messages') mt5LoadChats();
 }
 
 // metrics
@@ -5111,6 +5122,281 @@ document.addEventListener('DOMContentLoaded', () => { mt5LoadAccounts(); setInte
         display: flex; align-items: center; justify-content: center; font-size: 18px; pointer-events: none; opacity: 0; }
     #mt5-back-hint.go { background: var(--m-blue, #0a84ff); }
 </style>
+<style>
+    /* ─── Messages (MT5 style chats) ─── */
+    /* the "Install PATREOAIX" card sits above the bottom bar and under open panels / chats */
+    #pxInstall { bottom: calc(92px + env(safe-area-inset-bottom, 0px)) !important; z-index: 450 !important; }
+    .mt5-nav-ic { position: relative; display: inline-flex; }
+    .mt5-nav-badge { position: absolute; top: -6px; right: -12px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+        background: #ff3b30; color: #fff; font: 700 10.5px/18px -apple-system, BlinkMacSystemFont, sans-serif; text-align: center; box-shadow: 0 0 0 2px var(--m-bg); }
+    .mt5-chat-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; cursor: pointer; }
+    .mt5-chat-row:active { background: var(--m-panel2); }
+    .mt5-chat-av { width: 50px; height: 50px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px; }
+    .mt5-chat-mid { flex: 1; min-width: 0; border-bottom: 0.5px solid var(--m-line); padding: 4px 0 12px; }
+    .mt5-chat-top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+    .mt5-chat-name { font-size: 16px; font-weight: 600; color: var(--m-text); }
+    .mt5-chat-time { font-size: 12.5px; color: #8e8e93; flex-shrink: 0; }
+    .mt5-chat-row.unread .mt5-chat-time { color: #0a84ff; }
+    .mt5-chat-bot { display: flex; justify-content: space-between; gap: 8px; align-items: center; margin-top: 3px; }
+    .mt5-chat-last { font-size: 14px; color: #8e8e93; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal; line-height: 1.3; }
+    .mt5-chat-count { min-width: 22px; height: 22px; padding: 0 7px; border-radius: 11px; background: #0a84ff; color: #fff; font: 700 12px/22px -apple-system, sans-serif; text-align: center; flex-shrink: 0; }
+    #mt5-chat-panel { position: fixed; inset: 0; z-index: 520; background: var(--m-bg); display: none; flex-direction: column; }
+    #mt5-chat-panel.show { display: flex; }
+    .mt5-chat-head { display: flex; align-items: center; gap: 10px; padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 10px; border-bottom: 0.5px solid var(--m-line); flex-shrink: 0; }
+    .mt5-chat-head .mt5-op-back { position: static; flex-shrink: 0; }
+    .mt5-chat-head .mt5-chat-av { width: 38px; height: 38px; font-size: 16px; }
+    .mt5-chat-head b { display: block; font-size: 16px; color: var(--m-text); }
+    .mt5-chat-head small { display: block; font-size: 12px; color: #8e8e93; }
+    #mt5-chat-msgs { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 10px 12px 16px; display: flex; flex-direction: column; gap: 6px; }
+    .mt5-chat-day { align-self: center; font-size: 12px; font-weight: 600; color: #8e8e93; background: var(--m-panel2); padding: 4px 10px; border-radius: 10px; margin: 8px 0; }
+    .mt5-bubble { max-width: 82%; padding: 8px 12px 6px; border-radius: 18px; font-size: 15px; line-height: 1.35; color: var(--m-text);
+        background: var(--m-panel2); align-self: flex-start; border-bottom-left-radius: 6px; word-wrap: break-word; white-space: pre-wrap; }
+    .mt5-bubble.out { align-self: flex-end; background: #0a84ff; color: #fff; border-bottom-left-radius: 18px; border-bottom-right-radius: 6px; }
+    .mt5-bubble b { display: block; font-size: 14px; margin-bottom: 2px; }
+    .mt5-bubble.success b { color: #30d158; } .mt5-bubble.warning b { color: #ff9f0a; } .mt5-bubble.error b { color: #ff453a; }
+    .mt5-bubble .t { display: block; text-align: right; font-size: 11px; color: #8e8e93; margin-top: 3px; }
+    .mt5-bubble.out .t { color: rgba(255,255,255,.75); }
+    .mt5-bubble a { display: inline-block; margin-top: 6px; font-size: 13.5px; font-weight: 600; color: #0a84ff; }
+    .mt5-chat-input { display: flex; gap: 8px; align-items: flex-end; padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px)); border-top: 0.5px solid var(--m-line); flex-shrink: 0; background: var(--m-bg); }
+    .mt5-chat-input textarea { flex: 1; resize: none; max-height: 120px; min-height: 40px; padding: 9px 14px; border-radius: 20px; border: 0.5px solid var(--m-line);
+        background: var(--m-panel2); color: var(--m-text); font: 16px/1.3 -apple-system, BlinkMacSystemFont, sans-serif; outline: none; }
+    .mt5-chat-input button { width: 40px; height: 40px; border-radius: 50%; border: 0; background: #0a84ff; color: #fff; font-size: 16px; flex-shrink: 0; cursor: pointer; }
+    .mt5-chat-input button:disabled { opacity: .45; }
+    .mt5-chat-note { text-align: center; font-size: 12.5px; color: #8e8e93; padding: 10px 16px calc(12px + env(safe-area-inset-bottom, 0px)); border-top: 0.5px solid var(--m-line); }
+</style>
+<div id="mt5-chat-panel" role="dialog" aria-label="Chat">
+    <div class="mt5-chat-head">
+        <button class="mt5-op-back" onclick="mt5CloseChat()" aria-label="Back"><i class="fa-solid fa-chevron-left"></i></button>
+        <span class="mt5-chat-av" id="mt5-chat-av"></span>
+        <div style="min-width:0"><b id="mt5-chat-name"></b><small id="mt5-chat-desc"></small></div>
+    </div>
+    <div id="mt5-chat-msgs"></div>
+    <div class="mt5-chat-input" id="mt5-chat-input" hidden>
+        <textarea id="mt5-chat-text" rows="1" maxlength="2000" placeholder="Message"></textarea>
+        <button id="mt5-chat-send" onclick="mt5SendChat()" aria-label="Send" disabled><i class="fa-solid fa-arrow-up"></i></button>
+    </div>
+    <div class="mt5-chat-note" id="mt5-chat-note" hidden>Notifications only · you can't reply to this chat</div>
+</div>
+<script>
+// ═══════════════════════════════════════════════════════════
+// MESSAGES — like MT5: every notification arrives in a chat (Trading, PATREOAIX, Support, Community, News),
+// with an unread counter on the bottom bar. Support is a real chat with the team.
+// ═══════════════════════════════════════════════════════════
+(function () {
+    let current = null;
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const safeUrl = u => (/^\/[^\/\\]/.test(u || '') ? u : '');
+    function when(iso) {
+        if (!iso) return '';
+        const d = new Date(iso), now = new Date();
+        if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const y = new Date(now); y.setDate(now.getDate() - 1);
+        if (d.toDateString() === y.toDateString()) return 'Yesterday';
+        return d.toLocaleDateString([], { day: '2-digit', month: 'short' });
+    }
+    function badge(n) {
+        const b = document.getElementById('mt5-msg-badge');
+        if (!b) return;
+        b.hidden = !n; b.textContent = n > 99 ? '99+' : n;
+    }
+    window.mt5LoadChats = async function () {
+        const box = document.getElementById('mt5-chat-list');
+        try {
+            const d = await mt5Get('/api/mt5/messages/');
+            if (!d.success) throw new Error(d.error || 'error');
+            badge(d.unread);
+            box.innerHTML = d.chats.map(c => `
+                <div class="mt5-chat-row ${c.unread ? 'unread' : ''}" onclick="mt5OpenChat('${c.key}')">
+                    <span class="mt5-chat-av" style="background:${esc(c.color)}"><i class="fa-solid ${esc(c.icon)}"></i></span>
+                    <div class="mt5-chat-mid">
+                        <div class="mt5-chat-top"><span class="mt5-chat-name">${esc(c.name)}</span><span class="mt5-chat-time">${when(c.time)}</span></div>
+                        <div class="mt5-chat-bot"><span class="mt5-chat-last">${esc(c.last)}</span>${c.unread ? `<span class="mt5-chat-count">${c.unread > 99 ? '99+' : c.unread}</span>` : ''}</div>
+                    </div>
+                </div>`).join('');
+        } catch (e) {
+            if (box && !box.children.length) box.innerHTML = '<div class="mt5-empty-msg">Messages could not be loaded. Pull down or reopen the tab.</div>';
+        }
+    };
+    window.mt5OpenChat = async function (key) {
+        current = key;
+        const panel = document.getElementById('mt5-chat-panel');
+        document.getElementById('mt5-chat-msgs').innerHTML = '<div class="mt5-empty-msg">Loading…</div>';
+        panel.classList.add('show');
+        try {
+            const d = await mt5Get('/api/mt5/messages/' + encodeURIComponent(key) + '/');
+            if (!d.success) throw new Error(d.error);
+            const c = d.chat;
+            document.getElementById('mt5-chat-av').style.background = c.color;
+            document.getElementById('mt5-chat-av').innerHTML = `<i class="fa-solid ${esc(c.icon)}"></i>`;
+            document.getElementById('mt5-chat-name').textContent = c.name;
+            document.getElementById('mt5-chat-desc').textContent = c.desc;
+            document.getElementById('mt5-chat-input').hidden = !c.can_write;
+            document.getElementById('mt5-chat-note').hidden = !!c.can_write;
+            render(d.messages);
+            badge(d.unread);
+            mt5LoadChats();
+        } catch (e) {
+            document.getElementById('mt5-chat-msgs').innerHTML = '<div class="mt5-empty-msg">This chat could not be loaded.</div>';
+        }
+    };
+    function render(list) {
+        const box = document.getElementById('mt5-chat-msgs');
+        if (!list.length) { box.innerHTML = '<div class="mt5-empty-msg">No messages yet.</div>'; return; }
+        let day = '', html = '';
+        list.forEach(m => {
+            const d = new Date(m.time), key = d.toDateString();
+            if (key !== day) { day = key; html += `<div class="mt5-chat-day">${d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}</div>`; }
+            const url = safeUrl(m.url);
+            const title = current === 'support' ? '' : m.title;       // a chat with people: no headings, just the text
+            html += `<div class="mt5-bubble ${m.out ? 'out' : ''} ${esc(m.priority)}">${title ? `<b>${esc(title)}</b>` : ''}${esc(m.text)}`
+                  + (url ? `<br><a href="${esc(url)}">${esc(m.label || 'Open')} →</a>` : '')
+                  + `<span class="t">${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></div>`;
+        });
+        box.innerHTML = html;
+        box.scrollTop = box.scrollHeight;
+    }
+    window.mt5CloseChat = function () { document.getElementById('mt5-chat-panel').classList.remove('show'); current = null; };
+    window.mt5ReadAllChats = async function () { await mt5Post('/api/mt5/messages/read-all/', {}); mt5LoadChats(); };
+    const ta = document.getElementById('mt5-chat-text'), send = document.getElementById('mt5-chat-send');
+    ta.addEventListener('input', () => { send.disabled = !ta.value.trim(); ta.style.height = 'auto'; ta.style.height = Math.min(120, ta.scrollHeight) + 'px'; });
+    window.mt5SendChat = async function () {
+        const text = ta.value.trim();
+        if (!text || current !== 'support') return;
+        send.disabled = true;
+        const d = await mt5Post('/api/mt5/messages/support/send/', { text });
+        if (d.success) { ta.value = ''; ta.style.height = ''; mt5OpenChat('support'); }
+        else { send.disabled = false; mt5ShowBulkToast(d.error || 'Not sent. Try again.', 'error'); }
+    };
+    // unread counter on the bottom bar: at start and every 30 s
+    async function poll() { try { const d = await mt5Get('/api/mt5/messages/'); if (d.success) badge(d.unread); } catch (e) {} }
+    poll(); setInterval(() => { if (!document.hidden) (mt5CurrentTab === 'messages' ? mt5LoadChats() : poll()); }, 30000);
+})();
+</script>
+<style>
+    /* ─── Timeframe wheel (MT5 style): tap the chart, slide around the ring, let go ─── */
+    #mt5-tf-wheel { position: fixed; inset: 0; z-index: 900; display: none; touch-action: none; -webkit-user-select: none; user-select: none; }
+    #mt5-tf-wheel.show { display: block; }
+    #mt5-tf-wheel .tw-ring { position: absolute; width: 236px; height: 236px; border-radius: 50%;
+        background: rgba(22,22,24,.93); box-shadow: 0 12px 40px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.08);
+        -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); transform: scale(.6); opacity: 0;
+        transition: transform .16s cubic-bezier(.2,.9,.3,1.2), opacity .12s; }
+    #mt5-tf-wheel.show .tw-ring { transform: scale(1); opacity: 1; }
+    #mt5-tf-wheel .tw-pointer { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transition: transform .12s ease-out; }
+    #mt5-tf-wheel .tw-pointer::before { content: ''; position: absolute; left: -23px; top: -112px; width: 46px; height: 46px; border-radius: 50%;
+        background: #0a84ff; box-shadow: 0 0 0 3px rgba(10,132,255,.25); }
+    #mt5-tf-wheel .tw-pointer::after { content: ''; position: absolute; left: -1.5px; top: -66px; width: 3px; height: 30px; border-radius: 2px; background: rgba(10,132,255,.55); }
+    #mt5-tf-wheel .tw-item { position: absolute; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center; font: 700 14px/1 -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+        color: rgba(255,255,255,.82); cursor: pointer; }
+    #mt5-tf-wheel .tw-item.on { color: #fff; }
+    #mt5-tf-wheel .tw-item.cur:not(.on) { color: #0a84ff; }
+    #mt5-tf-wheel .tw-center { position: absolute; left: 50%; top: 50%; width: 74px; height: 74px; margin: -37px 0 0 -37px; border-radius: 50%;
+        background: rgba(255,255,255,.07); display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; }
+    #mt5-tf-wheel .tw-center b { font: 800 19px/1 -apple-system, BlinkMacSystemFont, sans-serif; }
+    #mt5-tf-wheel .tw-center small { font: 600 9.5px/1.2 -apple-system, sans-serif; color: rgba(255,255,255,.55); margin-top: 4px; text-transform: uppercase; letter-spacing: .05em; }
+</style>
+<div id="mt5-tf-wheel" role="dialog" aria-label="Choose timeframe">
+    <div class="tw-ring"><div class="tw-pointer"></div><div class="tw-center"><b>M5</b><small>Timeframe</small></div></div>
+</div>
+<script>
+// ═══════════════════════════════════════════════════════════
+// TIMEFRAME WHEEL — like MT5 mobile: tap the chart (or the M5 label) and a dark ring of timeframes opens
+// around your finger; slide around the ring (the pointer turns with you) and let go, or tap a timeframe.
+// Tap outside the ring or press back to close.
+// ═══════════════════════════════════════════════════════════
+(function () {
+    const box = document.getElementById('mt5-tf-wheel');
+    if (!box) return;
+    const ring = box.querySelector('.tw-ring'), pointer = box.querySelector('.tw-pointer'), center = box.querySelector('.tw-center b');
+    const LIST = MT5_TF_LIST, N = LIST.length, R = 89, SIZE = 236;
+    let hover = -1, tracking = false, moved = false, sx = 0, sy = 0, cx = 0, cy = 0;
+    LIST.forEach((tf, i) => {
+        const a = (i / N) * 2 * Math.PI - Math.PI / 2;           // M1 at the top, clockwise
+        const el = document.createElement('div');
+        el.className = 'tw-item'; el.dataset.i = i; el.textContent = MT5_TF_LABEL[tf];
+        el.style.left = (SIZE / 2 + R * Math.cos(a)) + 'px'; el.style.top = (SIZE / 2 + R * Math.sin(a)) + 'px';
+        ring.appendChild(el);
+    });
+    const items = [...ring.querySelectorAll('.tw-item')];
+    function point(i) {
+        hover = i;
+        items.forEach((el, k) => el.classList.toggle('on', k === i));
+        if (i >= 0) {
+            pointer.style.transform = `rotate(${i * 360 / N}deg)`;
+            center.textContent = MT5_TF_LABEL[LIST[i]];
+        }
+    }
+    function indexAt(x, y) {
+        const dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy);
+        if (d < 38) return -2;                                   // the centre: no change
+        if (d > SIZE / 2 + 40) return -1;                        // far outside the ring
+        let a = Math.atan2(dy, dx) + Math.PI / 2; if (a < 0) a += 2 * Math.PI;
+        return Math.round(a / (2 * Math.PI / N)) % N;
+    }
+    window.mt5OpenTfWheel = function (x, y) {
+        const vw = window.innerWidth, vh = window.innerHeight, m = SIZE / 2 + 10;
+        if (x == null) { const r = (document.getElementById('mt5-chart-wrap') || document.body).getBoundingClientRect(); x = r.left + r.width / 2; y = r.top + r.height / 2; }
+        cx = Math.min(Math.max(x, m), vw - m); cy = Math.min(Math.max(y, m), vh - m);
+        ring.style.left = (cx - SIZE / 2) + 'px'; ring.style.top = (cy - SIZE / 2) + 'px';
+        const cur = LIST.indexOf(mt5ChartTimeframe);
+        items.forEach((el, k) => el.classList.toggle('cur', k === cur));
+        pointer.style.transition = 'none'; point(cur); void pointer.offsetWidth; pointer.style.transition = '';
+        box.classList.add('show');
+        try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
+    };
+    window.mt5CloseTfWheel = function () { box.classList.remove('show'); tracking = false; };
+    function pick(i) {
+        mt5CloseTfWheel();
+        if (i >= 0 && LIST[i] !== mt5ChartTimeframe) mt5SetTimeframe(LIST[i]);
+    }
+    box.addEventListener('pointerdown', e => {
+        const i = indexAt(e.clientX, e.clientY);
+        if (i === -1) { e.preventDefault(); mt5CloseTfWheel(); return; }
+        tracking = true; moved = false; sx = e.clientX; sy = e.clientY;
+        if (i >= 0) point(i);
+        try { box.setPointerCapture(e.pointerId); } catch (_) {}
+        e.preventDefault();
+    });
+    box.addEventListener('pointermove', e => {
+        if (!tracking) return;
+        if (Math.hypot(e.clientX - sx, e.clientY - sy) > 6) moved = true;
+        const i = indexAt(e.clientX, e.clientY);
+        if (i >= 0 && i !== hover) { point(i); try { navigator.vibrate && navigator.vibrate(4); } catch (_) {} }
+        e.preventDefault();
+    });
+    box.addEventListener('pointerup', e => {
+        if (!tracking) return;
+        tracking = false;
+        const i = indexAt(e.clientX, e.clientY);
+        if (i === -2 && !moved) { mt5CloseTfWheel(); return; }  // tapped the centre: keep the timeframe
+        pick(i >= 0 ? i : hover);
+    });
+    box.addEventListener('pointercancel', () => { tracking = false; });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && box.classList.contains('show')) mt5CloseTfWheel(); });
+
+    // the M5 label in the chart toolbar opens the wheel too
+    window.mt5OpenTimeframeSheet = function () { mt5OpenTfWheel(); };
+
+    // a quick tap on the chart (not a drag, pinch, drawing or chart order) opens it where you tapped
+    const wrap = document.getElementById('mt5-chart-wrap');
+    if (wrap) {
+        let down = null;
+        wrap.addEventListener('pointerdown', e => {
+            down = e.isPrimary ? { x: e.clientX, y: e.clientY, t: Date.now(), id: e.pointerId } : null;
+        }, true);
+        wrap.addEventListener('pointerup', e => {
+            const d = down; down = null;
+            if (!d || d.id !== e.pointerId) return;
+            if (Date.now() - d.t > 350 || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 8) return;
+            if (e.target.closest('button, a, input, select, .lg-row, #mt5-trade-labels, .mt5-chart-reset, .mt5-chart-symbol-header, .mt5-chart-info')) return;
+            if (typeof mt5ActiveTool !== 'undefined' && mt5ActiveTool) return;
+            if (typeof mt5CO !== 'undefined' && mt5CO) return;
+            setTimeout(() => mt5OpenTfWheel(e.clientX, e.clientY), 0);
+        }, true);
+        wrap.addEventListener('pointercancel', () => { down = null; }, true);
+    }
+})();
+</script>
 <div id="mt5-back-hint"><i class="fa-solid fa-chevron-left"></i></div>
 <script>
 // ═══════════════════════════════════════════════════════════
@@ -5120,9 +5406,11 @@ document.addEventListener('DOMContentLoaded', () => { mt5LoadAccounts(); setInte
 //  • Swipe left / right on Quotes, Trade, History and Settings: next / previous tab (the chart keeps its own pan).
 // ═══════════════════════════════════════════════════════════
 (function () {
-    const TABS = ['quotes', 'chart', 'trade', 'history', 'settings'];
+    const TABS = ['quotes', 'chart', 'trade', 'history', 'messages'];
     const OVERLAYS = [                      // top-most first: [element id, how to close it]
         ['mt5-deriv-sheet', () => document.getElementById('mt5-deriv-sheet')?.remove(), true],
+        ['mt5-tf-wheel', () => mt5CloseTfWheel()],
+        ['mt5-chat-panel', () => mt5CloseChat()],
         ['mt5-dom-modal', () => mt5CloseDOM()],
         ['mt5-ind-edit', () => mt5CloseIndicatorEditor()],
         ['mt5-ind-panel', () => mt5CloseIndicators()],

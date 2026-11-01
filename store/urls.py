@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 from . import mt5_views
 from . import site_views
+from . import mt5_messages
 from . import pwa
 from .membership import members_only, auto_trading_only   # signals: Pro / VIP only · Starter trades manually
 from . import p2p_views, wallet_views
@@ -193,6 +194,10 @@ urlpatterns = [
     path('api/copy-signals/count/', views.api_copy_signals_count, name='api_copy_signals_count'),
     path('api/public/ticker/', site_views.api_public_ticker, name='api_public_ticker'),
     path('api/notifications/', site_views.api_notifications, name='api_notifications'),
+    path('api/mt5/messages/', mt5_messages.chats, name='mt5_messages'),
+    path('api/mt5/messages/read-all/', mt5_messages.read_all, name='mt5_messages_read_all'),
+    path('api/mt5/messages/support/send/', mt5_messages.send_support, name='mt5_messages_send'),
+    path('api/mt5/messages/<slug:key>/', mt5_messages.chat, name='mt5_messages_chat'),
     path('api/notifications/<int:notification_id>/read/', site_views.api_notification_read, name='api_notification_read'),
     path('api/notifications/read-all/', site_views.api_notifications_read_all, name='api_notifications_read_all'),
     path('api/market/overview/', site_views.api_market_overview, name='api_market_overview'),

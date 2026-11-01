@@ -88,7 +88,8 @@ def handle(request):
                 user=t.user, title=f"Support: {t.subject[:150]}" + (' — resolved ✅' if status == 'Resolved' else ''),
                 message=reply or 'Your ticket has been marked as resolved. Reply on the support page if you still need help.',
                 category='SYSTEM', priority='success' if status == 'Resolved' else 'info',
-                action_url='/support/', action_label='View ticket')
+                action_url='/support/', action_label='View ticket',
+                metadata={'chat': 'support', 'out': False, 'by': request.user.username})   # terminal Messages → Support
         messages.success(request, f"Ticket #{t.id} → {status}" + (' and reply sent.' if reply and t.user else '.'))
         return _back(request)
 
