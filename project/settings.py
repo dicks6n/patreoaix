@@ -149,17 +149,16 @@ SITE_URL = os.getenv('SITE_URL', f'https://www.{SITE_DOMAIN}').rstrip('/')
 PUBLIC_HOST = SITE_URL.split('://', 1)[-1]                       # what posters and captions print
 ON_PYTHONANYWHERE = bool(os.getenv('PYTHONANYWHERE_DOMAIN'))      # set by PythonAnywhere itself
 
-ALLOWED_HOSTS = [SITE_DOMAIN, f'www.{SITE_DOMAIN}', '.pythonanywhere.com', 'localhost', '127.0.0.1',
-                 '192.168.100.74', '.loca.lt', '.trycloudflare.com']
+ALLOWED_HOSTS = [SITE_DOMAIN, f'www.{SITE_DOMAIN}', '.pythonanywhere.com', 'localhost', '127.0.0.1']
 ALLOWED_HOSTS += [h.strip() for h in os.getenv('EXTRA_ALLOWED_HOSTS', '').split(',') if h.strip()]
 if DEBUG:
     ALLOWED_HOSTS.append('*')
 
 # Django refuses https form posts (login, signup, trades …) from origins not listed here
-CSRF_TRUSTED_ORIGINS = [
-    f'https://{SITE_DOMAIN}', f'https://www.{SITE_DOMAIN}', 'https://*.pythonanywhere.com',
-    'https://*.loca.lt', 'https://*.trycloudflare.com',
-]
+CSRF_TRUSTED_ORIGINS = [f'https://{SITE_DOMAIN}', f'https://www.{SITE_DOMAIN}', 'https://*.pythonanywhere.com']
+if DEBUG:      # laptop only: phone testing over the LAN and temporary tunnels (never trusted on the live site)
+    ALLOWED_HOSTS += ['192.168.100.74', '.loca.lt', '.trycloudflare.com']
+    CSRF_TRUSTED_ORIGINS += ['https://*.loca.lt', 'https://*.trycloudflare.com']
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SESSION_COOKIE_SECURE = not DEBUG          # cookies only over https on the live site
@@ -367,6 +366,9 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'dikkymccria@gmail.com')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')      # Gmail App Password, in .env only
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+# the address customers see (legal pages, landing page, emails); Gmail above is only the sending login
+SUPPORT_EMAIL = os.getenv('SUPPORT_EMAIL', '') or f'support@{SITE_DOMAIN}'
+ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', '')            # where new support tickets are emailed (default: EMAIL_HOST_USER)
 # Password reset (allauth): no "[example.com]" subject prefix, and no email to addresses without an account
 ACCOUNT_EMAIL_SUBJECT_PREFIX = ''
 ACCOUNT_EMAIL_UNKNOWN_ACCOUNTS = False

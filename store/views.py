@@ -147,7 +147,7 @@ def landing_page_view(request):
         'telegram_url': getattr(settings, 'TELEGRAM_INVITE_URL', ''),
         'trader_count': User.objects.count(),
         'trade_count': Trade.objects.count(),
-        'support_email': getattr(settings, 'SUPPORT_EMAIL', '') or f'support@{settings.SITE_DOMAIN}',
+        'support_email': settings.SUPPORT_EMAIL,
         'mpesa_enabled': getattr(settings, 'MPESA_DEPOSITS_ENABLED', False),
         'support_phone': getattr(settings, 'SUPPORT_PHONE', ''),
         'support_address': getattr(settings, 'SUPPORT_ADDRESS', ''),
@@ -4827,7 +4827,7 @@ def create_nowpayments_payment(request):
             "price_amount": parsed_amount,
             "price_currency": "usd",
             "pay_currency": pay_currency,
-            "ipn_callback_url": "https://yourdomain.com/api/nowpayments/ipn/", # Update with your public webhook URL
+            "ipn_callback_url": f"{settings.SITE_URL}{reverse('nowpayments_ipn_webhook')}",   # https://www.patreoaix.com/api/nowpayments/ipn/
             "order_id": f"DEPOSIT-{request.user.id}-{int(time.time())}",
             "order_description": f"Account deposit for {request.user.username}"
         }
@@ -6461,7 +6461,7 @@ def ai_support_view(request):
                     subject=f"[PATREOAIX Support Ticket #{ticket.id}] {subject}",
                     message=f"New support ticket submitted.\n\nCategory: {category}\nUser: {request.user}\n\nDescription:\n{description}",
                     from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'webmaster@localhost'),
-                    recipient_list=[getattr(settings, 'ADMIN_EMAIL', 'admin@patreoaiix.com')],
+                    recipient_list=[getattr(settings, 'ADMIN_EMAIL', '') or settings.EMAIL_HOST_USER or settings.SUPPORT_EMAIL],
                     fail_silently=True,
                 )
             except Exception:
@@ -10784,7 +10784,7 @@ def _legal(request, template, current=''):
     lim = transfers.limits()
     return render(request, template, {
         'domain': settings.SITE_DOMAIN, 'updated': '1 November 2026', 'legal_docs': LEGAL_DOCS, 'current': current,
-        'contact': getattr(settings, 'EMAIL_HOST_USER', '') or f'support@{settings.SITE_DOMAIN}',
+        'contact': settings.SUPPORT_EMAIL,
         'p2p_fee': p2p.fee_pct(), 'p2p_cancel_limit': p2p.CANCEL_LIMIT, 'p2p_currencies': len(p2p.CURRENCIES),
         'p2p_max_open': p2p.MAX_OPEN_ORDERS, 'p2p_time_limits': p2p.TIME_LIMITS,
         'tr_max': lim['max'], 'tr_daily': lim['daily'], 'tr_no_kyc': lim['no_kyc_daily'],
