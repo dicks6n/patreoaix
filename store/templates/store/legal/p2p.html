@@ -1,0 +1,50 @@
+{% extends 'store/legal/base_legal.html' %}
+{% block title %}P2P Trading Rules{% endblock %}
+{% block body %}
+<h1>P2P Trading Rules</h1>
+<p class="muted">Last updated {{ updated }}</p>
+<p>The P2P marketplace lets verified users buy and sell USDT, BTC and ETH with each other for local money in {{ p2p_currencies }} currencies. PATREOAIX holds the coins in escrow; <b>the local-money payment happens directly between the two users</b>, outside the site.</p>
+
+<h2>How a trade works</h2>
+<ol>
+  <li>The seller's coins are locked in escrow (when a sell ad is posted, or when a seller takes a buy ad).</li>
+  <li>The buyer pays the exact amount to the payment details shown in the order, within the time limit ({{ p2p_time_limits|join:", " }} minutes, set by the ad), and taps "I have paid".</li>
+  <li>The seller checks that the money has really arrived in their account and releases the coins with their password.</li>
+  <li>Unpaid orders are cancelled automatically when the timer ends and the coins return to the seller.</li>
+</ol>
+
+<h2>Buyers must</h2>
+<ul>
+  <li>Pay only from an account in their own name, exactly the order amount, in one payment.</li>
+  <li>Not write crypto-related words in the payment reference.</li>
+  <li>Not tap "I have paid" without paying. This leads to account restrictions.</li>
+</ul>
+
+<h2>Sellers must</h2>
+<ul>
+  <li>Release only after the money is in their account. Check the bank or mobile-money app itself, never an SMS or screenshot.</li>
+  <li>Not release to, or accept money from, someone other than the order's buyer.</li>
+  <li>Keep their payment details correct and in their own name.</li>
+</ul>
+
+<h2>Cancellations and limits</h2>
+<ul>
+  <li>{{ p2p_cancel_limit }} cancelled or unpaid orders as a buyer within 24 hours pause buying for 24 hours.</li>
+  <li>A user can have up to {{ p2p_max_open }} open orders at a time.</li>
+  <li>You can block a user; you will not see their ads and they cannot trade with you.</li>
+</ul>
+
+<h2>Appeals</h2>
+<p>If there is a problem after the buyer marked the order paid, either side can open an appeal (the buyer after 10 minutes). Upload proof (statement, transaction ID) in the order chat. Support reviews the chat and proofs and either releases the coins to the buyer or returns them to the seller. Support's decision on the escrowed coins is final; it does not move local money between users.</p>
+
+<h2>Fees</h2>
+<p>A fee of {{ p2p_fee }}% of the coins is deducted when the coins are released. There is no fee for posting ads. Your payment provider may charge its own fees.</p>
+
+<h2>Prohibited</h2>
+<ul>
+  <li>Third-party payments, chargebacks, payment reversals or fake proof.</li>
+  <li>Moving the conversation or the payment outside the order to avoid escrow.</li>
+  <li>Trading for someone else, or any activity listed in the <a href="{% url 'legal_doc' 'aml' %}">AML policy</a>.</li>
+</ul>
+<p>Breaking these rules can lead to cancelled orders, frozen balances, closed accounts and reports to the authorities.</p>
+{% endblock %}

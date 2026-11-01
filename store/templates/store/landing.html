@@ -136,7 +136,36 @@
             .lp-sub { padding: 0 11px; }
         }
         @media (prefers-reduced-motion: reduce) { .lp-sub, .lp-dot { animation: none; } }
+
+        /* ── counters, trust row, platform showcase, scroll reveal ── */
+        .lp-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+        .lp-stat { text-align: center; padding: 18px 10px; border-radius: 16px; background: rgba(15, 23, 42, .55); border: 1px solid rgba(148, 163, 184, .14); }
+        .lp-stat b { display: block; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 30px; font-weight: 800; color: #fff; line-height: 1.1; }
+        .lp-stat span { font-size: 11px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+        .lp-trust { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 22px; margin-top: 22px; font-size: 12px; color: #cbd5e1; }
+        .lp-trust i { color: #f5b301; margin-right: 6px; }
+        .lp-plat { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        .lp-card { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 22px; border-radius: 18px; background: rgba(15, 23, 42, .6); border: 1px solid rgba(148, 163, 184, .14); color: #e2e8f0; transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease; overflow: hidden; }
+        .lp-card:hover { transform: translateY(-4px); border-color: rgba(245, 179, 1, .55); box-shadow: 0 16px 40px rgba(0, 0, 0, .35); }
+        .lp-card::after { content: ''; position: absolute; inset: -40% -40% auto auto; width: 160px; height: 160px; border-radius: 50%; background: radial-gradient(circle, rgba(245, 179, 1, .16), transparent 70%); opacity: 0; transition: opacity .3s; }
+        .lp-card:hover::after { opacity: 1; }
+        .lp-card .ic { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; background: rgba(245, 179, 1, .12); color: #f5b301; border: 1px solid rgba(245, 179, 1, .25); }
+        .lp-card h3 { font-size: 16px; font-weight: 800; color: #fff; }
+        .lp-card p { font-size: 12.5px; color: #94a3b8; line-height: 1.55; flex: 1; }
+        .lp-card .go { font-size: 12px; font-weight: 800; color: #f5b301; }
+        .lp-card .new { position: absolute; top: 14px; right: 14px; font-size: 10px; font-weight: 900; padding: 3px 8px; border-radius: 7px; background: #f5b301; color: #0b0e14; letter-spacing: .05em; }
+        .lp-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; counter-reset: st; }
+        .lp-step { padding: 18px; border-radius: 16px; background: rgba(15, 23, 42, .5); border: 1px dashed rgba(148, 163, 184, .25); font-size: 12.5px; color: #94a3b8; }
+        .lp-step b { display: block; color: #fff; font-size: 14px; margin-bottom: 4px; }
+        .lp-step b::before { counter-increment: st; content: counter(st); display: inline-flex; width: 24px; height: 24px; border-radius: 50%; background: #f5b301; color: #0b0e14; font-size: 12px; align-items: center; justify-content: center; margin-right: 8px; }
+        .rv { opacity: 0; transform: translateY(26px); transition: opacity .7s ease, transform .7s ease; }
+        .rv.in { opacity: 1; transform: none; }
+        .lp-foot a { transition: color .2s; } .lp-foot a:hover { color: #fff; }
+        @media (max-width: 900px) { .lp-plat { grid-template-columns: repeat(2, 1fr); } .lp-stats { grid-template-columns: repeat(3, 1fr); } .lp-steps { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 560px) { .lp-plat { grid-template-columns: 1fr; } .lp-stats { grid-template-columns: repeat(2, 1fr); } .lp-stat b { font-size: 24px; } .lp-steps { grid-template-columns: 1fr; } }
+        @media (prefers-reduced-motion: reduce) { .rv { opacity: 1; transform: none; transition: none; } .lp-card { transition: none; } }
     </style>
+    <noscript><style>.rv { opacity: 1 !important; transform: none !important; }</style></noscript>
 </head>
 <body class="bg-darkBg text-slate-100 font-sans min-h-screen selection:bg-indigo-500 selection:text-white relative overflow-x-hidden">
     <canvas id="px-ai-bg" aria-hidden="true"></canvas>
@@ -159,7 +188,10 @@
         </a>
 
         <nav class="hidden md:flex items-center gap-7 text-xs font-semibold text-slate-300">
+            <a href="#platform" class="hover:text-white transition">Platform</a>
             <a href="{% url 'public_results' %}" class="hover:text-white transition">Results</a>
+            <a href="/p2p/" class="hover:text-white transition">P2P</a>
+            <a href="/funded/" class="hover:text-white transition">Funded</a>
             <a href="#pricing" class="hover:text-white transition">Pricing</a>
             <a href="#how" class="hover:text-white transition">How it works</a>
             <a href="#faq" class="hover:text-white transition">FAQ</a>
@@ -282,8 +314,61 @@
         </div>
     </section>
 
+
+    <!-- Real numbers, counting up -->
+    <section class="py-14 px-4 sm:px-6 max-w-7xl mx-auto rv">
+        <div class="lp-stats">
+            <div class="lp-stat"><b data-count="{{ stat_signals|default:0 }}">0</b><span>Signals tracked</span></div>
+            <div class="lp-stat"><b {% if stat_winrate is not None %}data-count="{{ stat_winrate }}" data-suffix="%"{% endif %}>{% if stat_winrate is None %}–{% else %}0{% endif %}</b><span>Win rate (decided)</span></div>
+            <div class="lp-stat"><b data-count="{{ stat_markets|default:0 }}">0</b><span>Markets scanned 24/7</span></div>
+            <div class="lp-stat"><b data-count="{{ stat_currencies|default:0 }}" data-suffix="+">0</b><span>P2P currencies</span></div>
+            <div class="lp-stat"><b data-count="{{ stat_methods|default:0 }}" data-suffix="+">0</b><span>Payment methods</span></div>
+        </div>
+        <div class="lp-trust">
+            <span><i class="fa-solid fa-shield-halved"></i>Escrow-protected P2P</span>
+            <span><i class="fa-solid fa-id-card"></i>Verified users (KYC)</span>
+            <span><i class="fa-solid fa-lock"></i>Encrypted broker tokens</span>
+            <span><i class="fa-solid fa-scale-balanced"></i>Every signal published, wins and losses</span>
+            <span><i class="fa-solid fa-cookie-bite"></i>No tracking cookies</span>
+        </div>
+    </section>
+
+    <!-- Everything in one platform -->
+    <section id="platform" class="py-16 px-4 sm:px-6 max-w-7xl mx-auto rv">
+        <div class="text-center max-w-2xl mx-auto mb-10">
+            <span class="text-xs font-mono font-bold lp-gold uppercase tracking-widest">One platform</span>
+            <h2 class="text-3xl font-extrabold text-white mt-2">Everything a trader needs, connected</h2>
+            <p class="text-slate-400 text-xs sm:text-sm mt-3">Find the setup, size it, trade it, fund it and learn from it, without leaving PATREOAIX.</p>
+        </div>
+        <div class="lp-plat">
+            <a class="lp-card rv" href="{% url 'account_signup' %}"><span class="ic"><i class="fa-solid fa-brain"></i></span><h3>AI signals &amp; entry coach</h3><p>Graded A+ / A setups on forex, gold, oil, indices and crypto with entry, stop and targets, and a coach that says when to enter.</p><span class="go">Try {{ trial_days }} days free →</span></a>
+            <a class="lp-card rv" href="{% url 'account_signup' %}"><span class="ic"><i class="fa-solid fa-mobile-screen"></i></span><h3>MT5-style mobile terminal</h3><p>Market and pending orders, trailing stops, live charts and your connected Deriv accounts in one phone-first terminal.</p><span class="go">Open an account →</span></a>
+            <a class="lp-card rv" href="{% url 'account_signup' %}"><span class="new">NEW</span><span class="ic"><i class="fa-solid fa-robot"></i></span><h3>AI Copy Trading</h3><p>One switch copies every A+ signal to your Deriv account with the stop loss and take profit set on Deriv.</p><span class="go">Switch it on →</span></a>
+            <a class="lp-card rv" href="/p2p/"><span class="new">NEW</span><span class="ic"><i class="fa-solid fa-people-arrows"></i></span><h3>P2P marketplace</h3><p>Buy and sell USDT, BTC and ETH with M-Pesa, MoMo, UPI, Pix, banks and more in {{ stat_currencies|default:"130" }}+ currencies. Coins held in escrow.</p><span class="go">Open P2P →</span></a>
+            <a class="lp-card rv" href="/funded/"><span class="ic"><i class="fa-solid fa-trophy"></i></span><h3>Funded challenges</h3><p>Pass a $5K–$200K challenge, get a funded account and keep up to 90% of the profit. Buy several at once.</p><span class="go">See the plans →</span></a>
+            <a class="lp-card rv" href="{% url 'account_signup' %}"><span class="ic"><i class="fa-solid fa-wallet"></i></span><h3>Wallet &amp; instant transfers</h3><p>Deposit, withdraw and send money to any PATREOAIX user by username, email or phone in seconds, free.</p><span class="go">Create your wallet →</span></a>
+            <a class="lp-card rv" href="{% url 'account_signup' %}"><span class="ic"><i class="fa-solid fa-bell"></i></span><h3>Price alerts &amp; push</h3><p>"Tell me when gold reaches 4,050": alerts, signals and trade updates on your phone, even with the site closed.</p><span class="go">Set an alert →</span></a>
+            <a class="lp-card rv" href="{% url 'account_signup' %}"><span class="ic"><i class="fa-solid fa-book-open"></i></span><h3>Journal with a weekly AI coach</h3><p>Every trade logged by itself. Each Monday the AI grades your week and names the one habit to fix.</p><span class="go">Start journaling →</span></a>
+            <a class="lp-card rv" href="{% url 'account_signup' %}"><span class="ic"><i class="fa-solid fa-graduation-cap"></i></span><h3>Beginner academy</h3><p>Six short lessons with quizzes: lots, stops, the 1% rule and reading signals. Finish them to unlock Pro days.</p><span class="go">Start learning →</span></a>
+        </div>
+    </section>
+
+    <!-- Start in four steps -->
+    <section class="py-10 px-4 sm:px-6 max-w-7xl mx-auto rv">
+        <div class="lp-steps">
+            <div class="lp-step"><b>Create your account</b>Free, in under a minute. {{ trial_days }} days of Pro included.</div>
+            <div class="lp-step"><b>Verify &amp; fund</b>Quick ID check, then deposit crypto or buy USDT on P2P.</div>
+            <div class="lp-step"><b>Follow the AI</b>Trade the signals yourself, or let copy trading do it.</div>
+            <div class="lp-step"><b>Grow</b>Pass a funded challenge and learn from your weekly review.</div>
+        </div>
+        <div class="flex justify-center gap-3 flex-wrap mt-8">
+            <a href="{% url 'account_signup' %}" class="lp-cta"><i class="fa-solid fa-rocket"></i> Create free account</a>
+            <a href="{% url 'public_results' %}" class="lp-cta-2"><i class="fa-solid fa-chart-line"></i> See the results</a>
+        </div>
+    </section>
+
     <!-- Track record: real signals from the scanner -->
-    <section id="results" class="py-20 px-4 sm:px-6 max-w-7xl mx-auto">
+    <section id="results" class="rv py-20 px-4 sm:px-6 max-w-7xl mx-auto">
         <div class="text-center max-w-2xl mx-auto mb-10">
             <span class="text-xs font-mono font-bold lp-gold uppercase tracking-widest">Track record</span>
             <h2 class="text-3xl font-extrabold text-white mt-2">Every signal, win or lose</h2>
@@ -322,7 +407,7 @@
     </section>
 
     <!-- Pricing Section -->
-    <section id="pricing" class="py-20 px-6 max-w-7xl mx-auto">
+    <section id="pricing" class="rv py-20 px-6 max-w-7xl mx-auto">
         <div class="text-center max-w-2xl mx-auto mb-16">
             <span class="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest">Pricing</span>
             <h2 class="text-3xl font-extrabold text-white mt-2">Simple & Transparent Pricing</h2>
@@ -360,7 +445,7 @@
     </section>
 
     <!-- How It Works Section -->
-    <section id="how" class="py-20 px-6 max-w-7xl mx-auto">
+    <section id="how" class="rv py-20 px-6 max-w-7xl mx-auto">
         <div class="text-center max-w-2xl mx-auto mb-16">
             <span class="text-xs font-mono font-bold text-indigo-400 uppercase tracking-widest">Easy Setup</span>
             <h2 class="text-3xl font-extrabold text-white mt-2">How PATREOAIX Works</h2>
@@ -392,7 +477,7 @@
     </section>
 
     <!-- Key Features Section -->
-    <section id="features" class="py-20 px-6 max-w-7xl mx-auto bg-cardBg/20 rounded-3xl border border-slate-800/50">
+    <section id="features" class="rv py-20 px-6 max-w-7xl mx-auto bg-cardBg/20 rounded-3xl border border-slate-800/50">
         <div class="text-center max-w-2xl mx-auto mb-16">
             <span class="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest">Key Features</span>
             <h2 class="text-3xl font-extrabold text-white mt-2">Built for Maximum Performance</h2>
@@ -506,7 +591,7 @@
     {% endcomment %}
 
     <!-- FAQ Section -->
-    <section id="faq" class="py-20 px-6 max-w-4xl mx-auto">
+    <section id="faq" class="rv py-20 px-6 max-w-4xl mx-auto">
         <div class="text-center max-w-2xl mx-auto mb-16">
             <span class="text-xs font-mono font-bold text-indigo-400 uppercase tracking-widest">FAQ</span>
             <h2 class="text-3xl font-extrabold text-white mt-2">Frequently Asked Questions</h2>
@@ -542,7 +627,7 @@
     </section>
 
     <!-- Contact Section -->
-    <section id="contact" class="py-20 px-6 max-w-7xl mx-auto">
+    <section id="contact" class="rv py-20 px-6 max-w-7xl mx-auto">
         <div class="text-center max-w-2xl mx-auto mb-16">
             <span class="text-xs font-mono font-bold text-indigo-400 uppercase tracking-widest">Get in Touch</span>
             <h2 class="text-3xl font-extrabold text-white mt-2">Contact Us</h2>
@@ -589,50 +674,65 @@
     </section>
 
     <!-- Footer -->
-    <footer class="border-t border-slate-800 bg-[#0d1322] py-12 px-6 mt-20">
-        <div class="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-4 gap-8 text-xs text-slate-400">
-            <div>
-                <div class="flex items-center gap-2 mb-4">
-                    <div class="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 font-bold">
-                        <i class="fa-solid fa-brain"></i>
-                    </div>
-                    <span class="font-bold text-white text-sm">PATREOAIX</span>
+    <footer class="lp-foot border-t border-slate-800 bg-[#0d1322] py-12 px-6 mt-20">
+        <div class="max-w-7xl mx-auto grid grid-cols-2 sm:grid-cols-5 gap-8 text-xs text-slate-400">
+            <div class="col-span-2 sm:col-span-1">
+                <div class="flex items-center gap-2.5 mb-4">
+                    <span class="lp-logo"><i class="fa-solid fa-chart-line"></i></span>
+                    <span class="font-extrabold text-sm tracking-wider text-white">PATREO<span class="lp-gold">AIX</span></span>
                 </div>
-                <p class="text-[11px] leading-relaxed">Transform your business and trading operations with our powerful AI prediction platform.</p>
-                <div class="flex gap-3 mt-4 text-slate-300">
-                    <a href="#" class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center hover:bg-slate-700"><i class="fa-brands fa-x-twitter"></i></a>
-                    <a href="#" class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center hover:bg-slate-700"><i class="fa-brands fa-github"></i></a>
-                    <a href="#" class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center hover:bg-slate-700"><i class="fa-brands fa-linkedin"></i></a>
+                <p class="text-[11px] leading-relaxed">AI trading signals, a mobile terminal, copy trading, P2P and funded challenges in one platform.</p>
+                <div class="flex gap-2 mt-4 text-slate-300">
+                    {% if telegram_url %}<a href="{{ telegram_url }}" target="_blank" rel="noopener" aria-label="Telegram" class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center hover:bg-slate-700"><i class="fa-brands fa-telegram"></i></a>{% endif %}
+                    <a href="https://www.tiktok.com/@patreoaix" target="_blank" rel="noopener" aria-label="TikTok" class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center hover:bg-slate-700"><i class="fa-brands fa-tiktok"></i></a>
+                    <a href="mailto:{{ support_email }}" aria-label="Email" class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center hover:bg-slate-700"><i class="fa-regular fa-envelope"></i></a>
                 </div>
             </div>
             <div>
-                <h4 class="font-bold text-white text-xs uppercase tracking-wider mb-3">Product</h4>
+                <h4 class="font-bold text-white text-xs uppercase tracking-wider mb-3">Trade</h4>
                 <ul class="space-y-2 text-[11px]">
-                    <li><a href="#features" class="hover:text-white transition">Features</a></li>
-                    <li><a href="#pricing" class="hover:text-white transition">Pricing</a></li>
-                    <li><a href="#" class="hover:text-white transition">API Documentation</a></li>
+                    <li><a href="#platform">AI signals</a></li>
+                    <li><a href="{% url 'public_results' %}">Results</a></li>
+                    <li><a href="/copy-trading/">Copy trading</a></li>
+                    <li><a href="/terminal/">Mobile terminal</a></li>
+                    <li><a href="#pricing">Pricing</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-bold text-white text-xs uppercase tracking-wider mb-3">Money</h4>
+                <ul class="space-y-2 text-[11px]">
+                    <li><a href="/p2p/">P2P marketplace</a></li>
+                    <li><a href="/funded/">Funded challenges</a></li>
+                    <li><a href="/wallet/">Wallet &amp; transfers</a></li>
+                    <li><a href="/academy/">Beginner academy</a></li>
                 </ul>
             </div>
             <div>
                 <h4 class="font-bold text-white text-xs uppercase tracking-wider mb-3">Company</h4>
                 <ul class="space-y-2 text-[11px]">
-                    <li><a href="#" class="hover:text-white transition">About Us</a></li>
-                    <li><a href="#" class="hover:text-white transition">Careers</a></li>
-                    <li><a href="#contact" class="hover:text-white transition">Contact</a></li>
+                    <li><a href="{% url 'about' %}">About us</a></li>
+                    <li><a href="#contact">Contact</a></li>
+                    <li><a href="#faq">FAQ</a></li>
+                    <li><a href="{% url 'account_login' %}">Sign in</a></li>
+                    <li><a href="{% url 'account_signup' %}">Create account</a></li>
                 </ul>
             </div>
             <div>
-                <h4 class="font-bold text-white text-xs uppercase tracking-wider mb-3">Support</h4>
+                <h4 class="font-bold text-white text-xs uppercase tracking-wider mb-3">Legal</h4>
                 <ul class="space-y-2 text-[11px]">
-                    <li><a href="#" class="hover:text-white transition">Help Center</a></li>
-                    <li><a href="#" class="hover:text-white transition">Community</a></li>
-                    <li><a href="#" class="hover:text-white transition">Security</a></li>
+                    <li><a href="{% url 'terms' %}">Terms of Service</a></li>
+                    <li><a href="{% url 'privacy' %}">Privacy Policy</a></li>
+                    <li><a href="{% url 'cookies' %}">Cookie Policy</a></li>
+                    <li><a href="{% url 'risk_disclosure' %}">Risk Disclosure</a></li>
+                    <li><a href="{% url 'legal_doc' 'aml' %}">AML &amp; KYC</a></li>
+                    <li><a href="{% url 'legal_doc' 'refunds' %}">Refunds</a></li>
+                    <li><a href="{% url 'legal_doc' 'p2p' %}">P2P rules</a> · <a href="{% url 'legal_doc' 'funded' %}">Funded rules</a></li>
                 </ul>
             </div>
         </div>
         <div class="max-w-7xl mx-auto border-t border-slate-800/80 mt-10 pt-6 text-center text-[11px] text-slate-500">
-            <p class="max-w-3xl mx-auto mb-3 leading-relaxed"><strong class="text-slate-400">Risk warning:</strong> CFDs, forex, crypto and synthetic indices are leveraged products and carry a high level of risk; you can lose more than your initial deposit. AI signals and backtests are not guarantees of future results.</p>
-            &copy; {% now "Y" %} PATREOAIX AI Prediction & Administration Terminal. All rights reserved.
+            <p class="max-w-3xl mx-auto mb-3 leading-relaxed"><strong class="text-slate-400">Risk warning:</strong> CFDs, forex, crypto and synthetic indices are leveraged products and carry a high level of risk; you can lose more than your initial deposit. AI signals and backtests are not guarantees of future results. <a href="{% url 'risk_disclosure' %}" class="underline">Read the risk disclosure</a>.</p>
+            &copy; {% now "Y" %} PATREOAIX. All rights reserved. · <a href="{% url 'legal' %}" class="underline">Legal center</a> · <a href="#" onclick="window.pxCookies&&pxCookies.open();return false" class="underline">Cookie notice</a>
         </div>
     </footer>
 
@@ -957,6 +1057,37 @@
         })();
     </script>
     <a href="{% url 'subscribe' %}" class="lp-mbar"><i class="fa-solid fa-crown"></i> Subscribe{% if pro_price %} · ${{ pro_price|floatformat:"0" }}/mo{% endif %} <i class="fa-solid fa-arrow-right text-xs"></i></a>
+<script>
+// ── count-up numbers and fade-in sections (respects reduced motion) ──
+(function () {
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function count(el) {
+        var to = parseFloat(el.dataset.count) || 0, suf = el.dataset.suffix || '', t0 = null, dur = 1400;
+        if (reduce) { el.textContent = to.toLocaleString() + suf; return; }
+        function step(t) {
+            t0 = t0 || t; var p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+            el.textContent = Math.round(to * e).toLocaleString() + suf;
+            if (p < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+    }
+    if (!('IntersectionObserver' in window)) {
+        document.querySelectorAll('.rv').forEach(function (e) { e.classList.add('in'); });
+        document.querySelectorAll('[data-count]').forEach(count);
+        return;
+    }
+    var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) {
+            if (!en.isIntersecting) return;
+            en.target.classList.add('in');
+            en.target.querySelectorAll('[data-count]').forEach(function (c) { if (!c.dataset.done) { c.dataset.done = 1; count(c); } });
+            io.unobserve(en.target);
+        });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.rv').forEach(function (e) { io.observe(e); });
+})();
+</script>
 {% include 'partials/pwa_js.html' %}
+{% include 'partials/cookie_consent.html' %}
 </body>
 </html>

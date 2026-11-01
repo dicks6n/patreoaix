@@ -1,0 +1,19 @@
+{% extends 'store/legal/base_legal.html' %}
+{% block title %}Legal center{% endblock %}
+{% block body %}
+<h1>Legal center</h1>
+<p class="muted">Every policy that applies when you use PATREOAIX ({{ domain }}). Last updated {{ updated }}.</p>
+<div class="box warn"><b>Risk warning:</b> trading forex, CFDs, synthetic indices and crypto is high risk and you can lose more than you deposit. AI signals are estimates, not advice. Read the <a href="{% url 'legal_doc' 'risk' %}">Risk Disclosure</a>.</div>
+<table>
+  <tr><th>Document</th><th>What it covers</th></tr>
+  <tr><td><a href="{% url 'legal_doc' 'terms' %}">Terms of Service</a></td><td>The agreement for using the site, accounts, wallet, payments and liability</td></tr>
+  <tr><td><a href="{% url 'legal_doc' 'privacy' %}">Privacy Policy</a></td><td>What personal data we collect, why, who processes it and your rights</td></tr>
+  <tr><td><a href="{% url 'legal_doc' 'cookies' %}">Cookie Policy</a></td><td>The cookies and browser storage the site uses</td></tr>
+  <tr><td><a href="{% url 'legal_doc' 'risk' %}">Risk Disclosure</a></td><td>The risks of trading, leverage, signals, copy trading and crypto</td></tr>
+  <tr><td><a href="{% url 'legal_doc' 'aml' %}">AML &amp; KYC Policy</a></td><td>Identity verification, limits, monitoring and prohibited use</td></tr>
+  <tr><td><a href="{% url 'legal_doc' 'refunds' %}">Refunds &amp; Cancellations</a></td><td>Subscriptions, challenge fees, deposits and withdrawals</td></tr>
+  <tr><td><a href="{% url 'legal_doc' 'p2p' %}">P2P Trading Rules</a></td><td>Escrow, payment, release, appeals and fees on the P2P marketplace</td></tr>
+  <tr><td><a href="{% url 'legal_doc' 'funded' %}">Funded Challenge Rules</a></td><td>Challenge plans, objectives, breaches and payouts</td></tr>
+  <tr><td><a href="{% url 'legal_doc' 'about' %}">About PATREOAIX</a></td><td>Who we are and how to reach us</td></tr>
+</table>
+{% endblock %}

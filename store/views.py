@@ -147,11 +147,20 @@ def landing_page_view(request):
         'telegram_url': getattr(settings, 'TELEGRAM_INVITE_URL', ''),
         'trader_count': User.objects.count(),
         'trade_count': Trade.objects.count(),
-        'support_email': getattr(settings, 'SUPPORT_EMAIL', 'support@patreoaiix.com'),
+        'support_email': getattr(settings, 'SUPPORT_EMAIL', '') or f'support@{settings.SITE_DOMAIN}',
         'mpesa_enabled': getattr(settings, 'MPESA_DEPOSITS_ENABLED', False),
         'support_phone': getattr(settings, 'SUPPORT_PHONE', ''),
         'support_address': getattr(settings, 'SUPPORT_ADDRESS', ''),
     }
+    # real numbers for the animated counters (never invented)
+    try:
+        from . import chart_scanner, p2p_markets, public_results
+        allstats = public_results.build()['all']
+        context.update(stat_signals=allstats['signals'], stat_winrate=allstats['win_rate'],
+                       stat_markets=len(chart_scanner.SCAN_SYMBOLS), stat_currencies=len(p2p_markets.CURRENCIES),
+                       stat_methods=len(p2p_markets.METHODS))
+    except Exception as e:
+        logger.warning(f'Landing stats unavailable: {e}')
     return render(request, 'store/landing.html', context)
 
 
@@ -10755,17 +10764,45 @@ def tiktok_post_poster(request):
     return redirect('signal_posters')
 
 
-def _legal(request, template):
-    return render(request, template, {'domain': settings.SITE_DOMAIN, 'updated': '27 October 2026',
-                                      'contact': getattr(settings, 'EMAIL_HOST_USER', '') or f'support@{settings.SITE_DOMAIN}'})
+LEGAL_DOCS = [
+    ('terms', 'Terms of Service'), ('privacy', 'Privacy Policy'), ('cookies', 'Cookie Policy'),
+    ('risk', 'Risk Disclosure'), ('aml', 'AML & KYC Policy'), ('refunds', 'Refunds & Cancellations'),
+    ('p2p', 'P2P Trading Rules'), ('funded', 'Funded Challenge Rules'), ('about', 'About PATREOAIX'),
+]
+
+
+def _legal(request, template, current=''):
+    """Legal pages read their numbers (fees, limits, challenge rules) from the code, so they never go stale."""
+    from . import p2p, prop_firm, transfers
+    lim = transfers.limits()
+    return render(request, template, {
+        'domain': settings.SITE_DOMAIN, 'updated': '1 November 2026', 'legal_docs': LEGAL_DOCS, 'current': current,
+        'contact': getattr(settings, 'EMAIL_HOST_USER', '') or f'support@{settings.SITE_DOMAIN}',
+        'p2p_fee': p2p.fee_pct(), 'p2p_cancel_limit': p2p.CANCEL_LIMIT, 'p2p_currencies': len(p2p.CURRENCIES),
+        'p2p_max_open': p2p.MAX_OPEN_ORDERS, 'p2p_time_limits': p2p.TIME_LIMITS,
+        'tr_max': lim['max'], 'tr_daily': lim['daily'], 'tr_no_kyc': lim['no_kyc_daily'],
+        'prop_catalog': prop_firm.catalog(), 'prop_leverage': prop_firm.LEVERAGE, 'prop_payout_days': prop_firm.PAYOUT_EVERY_DAYS,
+        'prop_payout_min': prop_firm.PAYOUT_MIN, 'prop_max_alloc': prop_firm.MAX_ALLOCATION, 'prop_max_active': prop_firm.MAX_ACTIVE_ACCOUNTS,
+        'prop_bulk': sorted(prop_firm.BULK_DISCOUNT.items()),
+    })
 
 
 def privacy_view(request):
-    return _legal(request, 'store/legal/privacy.html')
+    return _legal(request, 'store/legal/privacy.html', 'privacy')
 
 
 def terms_view(request):
-    return _legal(request, 'store/legal/terms.html')
+    return _legal(request, 'store/legal/terms.html', 'terms')
+
+
+def legal_index(request):
+    return _legal(request, 'store/legal/index.html', '')
+
+
+def legal_doc(request, slug):
+    if slug not in dict(LEGAL_DOCS):
+        raise Http404
+    return _legal(request, f'store/legal/{slug}.html', slug)
 
 
 def subscribe_link(request):

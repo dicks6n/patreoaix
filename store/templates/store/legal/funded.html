@@ -1,0 +1,45 @@
+{% extends 'store/legal/base_legal.html' %}
+{% block title %}Funded Challenge Rules{% endblock %}
+{% block body %}
+<h1>Funded Challenge Rules</h1>
+<p class="muted">Last updated {{ updated }}</p>
+<div class="box">Challenge and funded accounts trade <b>simulated capital</b> in the PATREOAIX terminal. The fee buys an evaluation, not a deposit. Payouts are a share of the simulated profit, paid by PATREOAIX to your wallet.</div>
+
+<h2>Plans</h2>
+{% for c in prop_catalog %}
+<h3 style="margin:18px 0 4px">{{ c.name }}: profit target {{ c.target_text }}, daily loss {{ c.daily }}%, max loss {{ c.max }}%, {{ c.split }}% profit split</h3>
+<table>
+  <tr><th>Tier</th><th>Account</th><th>Fee</th><th>Daily loss</th><th>Max loss</th></tr>
+  {% for r in c.rows %}<tr><td>{{ r.tier }}</td><td>${{ r.size|floatformat:"0g" }}</td><td>${{ r.price }}</td><td>${{ r.daily|floatformat:"0g" }}</td><td>${{ r.max|floatformat:"0g" }}</td></tr>{% endfor %}
+</table>
+{% endfor %}
+<p>Bundle discounts: {% for n, p in prop_bulk %}{{ n }}+ accounts {{ p }}% off{% if not forloop.last %}, {% endif %}{% endfor %}. Up to {{ prop_max_active }} active accounts and ${{ prop_max_alloc|floatformat:"0g" }} in total.</p>
+
+<h2>Objectives</h2>
+<ul>
+  <li><b>Profit target:</b> reach it on closed trades with no positions open.</li>
+  <li><b>Minimum trading days:</b> trade on at least 3 different days in each phase.</li>
+  <li><b>No time limit.</b> Leverage 1:{{ prop_leverage }}.</li>
+  <li>Passing a phase opens the next phase (or the funded account) with a new account number.</li>
+</ul>
+
+<h2>Loss limits (breach = account closed)</h2>
+<ul>
+  <li><b>Daily loss:</b> equity may not fall more than the daily % of the starting balance below the day's starting level (the higher of balance and equity at 00:00 UTC).</li>
+  <li><b>Maximum loss:</b> equity may not fall below the starting balance minus the max %.</li>
+  <li>Limits count floating losses. On a breach all positions are closed and the account ends; the fee is not refunded.</li>
+</ul>
+
+<h2>Payouts</h2>
+<ul>
+  <li>Funded accounts can request a payout every {{ prop_payout_days }} days, with at least ${{ prop_payout_min }} profit and no open positions.</li>
+  <li>Identity verification (KYC) is required before the first payout.</li>
+  <li>The payout is your split of the profit; the account balance then resets to its starting size. Payouts are reviewed and credited to your wallet.</li>
+</ul>
+
+<h2>Not allowed</h2>
+<ul>
+  <li>Exploiting price errors, delays or feed glitches; hedging between your own or other people's accounts; account sharing or trading someone else's account.</li>
+  <li>Anything that is not genuine trading. We may cancel profits, payouts and accounts that break these rules.</li>
+</ul>
+{% endblock %}

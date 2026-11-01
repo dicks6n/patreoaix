@@ -197,7 +197,7 @@
                                        name="terms" 
                                        required 
                                        class="mt-0.5 rounded border-slate-800 bg-[#090d16] text-indigo-600 focus:ring-0 focus:ring-offset-0">
-                                <span>I agree to the <a href="#" class="text-indigo-400 hover:underline">Terms of Service</a> and <a href="#" class="text-indigo-400 hover:underline">Privacy Policy</a></span>
+                                <span>I am 18 or older and agree to the <a href="{% url 'terms' %}" target="_blank" class="text-indigo-400 hover:underline">Terms of Service</a>, <a href="{% url 'privacy' %}" target="_blank" class="text-indigo-400 hover:underline">Privacy Policy</a> and <a href="{% url 'risk_disclosure' %}" target="_blank" class="text-indigo-400 hover:underline">Risk Disclosure</a></span>
                             </label>
                         </div>
 
@@ -395,5 +395,6 @@
         });
     </script>
 {% include 'partials/pwa_js.html' %}
+{% include 'partials/cookie_consent.html' %}
 </body>
 </html>

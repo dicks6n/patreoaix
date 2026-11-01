@@ -1,0 +1,16 @@
+{% extends 'store/legal/base_legal.html' %}
+{% block title %}About PATREOAIX{% endblock %}
+{% block body %}
+<h1>About PATREOAIX</h1>
+<p class="muted">AI trading signals, a mobile trading terminal, P2P, funded challenges and learning, in one place.</p>
+<p>PATREOAIX scans forex, gold, oil, indices and crypto around the clock and turns what its AI finds into graded signals with entry, stop loss and targets, a coach that says when to enter, and tools that help traders manage risk: a risk calculator in every signal, price alerts, a trading journal with a weekly AI review, and a beginner academy.</p>
+<p>Traders can act on signals in the PATREOAIX terminal, copy them automatically to their own Deriv account, take a funded challenge, and move money with escrow-protected P2P in {{ p2p_currencies }} currencies or instant transfers between users.</p>
+<h2>What we stand for</h2>
+<ul>
+  <li><b>Honest results:</b> every signal is recorded and published on the <a href="{% url 'public_results' %}">results page</a>, wins and losses.</li>
+  <li><b>Safety first:</b> stops on every plan, escrow on P2P, verified users, and real-money features that you must switch on yourself.</li>
+  <li><b>Learning:</b> beginners get an academy and a coach, not just signals.</li>
+</ul>
+<h2>Contact</h2>
+<p>Email <a href="mailto:{{ contact }}">{{ contact }}</a>, use the <a href="/#contact">contact form</a>, or open a ticket in the Help Center after signing in.</p>
+{% endblock %}

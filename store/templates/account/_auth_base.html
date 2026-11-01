@@ -1,0 +1,50 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Account{% endblock %} - PATREOAIX</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {% include 'partials/auth_skin.html' %}
+    {% include 'partials/pwa_head.html' %}
+    <style>
+        .px-in { width: 100%; background: #090d16; border: 1px solid #1e293b; border-radius: .75rem; padding: .8rem 1rem .8rem 2.5rem; font-size: .8rem; color: #f1f5f9; }
+        .px-in:focus { outline: none; border-color: #6366f1; }
+        .px-err { background: rgba(244,63,94,.1); border: 1px solid rgba(244,63,94,.3); color: #fda4af; }
+        .px-okbox { background: rgba(16,185,129,.1); border: 1px solid rgba(16,185,129,.3); color: #6ee7b7; }
+    </style>
+</head>
+<body class="bg-[#090d16] text-slate-100 font-sans min-h-screen flex flex-col justify-between">
+    {% include 'partials/ai_background.html' %}
+    <header class="border-b border-slate-800/80 bg-[#0d1322] px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+        <a href="/" class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold text-lg"><i class="fa-solid fa-brain"></i></div>
+            <div><h1 class="font-bold text-lg leading-tight tracking-wide text-white">PATREOAIX</h1><p class="text-xs text-slate-400">AI Prediction Engine</p></div>
+        </a>
+        <a href="{% url 'account_login' %}" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold transition border border-slate-700 text-xs">Sign in</a>
+    </header>
+    <main class="flex-1 flex items-center justify-center p-6">
+        <div class="w-full max-w-md bg-[#0d1322] border border-slate-800 rounded-2xl p-8 shadow-2xl relative z-10">
+            <div class="text-center mb-6">
+                <div class="w-14 h-14 mx-auto rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 text-2xl mb-3"><i class="fa-solid {% block icon %}fa-key{% endblock %}"></i></div>
+                <h2 class="text-2xl font-bold text-white tracking-wide">{% block heading %}{% endblock %}</h2>
+                <p class="text-xs text-slate-400 mt-1">{% block sub %}{% endblock %}</p>
+            </div>
+            {% block card %}{% endblock %}
+        </div>
+    </main>
+    <footer class="text-center text-[11px] text-slate-500 py-6 px-4">
+        &copy; {% now "Y" %} PATREOAIX · <a href="{% url 'terms' %}" class="hover:underline">Terms</a> · <a href="{% url 'privacy' %}" class="hover:underline">Privacy</a> · <a href="{% url 'cookies' %}" class="hover:underline">Cookies</a>
+    </footer>
+    {% include 'partials/cookie_consent.html' %}
+    <script>
+    document.querySelectorAll('input[type=password]').forEach(function (inp) {
+        var b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-label', 'Show password');
+        b.className = 'absolute inset-y-0 right-0 px-3 text-slate-500 hover:text-slate-300'; b.innerHTML = '<i class="fa-regular fa-eye text-xs"></i>';
+        b.onclick = function () { var s = inp.type === 'password'; inp.type = s ? 'text' : 'password'; b.innerHTML = '<i class="fa-regular fa-eye' + (s ? '-slash' : '') + ' text-xs"></i>'; };
+        inp.parentNode.appendChild(b);
+    });
+    </script>
+</body>
+</html>

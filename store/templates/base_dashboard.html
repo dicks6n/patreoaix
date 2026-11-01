@@ -1062,10 +1062,13 @@
                         <span class="flex items-center gap-2"><span id="footer-status-dot" class="px-dot"></span><span id="footer-status-text">Price feed: connecting</span></span>
                         <span>Data: Binance · TwelveData · Yahoo Finance</span>
                     </div>
-                    <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-x-4 gap-y-1 flex-wrap">
                         <a href="{% url 'public_results' %}" class="hover:underline">Results</a>
-                        <a href="{% url 'privacy' %}" class="hover:underline">Privacy</a>
                         <a href="{% url 'terms' %}" class="hover:underline">Terms</a>
+                        <a href="{% url 'privacy' %}" class="hover:underline">Privacy</a>
+                        <a href="{% url 'cookies' %}" class="hover:underline">Cookies</a>
+                        <a href="{% url 'risk_disclosure' %}" class="hover:underline">Risk</a>
+                        <a href="{% url 'legal' %}" class="hover:underline">Legal</a>
                         <a href="{% url 'ai_support' %}" class="hover:underline">Support</a>
                         <span>© {% now "Y" %} PATREOAIX</span>
                     </div>
@@ -1426,5 +1429,6 @@
     <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
     {% block extra_js %}{% endblock %}
     {% include 'partials/pwa_js.html' %}
+{% include 'partials/cookie_consent.html' %}
 </body>
 </html>

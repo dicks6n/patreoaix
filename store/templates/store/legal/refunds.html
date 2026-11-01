@@ -1,0 +1,33 @@
+{% extends 'store/legal/base_legal.html' %}
+{% block title %}Refunds & Cancellations{% endblock %}
+{% block body %}
+<h1>Refunds &amp; Cancellations</h1>
+<p class="muted">Last updated {{ updated }}</p>
+
+<h2>Subscriptions (Pro / VIP)</h2>
+<ul>
+  <li>Plans give access for the period shown when you pay and are not renewed automatically unless the page says so.</li>
+  <li>Because signals and tools are available immediately, payments are not refundable once the plan has started, except where the law requires or the service was unavailable for a long period through our fault.</li>
+  <li>The free trial ends automatically and is never charged.</li>
+</ul>
+
+<h2>Funded challenge fees</h2>
+<ul>
+  <li>A challenge fee is not refundable once any trade has been placed on the account, or after the account was breached or passed.</li>
+  <li>An account with no trades can be refunded to your wallet if you ask support within 14 days of buying it.</li>
+  <li>Bundle discounts are calculated on the whole order; refunding part of a bundle refunds the price actually paid per account.</li>
+</ul>
+
+<h2>Deposits and withdrawals</h2>
+<ul>
+  <li>Crypto deposits are credited after network confirmation and cannot be reversed on the blockchain. A deposit sent to the wrong network or address may be lost.</li>
+  <li>Withdrawals require verified identity. We may hold a withdrawal while we check it (see the <a href="{% url 'legal_doc' 'aml' %}">AML policy</a>). A first-deposit bonus stays locked until its trading volume is reached; your own deposit and profits stay withdrawable.</li>
+  <li>Transfers between PATREOAIX users are instant and cannot be reversed by us except for fraud or error that we can prove.</li>
+</ul>
+
+<h2>P2P trades</h2>
+<p>Completed P2P trades are final. Disputes are handled through the in-order <b>appeal</b> process described in the <a href="{% url 'legal_doc' 'p2p' %}">P2P rules</a>.</p>
+
+<h2>How to ask</h2>
+<p>Email <a href="mailto:{{ contact }}">{{ contact }}</a> or open a ticket in the Help Center with your username and the transaction reference. We answer within 3 business days.</p>
+{% endblock %}

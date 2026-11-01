@@ -28,7 +28,8 @@
     // ── install card: Android / desktop Chrome get the real prompt; iPhone gets the Share → Add to Home Screen hint ──
     var box = document.getElementById('pxInstall');
     function dismissed() { try { return Date.now() - (+localStorage.getItem('px_install_x') || 0) < 7 * 864e5; } catch (e) { return false; } }
-    function show(txt) { if (standalone || dismissed() || !box) return; if (txt) document.getElementById('pxInstallTxt').innerHTML = txt; box.classList.add('show'); }
+    // the install card waits until the cookie notice has been answered (they would cover each other)
+    function show(txt) { if (standalone || dismissed() || !box || !/(?:^|;\s*)px_consent=/.test(document.cookie)) return; if (txt) document.getElementById('pxInstallTxt').innerHTML = txt; box.classList.add('show'); }
     window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; setTimeout(function () { show(); }, 4000); });
     if (ios && !standalone && /safari/i.test(navigator.userAgent) && !/crios|fxios/i.test(navigator.userAgent)) {
         setTimeout(function () {

@@ -1,0 +1,37 @@
+{% extends 'store/legal/base_legal.html' %}
+{% block title %}AML & KYC Policy{% endblock %}
+{% block body %}
+<h1>Anti-Money Laundering &amp; KYC Policy</h1>
+<p class="muted">Last updated {{ updated }}</p>
+<p>PATREOAIX does not allow its services to be used for money laundering, terrorist financing, fraud or sanctions evasion. This policy explains how we verify customers and monitor activity.</p>
+
+<h2>Know your customer (KYC)</h2>
+<ul>
+  <li>Users must be 18 or older and provide true, complete information.</li>
+  <li>Identity is verified with a government ID and a live selfie through our verification partner (Didit), or by manual review of uploaded documents.</li>
+  <li>Verification is required for withdrawals, funded-account payouts, the P2P marketplace and higher transfer limits. We may ask for proof of address or source of funds at any time.</li>
+  <li>One account per person. Accounts in someone else's name, shared accounts and multiple accounts are not allowed.</li>
+</ul>
+
+<h2>Limits</h2>
+<table>
+  <tr><th>Activity</th><th>Without verification</th><th>Verified</th></tr>
+  <tr><td>Send to another user (per day)</td><td>${{ tr_no_kyc|floatformat:"0g" }}</td><td>${{ tr_daily|floatformat:"0g" }} (max ${{ tr_max|floatformat:"0g" }} per transfer)</td></tr>
+  <tr><td>P2P trading</td><td>Not available</td><td>Available</td></tr>
+  <tr><td>Withdrawals and payouts</td><td>Not available</td><td>Available</td></tr>
+</table>
+
+<h2>Monitoring</h2>
+<p>We monitor deposits, withdrawals, transfers and P2P trades for unusual patterns (for example rapid in-and-out movements, many small transfers, payments from third parties, or links between accounts). We may delay, block or reverse transactions, freeze accounts, request more information and report suspicious activity to the authorities where the law requires. We may not be allowed to tell you when this happens.</p>
+
+<h2>Prohibited</h2>
+<ul>
+  <li>Using funds from crime, or helping others move such funds.</li>
+  <li>Users in, or acting for persons in, countries or lists under comprehensive sanctions.</li>
+  <li>Paying or receiving P2P money through accounts that are not in your own name.</li>
+  <li>Gift-card, cash-courier or other methods we have not listed.</li>
+</ul>
+
+<h2>Records</h2>
+<p>We keep verification and transaction records for as long as the law requires, even after an account is closed. Accounts with money history cannot be deleted, only closed.</p>
+{% endblock %}

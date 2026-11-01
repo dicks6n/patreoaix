@@ -1,0 +1,38 @@
+<h2>Your choices</h2>
+<p>Because we only use essential cookies and settings you choose, there is nothing to switch off: the banner is a notice, not a request to track you. You can <a href="#" onclick="window.pxCookies&&pxCookies.open();return false">show it again</a>, or clear cookies and site data in your browser at any time (you will be signed out). If we ever add analytics or marketing cookies, we will ask for your consent first.</p>
+{% extends 'store/legal/base_legal.html' %}
+{% block title %}Cookie Policy{% endblock %}
+{% block body %}
+<h1>Cookie Policy</h1>
+<p class="muted">Last updated {{ updated }}</p>
+<p>PATREOAIX uses a small number of cookies and browser storage items to keep you signed in, keep the site secure and remember your settings. <b>We do not use advertising or cross-site tracking cookies</b>, and we do not sell data collected through cookies.</p>
+
+<h2>Strictly necessary (always on)</h2>
+<table>
+  <tr><th>Name</th><th>Purpose</th><th>Lasts</th></tr>
+  <tr><td>sessionid</td><td>Keeps you signed in</td><td>Until you sign out or it expires</td></tr>
+  <tr><td>csrftoken</td><td>Protects forms against cross-site request forgery</td><td>1 year</td></tr>
+  <tr><td>px_consent</td><td>Remembers your cookie choice</td><td>1 year</td></tr>
+  <tr><td>px_phone, px_pwa</td><td>Lets the mobile trading terminal open on phones and in the installed app</td><td>1 year</td></tr>
+</table>
+
+<h2>Settings you choose (stored only in your browser)</h2>
+<p>These only exist after you use the matching feature, are never sent to advertisers, and are deleted when you clear your browser data.</p>
+<table>
+  <tr><th>Name</th><th>Purpose</th><th>Where</th></tr>
+  <tr><td>theme</td><td>Light or dark mode</td><td>Browser storage</td></tr>
+  <tr><td>p2p_cur</td><td>Your usual P2P currency</td><td>Cookie, 1 year</td></tr>
+  <tr><td>mt5Acct, mt5Book, terminal settings</td><td>The account and layout you chose in the terminal</td><td>Browser storage</td></tr>
+  <tr><td>px_calc_bal, px_calc_pct</td><td>The risk calculator's balance and risk %</td><td>Browser storage</td></tr>
+  <tr><td>px_install_x</td><td>Hides the "Install app" card after you close it</td><td>Browser storage</td></tr>
+</table>
+
+<h2>Notifications and the installed app</h2>
+<p>If you turn on notifications, your browser gives us a push address (no cookie) so we can send signals, price alerts and account messages. You can turn this off at any time from the Price Alerts page or your browser settings. The installed app keeps an offline page and icons in your browser's cache.</p>
+
+<h2>Third parties</h2>
+<p>When you use features that open a partner (Didit identity verification, Deriv sign-in, TradingView-style charts, crypto payment pages), that partner may set its own cookies under its own policy.</p>
+
+<h2>Your choices</h2>
+<p>Use the cookie banner to accept or keep only essential cookies, or <a href="#" onclick="window.pxCookies&&pxCookies.open();return false">change your choice now</a>. You can also clear cookies in your browser; you will then be signed out.</p>
+{% endblock %}

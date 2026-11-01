@@ -1,0 +1,31 @@
+{% extends 'store/legal/base_legal.html' %}
+{% block title %}Risk Disclosure{% endblock %}
+{% block body %}
+<h1>Risk Disclosure</h1>
+<p class="muted">Last updated {{ updated }}</p>
+<div class="box warn"><b>Trading is high risk.</b> Forex, CFDs, synthetic indices, multipliers and crypto-assets are complex and leveraged. Most retail traders lose money. Only trade money you can afford to lose completely.</div>
+
+<h2>Leverage</h2>
+<p>Leverage multiplies both profits and losses. A small price move can cause losses larger than your margin, a margin call or a stop out that closes positions automatically.</p>
+
+<h2>AI signals and analysis are not advice</h2>
+<p>Signals, grades (A+, A, B), coach plans, news playbooks and AI reviews are statistical estimates from past data. They are wrong often, can stop working when markets change, and past or published results (including our public results page) do not guarantee future results. Nothing on PATREOAIX is personal investment, tax or legal advice.</p>
+
+<h2>Copy trading and automation</h2>
+<p>AI Copy Trading and bots place trades without asking you each time. Orders can be filled at worse prices than the signal, can fail, and can lose while you are away. You can switch them off at any time; you remain responsible for trades on your accounts.</p>
+
+<h2>Third-party brokers (Deriv)</h2>
+<p>Trades on a connected Deriv account are executed by Deriv under its own terms. Real-money trading through the site is off unless you turn it on, is limited per contract, and asks you to confirm each real order. Your Deriv balance and positions are held by Deriv, not by PATREOAIX.</p>
+
+<h2>Crypto-assets and P2P</h2>
+<p>Crypto prices are volatile and transactions are usually irreversible. On the P2P marketplace you pay or receive local money outside the site; scams such as fake payment SMS, edited screenshots, chargebacks and third-party payments exist. Escrow protects the coins, not the local money: follow the <a href="{% url 'legal_doc' 'p2p' %}">P2P rules</a>.</p>
+
+<h2>Funded challenges</h2>
+<p>Challenge and funded accounts use simulated capital. Most challenges are not passed and the fee is lost. Payouts depend on meeting the <a href="{% url 'legal_doc' 'funded' %}">rules</a>.</p>
+
+<h2>Technology</h2>
+<p>Prices can be delayed, feeds can fail, and the site or a partner can be unavailable. Use stop losses and do not rely on a single device or connection.</p>
+
+<h2>Regulation</h2>
+<p>The rules for trading and crypto differ by country. It is your responsibility to make sure you are allowed to use these services where you live, and to report and pay any taxes due.</p>
+{% endblock %}
