@@ -89,6 +89,7 @@
             {% if auto_kyc %}
             <form method="post" action="{% url 'kyc_auto_start' %}">{% csrf_token %}
                 <button class="kv-btn kv-primary" type="submit"><i class="fa-solid fa-id-card"></i> Verify again</button>
+                <label class="kv-note" style="display:flex;gap:8px;align-items:flex-start;text-align:left;margin:12px auto 0;max-width:460px;cursor:pointer"><input type="checkbox" name="consent" value="yes" required style="margin-top:3px"> <span>I agree that our partner Didit (didit.me) checks my ID document and a selfie, including biometric face matching, to verify my identity for PATREOAIX. See the <a href="{% url 'privacy' %}" style="text-decoration:underline">privacy policy</a>.</span></label>
             </form>
             {% else %}
             <a href="{% url 'kyc_submit' %}" class="kv-btn kv-primary"><i class="fa-solid fa-id-card"></i> Submit documents again</a>
@@ -106,8 +107,9 @@
             <div class="kv-step"><i class="fa-solid fa-face-smile"></i>Take a quick selfie</div>
             <div class="kv-step"><i class="fa-solid fa-bolt"></i>Get verified automatically</div>
         </div>
-        <form method="post" action="{% url 'kyc_auto_start' %}" class="kv-btns">{% csrf_token %}
+        <form method="post" action="{% url 'kyc_auto_start' %}" class="kv-btns" style="flex-direction:column;align-items:center">{% csrf_token %}
             <button class="kv-btn kv-primary" type="submit"><i class="fa-solid fa-shield-halved"></i> Verify my identity</button>
+            <label class="kv-note" style="display:flex;gap:8px;align-items:flex-start;text-align:left;margin:12px auto 0;max-width:460px;cursor:pointer"><input type="checkbox" name="consent" value="yes" required style="margin-top:3px"> <span>I agree that our partner Didit (didit.me) checks my ID document and a selfie, including biometric face matching, to verify my identity for PATREOAIX. See the <a href="{% url 'privacy' %}" style="text-decoration:underline">privacy policy</a>.</span></label>
         </form>
         <p class="kv-note" style="margin-top:14px">Secure check by our verification partner. Your ID images are not stored on PATREOAIX.</p>
     </div>

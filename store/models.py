@@ -2030,3 +2030,15 @@ class P2PFeedback(models.Model):
 
     class Meta:
         unique_together = ['order', 'from_user']
+
+
+
+class DiditWebhookEvent(models.Model):
+    """Didit webhook deliveries already applied (idempotency on event_id, store/kyc_auto.py)."""
+    event_id = models.CharField(max_length=100, unique=True)
+    session_id = models.CharField(max_length=100, blank=True, db_index=True)
+    status = models.CharField(max_length=40, blank=True)
+    received_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.event_id} {self.status}"

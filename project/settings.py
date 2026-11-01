@@ -393,7 +393,7 @@ TELEGRAM_COACH_DAILY = os.getenv('TELEGRAM_COACH_DAILY', '12')       # coach pos
 
 # ── Automatic KYC (store/kyc_auto.py): Didit ID + selfie check; empty = manual upload reviewed by staff ──
 DIDIT_API_KEY = os.getenv('DIDIT_API_KEY', '')
-DIDIT_WORKFLOW_ID = os.getenv('DIDIT_WORKFLOW_ID', '')
+DIDIT_WORKFLOW_ID = os.getenv('DIDIT_WORKFLOW_ID', '')      # optional override; the KYC workflow is set in store/kyc_auto.py
 DIDIT_WEBHOOK_SECRET = os.getenv('DIDIT_WEBHOOK_SECRET', '')
 
 # ── TikTok: signal posters as photo posts (store/tiktok.py has the setup steps) ──

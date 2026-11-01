@@ -5557,6 +5557,9 @@ def kyc_auto_start(request):
         return redirect('kyc_status')
     if not kyc_auto.enabled():
         return redirect('kyc_submit')
+    if request.POST.get('consent') != 'yes' and not (kyc and kyc.provider == 'didit' and kyc.provider_session):
+        messages.error(request, 'Please tick the box to agree to the identity check first.')
+        return redirect('kyc_status')
     try:
         back = (getattr(settings, 'SITE_URL', '') or request.build_absolute_uri('/')).rstrip('/') + reverse('kyc_auto_return')
         session_id, url = kyc_auto.start_session(request.user, back)
@@ -5593,22 +5596,21 @@ def kyc_auto_return(request):
 @csrf_exempt
 @require_POST
 def kyc_webhook(request):
-    """Provider → us when a session changes. The body only names the session; the result is fetched from the API."""
+    """Didit → us when a session changes (signed; the webhook is the source of truth for the decision)."""
     from . import kyc_auto
-    if not kyc_auto.signature_ok(request.body, request.headers.get('X-Signature', '')):
-        logger.info('KYC webhook: signature did not match (the decision is fetched from the API anyway)')
+    body, why = kyc_auto.verify_webhook(request.body, request.headers)
+    if body is None:
+        logger.warning(f'Didit webhook rejected: {why}')
+        return JsonResponse({'ok': False, 'error': why}, status=401)
+    if not kyc_auto.first_delivery(body):
+        return JsonResponse({'ok': True, 'duplicate': True})
     try:
-        data = json.loads(request.body.decode('utf-8') or '{}')
-    except ValueError:
-        return JsonResponse({'ok': False}, status=400)
-    sid = str(data.get('session_id') or '')
-    kyc = KYCProfile.objects.filter(provider='didit', provider_session=sid).first() if sid else None
-    if kyc:
-        try:
-            kyc_auto.refresh(kyc)
-        except Exception as e:
-            logger.warning(f'KYC webhook refresh {kyc.pk}: {e}')
-            return JsonResponse({'ok': False}, status=502)     # the provider retries
+        kyc_auto.handle_webhook(body)
+    except Exception as e:
+        logger.exception(f'Didit webhook {body.get("session_id")}: {e}')
+        from .models import DiditWebhookEvent                    # let Didit retry this event
+        DiditWebhookEvent.objects.filter(event_id=str(body.get('event_id') or '')).delete()
+        return JsonResponse({'ok': False}, status=500)
     return JsonResponse({'ok': True})
 
 
