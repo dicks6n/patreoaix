@@ -4718,7 +4718,7 @@ def notification_settings(request):
     return render(request, 'store/notification-settings.html', {
         'user_profile': user_profile, 'items': items, 'unread': qs.filter(is_read=False).count(),
         'prefs': prefs, 'categories': [(k, t, d, ic, prefs['cats'].get(k, True)) for k, t, d, ic in NP.CATEGORIES],
-        'push_ready': push.enabled(),
+        'push_ready': push.enabled(), 'in_app': 'PatreoaixApp' in request.META.get('HTTP_USER_AGENT', ''),
     })
 
 
@@ -5451,10 +5451,65 @@ def account_leverage_view(request):
         return redirect('trading_accounts')
     return render(request, 'store/account_leverage.html')
 
-@login_required
+# ═══════════════════════════════════════════════════════════════
+# ANDROID APP (android/ → store/static/store/downloads/patreoaix.apk)
+# ═══════════════════════════════════════════════════════════════
+ANDROID_APP = {
+    'package': 'com.patreoaix.app', 'version': '1.0', 'min_android': '7.0',
+    # SHA-256 of the signing certificate (public; the keystore itself is never in the repository)
+    'cert_sha256': '4D:EC:3D:F1:26:47:3F:67:6E:8B:0C:B7:1E:E5:F6:68:B5:E6:B1:6B:E2:48:0D:A3:83:29:CA:34:CD:3B:14:84',
+}
+
+
+def _apk_info():
+    """Path, size and SHA-256 of the APK (cached per file change)."""
+    import hashlib, os
+    from django.contrib.staticfiles import finders
+    from django.core.cache import cache
+    path = finders.find('store/downloads/patreoaix.apk') or os.path.join(settings.STATIC_ROOT, 'store', 'downloads', 'patreoaix.apk')
+    if not path or not os.path.exists(path):
+        return None
+    st = os.stat(path)
+    key = f'apk:{int(st.st_mtime)}:{st.st_size}'
+    info = cache.get(key)
+    if not info:
+        h = hashlib.sha256()
+        with open(path, 'rb') as f:
+            for chunk in iter(lambda: f.read(65536), b''):
+                h.update(chunk)
+        info = {'path': path, 'size_kb': max(1, round(st.st_size / 1024)), 'sha256': h.hexdigest()}
+        cache.set(key, info, 86400)
+    return info
+
+
 def platforms_download_view(request):
-    # Provide links or installers for terminal/trading platforms
-    return render(request, 'store/platforms_download.html')
+    """Public 'Get the app' page: Android APK, iPhone / iPad (Home Screen), computer."""
+    ua = request.META.get('HTTP_USER_AGENT', '')
+    return render(request, 'store/platforms_download.html', {
+        'app': ANDROID_APP, 'apk': _apk_info(), 'in_app': 'PatreoaixApp' in ua,
+        'is_android': 'android' in ua.lower(), 'is_ios': any(k in ua for k in ('iPhone', 'iPad', 'iPod')),
+    })
+
+
+def app_download(request):
+    """The APK itself, with the right type so Android offers to install it."""
+    from django.http import FileResponse
+    info = _apk_info()
+    if not info:
+        raise Http404
+    resp = FileResponse(open(info['path'], 'rb'), content_type='application/vnd.android.package-archive',
+                        as_attachment=True, filename=f"PATREOAIX-{ANDROID_APP['version']}.apk")
+    resp['Cache-Control'] = 'no-cache'
+    return resp
+
+
+def assetlinks(request):
+    """Digital Asset Links: tells Android that com.patreoaix.app belongs to this site (verified links)."""
+    return JsonResponse([{
+        'relation': ['delegate_permission/common.handle_all_urls'],
+        'target': {'namespace': 'android_app', 'package_name': ANDROID_APP['package'],
+                   'sha256_cert_fingerprints': [ANDROID_APP['cert_sha256']]},
+    }], safe=False)
 
 @login_required
 def crypto_wallet_view(request):

@@ -126,6 +126,12 @@
         <div class="nt-card">
             <div class="nt-h"><h2><i class="fa-solid fa-mobile-screen-button"></i> Pop-ups on this device</h2>
                 <p>On iPhone, add PATREOAIX to your Home Screen (Share → Add to Home Screen) and open it from there first. Android and computers work in the browser too.</p></div>
+            {% if in_app %}
+            <div class="nt-dev">
+                <span class="big"><i class="fa-brands fa-android"></i></span>
+                <div class="tx"><b>PATREOAIX Android app</b><small>The app checks for new notifications every 15 minutes and whenever you open it, and shows them as phone notifications. If none arrive, allow notifications for PATREOAIX in your phone's Settings → Apps.</small></div>
+            </div>
+            {% else %}
             <div class="nt-dev">
                 <span class="big"><i class="fa-solid fa-bell"></i></span>
                 <div class="tx"><b>This device: <span class="st" id="ntDevState">checking…</span></b><small id="ntDevHint">{% if not push_ready %}Push is not set up on the server yet (VAPID keys).{% endif %}</small></div>
@@ -134,6 +140,7 @@
                     <button type="button" class="nt-btn ghost sm" id="ntDevTest" hidden><i class="fa-regular fa-paper-plane"></i> Send a test</button>
                 </div>
             </div>
+            {% endif %}
             <div class="nt-row" style="margin-top:8px"><span class="ri"><i class="fa-solid fa-power-off"></i></span><div class="tx"><b>Pop-up notifications</b><small>Master switch for every device you turned on</small></div><label class="nt-sw"><input type="checkbox" name="push" {% if prefs.push %}checked{% endif %}><span></span></label></div>
             <div class="nt-row"><span class="ri"><i class="fa-solid fa-comment-sms"></i></span><div class="tx"><b>SMS alerts</b><small>{% if user_profile.phone_number %}To {{ user_profile.phone_number }} · money movements and security{% else %}<a href="{% url 'profile' %}#personal" style="color:var(--px-accent);font-weight:700">Add your phone</a> to get SMS{% endif %}</small></div><label class="nt-sw"><input type="checkbox" name="sms" {% if user_profile.sms_opt_in and user_profile.phone_number %}checked{% endif %} {% if not user_profile.phone_number %}disabled{% endif %}><span></span></label></div>
         </div>
@@ -208,10 +215,12 @@
     // the site's push helper (window.pxPush) is set up at the end of the page: start once everything is loaded
     document.addEventListener('DOMContentLoaded', initDevice);
     function initDevice() {
+    if (!st) return;                                   // inside the Android app: it has its own notifications
     if (!window.pxPush) { paint('unsupported'); return; }
     {% if not push_ready %}paint('unsupported'); hint.textContent = 'Push is not set up on the server yet (VAPID keys in .env).'; return;{% endif %}
     pxPush.state().then(paint).catch(() => paint('unsupported'));
     }
+    if (!btn) return;                                  // inside the Android app (no device section)
     btn.addEventListener('click', () => {
         btn.disabled = true;
         (btn.textContent === 'Turn off' ? pxPush.disable() : pxPush.enable()).then(paint).catch(e => { alert(e.message); pxPush.state().then(paint); });

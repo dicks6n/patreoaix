@@ -870,6 +870,9 @@
                     <a href="{% url 'profile' %}" class="nav-item {% if request.resolver_match.url_name == 'profile' %}nav-active{% endif %}">
                         <i class="fa-solid fa-user-shield"></i><span>Profile &amp; Security</span>
                     </a>
+                    <a href="{% url 'platforms_download' %}" class="nav-item {% if request.resolver_match.url_name == 'platforms_download' %}nav-active{% endif %}">
+                        <i class="fa-brands fa-android"></i><span>Get the app</span><span class="nav-pill">NEW</span>
+                    </a>
                     <a href="{% url 'kyc_status' %}" class="nav-item {% if request.resolver_match.url_name == 'kyc_status' %}nav-active{% endif %}">
                         <i class="fa-solid fa-id-card"></i><span>Verification (KYC)</span>
                     </a>

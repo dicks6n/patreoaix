@@ -1,54 +1,192 @@
-{% extends 'base_dashboard.html' %}
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Get the PATREOAIX app · Android, iPhone and computer</title>
+<meta name="description" content="Download PATREOAIX for Android (APK), or add it to your iPhone or iPad Home Screen. Trading, P2P, wallet and alerts in one app.">
+<meta name="theme-color" content="#0b0d12">
+<link rel="icon" href="{% static 'store/icons/favicon-32.png' %}">
+<link rel="apple-touch-icon" href="{% static 'store/icons/apple-touch-icon.png' %}">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+    :root { --bg: #0b0d12; --panel: #12161f; --panel2: #171c27; --line: #232a38; --text: #e8ecf3; --dim: #aab2c3; --mute: #7d8699; --gold: #f5b301; --up: #16c784; }
+    * { box-sizing: border-box; }
+    html { overflow-x: hidden; -webkit-text-size-adjust: 100%; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+    a { color: inherit; text-decoration: none; }
+    .wrap { max-width: 1040px; margin: 0 auto; padding: 0 18px; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 16px 0; }
+    .brand { display: flex; align-items: center; gap: 9px; font-weight: 900; letter-spacing: .02em; }
+    .brand img { width: 30px; height: 30px; border-radius: 8px; }
+    .brand b { color: var(--gold); }
+    .hbtn { padding: 9px 14px; border-radius: 10px; font-size: 13px; font-weight: 800; border: 1px solid var(--line); background: var(--panel); }
+    .hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 28px; align-items: center; padding: 34px 0 30px; }
+    .hero h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.1; margin: 14px 0 10px; font-weight: 900; letter-spacing: -.02em; }
+    .hero h1 span { color: var(--gold); }
+    .hero p { color: var(--dim); font-size: 16px; margin: 0 0 22px; max-width: 520px; }
+    .pill { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 800; background: rgba(245,179,1,.1); color: var(--gold); border: 1px solid rgba(245,179,1,.35); }
+    .dl { display: inline-flex; align-items: center; gap: 12px; padding: 14px 22px; border-radius: 14px; background: var(--gold); color: #0b0e14; font-weight: 900; font-size: 16px; box-shadow: 0 12px 30px rgba(245,179,1,.25); }
+    .dl i { font-size: 24px; }
+    .dl small { display: block; font-size: 11.5px; font-weight: 700; opacity: .75; }
+    .meta { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 14px; font-size: 12.5px; color: var(--mute); }
+    .meta span { display: inline-flex; align-items: center; gap: 6px; }
+    .phone { justify-self: center; width: 250px; height: 500px; border-radius: 40px; background: #050608; border: 8px solid #1d2230; box-shadow: 0 30px 80px rgba(0,0,0,.6), 0 0 0 1px #2a3142;
+             position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
+    .phone::before { content: ''; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 80px; height: 22px; border-radius: 12px; background: #000; }
+    .phone img { width: 92px; height: 92px; border-radius: 24px; box-shadow: 0 10px 30px rgba(245,179,1,.3); }
+    .phone b { font-size: 19px; letter-spacing: .04em; } .phone b em { color: var(--gold); font-style: normal; }
+    .phone .bars { position: absolute; bottom: 0; left: 0; right: 0; height: 130px; display: flex; align-items: flex-end; gap: 7px; padding: 0 18px 22px; opacity: .55; }
+    .phone .bars i { flex: 1; border-radius: 3px; background: linear-gradient(var(--up), transparent); }
+    .phone .bars i:nth-child(3n) { background: linear-gradient(#ea3943, transparent); }
+    section { padding: 22px 0; }
+    h2 { font-size: 22px; margin: 0 0 6px; font-weight: 900; } .sub { color: var(--mute); font-size: 14px; margin: 0 0 18px; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 18px; min-width: 0; }
+    .card h3 { margin: 10px 0 4px; font-size: 15.5px; } .card p { margin: 0; color: var(--dim); font-size: 13.5px; }
+    .ic { width: 42px; height: 42px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: var(--panel2); color: var(--gold); font-size: 17px; }
+    .steps { counter-reset: s; display: grid; gap: 10px; }
+    .step { display: flex; gap: 14px; align-items: flex-start; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; }
+    .step::before { counter-increment: s; content: counter(s); flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--gold); color: #0b0e14; font-weight: 900; display: flex; align-items: center; justify-content: center; }
+    .step b { display: block; font-size: 14.5px; } .step span { color: var(--dim); font-size: 13.5px; }
+    .tabs { display: flex; gap: 6px; padding: 4px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); margin-bottom: 14px; overflow-x: auto; }
+    .tabs button { flex: 1; min-width: max-content; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 14px; border-radius: 10px; border: 0; background: none; color: var(--dim); font: 800 13.5px/1 inherit; cursor: pointer; }
+    .tabs button.on { background: var(--gold); color: #0b0e14; }
+    .pane { display: none; } .pane.on { display: block; }
+    .note { margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: rgba(245,179,1,.07); border: 1px solid rgba(245,179,1,.25); color: var(--dim); font-size: 13px; }
+    .note b { color: var(--text); }
+    .fp { font: 12px/1.6 'JetBrains Mono', ui-monospace, monospace; color: var(--dim); word-break: break-all; background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-top: 6px; }
+    details { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; }
+    summary { cursor: pointer; font-weight: 800; font-size: 14.5px; } details p { color: var(--dim); font-size: 13.5px; margin: 10px 0 0; }
+    footer { padding: 26px 0 40px; color: var(--mute); font-size: 12.5px; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; border-top: 1px solid var(--line); margin-top: 20px; }
+    footer a { color: var(--dim); margin-right: 12px; }
+    @media (max-width: 820px) { .hero { grid-template-columns: 1fr; text-align: center; } .hero p { margin-left: auto; margin-right: auto; } .meta { justify-content: center; } .phone { width: 210px; height: 400px; } .grid { grid-template-columns: 1fr; } }
+    @media (min-width: 560px) and (max-width: 820px) { .grid { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header>
+        <a href="/" class="brand"><img src="{% static 'store/icons/icon-192.png' %}" alt="">PATREO<b>AIX</b></a>
+        {% if user.is_authenticated %}<a class="hbtn" href="/">Back to dashboard</a>{% else %}<a class="hbtn" href="{% url 'account_login' %}">Log in</a>{% endif %}
+    </header>
 
-{% block title %}Platform Downloads - PATREOAIX{% endblock %}
-
-{% block content %}
-<div class="max-w-4xl mx-auto py-6 px-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
-        <div class="mb-6 pb-4 border-b border-slate-800">
-            <h2 class="text-xl font-bold text-white tracking-wide">Trading Platforms</h2>
-            <p class="text-xs text-slate-400 mt-0.5">Download our professional desktop and mobile trading applications</p>
+    <div class="hero">
+        <div>
+            <span class="pill"><i class="fa-brands fa-android"></i> New · Android app</span>
+            <h1>PATREOAIX in your <span>pocket</span></h1>
+            <p>Trade, follow AI signals, buy and sell on P2P, and get alerts for deposits, trades and P2P orders, in one app.</p>
+            {% if in_app %}
+            <span class="dl" style="background:var(--up);color:#fff;box-shadow:none"><i class="fa-solid fa-circle-check"></i><span>You're using the app<small>Version {{ app.version }}</small></span></span>
+            {% elif apk %}
+            <a class="dl" href="{% url 'app_download' %}" id="dlBtn"><i class="fa-brands fa-android"></i><span>Download for Android<small>APK · {{ apk.size_kb }} KB · Android {{ app.min_android }}+</small></span></a>
+            {% else %}
+            <span class="dl" style="opacity:.6">The Android app is being updated: check back soon</span>
+            {% endif %}
+            <div class="meta">
+                <span><i class="fa-solid fa-code-branch"></i> Version {{ app.version }}</span>
+                <span><i class="fa-solid fa-shield-halved"></i> Signed by PATREOAIX</span>
+                <span><i class="fa-brands fa-apple"></i> iPhone: <a href="#install" data-os="ios" style="color:var(--gold);font-weight:700">Home Screen app</a></span>
+            </div>
         </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
-            <!-- Desktop Terminal -->
-            <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 flex flex-col justify-between">
-                <div>
-                    <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 font-bold mb-4">
-                        <i class="fa-solid fa-desktop text-base"></i>
-                    </div>
-                    <h3 class="font-sans font-bold text-white text-sm mb-1">Desktop Terminal (MT4/MT5)</h3>
-                    <p class="font-sans text-slate-400 text-xs mb-4">Advanced charting, automated trading with EAs, and high-speed execution for Windows and macOS.</p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <a href="#" class="flex-1 py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-center transition shadow cursor-pointer">
-                        Windows
-                    </a>
-                    <a href="#" class="flex-1 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-center transition border border-slate-700 cursor-pointer">
-                        macOS
-                    </a>
-                </div>
-            </div>
-
-            <!-- Mobile Applications -->
-            <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 flex flex-col justify-between">
-                <div>
-                    <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold mb-4">
-                        <i class="fa-solid fa-mobile-screen text-base"></i>
-                    </div>
-                    <h3 class="font-sans font-bold text-white text-sm mb-1">Mobile Trading Apps</h3>
-                    <p class="font-sans text-slate-400 text-xs mb-4">Manage your trades, monitor live charts, and execute orders on the go with our iOS and Android apps.</p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <a href="#" class="flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-center transition shadow cursor-pointer">
-                        App Store
-                    </a>
-                    <a href="#" class="flex-1 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-center transition border border-slate-700 cursor-pointer">
-                        Google Play
-                    </a>
-                </div>
-            </div>
+        <div class="phone" aria-hidden="true">
+            <img src="{% static 'store/icons/icon-512.png' %}" alt="">
+            <b>PATREO<em>AIX</em></b>
+            <div class="bars">{% for h in "64837591624738"|make_list %}<i style="height:{{ h }}0%"></i>{% endfor %}</div>
         </div>
     </div>
+
+    <section>
+        <h2>What's in the app</h2>
+        <p class="sub">Everything on the website, made for your phone.</p>
+        <div class="grid">
+            <div class="card"><span class="ic"><i class="fa-solid fa-chart-column"></i></span><h3>MT5-style terminal</h3><p>Quotes, charts with the timeframe wheel and drawing tools, buy and sell in one tap.</p></div>
+            <div class="card"><span class="ic"><i class="fa-solid fa-bell"></i></span><h3>Notifications</h3><p>Deposits, trades, P2P orders, signals and security alerts arrive as phone notifications.</p></div>
+            <div class="card"><span class="ic"><i class="fa-solid fa-people-arrows"></i></span><h3>P2P and wallet</h3><p>Buy and sell USDT, BTC and ETH with M-Pesa, MoMo and banks; send money to any user.</p></div>
+            <div class="card"><span class="ic"><i class="fa-solid fa-brain"></i></span><h3>AI signals</h3><p>Graded setups with entry, stop and target, and AI that reads your chart screenshots.</p></div>
+            <div class="card"><span class="ic"><i class="fa-solid fa-camera"></i></span><h3>Uploads from your phone</h3><p>KYC documents, payment proofs and chart screenshots straight from your gallery or camera.</p></div>
+            <div class="card"><span class="ic"><i class="fa-solid fa-lock"></i></span><h3>Same secure account</h3><p>Sign in with your usual email and password; everything stays in sync with the website.</p></div>
+        </div>
+    </section>
+
+    <section id="install">
+        <h2>How to install</h2>
+        <p class="sub">Choose your device.</p>
+        <div class="tabs" role="tablist">
+            <button type="button" data-os="android" class="on"><i class="fa-brands fa-android"></i> Android</button>
+            <button type="button" data-os="ios"><i class="fa-brands fa-apple"></i> iPhone &amp; iPad</button>
+            <button type="button" data-os="desktop"><i class="fa-solid fa-display"></i> Computer</button>
+        </div>
+        <div class="pane on" data-pane="android">
+            <div class="steps">
+                <div class="step"><div><b>Download the APK</b><span>Tap <b style="display:inline">Download for Android</b> above. If the browser asks, choose <b style="display:inline">Download anyway</b>.</span></div></div>
+                <div class="step"><div><b>Open the file</b><span>Open it from the notification or from your Downloads folder.</span></div></div>
+                <div class="step"><div><b>Allow the install</b><span>Android asks once to allow installs from your browser: tap <b style="display:inline">Settings → Allow from this source</b>, then go back.</span></div></div>
+                <div class="step"><div><b>Install and open</b><span>Tap Install, then Open. Sign in with your PATREOAIX account.</span></div></div>
+                <div class="step"><div><b>Allow notifications</b><span>Tap Allow when the app asks, so deposits, trades and P2P orders pop up on your phone.</span></div></div>
+            </div>
+            <div class="note"><b>"Unknown app" warning?</b> Android shows it for every app that is not from the Play Store. The app is signed by PATREOAIX: only download it from <b>patreoaix.com</b>, and check the fingerprint below if you want to be sure.</div>
+            {% if apk %}<p style="text-align:center;margin-top:16px"><a class="dl" href="{% url 'app_download' %}"><i class="fa-solid fa-download"></i><span>Download APK<small>{{ apk.size_kb }} KB</small></span></a></p>{% endif %}
+        </div>
+        <div class="pane" data-pane="ios">
+            <div class="steps">
+                <div class="step"><div><b>Open patreoaix.com in Safari</b><span>It must be Safari (Chrome on iPhone cannot add web apps to the Home Screen).</span></div></div>
+                <div class="step"><div><b>Tap Share</b><span>The square with an arrow, at the bottom of the screen (top right on iPad).</span></div></div>
+                <div class="step"><div><b>Add to Home Screen</b><span>Scroll down, tap <b style="display:inline">Add to Home Screen</b>, then Add.</span></div></div>
+                <div class="step"><div><b>Open it from the Home Screen</b><span>It runs full screen like an app. Tap <b style="display:inline">Turn on</b> when it offers notifications (iOS 16.4 or newer).</span></div></div>
+            </div>
+        </div>
+        <div class="pane" data-pane="desktop">
+            <div class="steps">
+                <div class="step"><div><b>Use Chrome or Edge</b><span>Open patreoaix.com and sign in.</span></div></div>
+                <div class="step"><div><b>Install</b><span>Click the install icon in the address bar, or the <b style="display:inline">Install</b> button below. It opens in its own window with its own icon.</span></div></div>
+                <div class="step"><div><b>Turn on notifications</b><span>Notifications → Settings → Pop-ups on this device → Turn on.</span></div></div>
+            </div>
+            <p style="text-align:center;margin-top:16px"><button type="button" class="dl" id="pwaBtn" style="border:0;cursor:pointer" hidden><i class="fa-solid fa-display"></i><span>Install on this computer</span></button></p>
+        </div>
+    </section>
+
+    {% if apk %}
+    <section>
+        <h2>Check that the file is genuine</h2>
+        <p class="sub">Advanced: compare these with what your phone or a checker app shows.</p>
+        <div class="card">
+            <b style="font-size:13px">APK file SHA-256</b><div class="fp">{{ apk.sha256 }}</div>
+            <b style="font-size:13px;display:block;margin-top:12px">Signing certificate SHA-256</b><div class="fp">{{ app.cert_sha256 }}</div>
+            <p style="margin-top:12px;font-size:12.5px;color:var(--mute)">Package: {{ app.package }} · Version {{ app.version }} · Android {{ app.min_android }} or newer</p>
+        </div>
+    </section>
+    {% endif %}
+
+    <section>
+        <h2>Questions</h2>
+        <details><summary>Is it free?</summary><p>Yes. The app is free; your plan (Starter, Pro or VIP) is the same as on the website.</p></details>
+        <details><summary>Why isn't it on the Play Store yet?</summary><p>It's distributed directly from patreoaix.com for now. Updates are announced in the app and on our Telegram channel; download the new APK and install it over the old one, your login stays.</p></details>
+        <details><summary>How often do notifications arrive?</summary><p>The Android app checks for new notifications every 15 minutes and as soon as you open it. On Chrome or the Home Screen app, notifications arrive instantly.</p></details>
+        <details><summary>Does it use a lot of data or battery?</summary><p>No. It's a light app (under 100 KB) and the background check is a tiny request every 15 minutes.</p></details>
+    </section>
+
+    <footer>
+        <div><a href="{% url 'legal' %}">Legal</a><a href="{% url 'legal_doc' 'privacy' %}">Privacy</a><a href="{% url 'legal_doc' 'terms' %}">Terms</a><a href="/support/">Support</a></div>
+        <div>© {% now "Y" %} PATREOAIX · Trading involves risk.</div>
+    </footer>
 </div>
-{% endblock %}
+<script>
+(function () {
+    // tabs, opened for the visitor's device
+    const tabs = [...document.querySelectorAll('.tabs button')], panes = [...document.querySelectorAll('.pane')];
+    function show(os) { tabs.forEach(t => t.classList.toggle('on', t.dataset.os === os)); panes.forEach(p => p.classList.toggle('on', p.dataset.pane === os)); }
+    tabs.forEach(t => t.addEventListener('click', () => show(t.dataset.os)));
+    document.querySelectorAll('a[data-os]').forEach(a => a.addEventListener('click', () => show(a.dataset.os)));
+    show({% if is_ios %}'ios'{% elif is_android %}'android'{% else %}'desktop'{% endif %});
+    // computers: real install prompt when the browser offers one
+    let ev = null; const btn = document.getElementById('pwaBtn');
+    window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); ev = e; btn.hidden = false; });
+    btn.addEventListener('click', () => { if (ev) { ev.prompt(); ev.userChoice.finally(() => { ev = null; btn.hidden = true; }); } });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+})();
+</script>
+</body>
+</html>

@@ -18,3 +18,10 @@ media/kyc_documents/
 .tiktok.json
 media/p2p_proofs/
 media/avatars/
+
+# Android app build output and signing keys (never commit keys)
+android/build/
+*.p12
+*.jks
+*.keystore
+keystore-password.txt

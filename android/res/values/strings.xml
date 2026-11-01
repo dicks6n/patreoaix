@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PATREOAIX</string>
+    <string name="channel_name">Account alerts</string>
+    <string name="channel_desc">Deposits, trades, P2P orders, signals and security alerts</string>
+</resources>
