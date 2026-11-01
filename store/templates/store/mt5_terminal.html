@@ -64,7 +64,8 @@ try {
 div.lg\:hidden.fixed.bottom-0, footer { display: none !important; }
 main { padding: 0 !important; }
 
-    @media (min-width: 768px) {
+    /* Computer screens (mouse) keep the phone-width column; touch tablets (iPad, Android tablets) use the full width */
+    @media (min-width: 768px) and (hover: hover) and (pointer: fine) {
         body { background: var(--m-bg-wide) !important; }
         #mt5-app, .mt5-order-panel, #mt5-dom-modal, #mt5-symbols-panel, #mt5-ind-panel,
         #mt5-ind-edit, #mt5-journal-panel {
@@ -574,10 +575,10 @@ main { padding: 0 !important; }
         overflow-y: auto;
     }
     .mt5-order-panel.show { display: flex; }
-    .mt5-op-header { position: relative; padding: 20px 16px 12px; display: flex;
+    .mt5-op-header { position: relative; padding: calc(20px + env(safe-area-inset-top, 0px)) 16px 12px; display: flex;
         align-items: center; justify-content: center; flex-shrink: 0; }
     .mt5-op-back {
-        position: absolute; left: 16px; top: 20px; width: 40px; height: 40px;
+        position: absolute; left: 16px; top: calc(20px + env(safe-area-inset-top, 0px)); width: 40px; height: 40px;
         border-radius: 50%; background: var(--m-panel); border: none; color: var(--m-text);
         font-size: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer;
     }
@@ -649,7 +650,9 @@ main { padding: 0 !important; }
     .mt5-op-price .big { font-size: 34px; font-weight: 700; }
     .mt5-op-price sup  { font-size: 15px; vertical-align: super; }
 
-    .mt5-op-buttons { display: grid; grid-template-columns: 1fr 1fr; flex-shrink: 0; }
+    /* Buy / Sell stay on screen on short phones and in landscape (the rest of the panel scrolls behind them) */
+    .mt5-op-buttons { display: grid; grid-template-columns: 1fr 1fr; flex-shrink: 0; position: sticky; bottom: 0; z-index: 3;
+        background: var(--m-bg); padding-bottom: env(safe-area-inset-bottom, 0px); }
     .mt5-op-sell, .mt5-op-buy {
         padding: 22px 12px; border: none; font-size: 17px; font-weight: 600;
         font-family: inherit; color: #fff; cursor: pointer;

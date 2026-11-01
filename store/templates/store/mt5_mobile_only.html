@@ -8,7 +8,8 @@
     (function () {
         var touch = (navigator.maxTouchPoints || 0) > 0 || (window.matchMedia && matchMedia('(pointer: coarse)').matches);
         var shortSide = Math.min(screen.width || 9999, screen.height || 9999);
-        var phone = (navigator.userAgentData && navigator.userAgentData.mobile) || (touch && shortSide <= 540);
+        // phones and tablets: iPadOS Safari reports a Mac, but a Mac has no touch screen
+        var phone = (navigator.userAgentData && navigator.userAgentData.mobile) || (touch && shortSide <= 1100);
         window.pxSetPhone = function () {
             document.cookie = 'px_phone=1; path=/; max-age=31536000; samesite=lax';
             location.replace('{{ terminal_url|escapejs }}');
@@ -40,7 +41,7 @@
     <p>Scan this code with your phone's camera, or open the link below on your phone, and log in with the same account.</p>
     <div id="mt5-qr"></div>
     <div class="url">{{ terminal_url }}</div>
-    <button type="button" class="phone-btn" onclick="pxSetPhone()"><i class="fa-solid fa-mobile-screen-button"></i> I'm on my phone: open the terminal</button>
+    <button type="button" class="phone-btn" onclick="pxSetPhone()"><i class="fa-solid fa-mobile-screen-button"></i> I'm on my phone or tablet: open the terminal</button>
     <div class="hint">Already on a phone? Tap the button above, or turn off "Request desktop site" in your browser menu and reload.</div>
 </div>
 

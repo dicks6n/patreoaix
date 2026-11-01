@@ -4,11 +4,30 @@ from django.conf import settings
 from .models import KYCProfile
 
 
+def _social_logins():
+    """Google / Apple sign-in only when the provider is set up (Social applications in admin, or settings),
+    otherwise the buttons would lead to an error page."""
+    from django.core.cache import cache
+    hit = cache.get('social_logins')
+    if hit is not None:
+        return hit
+    found = {k: bool((getattr(settings, 'SOCIALACCOUNT_PROVIDERS', {}).get(k) or {}).get('APP') or
+                     (getattr(settings, 'SOCIALACCOUNT_PROVIDERS', {}).get(k) or {}).get('APPS')) for k in ('google', 'apple')}
+    try:
+        from allauth.socialaccount.models import SocialApp
+        for k in SocialApp.objects.filter(provider__in=['google', 'apple']).values_list('provider', flat=True):
+            found[k] = True
+    except Exception:
+        pass
+    cache.set('social_logins', found, 300)
+    return found
+
+
 def site_flags(request):
     """Server capabilities the pages adapt to (websockets are off on hosts like PythonAnywhere)."""
     return {'websockets_enabled': getattr(settings, 'WEBSOCKETS_ENABLED', True),
             'deriv_ws_app_id': getattr(settings, 'DERIV_WS_APP_ID', '1089'),
-            'deriv_public_ws_url': _deriv_public_ws()}
+            'deriv_public_ws_url': _deriv_public_ws(), 'social_logins': _social_logins()}
 
 
 def membership(request):

@@ -586,7 +586,7 @@
     function initChart() {
         const L = window.LightweightCharts;
         if (!L) { chartMsg('Chart library failed to load'); return; }
-        chart = L.createChart($('px-chart'), Object.assign({ autoSize: true }, chartColors()));
+        chart = L.createChart($('px-chart'), Object.assign({ autoSize: true, handleScroll: { vertTouchDrag: false } }, chartColors()));
         series = chart.addCandlestickSeries({
             upColor: css('--px-up'), downColor: css('--px-down'), borderVisible: false,
             wickUpColor: css('--px-up'), wickDownColor: css('--px-down'),

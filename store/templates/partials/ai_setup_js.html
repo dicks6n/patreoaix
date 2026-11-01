@@ -70,7 +70,7 @@ window.AISetup = (function () {
     }
     function ensureChart() {
         if (chart || !window.LightweightCharts) return !!chart;
-        chart = LightweightCharts.createChart($('ai-chart'), Object.assign({ autoSize: true }, chartColors()));
+        chart = LightweightCharts.createChart($('ai-chart'), Object.assign({ autoSize: true, handleScroll: { vertTouchDrag: false } }, chartColors()));
         candles = chart.addCandlestickSeries({ upColor: css('--px-up'), downColor: css('--px-down'), borderVisible: false, wickUpColor: css('--px-up'), wickDownColor: css('--px-down') });
         e20 = chart.addLineSeries({ color: '#f0b90b', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
         e50 = chart.addLineSeries({ color: '#60a5fa', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });

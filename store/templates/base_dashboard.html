@@ -3,7 +3,7 @@
 <head>
     {% include 'partials/ws_guard.html' %}
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#0b0d12">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -463,8 +463,24 @@
         }
 
         @media (max-width: 1023px) {
-            body { padding-bottom: 88px; }
+            body { padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
         }
+
+        /* iPhone notch / Dynamic Island / home bar, Android cut-outs (viewport-fit=cover):
+           the installed app draws under the status bar, so the header and the drawer start below it,
+           and landscape keeps content clear of the side cut-outs. */
+        header#px-header {
+            height: calc(3.5rem + env(safe-area-inset-top)) !important;
+            padding-top: env(safe-area-inset-top);
+            padding-left: max(0.75rem, env(safe-area-inset-left));
+            padding-right: max(0.75rem, env(safe-area-inset-right));
+        }
+        #sidebar { padding-top: env(safe-area-inset-top); padding-left: env(safe-area-inset-left); }
+        #px-main { padding-left: max(1rem, env(safe-area-inset-left)); padding-right: max(1rem, env(safe-area-inset-right)); }
+        .px-tabbar { padding-left: max(0.5rem, env(safe-area-inset-left)) !important; padding-right: max(0.5rem, env(safe-area-inset-right)) !important; }
+        @media (min-width: 640px) { #px-main { padding-left: max(1.25rem, env(safe-area-inset-left)); padding-right: max(1.25rem, env(safe-area-inset-right)); } }
+        @media (min-width: 1024px) { #px-main { padding-left: 1.5rem; padding-right: 1.5rem; } }
+        html { -webkit-text-size-adjust: 100%; }
 
         @media (max-width: 1023px) {
             #sidebar { transform: translateX(-100%); }
@@ -514,6 +530,9 @@
             #px-header > .ml-auto { gap:6px; min-width:0; }
         }
         @media (max-width:374px) { #px-header .px-wordmark { display:none; } }
+        /* tablets (the bottom bar has the Trade button): keep the header on one line */
+        @media (max-width:1023px) { #px-header .hdr-trade { display:none; } }
+        #px-header > .ml-auto { min-width: 0; }
         .nav-section-label {
             padding: 0 12px; margin-bottom: 6px;
             font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
@@ -937,7 +956,7 @@
                     <div id="market-status-badge" class="px-pill whitespace-nowrap" title="">
                         <span id="market-status-dot" class="px-dot"></span>
                         <span id="market-status-text">Checking markets…</span>
-                        <span id="market-status-subtext" class="hidden lg:inline font-mono" style="color:var(--px-mute)"></span>
+                        <span id="market-status-subtext" class="hidden xl:inline font-mono" style="color:var(--px-mute)"></span>
                     </div>
                 </div>
 
@@ -1017,7 +1036,7 @@
             </div>
         </div>
 
-        <main class="p-4 sm:p-5 lg:p-6 flex-1 w-full max-w-[1600px] mx-auto">
+        <main id="px-main" class="p-4 sm:p-5 lg:p-6 flex-1 w-full max-w-[1600px] mx-auto">
             {% if kyc_status and kyc_status != 'APPROVED' %}
             <div id="kyc-banner"
                  class="kyc-banner mb-5 {% if kyc_status == 'PENDING' %}kyc-pending{% elif kyc_status == 'REJECTED' %}kyc-rejected{% else %}kyc-required{% endif %} p-4 flex items-center gap-4"

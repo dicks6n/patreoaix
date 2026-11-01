@@ -1752,6 +1752,7 @@ async function initLightweightChart() {
     lwActiveLines = {};
 
     lwChart = LightweightCharts.createChart(container, {
+        handleScroll: { vertTouchDrag: false },   // phones: up/down swipes over the chart scroll the page
         layout: { background: { color: chartBg() }, textColor: '#94a3b8' },
         grid: {
             vertLines: { color: 'rgba(30, 41, 59, 0.5)' },
@@ -4419,7 +4420,7 @@ function setupChartInteractions() {
         if (!dragging) return;
         const { t, start } = dragging;
         dragging = null;
-        lwChart.applyOptions({ handleScroll: true, handleScale: true });
+        lwChart.applyOptions({ handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false }, handleScale: true });
         hint.classList.add('hidden');
         if (t.price !== start) t.onDrop(t.price, start);
         if (redrawWanted) { redrawWanted = false; drawTradeLines(); }

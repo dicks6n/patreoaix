@@ -3037,7 +3037,7 @@ def open_trade(request):
         )
         messages.success(request, "Trade opened")
         return redirect('my_trades')
-    return redirect('home')
+    return redirect('dashboard')
 
 
 def _live_digit_ticks(symbol, count):
@@ -11290,3 +11290,18 @@ def api_prop_accounts(request):
              'balance': float(a.balance), 'size': a.size, 'funded': a.phase == 'funded'}
             for a in PropAccount.objects.filter(user=request.user, status='ACTIVE')]
     return JsonResponse({'success': True, 'accounts': rows})
+
+
+def hidden_admin_login(request):
+    """Staff-only pages redirect here when the visitor is not staff. Logged out → the normal sign-in page
+    (then back); logged in without staff rights → 404, so the admin stays hidden."""
+    from django.contrib.auth.views import redirect_to_login
+    from django.utils.http import url_has_allowed_host_and_scheme
+    nxt = request.GET.get('next') or '/'
+    if not url_has_allowed_host_and_scheme(nxt, allowed_hosts={request.get_host()}):
+        nxt = '/'
+    if not request.user.is_authenticated:
+        return redirect_to_login(nxt)
+    if request.user.is_staff:
+        return redirect(nxt)
+    raise Http404

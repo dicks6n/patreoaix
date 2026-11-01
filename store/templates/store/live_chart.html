@@ -141,6 +141,7 @@
 const container = document.getElementById('chart-container');
 
 const chart = LightweightCharts.createChart(container, {
+    handleScroll: { vertTouchDrag: false },   // phones: up/down swipes over the chart scroll the page
     layout: { background: { color: '#0a0e17' }, textColor: '#94a3b8' },
     grid: {
         vertLines: { color: 'rgba(30, 41, 59, 0.5)' },

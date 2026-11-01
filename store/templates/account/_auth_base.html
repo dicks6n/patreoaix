@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{% block title %}Account{% endblock %} - PATREOAIX</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -14,6 +14,7 @@
         .px-err { background: rgba(244,63,94,.1); border: 1px solid rgba(244,63,94,.3); color: #fda4af; }
         .px-okbox { background: rgba(16,185,129,.1); border: 1px solid rgba(16,185,129,.3); color: #6ee7b7; }
     </style>
+<style>/* notch / Dynamic Island / home bar */ body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); } @supports (-webkit-touch-callout: none) { input, select, textarea { font-size: 16px !important; } } /* iPhone: no zoom when typing */</style>
 </head>
 <body class="bg-[#090d16] text-slate-100 font-sans min-h-screen flex flex-col justify-between">
     {% include 'partials/ai_background.html' %}

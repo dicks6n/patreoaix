@@ -83,14 +83,18 @@ def _f(v):
 # ═══════════════════════════════════════════════════════════════
 def is_mobile_phone(request):
     """
-    True for phones (tablets and desktops are not phones). Detects the device, not just the browser text:
+    True for phones and tablets (touch devices; desktops get the "open on your phone" page). Detects the device:
       - user-agent says mobile / iPhone
       - Chrome's client hint Sec-CH-UA-Mobile: ?1 (sent even when the UA string is reduced)
       - px_phone cookie: set by mt5_mobile_only.html after checking the real screen + touch, so an
-        iPhone with "Request Desktop Website" or an Android phone in desktop mode still gets the terminal
+        iPhone with "Request Desktop Website", an iPad (iPadOS Safari says "Macintosh") or an Android device in
+        desktop mode still gets the terminal
     """
     from .middleware import parse_user_agent
-    if parse_user_agent(request.META.get('HTTP_USER_AGENT', ''))['device_type'] == 'mobile':
+    ua = request.META.get('HTTP_USER_AGENT', '')
+    if parse_user_agent(ua)['device_type'] in ('mobile', 'tablet'):      # phones and tablets (iPad, Android tablets)
+        return True
+    if 'android' in ua.lower():                                         # Android tablets don't say "mobile"
         return True
     if request.META.get('HTTP_SEC_CH_UA_MOBILE') == '?1':
         return True

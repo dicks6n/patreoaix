@@ -20,6 +20,8 @@ urlpatterns = [
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
+    # the hidden admin's own login page crashes (hide_admin + current Django); staff-only pages send people here
+    path('admin/login/', views.hidden_admin_login, name='hidden_admin_login'),
     path('admin/', admin.site.urls),
 
 ]

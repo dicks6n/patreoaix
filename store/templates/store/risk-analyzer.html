@@ -246,6 +246,7 @@
         const chartContainer = document.getElementById('chart-container');
         if (chartContainer) {
             const chart = LightweightCharts.createChart(chartContainer, {
+                handleScroll: { vertTouchDrag: false },   // phones: up/down swipes scroll the page
                 width: chartContainer.clientWidth || 700,
                 height: chartContainer.clientHeight || 440,
                 layout: {

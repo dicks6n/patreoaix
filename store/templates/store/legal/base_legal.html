@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>{% block title %}{% endblock %} · PATREOAIX</title>
 <meta name="description" content="{% block description %}PATREOAIX legal documents and policies.{% endblock %}">
 {% include 'partials/pwa_head.html' %}
@@ -35,6 +35,7 @@
   footer { border-top:1px solid var(--line); color:var(--muted); font-size:13px; text-align:center; padding:24px 16px; }
   @media (max-width: 820px) { .wrap { grid-template-columns:1fr; gap:16px; } aside { position:static; } aside div { display:flex; flex-wrap:wrap; gap:4px; } aside a { padding:6px 10px; border:1px solid var(--line); font-size:13px; } .top nav a { margin-left:10px; } h1 { font-size:25px; } }
 </style>
+<style>/* notch / Dynamic Island / home bar */ body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); } @supports (-webkit-touch-callout: none) { input, select, textarea { font-size: 16px !important; } } /* iPhone: no zoom when typing */</style>
 </head>
 <body>
 <div class="top"><div><a class="brand" href="/">PATREO<span>AIX</span></a><nav><a href="/">Home</a><a href="{% url 'legal' %}">Legal</a><a href="/#contact">Contact</a></nav></div></div>
