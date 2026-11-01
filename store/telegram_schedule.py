@@ -6,8 +6,12 @@ Run by the background scanner after every pass (manage.py run_background → sig
 nothing else. Times are in TELEGRAM_TIMEZONE (default: the site's TIME_ZONE, Africa/Nairobi).
 
   ☀️ Morning brief       TELEGRAM_BRIEF_HOUR (8)    AI bias of the main markets + today's high-impact news
-  📊 Market pulse        when the channel has been quiet for TELEGRAM_PULSE_HOURS (3), 07:00–23:00 only
-  ⚠️ News alert          30 minutes before each high-impact economic event
+  📊 Market pulse        when the channel has been quiet for TELEGRAM_PULSE_HOURS (3), within TELEGRAM_ACTIVE_HOURS
+                         (0-24 = around the clock)
+  ⚠️ News alerts         TELEGRAM_NEWS_LEAD_MINUTES (60,15) before each high-impact event, with the AI bias and
+                         any live signal on the pairs it moves
+  🔴 Released            as soon as the actual figure is out: actual vs forecast + what the AI sees now
+  🗓 Week ahead          TELEGRAM_WEEK_DAY (0 = Monday) at the brief hour: every high-impact event of the week
   🏁 Daily results       TELEGRAM_RECAP_HOUR (22)   image card: today's closed signals, wins, losses, net R
   🏆 Weekly report       TELEGRAM_WEEKLY_DAY (6 = Sunday) at TELEGRAM_RECAP_HOUR - 2: last 7 days
   ⏳ Coach updates       when the Market Overview verdict of a watched market changes to WAIT / GET READY /
@@ -15,6 +19,7 @@ nothing else. Times are in TELEGRAM_TIMEZONE (default: the site's TIME_ZONE, Afr
 
 Each post goes out once (cache keys per day / per event); TELEGRAM_SCHEDULE=False turns all of it off.
 """
+import hashlib
 import io
 import logging
 import time
@@ -103,7 +108,43 @@ def _strength_line(strength):
     return f'💪 Strongest: {strong}   🥀 Weakest: {weak}'
 
 
-def _events(hours_from, hours_to, impact='high'):
+def _impacts():
+    return {x.strip().lower() for x in _cfg('TELEGRAM_NEWS_IMPACT', 'high').split(',') if x.strip()}
+
+
+def _active(now):
+    """TELEGRAM_ACTIVE_HOURS 'start-end' in local hours (default 0-24: always)."""
+    try:
+        a, b = (int(x) for x in _cfg('TELEGRAM_ACTIVE_HOURS', '0-24').split('-'))
+    except ValueError:
+        a, b = 0, 24
+    return a <= now.hour < b if a <= b else (now.hour >= a or now.hour < b)
+
+
+# pairs each currency's news moves (for the AI bias and live signals in news posts)
+NEWS_PAIRS = {'USD': ['XAUUSD', 'EURUSD', 'GBPUSD', 'USDJPY', 'BTCUSD', 'US30'], 'EUR': ['EURUSD', 'EURGBP', 'EURJPY'],
+              'GBP': ['GBPUSD', 'EURGBP', 'GBPJPY'], 'JPY': ['USDJPY', 'EURJPY', 'GBPJPY'], 'AUD': ['AUDUSD', 'AUDJPY'],
+              'NZD': ['NZDUSD'], 'CAD': ['USDCAD', 'USOIL'], 'CHF': ['USDCHF'], 'CNY': ['AUDUSD', 'XAUUSD']}
+
+
+def _news_market_lines(currency, results):
+    """AI bias + any live A / A+ setup on the pairs this currency's news moves."""
+    pairs = NEWS_PAIRS.get(currency) or []
+    rows = [r for r in results or [] if r.get('symbol') in pairs and r.get('direction')]
+    lines = []
+    if rows:
+        lines += ['', '🧠 <b>AI bias on the pairs it moves</b>'] + _bias_lines(rows, 4)
+    floor = tg.GRADE_RANK.get(_cfg('TELEGRAM_MIN_GRADE', 'A'), 2)
+    live = [r for r in rows if tg.GRADE_RANK.get(r.get('grade'), 0) >= floor and (r.get('plan') or {}).get('entry')]
+    for r in live[:3]:
+        p, d = r['plan'], tg._digits(r['symbol'])
+        f = lambda v: '—' if v is None else f'{v:.{d}f}'
+        lines.append(f"⚡ <b>Signal {r['grade']} {r['direction']} {tg._esc(r['symbol'])}</b> · Entry <code>{f(p.get('entry'))}</code>"
+                     f" · SL <code>{f(p.get('sl'))}</code> · TP <code>{f(p.get('tp1'))}</code>")
+    return lines
+
+
+def _events(hours_from, hours_to, impact=None):
     try:
         from .calendar_feed import get_calendar
         events = get_calendar(2).get('events') or []
@@ -114,7 +155,7 @@ def _events(hours_from, hours_to, impact='high'):
     out = []
     for e in events:
         d = e.get('date')
-        if not isinstance(d, datetime) or e.get('impact') != impact:
+        if not isinstance(d, datetime) or e.get('impact') not in ({impact} if impact else _impacts()):
             continue
         d = d if d.tzinfo else d.replace(tzinfo=dt_tz.utc)
         if now + timedelta(hours=hours_from) <= d <= now + timedelta(hours=hours_to):
@@ -151,14 +192,119 @@ def market_pulse(results, strength):
     _send('\n'.join(lines))
 
 
-def news_alert(e):
+def news_alert(e, results=None, lead=30):
     when = e['date'].astimezone(_tz())
-    text = (f"⚠️ <b>High-impact news in 30 minutes</b>\n\n"
-            f"{FLAG.get(e.get('currency'), '')} <b>{e.get('currency', '')} · {tg._esc(e.get('event', ''))}</b> at {when:%H:%M}\n"
-            + (f"Forecast <code>{e['forecast']}</code> · Previous <code>{e['previous']}</code>\n" if e.get('forecast') or e.get('previous') else '')
-            + f"\nExpect fast moves on {e.get('currency', '')} pairs" + (' and gold' if e.get('currency') == 'USD' else '')
-            + '. Tighten stops or wait for the candle to close.')
-    _send(text)
+    cur = e.get('currency', '')
+    mins = max(1, round((e['date'] - datetime.now(dt_tz.utc)).total_seconds() / 60))
+    head = f"in {mins} minutes" if mins < 90 else f"at {when:%H:%M}"
+    imp = '🔥 High-impact' if e.get('impact') == 'high' else '⚠️ Medium-impact'
+    lines = [f"⏰ <b>{imp} news {head}</b>", '',
+             f"{FLAG.get(cur, '')} <b>{cur} · {tg._esc(e.get('event', ''))}</b> at {when:%H:%M}"]
+    if e.get('forecast') or e.get('previous'):
+        lines.append(f"Forecast <code>{tg._esc(e.get('forecast') or '—')}</code> · Previous <code>{tg._esc(e.get('previous') or '—')}</code>")
+    lines += _news_market_lines(cur, results)
+    lines += ['', f"Expect fast moves on {cur} pairs" + (' and gold' if cur == 'USD' else '')
+              + ('. Spreads widen at the release: tighten stops, or wait for the first candle to close.' if mins <= 20
+                 else '. Plan your entries now; avoid opening new trades in the last minutes before it.')]
+    lines.append(_link('/market-overview/', 'Live AI scanner'))
+    _send('\n'.join(lines))
+
+
+def news_released(e, results=None):
+    """The figure is out: actual vs forecast, the surprise, and what the AI sees now."""
+    cur = e.get('currency', '')
+    verdict = ''
+    try:
+        from . import news_history as nh
+        a, f = nh._num(e.get('actual')), nh._num(e.get('forecast'))
+        key = nh.classify(e.get('event'), cur)
+        if a is not None and f is not None:
+            if a == f:
+                verdict = '➖ In line with the forecast'
+            elif key in nh.EVENTS:
+                good = (a > f) == nh.EVENTS[key][3]
+                verdict = f"{'✅' if good else '❌'} {'Better' if good else 'Worse'} than forecast: {'bullish' if good else 'bearish'} for {cur}"
+            else:
+                verdict = f"{'⬆️ Above' if a > f else '⬇️ Below'} the forecast"
+    except Exception:
+        pass
+    lines = [f"🔴 <b>RELEASED · {FLAG.get(cur, '')} {cur} {tg._esc(e.get('event', ''))}</b>", '',
+             f"Actual <b><code>{tg._esc(e.get('actual') or '—')}</code></b> · Forecast <code>{tg._esc(e.get('forecast') or '—')}</code>"
+             f" · Previous <code>{tg._esc(e.get('previous') or '—')}</code>"]
+    if verdict:
+        lines.append(verdict)
+    lines += _news_market_lines(cur, results)
+    lines.append('\n<i>The first minutes are the most volatile. Wait for a clean candle, small size, always a stop.</i>')
+    lines.append(_link('/market-overview/', 'Live AI scanner'))
+    _send('\n'.join(lines))
+
+
+def week_ahead():
+    """Every high-impact event of the coming 7 days, by day."""
+    events = sorted(_events(0, 24 * 7), key=lambda e: e['date'])
+    if not events:
+        return False
+    lines = ['🗓 <b>This week\'s high-impact news</b>']
+    day = None
+    for e in events[:30]:
+        w = e['date'].astimezone(_tz())
+        if w.date() != day:
+            day = w.date()
+            lines.append(f"\n<b>{w:%A %d %b}</b>")
+        lines.append(f"{w:%H:%M} {FLAG.get(e.get('currency'), '')}{e.get('currency', '')} {tg._esc(e.get('event', ''))}")
+    lines.append('\n⏰ Reminders come here before each one, and the result the moment it is out.')
+    lines.append(_link('/economic-calendar/', 'Full economic calendar'))
+    _send('\n'.join(lines))
+    return True
+
+
+def news_posts(results):
+    """Before / at each high-impact release. One post per event per stage."""
+    if _cfg('TELEGRAM_NEWS_ALERTS', 'True') != 'True':
+        return []
+    sent = []
+    leads = sorted({int(x) for x in _cfg('TELEGRAM_NEWS_LEAD_MINUTES', '60,15').replace(' ', '').split(',') if x.isdigit()}, reverse=True)
+    if not leads:
+        return []
+    utc = datetime.now(dt_tz.utc)
+    if any(-50 <= (e['date'] - utc).total_seconds() / 60 <= 5 for e in _events(-1, 0.1)) and _once('tg:calfresh', 150):
+        from . import calendar_feed
+        cache.delete(calendar_feed.CACHE_KEY)          # around a release: fresh calendar every few minutes for the actual
+    upcoming = _events(-1, max(leads) / 60 + 0.1)
+    due = {}
+    for e in upcoming:
+        mins = (e['date'] - utc).total_seconds() / 60
+        ident = hashlib.md5(f"{e.get('currency')}:{e.get('event')}:{e['date']:%Y%m%d%H%M}".encode()).hexdigest()[:16]
+        stage = next((l for l in sorted(leads) if 0 < mins <= l), None)
+        if stage is not None:
+            # announce all events at the same time together: the first one carries the post
+            key = f"tg:news:{ident}:{stage}"
+            slot = (e['date'], stage)
+            if _once(key):
+                due.setdefault(slot, []).append(e)
+        elif -45 <= mins <= 0 and e.get('actual') and _once(f"tg:newsout:{ident}"):
+            news_released(e, results)
+            sent.append('released')
+    for (_, stage), evs in sorted(due.items(), key=lambda kv: kv[0][0]):
+        news_alert(evs[0], results, stage) if len(evs) == 1 else news_group(evs, results)
+        sent.append(f'news-{stage}')
+    return sent
+
+
+def news_group(evs, results=None):
+    """Several releases at the same minute (e.g. NFP + unemployment): one post."""
+    when = evs[0]['date'].astimezone(_tz())
+    mins = max(1, round((evs[0]['date'] - datetime.now(dt_tz.utc)).total_seconds() / 60))
+    lines = [f"⏰ <b>{len(evs)} high-impact releases in {mins} minutes</b> ({when:%H:%M})", '']
+    for e in evs[:8]:
+        fc = f" · F <code>{tg._esc(e['forecast'])}</code>" if e.get('forecast') else ''
+        pv = f" · P <code>{tg._esc(e['previous'])}</code>" if e.get('previous') else ''
+        lines.append(f"{FLAG.get(e.get('currency'), '')} <b>{e.get('currency', '')}</b> {tg._esc(e.get('event', ''))}{fc}{pv}")
+    for cur in dict.fromkeys(e.get('currency') for e in evs):
+        lines += _news_market_lines(cur, results)
+    lines.append('\nExpect a sharp move. Spreads widen at the release: small size, always a stop.')
+    lines.append(_link('/market-overview/', 'Live AI scanner'))
+    _send('\n'.join(lines))
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -313,7 +459,7 @@ def coach_updates(now):
         if v.get('action') not in COACH_POST:
             continue                                         # stand aside / watch: remembered, not posted
         entering = v.get('action') == 'ENTER'
-        if not entering and not (7 <= now.hour < 23):
+        if not entering and not _active(now):
             continue
         if not entering and time.time() - (cache.get(f'tg:coach:at:{sym}') or 0) < gap:
             continue
@@ -438,19 +584,22 @@ def run(results, strength):
     if now.weekday() == weekly_d:
         due('weekly', max(recap_h - 2, 0), weekly_report)
 
-    if _cfg('TELEGRAM_NEWS_ALERTS', 'True') == 'True':
-        for e in _events(0, 0.5):                              # starts within 30 minutes
-            key = f"tg:news:{e.get('id') or e.get('event')}:{e['date']:%Y%m%d%H%M}"
-            if _once(key):
-                news_alert(e)
-                sent.append('news')
+    if now.weekday() == int(_cfg('TELEGRAM_WEEK_DAY', 0)) and brief_h <= now.hour < brief_h + 3 \
+            and _once(f'tg:sched:week:{day}'):
+        try:
+            if week_ahead():
+                sent.append('week')
+        except Exception:
+            cache.delete(f'tg:sched:week:{day}')
+            raise
+    sent += news_posts(results)
 
     sent += event_posts(now, results)
     name = None if sent else coach_updates(now)
     if name:
         sent.append(name)
 
-    if pulse_h and 7 <= now.hour < 23 and results and quiet_for() >= pulse_h * 3600 and not sent:
+    if pulse_h and _active(now) and results and quiet_for() >= pulse_h * 3600 and not sent:
         if _once(f'tg:sched:pulse:{day}:{now.hour}', 3600):
             market_pulse(results, strength)
             sent.append('pulse')

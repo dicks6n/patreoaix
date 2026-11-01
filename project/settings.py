@@ -390,7 +390,11 @@ TELEGRAM_BRIEF_HOUR = os.getenv('TELEGRAM_BRIEF_HOUR', '8')        # morning bri
 TELEGRAM_RECAP_HOUR = os.getenv('TELEGRAM_RECAP_HOUR', '22')       # daily results card
 TELEGRAM_WEEKLY_DAY = os.getenv('TELEGRAM_WEEKLY_DAY', '6')        # weekly report: 0 = Monday … 6 = Sunday
 TELEGRAM_PULSE_HOURS = os.getenv('TELEGRAM_PULSE_HOURS', '3')      # market pulse when quiet this long; 0 = off
-TELEGRAM_NEWS_ALERTS = os.getenv('TELEGRAM_NEWS_ALERTS', 'True')   # 30 min before high-impact news
+TELEGRAM_NEWS_ALERTS = os.getenv('TELEGRAM_NEWS_ALERTS', 'True')   # before high-impact news + the result when out
+TELEGRAM_NEWS_LEAD_MINUTES = os.getenv('TELEGRAM_NEWS_LEAD_MINUTES', '60,15')  # reminders this many minutes before
+TELEGRAM_NEWS_IMPACT = os.getenv('TELEGRAM_NEWS_IMPACT', 'high')   # 'high' or 'high,medium'
+TELEGRAM_WEEK_DAY = os.getenv('TELEGRAM_WEEK_DAY', '0')            # week-ahead calendar post: 0 = Monday
+TELEGRAM_ACTIVE_HOURS = os.getenv('TELEGRAM_ACTIVE_HOURS', '0-24')  # pulse / coach posts; 0-24 = around the clock
 TELEGRAM_COACH_UPDATES = os.getenv('TELEGRAM_COACH_UPDATES', 'True')  # WAIT / GET READY / ENTRY CONFIRMED posts
 TELEGRAM_COACH_SYMBOLS = os.getenv('TELEGRAM_COACH_SYMBOLS', 'XAUUSD,EURUSD,GBPUSD,USDJPY,BTCUSD,USOIL')
 TELEGRAM_COACH_MINUTES = os.getenv('TELEGRAM_COACH_MINUTES', '60')   # min gap per market (entries post at once)
