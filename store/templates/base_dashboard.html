@@ -742,6 +742,12 @@
                     <a href="{% url 'trade' %}" class="nav-item {% if request.resolver_match.url_name == 'trade' %}nav-active{% endif %}">
                         <i class="fa-solid fa-chart-column"></i><span>Live Trading</span>
                     </a>
+                    <a href="{% url 'p2p' %}" class="nav-item {% if request.resolver_match.url_name|slice:':3' == 'p2p' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-people-arrows"></i><span>P2P Trading</span><span class="nav-pill">NEW</span>
+                    </a>
+                    <a href="{% url 'funded' %}" class="nav-item {% if request.resolver_match.url_name == 'funded' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-trophy"></i><span>Funded Challenges</span>
+                    </a>
                 </div>
             </div>
 

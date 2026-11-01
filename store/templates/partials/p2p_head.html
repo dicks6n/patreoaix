@@ -1,0 +1,42 @@
+<style>
+    .pp-wrap { display: flex; flex-direction: column; gap: 16px; max-width: 1150px; }
+    .pp-card { background: var(--px-panel); border: 1px solid var(--px-line); border-radius: 16px; padding: 18px; }
+    .pp-h { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+    .pp-h h2 { font-size: 16px; font-weight: 800; color: var(--px-text); }
+    .pp-h p, .pp-sub { font-size: 12px; color: var(--px-mute); }
+    .pp-msg { padding: 12px 14px; font-size: 13px; font-weight: 600; border-radius: 12px; background: var(--px-panel-2); color: var(--px-text); border: 1px solid var(--px-line); }
+    .pp-msg.error { border-color: var(--px-down); color: var(--px-down); }
+    .pp-msg.success { border-color: var(--px-up); }
+    .pp-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .pp-top h1 { font-size: 20px; font-weight: 900; color: var(--px-text); }
+    .pp-top h1 small { font-size: 12px; font-weight: 700; color: var(--px-mute); margin-left: 6px; }
+    .pp-nav { display: flex; gap: 6px; flex-wrap: wrap; }
+    .pp-nav a { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 800; padding: 9px 13px; border-radius: 10px; background: var(--px-panel-2); color: var(--px-dim); border: 1px solid var(--px-line); }
+    .pp-nav a.on { background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); border-color: var(--px-accent); }
+    .pp-nav .badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--px-down); color: #fff; font-size: 10.5px; display: inline-flex; align-items: center; justify-content: center; }
+    .pp-mode { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: 12px; font-size: 12.5px; background: var(--px-panel-2); border: 1px dashed var(--px-accent); color: var(--px-dim); }
+    .pp-mode b { color: var(--px-accent); }
+    .pp-bals { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+    .pp-bals span { font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 4px 8px; border-radius: 8px; background: var(--px-panel); color: var(--px-text); }
+    .pp-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: 800; background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); border: 0; cursor: pointer; white-space: nowrap; }
+    .pp-btn.buy { background: var(--px-up); color: #fff; }
+    .pp-btn.sell { background: var(--px-down); color: #fff; }
+    .pp-btn.ghost { background: var(--px-panel-2); color: var(--px-text); border: 1px solid var(--px-line); }
+    .pp-btn.sm { padding: 6px 10px; font-size: 12px; }
+    .pp-btn[disabled] { opacity: .5; cursor: not-allowed; }
+    .pp-field label { display: block; font-size: 11px; font-weight: 800; color: var(--px-mute); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px; }
+    .pp-field input, .pp-field select, .pp-field textarea { width: 100%; background: var(--px-panel-2); border: 1px solid var(--px-line); color: var(--px-text); border-radius: 10px; padding: 9px 10px; font-size: 13px; }
+    .pp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; align-items: end; }
+    .pp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .pp-table th { text-align: left; font-size: 10.5px; color: var(--px-mute); text-transform: uppercase; letter-spacing: .05em; padding: 8px; border-bottom: 1px solid var(--px-line); white-space: nowrap; }
+    .pp-table td { padding: 10px 8px; border-bottom: 1px solid var(--px-line-soft); color: var(--px-text); vertical-align: middle; }
+    .pp-scroll { overflow-x: auto; }
+    .pp-mono { font-family: 'JetBrains Mono', monospace; }
+    .pp-up { color: var(--px-up); } .pp-dn { color: var(--px-down); } .pp-mute { color: var(--px-mute); }
+    .pp-tag { display: inline-block; font-size: 10.5px; font-weight: 800; padding: 3px 7px; border-radius: 6px; background: var(--px-panel-2); color: var(--px-dim); margin: 2px 2px 0 0; }
+    .pp-status { font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 7px; background: var(--px-panel-2); color: var(--px-dim); white-space: nowrap; }
+    .pp-status.PENDING, .pp-status.PAID { background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); }
+    .pp-status.COMPLETED { background: var(--px-up-soft); color: var(--px-up); }
+    .pp-status.APPEAL, .pp-status.CANCELLED { background: var(--px-down-soft); color: var(--px-down); }
+    @media (max-width: 640px) { .pp-card { padding: 14px; } .pp-top h1 { font-size: 18px; } .pp-bals { margin-left: 0; } }
+</style>

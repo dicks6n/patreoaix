@@ -1,0 +1,29 @@
+{% extends 'base_dashboard.html' %}
+
+{% block message_toasts %}{% endblock %}
+{% block title %}My P2P orders · PATREOAIX{% endblock %}
+{% block page_title %}P2P Trading{% endblock %}
+{% block extra_head %}{% include 'partials/p2p_head.html' %}{% endblock %}
+
+{% block content %}
+<div class="pp-wrap">
+    {% include 'partials/p2p_nav.html' %}
+    <div class="pp-card">
+        <div class="pp-h"><h2>My orders</h2><p>Tap an order to pay, release or chat</p></div>
+        {% if orders %}
+        <div class="pp-scroll"><table class="pp-table">
+            <thead><tr><th>Order</th><th>Type</th><th>Amount</th><th>Total</th><th>With</th><th>Status</th><th>Date</th></tr></thead>
+            <tbody>{% for o in orders %}<tr onclick="location.href='{% url 'p2p_order' o.ref %}'" style="cursor:pointer">
+                <td class="pp-mono"><a href="{% url 'p2p_order' o.ref %}" class="underline">{{ o.ref }}</a>{% if o.demo %} <span class="pp-tag">demo</span>{% endif %}</td>
+                <td><b class="{% if o.i_buy %}pp-up{% else %}pp-dn{% endif %}">{% if o.i_buy %}Buy{% else %}Sell{% endif %}</b> {{ o.asset }}</td>
+                <td class="pp-mono">{{ o.amount_txt }} {{ o.asset }}</td>
+                <td class="pp-mono">{{ o.fiat_amount|floatformat:"2g" }} {{ o.currency }}</td>
+                <td>{{ o.other.username }}</td>
+                <td><span class="pp-status {{ o.status }}">{{ o.get_status_display }}</span></td>
+                <td class="pp-mute">{{ o.created_at|date:"d M H:i" }}</td>
+            </tr>{% endfor %}</tbody>
+        </table></div>
+        {% else %}<p class="pp-sub">No orders yet. <a href="{% url 'p2p' %}" class="underline">Find an offer in the market</a>.</p>{% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -217,3 +217,25 @@ class PropPayoutAdmin(admin.ModelAdmin):
         from . import prop_firm
         for po in queryset.filter(status='PENDING'):
             prop_firm.reject(po, 'Rejected by staff')
+
+
+# ── P2P marketplace (store/p2p.py) ──
+from .models import P2PAd, P2POrder, P2PPaymentMethod, P2PBalance
+
+
+@admin.register(P2POrder)
+class P2POrderAdmin(admin.ModelAdmin):
+    list_display = ('ref', 'asset', 'amount', 'fiat_amount', 'currency', 'buyer', 'seller', 'status', 'demo', 'created_at')
+    list_filter = ('status', 'asset', 'currency', 'demo')
+    search_fields = ('ref', 'buyer__username', 'seller__username')
+    readonly_fields = [f.name for f in P2POrder._meta.fields]
+
+
+@admin.register(P2PAd)
+class P2PAdAdmin(admin.ModelAdmin):
+    list_display = ('user', 'side', 'asset', 'price', 'currency', 'remaining', 'status', 'demo')
+    list_filter = ('side', 'asset', 'currency', 'status', 'demo')
+
+
+admin.site.register(P2PPaymentMethod)
+admin.site.register(P2PBalance)

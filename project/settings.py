@@ -80,6 +80,10 @@ VAPID_EMAIL = os.environ.get('VAPID_EMAIL', '')
 # ACADEMY_REQUIRED_FOR_BONUS=True the first-deposit bonus is only paid after the academy is finished.
 ACADEMY_PRO_DAYS = os.environ.get('ACADEMY_PRO_DAYS', '3')
 ACADEMY_REQUIRED_FOR_BONUS = os.environ.get('ACADEMY_REQUIRED_FOR_BONUS', 'False')
+
+# P2P marketplace (/p2p/): False = test mode with demo coins; True = real wallets (needs KYC). Fee % per trade.
+P2P_LIVE = os.environ.get('P2P_LIVE', 'False')
+P2P_FEE_PCT = os.environ.get('P2P_FEE_PCT', '0.2')
 # =============================================
 # NOWCRYPTO API CONFIGURATION
 # =============================================

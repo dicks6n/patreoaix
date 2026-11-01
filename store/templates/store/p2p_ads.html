@@ -1,0 +1,166 @@
+{% extends 'base_dashboard.html' %}
+
+{% block message_toasts %}{% endblock %}
+{% block title %}My P2P ads · PATREOAIX{% endblock %}
+{% block page_title %}P2P Trading{% endblock %}
+
+{% block extra_head %}
+{% include 'partials/p2p_head.html' %}
+<style>
+    .pa-side { display: inline-flex; padding: 4px; border-radius: 12px; background: var(--px-panel-2); border: 1px solid var(--px-line); gap: 4px; }
+    .pa-side label { padding: 8px 16px; border-radius: 9px; font-size: 13px; font-weight: 900; color: var(--px-dim); cursor: pointer; }
+    .pa-side input { display: none; }
+    .pa-side input:checked + span { color: var(--px-text); }
+    .pa-side label.on-buy { background: var(--px-up); color: #fff; } .pa-side label.on-sell { background: var(--px-down); color: #fff; }
+    .pa-checks { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pa-checks label { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; padding: 8px 11px; border-radius: 10px; background: var(--px-panel-2); border: 1px solid var(--px-line); color: var(--px-text); cursor: pointer; }
+    .pa-checks input { accent-color: var(--px-accent); }
+    .pa-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+    .pa-stats div { background: var(--px-panel-2); border-radius: 12px; padding: 10px 12px; }
+    .pa-stats span { display: block; font-size: 10.5px; font-weight: 800; color: var(--px-mute); text-transform: uppercase; letter-spacing: .05em; }
+    .pa-stats b { font-family: 'JetBrains Mono', monospace; font-size: 17px; color: var(--px-text); }
+    .pa-method { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; background: var(--px-panel-2); margin-bottom: 8px; }
+    .pa-method b { color: var(--px-text); font-size: 13.5px; }
+    .pa-method small { display: block; font-size: 12px; color: var(--px-mute); }
+    .pa-method form { margin-left: auto; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pp-wrap">
+    {% include 'partials/p2p_nav.html' %}
+
+    <div class="pp-card">
+        <div class="pp-h"><h2>My merchant profile</h2><p>What other traders see next to your ads</p></div>
+        <div class="pa-stats">
+            <div><span>Completed trades</span><b>{{ stats.trades }}</b></div>
+            <div><span>30-day trades</span><b>{{ stats.trades_30d }}</b></div>
+            <div><span>Completion</span><b>{% if stats.completion is not None %}{{ stats.completion }}%{% else %}–{% endif %}</b></div>
+            <div><span>Positive feedback</span><b>{% if stats.positive is not None %}{{ stats.positive }}%{% else %}–{% endif %}</b></div>
+            <div><span>Avg. release</span><b>{% if stats.release_min %}{{ stats.release_min }} min{% else %}–{% endif %}</b></div>
+        </div>
+    </div>
+
+    <div class="pp-card" id="methods">
+        <div class="pp-h"><h2><i class="fa-solid fa-wallet mr-1"></i> My payment methods</h2><p>Where buyers send you money when you sell</p></div>
+        {% for m in methods %}
+        <div class="pa-method">
+            <div><b>{{ m.label }} · {{ m.currency }}</b><small>{{ m.account_name }} · {{ m.account_number }}{% if m.bank_name %} · {{ m.bank_name }}{% endif %}</small></div>
+            <form method="post" onsubmit="return confirm('Remove this payment method?')">{% csrf_token %}<input type="hidden" name="action" value="del_method"><input type="hidden" name="id" value="{{ m.id }}"><button class="pp-btn ghost sm" type="submit" aria-label="Remove"><i class="fa-solid fa-trash"></i></button></form>
+        </div>
+        {% empty %}
+        <p class="pp-sub" style="margin-bottom:10px">No payment methods yet. Add your M-Pesa, MoMo or bank account to sell coins.</p>
+        {% endfor %}
+        <form method="post" class="pp-grid" style="margin-top:10px">{% csrf_token %}
+            <input type="hidden" name="action" value="add_method">
+            <div class="pp-field"><label>Currency</label><select id="pmCur">{% for k, n, f in currencies %}<option value="{{ k }}">{{ f }} {{ k }}</option>{% endfor %}</select></div>
+            <div class="pp-field"><label>Method</label><select name="method" id="pmMethod"></select></div>
+            <div class="pp-field"><label>Full name on the account</label><input name="account_name" required maxlength="100" value="{{ request.user.get_full_name }}"></div>
+            <div class="pp-field"><label id="pmNumLabel">Phone / account number</label><input name="account_number" required maxlength="60"></div>
+            <div class="pp-field" id="pmBank"><label>Bank name</label><input name="bank_name" maxlength="80" placeholder="e.g. Equity Bank"></div>
+            <button class="pp-btn" type="submit"><i class="fa-solid fa-plus"></i> Add method</button>
+        </form>
+    </div>
+
+    <div class="pp-card" id="new">
+        <div class="pp-h"><h2><i class="fa-solid fa-bullhorn mr-1"></i> Post an ad</h2><p>Your offer appears in the market for everyone</p></div>
+        <form method="post" id="adForm">{% csrf_token %}
+            <input type="hidden" name="action" value="post">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+                <div class="pa-side" id="adSide">
+                    <label class="on-buy"><input type="radio" name="side" value="BUY" checked><span>I want to buy</span></label>
+                    <label><input type="radio" name="side" value="SELL"><span>I want to sell</span></label>
+                </div>
+                <div class="pa-checks">{% for a in assets %}<label><input type="radio" name="asset" value="{{ a }}" {% if forloop.first %}checked{% endif %}> {{ a }}</label>{% endfor %}</div>
+            </div>
+            <div class="pp-grid">
+                <div class="pp-field"><label>Currency</label><select name="currency" id="adCur">{% for k, n, f in currencies %}<option value="{{ k }}">{{ f }} {{ k }}</option>{% endfor %}</select></div>
+                <div class="pp-field"><label>Price per coin (<span data-cur>KES</span>)</label><input name="price" inputmode="decimal" required placeholder="e.g. 130"></div>
+                <div class="pp-field"><label>Total amount (<span data-asset>USDT</span>)</label><input name="total" inputmode="decimal" required placeholder="e.g. 500"></div>
+                <div class="pp-field"><label>Min order (<span data-cur>KES</span>)</label><input name="min_fiat" inputmode="decimal" required placeholder="e.g. 1000"></div>
+                <div class="pp-field"><label>Max order (<span data-cur>KES</span>)</label><input name="max_fiat" inputmode="decimal" required placeholder="e.g. 50000"></div>
+                <div class="pp-field"><label>Time to pay</label><select name="time_limit">{% for t in time_limits %}<option value="{{ t }}">{{ t }} minutes</option>{% endfor %}</select></div>
+            </div>
+            <div class="pp-field" style="margin-top:12px"><label id="adMethLabel">How you will pay the seller</label>
+                <div class="pa-checks" id="adBuyMethods"></div>
+                <div class="pa-checks" id="adSellMethods" hidden>
+                    {% for m in methods %}<label data-cur="{{ m.currency }}"><input type="checkbox" name="pay_methods" value="{{ m.id }}" checked> {{ m.label }} · {{ m.account_number }}</label>{% endfor %}
+                </div>
+                <p class="pp-sub" id="adNoMethods" hidden style="margin-top:6px">Add a payment method for this currency first (above).</p>
+            </div>
+            <div class="pp-field" style="margin-top:12px"><label>Terms (optional)</label><textarea name="terms" rows="2" maxlength="1000" placeholder="e.g. Send from your own M-Pesa number only. No third-party payments."></textarea></div>
+            <p class="pp-sub" id="adHint" style="margin:10px 0"></p>
+            <button class="pp-btn" type="submit"><i class="fa-solid fa-paper-plane"></i> Post ad</button>
+        </form>
+    </div>
+
+    <div class="pp-card">
+        <div class="pp-h"><h2>My ads</h2><p>{{ ads|length }} open</p></div>
+        {% if ads %}
+        <div class="pp-scroll"><table class="pp-table">
+            <thead><tr><th>Type</th><th>Price</th><th>Available</th><th>Limits</th><th>Payment</th><th>Status</th><th></th></tr></thead>
+            <tbody>{% for a in ads %}<tr>
+                <td><b class="{% if a.side == 'BUY' %}pp-up{% else %}pp-dn{% endif %}">{{ a.side|title }}</b> {{ a.asset }}</td>
+                <td class="pp-mono">{{ a.price|floatformat:"2g" }} {{ a.currency }}</td>
+                <td class="pp-mono">{{ a.remaining_txt }} / {{ a.total_txt }}</td>
+                <td class="pp-mono">{{ a.min_fiat|floatformat:"0g" }} – {{ a.max_fiat|floatformat:"0g" }}</td>
+                <td>{% for n in a.method_names %}<span class="pp-tag">{{ n }}</span>{% endfor %}</td>
+                <td><span class="pp-status">{{ a.get_status_display }}</span></td>
+                <td style="white-space:nowrap">
+                    <form method="post" style="display:inline">{% csrf_token %}<input type="hidden" name="ad" value="{{ a.id }}">
+                        {% if a.status == 'ACTIVE' %}<button class="pp-btn ghost sm" name="action" value="pause">Pause</button>{% else %}<button class="pp-btn ghost sm" name="action" value="activate">Resume</button>{% endif %}
+                        <button class="pp-btn ghost sm" name="action" value="close" onclick="return confirm('Close this ad?{% if a.side == 'SELL' %} The locked coins go back to your balance.{% endif %}')">Close</button>
+                    </form>
+                </td>
+            </tr>{% endfor %}</tbody>
+        </table></div>
+        {% else %}<p class="pp-sub">No ads yet. Post one above: buyers and sellers will find it in the market.</p>{% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ all_methods|json_script:"p2pMethods" }}
+<script>
+(function () {
+    var M = JSON.parse(document.getElementById('p2pMethods').textContent);
+    // payment-method form: methods for the chosen currency
+    var pmCur = document.getElementById('pmCur'), pmMethod = document.getElementById('pmMethod');
+    function fillPm() {
+        pmMethod.innerHTML = (M[pmCur.value] || []).map(function (m) { return '<option value="' + m[0] + '" data-label="' + m[2] + '">' + m[1] + '</option>'; }).join('');
+        pmLabel();
+    }
+    function pmLabel() {
+        var o = pmMethod.selectedOptions[0];
+        document.getElementById('pmNumLabel').textContent = o ? o.dataset.label : 'Number';
+        document.getElementById('pmBank').hidden = !(o && /bank/i.test(o.value));
+    }
+    pmCur.addEventListener('change', fillPm); pmMethod.addEventListener('change', pmLabel); fillPm();
+
+    // ad form
+    var f = document.getElementById('adForm'), cur = document.getElementById('adCur');
+    function sync() {
+        var side = f.querySelector('[name=side]:checked').value, asset = f.querySelector('[name=asset]:checked').value, c = cur.value;
+        f.querySelectorAll('#adSide label').forEach(function (l) {
+            var on = l.querySelector('input').checked; l.className = on ? (l.querySelector('input').value === 'BUY' ? 'on-buy' : 'on-sell') : '';
+        });
+        f.querySelectorAll('[data-cur]').forEach(function (e) { if (e.tagName === 'SPAN') e.textContent = c; });
+        f.querySelectorAll('[data-asset]').forEach(function (e) { e.textContent = asset; });
+        var buy = side === 'BUY';
+        document.getElementById('adMethLabel').textContent = buy ? 'How you will pay the seller' : 'Where buyers pay you';
+        var bm = document.getElementById('adBuyMethods');
+        bm.hidden = !buy;
+        if (buy) bm.innerHTML = (M[c] || []).map(function (m, i) { return '<label><input type="checkbox" name="methods" value="' + m[0] + '"' + (i === 0 ? ' checked' : '') + '> ' + m[1] + '</label>'; }).join('');
+        var sm = document.getElementById('adSellMethods'), any = false;
+        sm.hidden = buy;
+        sm.querySelectorAll('label').forEach(function (l) { var ok = l.dataset.cur === c; l.hidden = !ok; l.querySelector('input').disabled = !ok; any = any || ok; });
+        document.getElementById('adNoMethods').hidden = buy || any;
+        document.getElementById('adHint').textContent = buy
+            ? 'Sellers lock their ' + asset + ' when they take your ad; you pay them by ' + c + ', they release the coins to you.'
+            : 'Your ' + asset + ' is locked in escrow when you post, and released to each buyer only when you confirm their payment.';
+    }
+    f.addEventListener('change', function (e) { if (e.target.name === 'side' || e.target.name === 'asset' || e.target === cur) sync(); });
+    sync();
+})();
+</script>
+{% endblock %}

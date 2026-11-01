@@ -1,0 +1,223 @@
+# store/p2p_views.py
+"""Pages of the P2P marketplace (logic in store/p2p.py)."""
+import mimetypes
+
+from django.contrib import messages
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
+from django.db.models import Q
+from django.http import FileResponse, Http404, JsonResponse
+from django.shortcuts import redirect, render
+from django.urls import reverse
+from django.utils import timezone
+
+from . import p2p
+from .models import P2PAd, P2PMessage, P2POrder, P2PPaymentMethod
+
+
+def _ajax(request):
+    return request.headers.get('x-requested-with') == 'XMLHttpRequest'
+
+
+def _common(request):
+    """Shared context: mode, balances, open orders badge."""
+    u = request.user
+    open_n = P2POrder.objects.filter(Q(buyer=u) | Q(seller=u), status__in=('PENDING', 'PAID', 'APPEAL')).count()
+    bals = p2p.balances(u)
+    return {'live': p2p.live(), 'fee_pct': p2p.fee_pct(), 'open_n': open_n, 'assets': list(p2p.ASSETS.keys()),
+            'bals': [(a, p2p.fmt(a, b)) for a, b in bals.items()], 'can_trade': p2p.can_trade(u)}
+
+
+@login_required
+def market(request):
+    p2p.safe_expire()
+    if request.method == 'POST':
+        act = request.POST.get('action')
+        try:
+            if act == 'demo':
+                p2p.grant_demo(request.user)
+                messages.success(request, 'Demo balance topped up: 1,000 USDT, 0.02 BTC and 0.5 ETH to practise with.')
+                return redirect(request.get_full_path())
+            if act == 'take':
+                o = p2p.open_order(request.user, request.POST.get('ad'), fiat=request.POST.get('fiat'),
+                                   coins=request.POST.get('coins'), method_id=request.POST.get('method'))
+                return redirect('p2p_order', ref=o.ref)
+        except p2p.P2PError as e:
+            messages.error(request, str(e))
+        return redirect(request.get_full_path())
+    side = 'sell' if request.GET.get('side') == 'sell' else 'buy'          # what the visitor wants to do
+    asset = (request.GET.get('asset') or 'USDT').upper()
+    asset = asset if asset in p2p.ASSETS else 'USDT'
+    cur = (request.GET.get('cur') or request.COOKIES.get('p2p_cur') or 'KES').upper()
+    cur = cur if cur in p2p.CURRENCIES else 'KES'
+    method = request.GET.get('method') or ''
+    qs = P2PAd.objects.filter(status='ACTIVE', asset=asset, currency=cur, demo=not p2p.live(),
+                              side='SELL' if side == 'buy' else 'BUY').exclude(user=request.user).select_related('user')
+    ads = [a for a in qs.order_by('price' if side == 'buy' else '-price')[:100] if not method or method in a.methods]
+    try:
+        want = float(str(request.GET.get('amount') or '').replace(',', '')) if request.GET.get('amount') else None
+    except ValueError:
+        want = None
+    if want:
+        ads = [a for a in ads if float(a.min_fiat) <= want <= float(a.max_fiat) and want <= float(a.remaining * a.price)]
+    stats = p2p.stats_map([a.user for a in ads])
+    for a in ads:
+        a.st = stats[a.user_id]
+        a.method_names = [p2p.method_name(m) for m in a.methods]
+        a.remaining_txt = p2p.fmt(a.asset, a.remaining)
+        a.max_now = min(a.max_fiat, p2p._q(a.remaining * a.price))
+    ctx = dict(_common(request), side=side, asset=asset, cur=cur, method=method, ads=ads, amount=request.GET.get('amount', ''),
+               currencies=[(k, v[0], v[1]) for k, v in p2p.CURRENCIES.items()], methods=p2p.methods_for(cur),
+               my_methods=list(P2PPaymentMethod.objects.filter(user=request.user, is_active=True)),
+               method_names=dict((k, v[0]) for k, v in p2p.METHODS.items()), tab='market')
+    resp = render(request, 'store/p2p_market.html', ctx)
+    resp.set_cookie('p2p_cur', cur, max_age=365 * 86400, samesite='Lax')
+    return resp
+
+
+@login_required
+def my_ads(request):
+    p2p.safe_expire()
+    if request.method == 'POST':
+        act = request.POST.get('action')
+        try:
+            if act == 'post':
+                ad = p2p.post_ad(request.user, request.POST)
+                messages.success(request, f'Ad posted: {ad.get_side_display()} {p2p.fmt(ad.asset, ad.total)} {ad.asset} at {ad.price:,} {ad.currency}.')
+            elif act in ('pause', 'activate', 'close'):
+                p2p.set_ad_status(request.user, request.POST.get('ad'), {'pause': 'PAUSED', 'activate': 'ACTIVE', 'close': 'CLOSED'}[act])
+                messages.success(request, {'pause': 'Ad paused.', 'activate': 'Ad is live again.', 'close': 'Ad closed; locked coins returned.'}[act])
+            elif act == 'add_method':
+                m = p2p.add_method(request.user, request.POST)
+                messages.success(request, f'{p2p.method_name(m.method)} added.')
+            elif act == 'del_method':
+                P2PPaymentMethod.objects.filter(user=request.user, pk=request.POST.get('id')).update(is_active=False)
+                messages.info(request, 'Payment method removed.')
+        except p2p.P2PError as e:
+            messages.error(request, str(e))
+        return redirect(reverse('p2p_ads') + ('#methods' if 'method' in (act or '') else ''))
+    ads = list(P2PAd.objects.filter(user=request.user).exclude(status='CLOSED').order_by('-created_at'))
+    for a in ads:
+        a.method_names = [p2p.method_name(m) for m in a.methods]
+        a.remaining_txt, a.total_txt = p2p.fmt(a.asset, a.remaining), p2p.fmt(a.asset, a.total)
+    methods = list(P2PPaymentMethod.objects.filter(user=request.user, is_active=True))
+    for m in methods:
+        m.label = p2p.method_name(m.method)
+        m.currency = next((c for c, v in p2p.CURRENCIES.items() if m.method in v[2]), '')
+    return render(request, 'store/p2p_ads.html', dict(
+        _common(request), ads=ads, methods=methods, tab='ads', time_limits=p2p.TIME_LIMITS,
+        currencies=[(k, v[0], v[1]) for k, v in p2p.CURRENCIES.items()],
+        all_methods={c: p2p.methods_for(c) for c in p2p.CURRENCIES}, stats=p2p.merchant_stats(request.user)))
+
+
+@login_required
+def my_orders(request):
+    p2p.safe_expire()
+    u = request.user
+    orders = list(P2POrder.objects.filter(Q(buyer=u) | Q(seller=u)).select_related('buyer', 'seller')[:100])
+    for o in orders:
+        o.i_buy = o.buyer_id == u.id
+        o.other = o.seller if o.i_buy else o.buyer
+        o.amount_txt = p2p.fmt(o.asset, o.amount)
+    return render(request, 'store/p2p_orders.html', dict(_common(request), orders=orders, tab='orders'))
+
+
+@login_required
+def order_page(request, ref):
+    p2p.safe_expire()
+    try:
+        o = p2p._get(request.user, ref, lock=False, staff=request.user.is_staff)
+    except p2p.P2PError:
+        raise Http404
+    if request.method == 'POST':
+        act = request.POST.get('action')
+        try:
+            if act == 'paid':
+                p2p.mark_paid(request.user, ref)
+            elif act == 'cancel':
+                p2p.cancel(request.user, ref)
+            elif act == 'release':
+                if request.POST.get('confirm') != 'yes':
+                    raise p2p.P2PError('Tick the box to confirm you received the money in your account.')
+                p2p.release(request.user, ref)
+            elif act == 'appeal':
+                p2p.appeal(request.user, ref, request.POST.get('reason', ''))
+            elif act == 'feedback':
+                p2p.feedback(request.user, ref, request.POST.get('positive') == '1', request.POST.get('comment', ''))
+                messages.success(request, 'Thanks for the feedback.')
+            elif act == 'message':
+                m = p2p.message(request.user, ref, request.POST.get('text', ''), request.FILES.get('image'))
+                if _ajax(request):
+                    return JsonResponse({'success': True, 'id': m.id})
+            elif act in ('resolve_release', 'resolve_refund') and request.user.is_staff:
+                note = request.POST.get('note', '')
+                if act == 'resolve_release':
+                    p2p.release(request.user, ref, staff=True, note=note)
+                else:
+                    p2p.resolve_refund(request.user, ref, note)
+                messages.success(request, 'Appeal resolved.')
+        except p2p.P2PError as e:
+            if _ajax(request):
+                return JsonResponse({'success': False, 'error': str(e)})
+            messages.error(request, str(e))
+        return redirect('p2p_order', ref=ref)
+    me = request.user
+    i_buy = o.buyer_id == me.id
+    other = o.seller if i_buy else o.buyer
+    left = max(0, int((o.expires_at - timezone.now()).total_seconds())) if o.status == 'PENDING' else 0
+    can_appeal = o.status == 'PAID' and (not i_buy or (o.paid_at and timezone.now() >= o.paid_at + timezone.timedelta(minutes=10)))
+    return render(request, 'store/p2p_order.html', dict(
+        _common(request), o=o, i_buy=i_buy, i_sell=o.seller_id == me.id, other=other, left=left, tab='orders',
+        other_stats=p2p.merchant_stats(other), amount_txt=p2p.fmt(o.asset, o.amount),
+        receive_txt=p2p.fmt(o.asset, o.amount - o.fee), fee_txt=p2p.fmt(o.asset, o.fee), can_appeal=can_appeal,
+        my_feedback=o.feedback.filter(from_user=me).first(), staff_view=me.is_staff and me.id not in (o.buyer_id, o.seller_id)))
+
+
+@login_required
+def order_poll(request, ref):
+    """Chat and status for the order page (polled every few seconds)."""
+    try:
+        o = p2p._get(request.user, ref, lock=False, staff=request.user.is_staff)
+    except p2p.P2PError:
+        return JsonResponse({'success': False}, status=404)
+    if o.status == 'PENDING' and timezone.now() > o.expires_at:
+        p2p.safe_expire()
+        o.refresh_from_db()
+    try:
+        after = int(request.GET.get('after') or 0)
+    except ValueError:
+        after = 0
+    rows = []
+    for m in o.messages.filter(id__gt=after).select_related('sender'):
+        rows.append({'id': m.id, 'me': m.sender_id == request.user.id, 'system': m.sender_id is None,
+                     'who': m.sender.username if m.sender else 'PATREOAIX', 'text': m.text,
+                     'image': reverse('p2p_proof', args=[m.id]) if m.image else None,
+                     'pdf': bool(m.image and str(m.image.name).endswith('.pdf')),
+                     'time': timezone.localtime(m.created_at).strftime('%H:%M')})
+    return JsonResponse({'success': True, 'status': o.status, 'status_label': o.get_status_display(), 'messages': rows,
+                         'left': max(0, int((o.expires_at - timezone.now()).total_seconds())) if o.status == 'PENDING' else 0})
+
+
+@login_required
+def proof(request, msg_id):
+    """Chat photos are private: only the two traders and staff can open them."""
+    m = P2PMessage.objects.select_related('order').filter(pk=msg_id).first()
+    if not m or not m.image or not (request.user.is_staff or request.user.id in (m.order.buyer_id, m.order.seller_id)):
+        raise Http404
+    ctype = mimetypes.guess_type(m.image.name)[0] or 'application/octet-stream'
+    return FileResponse(m.image.open('rb'), content_type=ctype)
+
+
+@staff_member_required
+def admin_appeals(request):
+    p2p.safe_expire()
+    appeals = list(P2POrder.objects.filter(status='APPEAL').select_related('buyer', 'seller', 'appeal_by').order_by('created_at'))
+    recent = list(P2POrder.objects.exclude(resolution='').select_related('buyer', 'seller', 'resolved_by').order_by('-completed_at', '-cancelled_at')[:20])
+    for o in appeals + recent:
+        o.amount_txt = p2p.fmt(o.asset, o.amount)
+    stats = {
+        'open': P2POrder.objects.filter(status__in=('PENDING', 'PAID')).count(),
+        'done_7d': P2POrder.objects.filter(status='COMPLETED', completed_at__gte=timezone.now() - timezone.timedelta(days=7)).count(),
+        'ads': P2PAd.objects.filter(status='ACTIVE').count(),
+    }
+    return render(request, 'store/p2p_admin.html', dict(_common(request), appeals=appeals, recent=recent, stats=stats, tab='admin'))

@@ -39,8 +39,9 @@ def _money_block(a, b):
             first_ids.add(uid)
     deposits = _sum(dep)
     fees = tx.filter(transaction_type='CHALLENGE_FEE')
+    p2p_fees = tx.filter(transaction_type='P2P_FEE')
     return {
-        'challenges': _sum(fees), 'challenges_n': fees.count(),
+        'challenges': _sum(fees), 'challenges_n': fees.count(), 'p2p_fees': _sum(p2p_fees), 'p2p_n': p2p_fees.count(),
         'subs': subs, 'subs_n': tx.filter(transaction_type='SUBSCRIPTION').count(),
         'deposits': deposits, 'deposits_n': dep.count(), 'depositors': dep.values('user_id').distinct().count(),
         'first_depositors': len(first_ids), 'withdrawals': wd, 'net_deposits': deposits - wd,
@@ -62,6 +63,7 @@ def build(days=30):
     kpis = [
         {'label': 'Subscription revenue', 'value': cur['subs'], 'money': True, 'delta': _delta(cur['subs'], prev['subs']), 'sub': f"{cur['subs_n']} payments"},
         {'label': 'Challenge sales', 'value': cur['challenges'], 'money': True, 'delta': _delta(cur['challenges'], prev['challenges']), 'sub': f"{cur['challenges_n']} orders"},
+        {'label': 'P2P fees', 'value': cur['p2p_fees'], 'money': True, 'delta': _delta(cur['p2p_fees'], prev['p2p_fees']), 'sub': f"{cur['p2p_n']} USDT trades"},
         {'label': 'Deposits', 'value': cur['deposits'], 'money': True, 'delta': _delta(cur['deposits'], prev['deposits']),
          'sub': f"{cur['deposits_n']} from {cur['depositors']} users · {cur['first_depositors']} first-time"},
         {'label': 'Withdrawals', 'value': cur['withdrawals'], 'money': True, 'delta': _delta(cur['withdrawals'], prev['withdrawals']), 'sub': 'completed', 'invert': True},

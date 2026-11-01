@@ -1,0 +1,212 @@
+{% extends 'base_dashboard.html' %}
+
+{% block message_toasts %}{% endblock %}
+{% block title %}Order {{ o.ref }} · P2P · PATREOAIX{% endblock %}
+{% block page_title %}P2P Order{% endblock %}
+
+{% block extra_head %}
+{% include 'partials/p2p_head.html' %}
+<style>
+    .po-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; align-items: start; }
+    .po-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .po-head h2 { font-size: 18px; font-weight: 900; color: var(--px-text); }
+    .po-timer { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 800; color: var(--px-accent); }
+    .po-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 14px 0; }
+    .po-steps div { font-size: 11.5px; font-weight: 800; color: var(--px-mute); padding-top: 8px; border-top: 3px solid var(--px-line); }
+    .po-steps div.on { color: var(--px-text); border-color: var(--px-accent); }
+    .po-steps div.done { color: var(--px-up); border-color: var(--px-up); }
+    .po-kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+    .po-kv div { background: var(--px-panel-2); border-radius: 12px; padding: 10px 12px; }
+    .po-kv span { display: block; font-size: 10.5px; font-weight: 800; color: var(--px-mute); text-transform: uppercase; letter-spacing: .05em; }
+    .po-kv b { font-family: 'JetBrains Mono', monospace; font-size: 16px; color: var(--px-text); }
+    .po-pay { margin-top: 14px; padding: 14px; border-radius: 12px; background: var(--px-panel-2); border: 1px solid var(--px-accent); }
+    .po-pay h3 { font-size: 13px; font-weight: 900; color: var(--px-text); margin-bottom: 8px; }
+    .po-pay .row { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; font-size: 13px; color: var(--px-dim); border-bottom: 1px solid var(--px-line-soft); }
+    .po-pay .row:last-child { border-bottom: 0; }
+    .po-pay .row b { color: var(--px-text); font-family: 'JetBrains Mono', monospace; text-align: right; word-break: break-all; }
+    .po-copy { background: none; border: 0; color: var(--px-accent); cursor: pointer; font-size: 12px; margin-left: 6px; }
+    .po-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+    .po-warn { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--px-down-soft); color: var(--px-text); font-size: 12.5px; line-height: 1.5; }
+    .po-confirm { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; color: var(--px-text); margin-top: 10px; }
+    .po-chat { display: flex; flex-direction: column; height: 560px; }
+    .po-msgs { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px 2px 10px; }
+    .po-m { max-width: 85%; padding: 8px 11px; border-radius: 12px; font-size: 13px; line-height: 1.45; background: var(--px-panel-2); color: var(--px-text); align-self: flex-start; word-wrap: break-word; }
+    .po-m.me { align-self: flex-end; background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); }
+    .po-m.sys { align-self: center; max-width: 95%; background: none; border: 1px dashed var(--px-line); color: var(--px-mute); font-size: 12px; text-align: center; }
+    .po-m small { display: block; font-size: 10.5px; opacity: .7; margin-top: 3px; }
+    .po-m img { max-width: 220px; max-height: 260px; border-radius: 8px; display: block; margin-top: 4px; cursor: zoom-in; }
+    .po-send { display: flex; gap: 6px; align-items: center; border-top: 1px solid var(--px-line); padding-top: 10px; }
+    .po-send input[type=text] { flex: 1; min-width: 0; background: var(--px-panel-2); border: 1px solid var(--px-line); color: var(--px-text); border-radius: 10px; padding: 10px; font-size: 13px; }
+    .po-attach { width: 40px; height: 40px; flex: none; border-radius: 10px; background: var(--px-panel-2); border: 1px solid var(--px-line); color: var(--px-text); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+    .po-attach input { display: none; }
+    @media (max-width: 900px) { .po-grid { grid-template-columns: 1fr; } .po-chat { height: 460px; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pp-wrap">
+    {% include 'partials/p2p_nav.html' %}
+
+    <div class="po-grid">
+        <div class="pp-card">
+            <div class="po-head">
+                <div>
+                    <h2>{% if staff_view %}{{ o.buyer.username }} buys from {{ o.seller.username }}{% elif i_buy %}Buy {{ o.asset }} from {{ other.username }}{% else %}Sell {{ o.asset }} to {{ other.username }}{% endif %}</h2>
+                    <p class="pp-sub">Order <span class="pp-mono">{{ o.ref }}</span> · {{ o.created_at|date:"d M Y H:i" }}{% if o.demo %} · <b>demo</b>{% endif %}</p>
+                </div>
+                <div style="text-align:right">
+                    <span class="pp-status {{ o.status }}" id="poStatus">{{ o.get_status_display }}</span>
+                    {% if o.status == 'PENDING' %}<div class="po-timer" id="poTimer" data-left="{{ left }}">--:--</div>{% endif %}
+                </div>
+            </div>
+            <div class="po-steps">
+                <div class="{% if o.status == 'PENDING' %}on{% else %}done{% endif %}">1 · Buyer pays</div>
+                <div class="{% if o.status == 'PAID' or o.status == 'APPEAL' %}on{% elif o.status == 'COMPLETED' %}done{% endif %}">2 · Seller confirms</div>
+                <div class="{% if o.status == 'COMPLETED' %}done{% endif %}">3 · Coins released</div>
+            </div>
+            <div class="po-kv">
+                <div><span>{% if i_buy %}You pay{% else %}You receive{% endif %}</span><b>{{ o.fiat_amount|floatformat:"2g" }} {{ o.currency }}</b></div>
+                <div><span>Price</span><b>{{ o.price|floatformat:"2g" }}</b></div>
+                <div><span>{% if i_buy %}You get{% else %}You sell{% endif %}</span><b>{% if i_buy %}{{ receive_txt }}{% else %}{{ amount_txt }}{% endif %} {{ o.asset }}</b></div>
+                {% if o.fee %}<div><span>Fee ({{ fee_pct }}%)</span><b>{{ fee_txt }} {{ o.asset }}</b></div>{% endif %}
+            </div>
+
+            {% if o.status == 'PENDING' or o.status == 'PAID' or o.status == 'APPEAL' or staff_view %}
+            <div class="po-pay">
+                <h3>{% if i_buy %}Send exactly {{ o.fiat_amount|floatformat:"2g" }} {{ o.currency }} to:{% else %}The buyer pays you to:{% endif %}</h3>
+                {% for p in o.pay_to %}
+                <div class="row"><span>{{ p.method }}</span><b>{{ p.number }}<button type="button" class="po-copy" data-copy="{{ p.number }}" aria-label="Copy"><i class="fa-regular fa-copy"></i></button></b></div>
+                <div class="row"><span>Name</span><b>{{ p.name }}</b></div>
+                {% if p.bank %}<div class="row"><span>Bank</span><b>{{ p.bank }}</b></div>{% endif %}
+                {% endfor %}
+                <div class="row"><span>Reference</span><b>{{ o.ref }}<button type="button" class="po-copy" data-copy="{{ o.ref }}" aria-label="Copy"><i class="fa-regular fa-copy"></i></button></b></div>
+            </div>
+            {% endif %}
+            {% if o.ad.terms %}<p class="pp-sub" style="margin-top:10px;white-space:pre-line"><b>Terms:</b> {{ o.ad.terms }}</p>{% endif %}
+
+            {% if not staff_view %}
+            {% if i_buy and o.status == 'PENDING' %}
+            <div class="po-warn">Pay from an account in <b>your own name</b>, then tap "I have paid". Don't write crypto words in the payment note.</div>
+            <div class="po-actions">
+                <form method="post">{% csrf_token %}<input type="hidden" name="action" value="paid"><button class="pp-btn buy" type="submit" onclick="return confirm('Have you sent {{ o.fiat_amount|floatformat:2 }} {{ o.currency }}? Marking paid without paying can get your account banned.')"><i class="fa-solid fa-check"></i> I have paid</button></form>
+                <form method="post">{% csrf_token %}<input type="hidden" name="action" value="cancel"><button class="pp-btn ghost" type="submit" onclick="return confirm('Cancel this order?')">Cancel order</button></form>
+            </div>
+            {% elif i_sell and o.status == 'PENDING' %}
+            <p class="pp-sub" style="margin-top:12px">Waiting for {{ other.username }} to pay. Your {{ o.asset }} is safe in escrow; if they don't pay in time the order cancels by itself.</p>
+            {% elif i_sell and o.status == 'PAID' %}
+            <div class="po-warn">Open your {{ o.pay_to.0.method }} app or bank and check that <b>{{ o.fiat_amount|floatformat:"2g" }} {{ o.currency }}</b> from <b>{{ other.username }}</b> has really arrived. Fake SMS and edited screenshots are common: never release on a screenshot alone.</div>
+            <form method="post">{% csrf_token %}<input type="hidden" name="action" value="release">
+                <label class="po-confirm"><input type="checkbox" name="confirm" value="yes" required> I confirm the money is in my account.</label>
+                <div class="po-actions"><button class="pp-btn sell" type="submit"><i class="fa-solid fa-unlock"></i> Release {{ amount_txt }} {{ o.asset }}</button></div>
+            </form>
+            {% elif i_buy and o.status == 'PAID' %}
+            <p class="pp-sub" style="margin-top:12px">Waiting for {{ other.username }} to confirm your payment and release the coins.</p>
+            {% endif %}
+            {% if can_appeal %}
+            <details style="margin-top:12px"><summary class="pp-sub" style="cursor:pointer;font-weight:700">Problem with this order? Open an appeal</summary>
+                <form method="post" style="margin-top:8px">{% csrf_token %}<input type="hidden" name="action" value="appeal">
+                    <div class="pp-field"><textarea name="reason" rows="3" required minlength="10" placeholder="What happened? e.g. I paid 13,000 KES at 14:05 (M-Pesa code QJK…) but the seller does not release."></textarea></div>
+                    <button class="pp-btn ghost sm" type="submit" style="margin-top:8px">Open appeal</button>
+                </form>
+            </details>
+            {% endif %}
+            {% if o.status == 'APPEAL' %}<div class="po-warn"><b>Appeal open</b> by {{ o.appeal_by.username }}: "{{ o.appeal_reason }}". Upload proof in the chat; support decides within 24 hours.</div>{% endif %}
+            {% if o.status == 'COMPLETED' %}
+            <div class="po-actions"><span class="pp-up" style="font-weight:800"><i class="fa-solid fa-circle-check"></i> Completed {{ o.completed_at|date:"d M H:i" }}</span>
+                {% if i_buy %}<a class="pp-btn ghost sm" href="/copy-trading/">Use your {{ o.asset }}</a>{% endif %}</div>
+            {% if not my_feedback %}
+            <form method="post" class="po-actions">{% csrf_token %}<input type="hidden" name="action" value="feedback">
+                <input name="comment" maxlength="200" placeholder="Feedback for {{ other.username }} (optional)" style="flex:1;min-width:180px;background:var(--px-panel-2);border:1px solid var(--px-line);color:var(--px-text);border-radius:10px;padding:8px 10px;font-size:13px">
+                <button class="pp-btn buy sm" name="positive" value="1">👍 Good</button><button class="pp-btn sell sm" name="positive" value="0">👎 Bad</button>
+            </form>
+            {% else %}<p class="pp-sub" style="margin-top:8px">Your feedback: {% if my_feedback.positive %}👍{% else %}👎{% endif %} {{ my_feedback.comment }}</p>{% endif %}
+            {% endif %}
+            {% if o.status == 'CANCELLED' %}<p class="pp-sub" style="margin-top:12px"><b>Cancelled:</b> {{ o.cancel_reason }}</p>{% endif %}
+            {% endif %}
+
+            {% if o.resolution %}<p class="pp-sub" style="margin-top:10px"><b>Support decision:</b> {{ o.resolution }}</p>{% endif %}
+            {% if request.user.is_staff and o.status == 'APPEAL' or request.user.is_staff and o.status == 'PAID' %}
+            <form method="post" class="pp-card" style="margin-top:14px;padding:12px">{% csrf_token %}
+                <div class="pp-h" style="margin-bottom:8px"><h2 style="font-size:14px">Support decision</h2></div>
+                <div class="pp-field"><input name="note" maxlength="255" placeholder="Reason (shown to both traders)"></div>
+                <div class="po-actions">
+                    <button class="pp-btn buy sm" name="action" value="resolve_release" onclick="return confirm('Release the coins to the BUYER?')">Buyer paid: release to buyer</button>
+                    <button class="pp-btn sell sm" name="action" value="resolve_refund" onclick="return confirm('Return the coins to the SELLER?')">Not paid: refund seller</button>
+                </div>
+            </form>
+            {% endif %}
+
+            <div style="margin-top:14px;font-size:12px;color:var(--px-mute)">
+                <b style="color:var(--px-text)">{{ other.username }}</b> · {{ other_stats.trades }} trades{% if other_stats.completion is not None %} · {{ other_stats.completion }}% completion{% endif %}{% if other_stats.positive is not None %} · 👍 {{ other_stats.positive }}%{% endif %}
+            </div>
+        </div>
+
+        <div class="pp-card po-chat">
+            <div class="pp-h" style="margin-bottom:6px"><h2><i class="fa-regular fa-comments mr-1"></i> Chat with {% if staff_view %}traders{% else %}{{ other.username }}{% endif %}</h2><p>Photos are only visible to you, them and support</p></div>
+            <div class="po-msgs" id="poMsgs"></div>
+            {% if o.status != 'COMPLETED' and o.status != 'CANCELLED' or staff_view %}
+            <form class="po-send" id="poSend" enctype="multipart/form-data">{% csrf_token %}
+                <label class="po-attach" title="Attach payment proof"><i class="fa-solid fa-paperclip"></i><input type="file" name="image" accept="image/*,application/pdf" id="poFile"></label>
+                <input type="text" name="text" maxlength="1000" placeholder="Type a message…" autocomplete="off" id="poText">
+                <button class="pp-btn sm" type="submit" aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var ref = '{{ o.ref }}', last = 0, status = '{{ o.status }}', box = document.getElementById('poMsgs');
+    var pollUrl = '{% url "p2p_order_poll" o.ref %}';
+    function esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+    function add(m) {
+        var div = document.createElement('div');
+        div.className = 'po-m' + (m.system ? ' sys' : m.me ? ' me' : '');
+        var html = m.system ? '' : '<b style="font-size:11px">' + esc(m.who) + '</b><br>';
+        html += esc(m.text);
+        if (m.image) html += m.pdf ? '<br><a href="' + m.image + '" target="_blank" class="underline">📄 Payment proof (PDF)</a>' : '<a href="' + m.image + '" target="_blank"><img src="' + m.image + '" alt="Payment proof"></a>';
+        html += '<small>' + m.time + '</small>';
+        div.innerHTML = html; box.appendChild(div);
+    }
+    function poll() {
+        fetch(pollUrl + '?after=' + last, { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) {
+            if (!d.success) return;
+            var stick = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+            d.messages.forEach(function (m) { add(m); last = Math.max(last, m.id); });
+            if (d.messages.length && (stick || last === d.messages[d.messages.length - 1].id)) box.scrollTop = box.scrollHeight;
+            if (d.status !== status) location.reload();          // the other side paid / released / cancelled
+        }).catch(function () {});
+    }
+    poll(); setInterval(function () { if (!document.hidden) poll(); }, 4000);
+
+    var timer = document.getElementById('poTimer');
+    if (timer) {
+        var left = +timer.dataset.left, t0 = Date.now();
+        setInterval(function () {
+            var s = Math.max(0, left - Math.floor((Date.now() - t0) / 1000));
+            timer.textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+            if (s === 0 && status === 'PENDING') { status = 'X'; setTimeout(function () { location.reload(); }, 1500); }
+        }, 1000);
+    }
+    var form = document.getElementById('poSend');
+    if (form) form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var fd = new FormData(form); fd.append('action', 'message');
+        if (!document.getElementById('poText').value.trim() && !document.getElementById('poFile').files.length) return;
+        fetch('', { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function (r) { return r.json(); }).then(function (d) {
+                if (!d.success) { alert(d.error || 'Not sent'); return; }
+                form.reset(); poll();
+            });
+    });
+    var file = document.getElementById('poFile');
+    if (file) file.addEventListener('change', function () { if (file.files.length) form.requestSubmit(); });
+    document.querySelectorAll('[data-copy]').forEach(function (b) {
+        b.addEventListener('click', function () { navigator.clipboard && navigator.clipboard.writeText(b.dataset.copy); b.innerHTML = '<i class="fa-solid fa-check"></i>'; });
+    });
+})();
+</script>
+{% endblock %}

@@ -65,6 +65,8 @@ class Command(BaseCommand):
         from store import price_alerts                     # "tell me when gold reaches 4,050"
         for w in price_alerts.safe_check():
             self.stdout.write(f'   🔔 price alert {w.user} {w.symbol} {w.condition} {w.price}')
+        from store import p2p                              # cancel unpaid P2P orders whose timer ran out
+        p2p.safe_expire()
         from store import journal                          # Monday: weekly AI review of every trader's journal
         n = journal.safe_weekly()
         if n:

@@ -1,0 +1,17 @@
+<div class="pp-top">
+    <h1><i class="fa-solid fa-people-arrows mr-1"></i> P2P <small>Buy &amp; sell USDT, BTC, ETH with mobile money and banks</small></h1>
+    <nav class="pp-nav">
+        <a href="{% url 'p2p' %}" class="{% if tab == 'market' %}on{% endif %}"><i class="fa-solid fa-store"></i> Market</a>
+        <a href="{% url 'p2p_orders' %}" class="{% if tab == 'orders' %}on{% endif %}"><i class="fa-solid fa-receipt"></i> My orders{% if open_n %} <span class="badge">{{ open_n }}</span>{% endif %}</a>
+        <a href="{% url 'p2p_ads' %}" class="{% if tab == 'ads' %}on{% endif %}"><i class="fa-solid fa-bullhorn"></i> My ads &amp; payment</a>
+        {% if request.user.is_staff %}<a href="{% url 'p2p_admin' %}" class="{% if tab == 'admin' %}on{% endif %}"><i class="fa-solid fa-scale-balanced"></i> Appeals</a>{% endif %}
+    </nav>
+</div>
+<div class="pp-mode">
+    {% if live %}<span><b>Live</b> · trades use your real wallet · fee {{ fee_pct }}%</span>
+    {% else %}<span><b>Test mode</b> · practise with demo coins, no real money moves · fee {{ fee_pct }}%</span>
+    <form method="post" action="{% url 'p2p' %}" style="display:inline">{% csrf_token %}<input type="hidden" name="action" value="demo"><button class="pp-btn sm ghost" type="submit"><i class="fa-solid fa-coins"></i> Get demo coins</button></form>{% endif %}
+    <span class="pp-bals">{% for a, b in bals %}<span>{{ b }} {{ a }}</span>{% endfor %}</span>
+</div>
+{% if not can_trade.0 %}<div class="pp-msg error">{{ can_trade.1 }} <a href="{% url 'kyc_status' %}" class="underline">Verify now</a></div>{% endif %}
+{% for m in messages %}<div class="pp-msg {{ m.tags }}">{{ m }}</div>{% endfor %}

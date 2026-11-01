@@ -1909,3 +1909,124 @@ class PropPayout(models.Model):
 
     def __str__(self):
         return f"Payout #{self.account.login} ${self.amount} [{self.status}]"
+
+
+# ============================================================
+# P2P MARKETPLACE (store/p2p.py): users trade USDT for local money, USDT held in escrow
+# ============================================================
+class P2PBalance(models.Model):
+    """P2P coin balances with 8 decimals: demo coins in test mode, and live BTC / ETH (live USDT is the wallet)."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='p2p_balances')
+    asset = models.CharField(max_length=5)
+    demo = models.BooleanField(default=True)
+    balance = models.DecimalField(max_digits=20, decimal_places=8, default=Decimal('0'))
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ['user', 'asset', 'demo']
+
+    def __str__(self):
+        return f"{self.user} {self.balance} {'demo ' if self.demo else ''}{self.asset}"
+
+
+class P2PPaymentMethod(models.Model):
+    """Where a user receives local money: M-Pesa number, bank account…"""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='p2p_methods')
+    method = models.CharField(max_length=30)              # key from p2p.METHODS, e.g. 'mpesa_ke'
+    account_name = models.CharField(max_length=100)
+    account_number = models.CharField(max_length=60)       # phone number or account number
+    bank_name = models.CharField(max_length=80, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user} {self.method} {self.account_number}"
+
+
+class P2PAd(models.Model):
+    """SELL: the advertiser sells USDT (locked in escrow when the ad is posted). BUY: the advertiser buys USDT."""
+    SIDES = [('SELL', 'Sell USDT'), ('BUY', 'Buy USDT')]
+    STATUSES = [('ACTIVE', 'Active'), ('PAUSED', 'Paused'), ('CLOSED', 'Closed')]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='p2p_ads')
+    side = models.CharField(max_length=4, choices=SIDES)
+    asset = models.CharField(max_length=5, default='USDT', db_index=True)   # USDT, BTC, ETH
+    currency = models.CharField(max_length=3, db_index=True)
+    price = models.DecimalField(max_digits=18, decimal_places=2)          # local money per 1 coin
+    total = models.DecimalField(max_digits=20, decimal_places=8)          # coins
+    remaining = models.DecimalField(max_digits=20, decimal_places=8)      # coins still available
+    min_fiat = models.DecimalField(max_digits=14, decimal_places=2)
+    max_fiat = models.DecimalField(max_digits=14, decimal_places=2)
+    methods = models.JSONField(default=list)               # accepted method keys
+    pay_methods = models.ManyToManyField(P2PPaymentMethod, blank=True, related_name='ads')   # SELL: where buyers pay
+    time_limit = models.PositiveSmallIntegerField(default=15)                # minutes to pay
+    terms = models.TextField(blank=True)
+    status = models.CharField(max_length=6, choices=STATUSES, default='ACTIVE', db_index=True)
+    demo = models.BooleanField(default=True)                # placed with demo USDT (P2P test mode)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['price']
+
+    def __str__(self):
+        return f"{self.side} {self.remaining} {self.asset} @ {self.price} {self.currency} by {self.user}"
+
+
+class P2POrder(models.Model):
+    STATUSES = [('PENDING', 'Waiting for payment'), ('PAID', 'Paid, waiting for release'), ('COMPLETED', 'Completed'),
+                ('CANCELLED', 'Cancelled'), ('APPEAL', 'In appeal')]
+
+    ref = models.CharField(max_length=16, unique=True)
+    ad = models.ForeignKey(P2PAd, on_delete=models.PROTECT, related_name='orders')
+    buyer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='p2p_buys')
+    seller = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='p2p_sells')
+    asset = models.CharField(max_length=5, default='USDT')
+    amount = models.DecimalField(max_digits=20, decimal_places=8)          # coins
+    fee = models.DecimalField(max_digits=20, decimal_places=8, default=0)  # coins kept by the site
+    price = models.DecimalField(max_digits=18, decimal_places=2)
+    fiat_amount = models.DecimalField(max_digits=16, decimal_places=2)
+    currency = models.CharField(max_length=3)
+    pay_to = models.JSONField(default=list)                 # snapshot of the seller's payment details
+    escrow_in_ad = models.BooleanField(default=True)        # SELL ad: escrow held by the ad; BUY ad: taken from the seller
+    status = models.CharField(max_length=9, choices=STATUSES, default='PENDING', db_index=True)
+    demo = models.BooleanField(default=True)
+    expires_at = models.DateTimeField()
+    paid_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancel_reason = models.CharField(max_length=200, blank=True)
+    appeal_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    appeal_reason = models.TextField(blank=True)
+    resolution = models.CharField(max_length=255, blank=True)
+    resolved_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.ref} {self.amount} {self.asset} {self.status}"
+
+
+class P2PMessage(models.Model):
+    order = models.ForeignKey(P2POrder, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)   # None = system
+    text = models.TextField(blank=True)
+    image = models.FileField(upload_to='p2p_proofs/', blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['id']
+
+
+class P2PFeedback(models.Model):
+    order = models.ForeignKey(P2POrder, on_delete=models.CASCADE, related_name='feedback')
+    from_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='+')
+    to_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='p2p_feedback')
+    positive = models.BooleanField(default=True)
+    comment = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['order', 'from_user']

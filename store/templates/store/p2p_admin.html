@@ -1,0 +1,46 @@
+{% extends 'base_dashboard.html' %}
+
+{% block message_toasts %}{% endblock %}
+{% block title %}P2P appeals · Admin · PATREOAIX{% endblock %}
+{% block page_title %}P2P Appeals{% endblock %}
+{% block extra_head %}{% include 'partials/p2p_head.html' %}{% endblock %}
+
+{% block content %}
+<div class="pp-wrap">
+    {% include 'partials/p2p_nav.html' %}
+    <div class="pp-card">
+        <div class="pp-h"><h2>P2P today</h2></div>
+        <div class="pp-grid">
+            <div class="pp-field"><label>Open orders</label><b class="pp-mono" style="font-size:20px">{{ stats.open }}</b></div>
+            <div class="pp-field"><label>Completed (7 days)</label><b class="pp-mono" style="font-size:20px">{{ stats.done_7d }}</b></div>
+            <div class="pp-field"><label>Active ads</label><b class="pp-mono" style="font-size:20px">{{ stats.ads }}</b></div>
+            <div class="pp-field"><label>Appeals waiting</label><b class="pp-mono" style="font-size:20px">{{ appeals|length }}</b></div>
+        </div>
+    </div>
+    <div class="pp-card">
+        <div class="pp-h"><h2>Appeals waiting for a decision</h2><p>Open each one, read the chat and proofs, then release or refund</p></div>
+        {% if appeals %}
+        <div class="pp-scroll"><table class="pp-table">
+            <thead><tr><th>Order</th><th>Buyer → Seller</th><th>Amount</th><th>Opened by</th><th>Reason</th><th></th></tr></thead>
+            <tbody>{% for o in appeals %}<tr>
+                <td class="pp-mono">{{ o.ref }}{% if o.demo %} <span class="pp-tag">demo</span>{% endif %}</td>
+                <td>{{ o.buyer.username }} → {{ o.seller.username }}</td>
+                <td class="pp-mono">{{ o.amount_txt }} {{ o.asset }}<br><span class="pp-mute">{{ o.fiat_amount|floatformat:"2g" }} {{ o.currency }}</span></td>
+                <td>{{ o.appeal_by.username }}</td>
+                <td style="max-width:320px;white-space:normal">{{ o.appeal_reason|truncatechars:160 }}</td>
+                <td><a class="pp-btn sm" href="{% url 'p2p_order' o.ref %}">Review</a></td>
+            </tr>{% endfor %}</tbody>
+        </table></div>
+        {% else %}<p class="pp-sub">No appeals. 🎉</p>{% endif %}
+    </div>
+    {% if recent %}
+    <div class="pp-card">
+        <div class="pp-h"><h2>Recent decisions</h2></div>
+        <div class="pp-scroll"><table class="pp-table">
+            <thead><tr><th>Order</th><th>Result</th><th>Decision</th><th>By</th></tr></thead>
+            <tbody>{% for o in recent %}<tr><td class="pp-mono"><a class="underline" href="{% url 'p2p_order' o.ref %}">{{ o.ref }}</a></td><td><span class="pp-status {{ o.status }}">{{ o.get_status_display }}</span></td><td>{{ o.resolution }}</td><td>{{ o.resolved_by.username }}</td></tr>{% endfor %}</tbody>
+        </table></div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
