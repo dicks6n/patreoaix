@@ -5273,108 +5273,135 @@ document.addEventListener('DOMContentLoaded', () => { mt5LoadAccounts(); setInte
 })();
 </script>
 <style>
-    /* ─── Timeframe wheel (MT5 style): tap the chart, slide around the ring, let go ─── */
+    /* ─── Radial chart menu (MT5 mobile): tap the chart → timeframes on the outer ring, tools on the inner ring ─── */
     #mt5-tf-wheel { position: fixed; inset: 0; z-index: 900; display: none; touch-action: none; -webkit-user-select: none; user-select: none; }
     #mt5-tf-wheel.show { display: block; }
-    #mt5-tf-wheel .tw-ring { position: absolute; width: 236px; height: 236px; border-radius: 50%;
-        background: rgba(22,22,24,.93); box-shadow: 0 12px 40px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.08);
-        -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); transform: scale(.6); opacity: 0;
-        transition: transform .16s cubic-bezier(.2,.9,.3,1.2), opacity .12s; }
-    #mt5-tf-wheel.show .tw-ring { transform: scale(1); opacity: 1; }
-    #mt5-tf-wheel .tw-pointer { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transition: transform .12s ease-out; }
-    #mt5-tf-wheel .tw-pointer::before { content: ''; position: absolute; left: -23px; top: -112px; width: 46px; height: 46px; border-radius: 50%;
-        background: #0a84ff; box-shadow: 0 0 0 3px rgba(10,132,255,.25); }
-    #mt5-tf-wheel .tw-pointer::after { content: ''; position: absolute; left: -1.5px; top: -66px; width: 3px; height: 30px; border-radius: 2px; background: rgba(10,132,255,.55); }
-    #mt5-tf-wheel .tw-item { position: absolute; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%;
-        display: flex; align-items: center; justify-content: center; font: 700 14px/1 -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
-        color: rgba(255,255,255,.82); cursor: pointer; }
+    #mt5-tf-wheel .tw-ring { position: absolute; width: 284px; height: 284px; border-radius: 50%;
+        background: radial-gradient(circle, rgba(44,44,48,.96) 0 37%, rgba(24,24,27,.95) 37.5% 100%);
+        box-shadow: 0 14px 44px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.07);
+        -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); transform: scale(.55) rotate(-40deg); opacity: 0;
+        transition: transform .2s cubic-bezier(.2,.9,.3,1.15), opacity .14s; }
+    #mt5-tf-wheel.show .tw-ring { transform: scale(1) rotate(0deg); opacity: 1; }
+    #mt5-tf-wheel .tw-ring::after { content: ''; position: absolute; inset: 104px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(255,255,255,.08); pointer-events: none; }
+    #mt5-tf-wheel .tw-pointer { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transition: transform .14s ease-out; }
+    #mt5-tf-wheel .tw-pointer::before { content: ''; position: absolute; left: -24px; top: -136px; width: 48px; height: 48px; border-radius: 50%;
+        background: #0a84ff; box-shadow: 0 0 0 4px rgba(10,132,255,.22); }
+    #mt5-tf-wheel .tw-item, #mt5-tf-wheel .tw-tool { position: absolute; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    #mt5-tf-wheel .tw-item { width: 48px; height: 48px; margin: -24px 0 0 -24px; font: 700 14px/1 -apple-system, BlinkMacSystemFont, 'SF Pro Text', Roboto, sans-serif; color: rgba(255,255,255,.85); }
     #mt5-tf-wheel .tw-item.on { color: #fff; }
     #mt5-tf-wheel .tw-item.cur:not(.on) { color: #0a84ff; }
-    #mt5-tf-wheel .tw-center { position: absolute; left: 50%; top: 50%; width: 74px; height: 74px; margin: -37px 0 0 -37px; border-radius: 50%;
-        background: rgba(255,255,255,.07); display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; }
-    #mt5-tf-wheel .tw-center b { font: 800 19px/1 -apple-system, BlinkMacSystemFont, sans-serif; }
-    #mt5-tf-wheel .tw-center small { font: 600 9.5px/1.2 -apple-system, sans-serif; color: rgba(255,255,255,.55); margin-top: 4px; text-transform: uppercase; letter-spacing: .05em; }
+    #mt5-tf-wheel .tw-tool { width: 40px; height: 40px; margin: -20px 0 0 -20px; color: rgba(255,255,255,.9); font-size: 17px; background: rgba(255,255,255,.06); }
+    #mt5-tf-wheel .tw-tool.on { background: #0a84ff; color: #fff; }
+    #mt5-tf-wheel .tw-tool.active:not(.on) { color: #0a84ff; }
+    #mt5-tf-wheel .tw-tool .f { font: italic 700 19px/1 Georgia, 'Times New Roman', serif; }
+    #mt5-tf-wheel .tw-center { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; margin: -26px 0 0 -26px; border-radius: 50%;
+        background: rgba(255,255,255,.1); display: flex; align-items: center; justify-content: center; color: #fff; font: 800 15px/1 -apple-system, BlinkMacSystemFont, Roboto, sans-serif; }
+    #mt5-tf-wheel .tw-hint { position: absolute; left: 0; right: 0; text-align: center; font: 600 12px/1.3 -apple-system, Roboto, sans-serif; color: #fff;
+        text-shadow: 0 1px 4px rgba(0,0,0,.6); pointer-events: none; }
 </style>
-<div id="mt5-tf-wheel" role="dialog" aria-label="Choose timeframe">
-    <div class="tw-ring"><div class="tw-pointer"></div><div class="tw-center"><b>M5</b><small>Timeframe</small></div></div>
+<div id="mt5-tf-wheel" role="dialog" aria-label="Chart menu">
+    <div class="tw-ring"><div class="tw-pointer"></div><div class="tw-center">M5</div></div>
+    <div class="tw-hint" id="mt5-tw-hint"></div>
 </div>
 <script>
 // ═══════════════════════════════════════════════════════════
-// TIMEFRAME WHEEL — like MT5 mobile: tap the chart (or the M5 label) and a dark ring of timeframes opens
-// around your finger; slide around the ring (the pointer turns with you) and let go, or tap a timeframe.
-// Tap outside the ring or press back to close.
+// RADIAL CHART MENU — like MT5 mobile: a tap on the chart opens a ring around your finger.
+//   outer ring: the timeframes M1 … MN (slide around it, the blue pointer turns with you; let go or tap to switch)
+//   inner ring: Crosshair (top) · Indicators (right) · Objects (bottom) · Chart settings (left)
+//   centre: the current timeframe; tap it, tap outside or press back to close.
 // ═══════════════════════════════════════════════════════════
 (function () {
     const box = document.getElementById('mt5-tf-wheel');
     if (!box) return;
-    const ring = box.querySelector('.tw-ring'), pointer = box.querySelector('.tw-pointer'), center = box.querySelector('.tw-center b');
-    const LIST = MT5_TF_LIST, N = LIST.length, R = 89, SIZE = 236;
-    let hover = -1, tracking = false, moved = false, sx = 0, sy = 0, cx = 0, cy = 0;
+    const ring = box.querySelector('.tw-ring'), pointer = box.querySelector('.tw-pointer'), center = box.querySelector('.tw-center');
+    const hint = document.getElementById('mt5-tw-hint');
+    const LIST = MT5_TF_LIST, N = LIST.length, SIZE = 284, R_OUT = 112, R_IN = 66;
+    const TOOLS = [   // clockwise from the top
+        { name: 'Crosshair', html: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 2.5v6M12 15.5v6M2.5 12h6M15.5 12h6"/></svg>',
+          fn: () => mt5ToggleCrosshair(), active: () => typeof mt5CrosshairEnabled !== 'undefined' && mt5CrosshairEnabled },
+        { name: 'Indicators', html: '<span class="f">f</span>', fn: () => mt5OpenIndicators() },
+        { name: 'Objects', html: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M3.5 21V12.5M3.5 21h8"/><circle cx="15.5" cy="7.5" r="4.5"/><path d="M8.5 20.5l5-9 5 9z"/></svg>',
+          fn: () => mt5OpenObjectsSheet() },
+        { name: 'Chart settings', html: '<i class="fa-solid fa-gear"></i>', fn: () => mt5OpenChartMenu() },
+    ];
+    let hover = null, tracking = false, moved = false, sx = 0, sy = 0, cx = 0, cy = 0;
+    const place = (el, r, a) => { el.style.left = (SIZE / 2 + r * Math.cos(a)) + 'px'; el.style.top = (SIZE / 2 + r * Math.sin(a)) + 'px'; };
     LIST.forEach((tf, i) => {
-        const a = (i / N) * 2 * Math.PI - Math.PI / 2;           // M1 at the top, clockwise
         const el = document.createElement('div');
-        el.className = 'tw-item'; el.dataset.i = i; el.textContent = MT5_TF_LABEL[tf];
-        el.style.left = (SIZE / 2 + R * Math.cos(a)) + 'px'; el.style.top = (SIZE / 2 + R * Math.sin(a)) + 'px';
+        el.className = 'tw-item'; el.textContent = MT5_TF_LABEL[tf];
+        place(el, R_OUT, (i / N) * 2 * Math.PI - Math.PI / 2);          // M1 at the top, clockwise
         ring.appendChild(el);
     });
-    const items = [...ring.querySelectorAll('.tw-item')];
-    function point(i) {
-        hover = i;
-        items.forEach((el, k) => el.classList.toggle('on', k === i));
-        if (i >= 0) {
-            pointer.style.transform = `rotate(${i * 360 / N}deg)`;
-            center.textContent = MT5_TF_LABEL[LIST[i]];
-        }
+    TOOLS.forEach((t, i) => {
+        const el = document.createElement('div');
+        el.className = 'tw-tool'; el.innerHTML = t.html; el.title = t.name; el.setAttribute('aria-label', t.name);
+        place(el, R_IN - 14, (i / 4) * 2 * Math.PI - Math.PI / 2);
+        ring.appendChild(el);
+    });
+    const items = [...ring.querySelectorAll('.tw-item')], tools = [...ring.querySelectorAll('.tw-tool')];
+    function show(h) {
+        hover = h;
+        items.forEach((el, k) => el.classList.toggle('on', !!h && h.t === 'tf' && h.i === k));
+        tools.forEach((el, k) => el.classList.toggle('on', !!h && h.t === 'tool' && h.i === k));
+        if (h && h.t === 'tf') { pointer.style.opacity = 1; pointer.style.transform = `rotate(${h.i * 360 / N}deg)`; center.textContent = MT5_TF_LABEL[LIST[h.i]]; hint.textContent = ''; }
+        else { pointer.style.opacity = h ? 0 : pointer.style.opacity; if (h && h.t === 'tool') hint.textContent = TOOLS[h.i].name; }
     }
-    function indexAt(x, y) {
+    function at(x, y) {
         const dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy);
-        if (d < 38) return -2;                                   // the centre: no change
-        if (d > SIZE / 2 + 40) return -1;                        // far outside the ring
         let a = Math.atan2(dy, dx) + Math.PI / 2; if (a < 0) a += 2 * Math.PI;
-        return Math.round(a / (2 * Math.PI / N)) % N;
+        if (d < 28) return { t: 'center' };
+        if (d < 86) return { t: 'tool', i: Math.round(a / (Math.PI / 2)) % 4 };
+        if (d < SIZE / 2 + 34) return { t: 'tf', i: Math.round(a / (2 * Math.PI / N)) % N };
+        return { t: 'out' };
     }
     window.mt5OpenTfWheel = function (x, y) {
-        const vw = window.innerWidth, vh = window.innerHeight, m = SIZE / 2 + 10;
+        const vw = window.innerWidth, vh = window.innerHeight, m = SIZE / 2 + 8;
         if (x == null) { const r = (document.getElementById('mt5-chart-wrap') || document.body).getBoundingClientRect(); x = r.left + r.width / 2; y = r.top + r.height / 2; }
         cx = Math.min(Math.max(x, m), vw - m); cy = Math.min(Math.max(y, m), vh - m);
         ring.style.left = (cx - SIZE / 2) + 'px'; ring.style.top = (cy - SIZE / 2) + 'px';
+        hint.style.top = (cy + SIZE / 2 + 10) + 'px'; hint.textContent = 'Slide around the ring or tap';
         const cur = LIST.indexOf(mt5ChartTimeframe);
         items.forEach((el, k) => el.classList.toggle('cur', k === cur));
-        pointer.style.transition = 'none'; point(cur); void pointer.offsetWidth; pointer.style.transition = '';
+        tools.forEach((el, k) => el.classList.toggle('active', !!(TOOLS[k].active && TOOLS[k].active())));
+        pointer.style.transition = 'none'; show({ t: 'tf', i: cur }); hint.textContent = 'Slide around the ring or tap';
+        void pointer.offsetWidth; pointer.style.transition = '';
         box.classList.add('show');
         try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
     };
     window.mt5CloseTfWheel = function () { box.classList.remove('show'); tracking = false; };
-    function pick(i) {
+    function choose(h) {
         mt5CloseTfWheel();
-        if (i >= 0 && LIST[i] !== mt5ChartTimeframe) mt5SetTimeframe(LIST[i]);
+        if (!h) return;
+        if (h.t === 'tf' && LIST[h.i] !== mt5ChartTimeframe) mt5SetTimeframe(LIST[h.i]);
+        if (h.t === 'tool') setTimeout(() => TOOLS[h.i].fn(), 30);
     }
     box.addEventListener('pointerdown', e => {
-        const i = indexAt(e.clientX, e.clientY);
-        if (i === -1) { e.preventDefault(); mt5CloseTfWheel(); return; }
+        const h = at(e.clientX, e.clientY);
+        if (h.t === 'out') { e.preventDefault(); mt5CloseTfWheel(); return; }
         tracking = true; moved = false; sx = e.clientX; sy = e.clientY;
-        if (i >= 0) point(i);
+        if (h.t === 'tf' || h.t === 'tool') show(h);
         try { box.setPointerCapture(e.pointerId); } catch (_) {}
         e.preventDefault();
     });
     box.addEventListener('pointermove', e => {
         if (!tracking) return;
         if (Math.hypot(e.clientX - sx, e.clientY - sy) > 6) moved = true;
-        const i = indexAt(e.clientX, e.clientY);
-        if (i >= 0 && i !== hover) { point(i); try { navigator.vibrate && navigator.vibrate(4); } catch (_) {} }
+        const h = at(e.clientX, e.clientY);
+        if ((h.t === 'tf' || h.t === 'tool') && (!hover || hover.t !== h.t || hover.i !== h.i)) { show(h); try { navigator.vibrate && navigator.vibrate(4); } catch (_) {} }
         e.preventDefault();
     });
     box.addEventListener('pointerup', e => {
         if (!tracking) return;
         tracking = false;
-        const i = indexAt(e.clientX, e.clientY);
-        if (i === -2 && !moved) { mt5CloseTfWheel(); return; }  // tapped the centre: keep the timeframe
-        pick(i >= 0 ? i : hover);
+        const h = at(e.clientX, e.clientY);
+        if (h.t === 'center' && !moved) { mt5CloseTfWheel(); return; }
+        if (h.t === 'tf' || h.t === 'tool') return choose(h);
+        choose(hover && hover.t === 'tf' && moved ? hover : null);   // slid off the ring: keep the last highlighted timeframe
     });
     box.addEventListener('pointercancel', () => { tracking = false; });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && box.classList.contains('show')) mt5CloseTfWheel(); });
 
-    // the M5 label in the chart toolbar opens the wheel too
+    // the timeframe label in the chart toolbar opens it too
     window.mt5OpenTimeframeSheet = function () { mt5OpenTfWheel(); };
 
     // a quick tap on the chart (not a drag, pinch, drawing or chart order) opens it where you tapped
