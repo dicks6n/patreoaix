@@ -58,7 +58,7 @@ DERIV_OAUTH_REDIRECT = os.environ.get('DERIV_OAUTH_REDIRECT', '')
 DERIV_OAUTH_SCOPES = 'read trade'
 # Real-money Deriv trading from the site (digits + Multipliers). Off unless both are set:
 #   DERIV_REAL_TRADING=True and TOKEN_ENCRYPTION_KEY (tokens are then stored encrypted, store/fields.py)
-DERIV_REAL_TRADING = os.environ.get('DERIV_REAL_TRADING', 'False')
+DERIV_REAL_TRADING = os.environ.get('DERIV_REAL_TRADING', 'True')    # still needs TOKEN_ENCRYPTION_KEY
 DERIV_REAL_MAX_STAKE = os.environ.get('DERIV_REAL_MAX_STAKE', '50')     # USD per contract
 TOKEN_ENCRYPTION_KEY = os.environ.get('TOKEN_ENCRYPTION_KEY', '')
 # First-deposit bonus (store/bonus.py): % of the first deposit, its cap, and the trading volume (× bonus)
@@ -81,8 +81,7 @@ VAPID_EMAIL = os.environ.get('VAPID_EMAIL', '')
 ACADEMY_PRO_DAYS = os.environ.get('ACADEMY_PRO_DAYS', '3')
 ACADEMY_REQUIRED_FOR_BONUS = os.environ.get('ACADEMY_REQUIRED_FOR_BONUS', 'False')
 
-# P2P marketplace (/p2p/): False = test mode with demo coins; True = real wallets (needs KYC). Fee % per trade.
-P2P_LIVE = os.environ.get('P2P_LIVE', 'False')
+# P2P marketplace (/p2p/): real wallets, KYC required. Fee % per trade.
 P2P_FEE_PCT = os.environ.get('P2P_FEE_PCT', '0.2')
 # =============================================
 # NOWCRYPTO API CONFIGURATION
@@ -131,7 +130,7 @@ SMS_RATE_LIMIT_PER_HOUR = 10
 # settings.py
 NOWPAYMENTS_API_KEY = os.getenv('NOWPAYMENTS_API_KEY', '')
 NOWPAYMENTS_IPN_SECRET = os.getenv('NOWPAYMENTS_IPN_SECRET', '')
-NOWPAYMENTS_SANDBOX = os.getenv('NOWPAYMENTS_SANDBOX', 'True') == 'True'   # False when going live
+NOWPAYMENTS_SANDBOX = os.getenv('NOWPAYMENTS_SANDBOX', 'False') == 'True'   # live by default; True only for testing
 
 # =============================================
 # SECURITY & DEPLOYMENT
@@ -324,10 +323,10 @@ REST_FRAMEWORK = {
 # =============================================
 MPESA_CONSUMER_KEY = os.getenv('MPESA_CONSUMER_KEY', '')  #  in .env
 MPESA_CONSUMER_SECRET = os.getenv('MPESA_CONSUMER_SECRET', '')  #  in .env
-MPESA_PASSKEY = os.getenv('MPESA_PASSKEY', 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919')  #
-MPESA_SHORTCODE = os.getenv('MPESA_SHORTCODE', '174379')  #
-MPESA_ENVIRONMENT = os.getenv('MPESA_ENVIRONMENT', 'sandbox')  #
-MPESA_EXPRESS_SHORTCODE = '174379'  #
+MPESA_PASSKEY = os.getenv('MPESA_PASSKEY', '')  #  in .env (your live Lipa Na M-Pesa passkey)
+MPESA_SHORTCODE = os.getenv('MPESA_SHORTCODE', '')  #  in .env (your paybill / till)
+MPESA_ENVIRONMENT = os.getenv('MPESA_ENVIRONMENT', 'production')  # live by default
+MPESA_EXPRESS_SHORTCODE = os.getenv('MPESA_EXPRESS_SHORTCODE', '') or MPESA_SHORTCODE  #
 if MPESA_ENVIRONMENT == 'production':  #
     MPESA_BASE_URL = 'https://api.safaricom.co.ke'  #
 else:  #

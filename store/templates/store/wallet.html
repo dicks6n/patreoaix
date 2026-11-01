@@ -77,7 +77,7 @@
         <div class="wl-bals">
             <div class="wl-bal"><span>Wallet</span><b>${{ wallet_bal|floatformat:"2g" }}</b><small>Deposits, P2P, transfers, subscriptions and challenges</small><a href="{% url 'funding_deposit' %}">Deposit →</a></div>
             <div class="wl-bal"><span>Trading account</span><b>${{ trading_bal|floatformat:"2g" }}</b><small>Used by the MT5 terminal</small><a href="{% url 'mt5_terminal' %}">Open terminal →</a></div>
-            <div class="wl-bal"><span>P2P {% if not p2p_live %}demo {% endif %}coins</span><b style="font-size:15px">{% for a, b in p2p_bals %}{{ b }} {{ a }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</b><small>{% if p2p_live %}Live P2P balances{% else %}Practice coins (test mode){% endif %}</small><a href="{% url 'p2p' %}">P2P market →</a></div>
+            <div class="wl-bal"><span>Crypto</span><b style="font-size:15px">{% for a, b in p2p_bals %}{{ b }} {{ a }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</b><small>BTC and ETH bought on P2P (USDT sits in your wallet)</small><a href="{% url 'p2p' %}?asset=BTC">Buy or sell on P2P →</a></div>
             <div class="wl-bal"><span>Funded challenges</span><b>{{ props }}</b><small>Active challenge / funded accounts</small><a href="{% url 'funded' %}">My accounts →</a></div>
         </div>
     </div>

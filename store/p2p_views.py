@@ -34,17 +34,18 @@ def market(request):
     if request.method == 'POST':
         act = request.POST.get('action')
         try:
-            if act == 'demo':
-                p2p.grant_demo(request.user)
-                messages.success(request, 'Demo balance topped up: 1,000 USDT, 0.02 BTC and 0.5 ETH to practise with.')
-                return redirect(request.get_full_path())
             if act == 'express':
                 o = p2p.express(request.user, request.POST.get('side'), (request.POST.get('asset') or 'USDT').upper(),
                                 (request.POST.get('cur') or 'KES').upper(), request.POST.get('fiat'))
                 return redirect('p2p_order', ref=o.ref)
             if act == 'take':
+                method_id = request.POST.get('method')
+                if not method_id and request.POST.get('new_method'):      # selling without a saved method: add it now
+                    method_id = p2p.add_method(request.user, {
+                        'method': request.POST.get('new_method'), 'account_name': request.POST.get('account_name'),
+                        'account_number': request.POST.get('account_number'), 'bank_name': request.POST.get('bank_name')}).id
                 o = p2p.open_order(request.user, request.POST.get('ad'), fiat=request.POST.get('fiat'),
-                                   coins=request.POST.get('coins'), method_id=request.POST.get('method'))
+                                   coins=request.POST.get('coins'), method_id=method_id)
                 return redirect('p2p_order', ref=o.ref)
         except p2p.P2PError as e:
             messages.error(request, str(e))
@@ -55,7 +56,7 @@ def market(request):
     cur = (request.GET.get('cur') or request.COOKIES.get('p2p_cur') or 'KES').upper()
     cur = cur if cur in p2p.CURRENCIES else 'KES'
     method = request.GET.get('method') or ''
-    qs = P2PAd.objects.filter(status='ACTIVE', asset=asset, currency=cur, demo=not p2p.live(),
+    qs = P2PAd.objects.filter(status='ACTIVE', asset=asset, currency=cur, demo=False,
                               side='SELL' if side == 'buy' else 'BUY').exclude(user=request.user) \
         .exclude(user_id__in=p2p.blocked_ids(request.user)).select_related('user')
     ads = [a for a in qs.order_by('price' if side == 'buy' else '-price')[:100] if not method or method in a.methods]
@@ -66,7 +67,10 @@ def market(request):
     if want:
         ads = [a for a in ads if float(a.min_fiat) <= want <= float(a.max_fiat) and want <= float(a.remaining * a.price)]
     stats = p2p.stats_map([a.user for a in ads])
+    mine = list(P2PPaymentMethod.objects.filter(user=request.user, is_active=True))
     for a in ads:
+        a.my_methods = [(m.id, f'{p2p.method_name(m.method)} · {m.account_number}') for m in mine if m.method in a.methods]
+        a.method_opts = [(k, p2p.method_name(k), p2p.METHODS.get(k, ('', 'Number'))[1]) for k in a.methods]
         a.st = stats[a.user_id]
         a.method_names = [p2p.method_name(m) for m in a.methods]
         a.remaining_txt = p2p.fmt(a.asset, a.remaining)
@@ -246,7 +250,7 @@ def trader(request, username):
         p2p.block(request.user, u.username, on=on)
         messages.info(request, f'{u.username} {"blocked" if on else "unblocked"}.')
         return redirect('p2p_trader', username=u.username)
-    ads = list(P2PAd.objects.filter(user=u, status='ACTIVE', demo=not p2p.live()).order_by('asset', 'currency'))
+    ads = list(P2PAd.objects.filter(user=u, status='ACTIVE', demo=False).order_by('asset', 'currency'))
     for a in ads:
         a.method_names = [p2p.method_name(m) for m in a.methods]
         a.remaining_txt = p2p.fmt(a.asset, a.remaining)

@@ -9,9 +9,7 @@
     </nav>
 </div>
 <div class="pp-mode">
-    {% if live %}<span><b>Live</b> · trades use your real wallet · fee {{ fee_pct }}%</span>
-    {% else %}<span><b>Test mode</b> · practise with demo coins, no real money moves · fee {{ fee_pct }}%</span>
-    <form method="post" action="{% url 'p2p' %}" style="display:inline">{% csrf_token %}<input type="hidden" name="action" value="demo"><button class="pp-btn sm ghost" type="submit"><i class="fa-solid fa-coins"></i> Get demo coins</button></form>{% endif %}
+    <span><i class="fa-solid fa-shield-halved" style="color:var(--px-accent)"></i> <b>Escrow protected</b> · coins are locked until the seller confirms your payment · fee {{ fee_pct }}%</span>
     <span class="pp-bals">{% for a, b in bals %}<span>{{ b }} {{ a }}</span>{% endfor %}</span>
 </div>
 {% if not can_trade.0 %}<div class="pp-msg error">{{ can_trade.1 }} <a href="{% url 'kyc_status' %}" class="underline">Verify now</a></div>{% endif %}

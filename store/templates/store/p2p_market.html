@@ -98,12 +98,20 @@
                     <div class="pp-field"><label>I {% if side == 'buy' %}receive{% else %}sell{% endif %} ({{ asset }})</label><input inputmode="decimal" placeholder="0" data-coins></div>
                 </div>
                 {% if side == 'sell' %}
+                {% if a.my_methods %}
                 <div class="pp-field" style="margin-top:10px"><label>Get paid to</label>
-                    <select name="method">
-                        {% for m in my_methods %}{% if m.method in a.methods %}<option value="{{ m.id }}">{% for k, n in method_names.items %}{% if k == m.method %}{{ n }}{% endif %}{% endfor %} · {{ m.account_number }}</option>{% endif %}{% endfor %}
-                    </select>
-                    <p class="pp-sub" style="margin-top:4px">No matching method? <a class="underline" href="{% url 'p2p_ads' %}#methods">Add one</a> ({% for n in a.method_names %}{{ n }}{% if not forloop.last %}, {% endif %}{% endfor %}).</p>
+                    <select name="method">{% for id, label in a.my_methods %}<option value="{{ id }}">{{ label }}</option>{% endfor %}</select>
                 </div>
+                {% else %}
+                <div class="pp-grid" style="margin-top:10px">
+                    <div class="pp-field"><label>Get paid by</label>
+                        <select name="new_method" required>{% for k, n, lbl in a.method_opts %}<option value="{{ k }}" data-label="{{ lbl }}">{{ n }}</option>{% endfor %}</select></div>
+                    <div class="pp-field"><label>Name on the account</label><input name="account_name" required maxlength="100" value="{{ request.user.get_full_name }}"></div>
+                    <div class="pp-field"><label>Phone / account number</label><input name="account_number" required maxlength="60" inputmode="tel"></div>
+                    <div class="pp-field"><label>Bank (if bank)</label><input name="bank_name" maxlength="80"></div>
+                </div>
+                <p class="pp-sub" style="margin-top:4px">Where the buyer sends your money. It is saved for next time.</p>
+                {% endif %}
                 {% endif %}
                 <div class="calc" data-calc>Enter an amount.</div>
                 {% if a.terms %}<div class="pm-terms"><b>Advertiser's terms:</b> {{ a.terms }}</div>{% endif %}

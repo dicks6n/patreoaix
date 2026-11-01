@@ -8,10 +8,9 @@ The site never touches the local money. It only holds the USDT in escrow:
   Buyer pays outside the site → taps "I have paid" → seller checks and taps "Release" → USDT goes to the buyer
   (minus the P2P fee). Unpaid orders expire; either side can appeal and staff decide.
 
-Test mode (P2P_LIVE=False, the default): everyone trades with separate demo coins (P2PBalance demo=True:
-1,000 USDT, 0.02 BTC, 0.5 ETH on request), so every step works without real money.
-P2P_LIVE=True uses real balances (USDT = the wallet / EXCHANGE account, BTC and ETH = P2PBalance demo=False)
-and requires approved KYC.
+Real money only: USDT is the customer's wallet (EXCHANGE account); BTC and ETH are P2PBalance rows
+(demo=False, 8 decimals). Trading requires approved KYC. (Orders and ads from the old test mode keep demo=True
+and are hidden; migration 0067 closed them.)
 """
 import logging
 import secrets
@@ -51,10 +50,10 @@ METHODS = {
     'bank_za': ('Bank transfer (EFT)', 'Account number'), 'capitec_za': ('Capitec Pay', 'Phone or account number'),
     'bank_us': ('Bank transfer', 'Account number'), 'wise': ('Wise', 'Email or Wise tag'), 'skrill': ('Skrill', 'Email'),
 }
-ASSETS = {                        # decimals, demo grant, name
-    'USDT': (2, D('1000'), 'Tether USD'),
-    'BTC': (8, D('0.02'), 'Bitcoin'),
-    'ETH': (6, D('0.5'), 'Ethereum'),
+ASSETS = {                        # decimals, name
+    'USDT': (2, 'Tether USD'),
+    'BTC': (8, 'Bitcoin'),
+    'ETH': (6, 'Ethereum'),
 }
 TIME_LIMITS = [15, 30, 45, 60]
 MAX_OPEN_ORDERS = 3
@@ -67,8 +66,8 @@ class P2PError(Exception):
 
 
 def live():
-    return str(getattr(settings, 'P2P_LIVE', 'False')) == 'True'
-
+    """P2P always trades real balances (the old demo mode was removed)."""
+    return True
 
 def fee_pct():
     try:
@@ -124,15 +123,6 @@ def balances(user, demo=None):
     return {a: balance(user, a, demo) for a in ASSETS}
 
 
-def grant_demo(user):
-    """Test mode: top the demo balances up (1,000 USDT, 0.02 BTC, 0.5 ETH)."""
-    from .models import P2PBalance
-    for asset, (_, grant, _) in ASSETS.items():
-        h = _holder(user, asset, True)
-        P2PBalance.objects.filter(pk=h.pk, balance__lt=grant).update(balance=grant, updated_at=timezone.now())
-    return balances(user, True)
-
-
 def _move(user, asset, amount, demo, kind, details):
     """Add (amount > 0) or take (amount < 0) coins with one atomic UPDATE; caller is inside a transaction."""
     from . import ledger
@@ -149,9 +139,7 @@ def _move(user, asset, amount, demo, kind, details):
 
 
 def can_trade(user):
-    """→ (ok, reason)."""
-    if not live():
-        return True, ''
+    """→ (ok, reason). Real money: approved KYC is required."""
     from .models import KYCProfile
     if user.is_staff:
         return True, ''

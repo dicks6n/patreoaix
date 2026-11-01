@@ -35,7 +35,7 @@ def wallet(request):
         t.label = LABELS.get(t.transaction_type, t.transaction_type.replace('_', ' ').title())
         t.credit = t.transaction_type in CREDIT or (t.transaction_type == 'INTERNAL_TRANSFER' and 'from trading' in (t.details or '').lower())
     live = p2p.live()
-    p2p_bals = [(a, p2p.fmt(a, b)) for a, b in p2p.balances(u).items()]
+    p2p_bals = [(a, p2p.fmt(a, b)) for a, b in p2p.balances(u).items() if a != 'USDT']   # USDT is the wallet itself
     return render(request, 'store/wallet.html', {
         'wallet_bal': _bal(u, 'EXCHANGE'), 'trading_bal': _bal(u, 'TRADING'), 'available': transfers.available(u),
         'bonus_locked': transfers._bonus_locked(u), 'p2p_bals': p2p_bals, 'p2p_live': live,
