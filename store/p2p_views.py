@@ -88,13 +88,19 @@ def market(request):
 @login_required
 def my_ads(request):
     p2p.safe_expire()
+    form_error, form_data = None, {}
     if request.method == 'POST':
         act = request.POST.get('action')
-        try:
-            if act == 'post':
+        if act == 'post':                       # errors are shown inside the ad form, with what was typed kept
+            try:
                 ad = p2p.post_ad(request.user, request.POST)
-                messages.success(request, f'Ad posted: {ad.get_side_display()} {p2p.fmt(ad.asset, ad.total)} {ad.asset} at {ad.price:,} {ad.currency}.')
-            elif act in ('pause', 'activate', 'close'):
+                messages.success(request, f'Ad posted: {ad.get_side_display()} {p2p.fmt(ad.asset, ad.total)} {ad.asset} '
+                                          f'at {ad.price:,} {ad.currency}. It is live in the market now.')
+                return redirect(reverse('p2p_ads') + '#myads')
+            except p2p.P2PError as e:
+                form_error, form_data = str(e), request.POST
+        try:
+            if act in ('pause', 'activate', 'close'):
                 p2p.set_ad_status(request.user, request.POST.get('ad'), {'pause': 'PAUSED', 'activate': 'ACTIVE', 'close': 'CLOSED'}[act])
                 messages.success(request, {'pause': 'Ad paused.', 'activate': 'Ad is live again.', 'close': 'Ad closed; locked coins returned.'}[act])
             elif act == 'add_method':
@@ -105,7 +111,8 @@ def my_ads(request):
                 messages.info(request, 'Payment method removed.')
         except p2p.P2PError as e:
             messages.error(request, str(e))
-        return redirect(reverse('p2p_ads') + ('#methods' if 'method' in (act or '') else ''))
+        if not form_error:
+            return redirect(reverse('p2p_ads') + ('#methods' if 'method' in (act or '') else '#myads'))
     ads = list(P2PAd.objects.filter(user=request.user).exclude(status='CLOSED').order_by('-created_at'))
     for a in ads:
         a.method_names = [p2p.method_name(m) for m in a.methods]
@@ -117,7 +124,9 @@ def my_ads(request):
     return render(request, 'store/p2p_ads.html', dict(
         _common(request), ads=ads, methods=methods, tab='ads', time_limits=p2p.TIME_LIMITS,
         currencies=[(k, v[0], v[1]) for k, v in p2p.CURRENCIES.items()],
-        all_methods={c: p2p.methods_for(c) for c in p2p.CURRENCIES}, stats=p2p.merchant_stats(request.user)))
+        all_methods={c: p2p.methods_for(c) for c in p2p.CURRENCIES}, stats=p2p.merchant_stats(request.user),
+        form_error=form_error, f=form_data, f_methods=form_data.getlist('methods') if form_data else [],
+        f_pay=form_data.getlist('pay_methods') if form_data else []))
 
 
 @login_required

@@ -53,7 +53,7 @@
         {% endfor %}
         <form method="post" class="pp-grid" style="margin-top:10px">{% csrf_token %}
             <input type="hidden" name="action" value="add_method">
-            <div class="pp-field"><label>Currency</label><select id="pmCur">{% for k, n, f in currencies %}<option value="{{ k }}">{{ f }} {{ k }}</option>{% endfor %}</select></div>
+            <div class="pp-field"><label>Currency</label><select id="pmCur">{% for k, n, flag in currencies %}<option value="{{ k }}">{{ flag }} {{ k }}</option>{% endfor %}</select></div>
             <div class="pp-field"><label>Method</label><select name="method" id="pmMethod"></select></div>
             <div class="pp-field"><label>Full name on the account</label><input name="account_name" required maxlength="100" value="{{ request.user.get_full_name }}"></div>
             <div class="pp-field"><label id="pmNumLabel">Phone / account number</label><input name="account_number" required maxlength="60"></div>
@@ -64,22 +64,29 @@
 
     <div class="pp-card" id="new">
         <div class="pp-h"><h2><i class="fa-solid fa-bullhorn mr-1"></i> Post an ad</h2><p>Your offer appears in the market for everyone</p></div>
+        {% if not can_trade.0 %}
+        <div class="pp-msg error" style="margin-bottom:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <span style="flex:1;min-width:200px"><i class="fa-solid fa-id-card mr-1"></i> P2P uses real money, so your identity must be verified before you can post ads or trade.</span>
+            <a class="pp-btn sm" href="{% url 'kyc_status' %}">Verify now</a>
+        </div>
+        {% endif %}
+        {% if form_error %}<div class="pp-msg error" id="adError" style="margin-bottom:12px"><i class="fa-solid fa-circle-exclamation mr-1"></i> {{ form_error }}</div>{% endif %}
         <form method="post" id="adForm">{% csrf_token %}
             <input type="hidden" name="action" value="post">
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
                 <div class="pa-side" id="adSide">
-                    <label class="on-buy"><input type="radio" name="side" value="BUY" checked><span>I want to buy</span></label>
-                    <label><input type="radio" name="side" value="SELL"><span>I want to sell</span></label>
+                    <label class="on-buy"><input type="radio" name="side" value="BUY" {% if f.side != 'SELL' %}checked{% endif %}><span>I want to buy</span></label>
+                    <label><input type="radio" name="side" value="SELL" {% if f.side == 'SELL' %}checked{% endif %}><span>I want to sell</span></label>
                 </div>
-                <div class="pa-checks">{% for a in assets %}<label><input type="radio" name="asset" value="{{ a }}" {% if forloop.first %}checked{% endif %}> {{ a }}</label>{% endfor %}</div>
+                <div class="pa-checks">{% for a in assets %}<label><input type="radio" name="asset" value="{{ a }}" {% if f.asset == a or not f.asset and forloop.first %}checked{% endif %}> {{ a }}</label>{% endfor %}</div>
             </div>
             <div class="pp-grid">
-                <div class="pp-field"><label>Currency</label><select name="currency" id="adCur">{% for k, n, f in currencies %}<option value="{{ k }}">{{ f }} {{ k }}</option>{% endfor %}</select></div>
-                <div class="pp-field"><label>Price per coin (<span data-cur>KES</span>)</label><input name="price" inputmode="decimal" required placeholder="e.g. 130"></div>
-                <div class="pp-field"><label>Total amount (<span data-asset>USDT</span>)</label><input name="total" inputmode="decimal" required placeholder="e.g. 500"></div>
-                <div class="pp-field"><label>Min order (<span data-cur>KES</span>)</label><input name="min_fiat" inputmode="decimal" required placeholder="e.g. 1000"></div>
-                <div class="pp-field"><label>Max order (<span data-cur>KES</span>)</label><input name="max_fiat" inputmode="decimal" required placeholder="e.g. 50000"></div>
-                <div class="pp-field"><label>Time to pay</label><select name="time_limit">{% for t in time_limits %}<option value="{{ t }}">{{ t }} minutes</option>{% endfor %}</select></div>
+                <div class="pp-field"><label>Currency</label><select name="currency" id="adCur">{% for k, n, flag in currencies %}<option value="{{ k }}" {% if f.currency == k %}selected{% endif %}>{{ flag }} {{ k }}</option>{% endfor %}</select></div>
+                <div class="pp-field"><label>Price per coin (<span data-cur>KES</span>)</label><input name="price" inputmode="decimal" required placeholder="e.g. 130" value="{{ f.price|default:'' }}"></div>
+                <div class="pp-field"><label>Total amount (<span data-asset>USDT</span>)</label><input name="total" inputmode="decimal" required placeholder="e.g. 500" value="{{ f.total|default:'' }}"></div>
+                <div class="pp-field"><label>Min order (<span data-cur>KES</span>)</label><input name="min_fiat" inputmode="decimal" required placeholder="e.g. 1000" value="{{ f.min_fiat|default:'' }}"></div>
+                <div class="pp-field"><label>Max order (<span data-cur>KES</span>)</label><input name="max_fiat" inputmode="decimal" required placeholder="e.g. 50000" value="{{ f.max_fiat|default:'' }}"></div>
+                <div class="pp-field"><label>Time to pay</label><select name="time_limit">{% for t in time_limits %}<option value="{{ t }}" {% if f.time_limit == t|stringformat:"s" %}selected{% endif %}>{{ t }} minutes</option>{% endfor %}</select></div>
             </div>
             <div class="pp-field" style="margin-top:12px"><label id="adMethLabel">How you will pay the seller</label>
                 <div class="pa-checks" id="adBuyMethods"></div>
@@ -88,13 +95,13 @@
                 </div>
                 <p class="pp-sub" id="adNoMethods" hidden style="margin-top:6px">Add a payment method for this currency first (above).</p>
             </div>
-            <div class="pp-field" style="margin-top:12px"><label>Terms (optional)</label><textarea name="terms" rows="2" maxlength="1000" placeholder="e.g. Send from your own M-Pesa number only. No third-party payments."></textarea></div>
+            <div class="pp-field" style="margin-top:12px"><label>Terms (optional)</label><textarea name="terms" rows="2" maxlength="1000" placeholder="e.g. Send from your own M-Pesa number only. No third-party payments.">{{ f.terms|default:'' }}</textarea></div>
             <p class="pp-sub" id="adHint" style="margin:10px 0"></p>
-            <button class="pp-btn" type="submit"><i class="fa-solid fa-paper-plane"></i> Post ad</button>
+            <button class="pp-btn" type="submit" {% if not can_trade.0 %}disabled title="Verify your identity first"{% endif %}><i class="fa-solid fa-paper-plane"></i> Post ad</button>
         </form>
     </div>
 
-    <div class="pp-card">
+    <div class="pp-card" id="myads">
         <div class="pp-h"><h2>My ads</h2><p>{{ ads|length }} open</p></div>
         {% if ads %}
         <div class="pp-scroll"><table class="pp-table">
@@ -121,9 +128,13 @@
 
 {% block extra_js %}
 {{ all_methods|json_script:"p2pMethods" }}
+{{ f_methods|json_script:"p2pKept" }}
 <script>
 (function () {
     var M = JSON.parse(document.getElementById('p2pMethods').textContent);
+    var KEPT = JSON.parse(document.getElementById('p2pKept').textContent);
+    var err = document.getElementById('adError');
+    if (err) setTimeout(function () { err.scrollIntoView({ block: 'center' }); }, 50);
     // payment-method form: methods for the chosen currency
     var pmCur = document.getElementById('pmCur'), pmMethod = document.getElementById('pmMethod');
     function fillPm() {
@@ -150,7 +161,7 @@
         document.getElementById('adMethLabel').textContent = buy ? 'How you will pay the seller' : 'Where buyers pay you';
         var bm = document.getElementById('adBuyMethods');
         bm.hidden = !buy;
-        if (buy) bm.innerHTML = (M[c] || []).map(function (m, i) { return '<label><input type="checkbox" name="methods" value="' + m[0] + '"' + (i === 0 ? ' checked' : '') + '> ' + m[1] + '</label>'; }).join('');
+        if (buy) bm.innerHTML = (M[c] || []).map(function (m, i) { var on = KEPT.length ? KEPT.indexOf(m[0]) >= 0 : i === 0; return '<label><input type="checkbox" name="methods" value="' + m[0] + '"' + (on ? ' checked' : '') + '> ' + m[1] + '</label>'; }).join('');
         var sm = document.getElementById('adSellMethods'), any = false;
         sm.hidden = buy;
         sm.querySelectorAll('label').forEach(function (l) { var ok = l.dataset.cur === c; l.hidden = !ok; l.querySelector('input').disabled = !ok; any = any || ok; });
