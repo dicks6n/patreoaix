@@ -768,6 +768,7 @@ main { padding: 0 !important; }
     @keyframes mt5TickFade { 0%, 60% { opacity: 1; } 100% { opacity: 0; } }
     @media (prefers-reduced-motion: reduce) { .oc-side.tick-up, .oc-side.tick-down { animation: none; } }
     .mt5-trade-lbl .pl { margin-left: 6px; }
+    .mt5-trade-lbl .n { font-weight: 700; margin-left: 2px; }
     .mt5-trade-lbl .pl.pos { color: #0a84ff; } .mt5-trade-lbl .pl.neg { color: #ff453a; }
     .mt5-toast.error   { background: rgba(193,74,58,0.96); }
     .mt5-info-toast {
@@ -4057,22 +4058,24 @@ function mt5DrawChartEntryLines() {
     const box = document.getElementById('mt5-trade-labels');
     if (box) box.innerHTML = '';
     const LS = LWC().LineStyle;
-    const add = (key, price, color, style, cls, html, pos) => {
+    // like MT5 mobile: thin dashed lines, a small label on the left, no tags on the price axis (it keeps only the live price)
+    const add = (key, price, color, style, cls, html, pos, meta) => {
         if (!price) return;
-        mt5ChartEntryLines[key] = mt5CandleSeries.createPriceLine({ price: Number(price), color, lineWidth: 1, lineStyle: style, axisLabelVisible: true, title: '' });
+        mt5ChartEntryLines[key] = mt5CandleSeries.createPriceLine({ price: Number(price), color, lineWidth: 1, lineStyle: style, axisLabelVisible: false, title: '' });
         if (!box) return;
         const el = document.createElement('div');
         el.className = 'mt5-trade-lbl' + (cls ? ' ' + cls : '');
         el.innerHTML = html;
         box.appendChild(el);
-        mt5TradeLabels.push({ el, price: Number(price), pos, pl: el.querySelector('.pl') });
+        mt5TradeLabels.push({ el, html, price: Number(price), pos, cls: cls || '', meta: meta || {}, pl: el.querySelector('.pl') });
     };
     if (mt5Acct !== 'site') {                            // the Deriv account's open contracts
         mt5DerivPositions.forEach(p => {
             if (mt5DerivSiteSymbol(p.symbol) !== mt5ChartSymbol || !parseFloat(p.entry)) return;
             const buy = p.side === 'BUY';
             add(`d${p.contract_id}`, parseFloat(p.entry), buy ? MT5_BUY_COLOR : MT5_SELL_COLOR, LS.Dashed, buy ? 'buy' : 'sell',
-                `${buy ? 'buy' : 'sell'} ×${p.multiplier} $${Number(p.stake).toFixed(2)}<span class="pl"></span>`, { deriv: true, profit: p.profit });
+                `${buy ? 'buy' : 'sell'} ×${p.multiplier} $${Number(p.stake).toFixed(2)}<span class="pl"></span>`, { deriv: true, profit: p.profit },
+                { side: buy ? 'buy' : 'sell', stake: Number(p.stake) });
         });
         mt5UpdateChartQuoteLines();
         if (mt5TradeLabels.length && !mt5TradeLabelRaf) mt5TradeLabelRaf = requestAnimationFrame(mt5PlaceTradeLabels);
@@ -4081,16 +4084,17 @@ function mt5DrawChartEntryLines() {
     Object.values(mt5PositionsCache).forEach(p => {
         if (p.symbol !== mt5ChartSymbol) return;
         const buy = p.direction === 'BUY';
-        add(`p${p.id}`, p.entry, buy ? MT5_BUY_COLOR : MT5_SELL_COLOR, LS.Dashed, buy ? 'buy' : 'sell', `${buy ? 'buy' : 'sell'} ${Number(p.volume).toFixed(2)}<span class="pl"></span>`, p);
-        add(`sl${p.id}`, p.sl, '#ff453a', LS.Dashed, 'sltp', 'SL');
-        add(`tp${p.id}`, p.tp, '#ff453a', LS.Dashed, 'sltp', 'TP');
+        add(`p${p.id}`, p.entry, buy ? MT5_BUY_COLOR : MT5_SELL_COLOR, LS.Dashed, buy ? 'buy' : 'sell', `${buy ? 'buy' : 'sell'} ${Number(p.volume).toFixed(2)}<span class="pl"></span>`, p,
+            { side: buy ? 'buy' : 'sell', vol: Number(p.volume) });
+        add(`sl${p.id}`, p.sl, '#ff453a', LS.Dashed, 'sltp', 'SL', null, { tag: 'SL' });
+        add(`tp${p.id}`, p.tp, '#ff453a', LS.Dashed, 'sltp', 'TP', null, { tag: 'TP' });
     });
     Object.values(mt5OrdersCache).forEach(o => {
         if (o.symbol !== mt5ChartSymbol) return;
         const obuy = String(o.type).toUpperCase().startsWith('BUY');
         add(`o${o.id}`, o.price, obuy ? MT5_BUY_COLOR : MT5_SELL_COLOR, LS.Dashed, obuy ? 'buy' : 'sell', `${mt5Escape(String(o.type).toLowerCase().replace(/_/g, ' '))} ${Number(o.volume).toFixed(2)}`);
-        add(`osl${o.id}`, o.sl, '#ff453a', LS.Dashed, 'sltp', 'SL');
-        add(`otp${o.id}`, o.tp, '#ff453a', LS.Dashed, 'sltp', 'TP');
+        add(`osl${o.id}`, o.sl, '#ff453a', LS.Dashed, 'sltp', 'SL', null, { tag: 'SL' });
+        add(`otp${o.id}`, o.tp, '#ff453a', LS.Dashed, 'sltp', 'TP', null, { tag: 'TP' });
     });
     mt5UpdateChartQuoteLines();
     if (mt5TradeLabels.length && !mt5TradeLabelRaf) mt5TradeLabelRaf = requestAnimationFrame(mt5PlaceTradeLabels);
@@ -4099,16 +4103,61 @@ function mt5DrawChartEntryLines() {
 function mt5PlaceTradeLabels() {
     mt5TradeLabelRaf = 0;
     if (!mt5CandleSeries || !mt5TradeLabels.length) return;
-    const h = mt5Chart.paneSize(0).height;
+    const h = mt5Chart.paneSize(0).height, GAP = 15;
+    const vis = [];
     mt5TradeLabels.forEach(l => {
         const y = mt5CandleSeries.priceToCoordinate(l.price);
-        const show = y !== null && y > 14 && y <= h;
-        l.el.style.display = show ? '' : 'none';
-        if (show) l.el.style.top = y + 'px';
-        if (l.pl) {
-            const pr = l.pos.deriv ? l.pos.profit : mt5PositionLive(l.pos).profit;
+        l.y = y;
+        l.pr = l.pl ? (l.pos.deriv ? l.pos.profit : mt5PositionLive(l.pos).profit) : null;
+        if (y !== null && y > 14 && y <= h) vis.push(l); else l.el.style.display = 'none';
+    });
+    // labels that would sit on top of each other (same kind, closer than one line of text) merge into one:
+    // "buy 0.12 ×12  -8.40" — the lines themselves all stay on the chart, like MT5
+    vis.sort((a, b) => a.y - b.y);
+    let groups = vis.map(l => ({ kind: l.meta.side ? 'pos-' + l.meta.side : l.meta.tag ? 'tag-' + l.meta.tag : 'one-' + l.cls, items: [l], y: l.y }));
+    for (let merged = true; merged;) {                  // merge same-kind labels until they are a full line apart
+        merged = false;
+        groups.sort((a, b) => a.y - b.y);
+        for (let i = 0; i < groups.length && !merged; i++) for (let j = i + 1; j < groups.length; j++) {
+            if (groups[j].y - groups[i].y >= GAP) break;
+            if (groups[j].kind === groups[i].kind && !groups[i].kind.startsWith('one-')) {
+                groups[i].items.push(...groups[j].items);
+                groups[i].y = groups[i].items.reduce((a, l) => a + l.y, 0) / groups[i].items.length;
+                groups.splice(j, 1); merged = true; break;
+            }
+        }
+    }
+    // a label under the symbol title (top left) goes to the right end of its line instead
+    const info = document.getElementById('mt5-chart-info'), wrapR = document.getElementById('mt5-chart-wrap').getBoundingClientRect();
+    const infoBottom = info && info.offsetParent ? info.getBoundingClientRect().bottom - wrapR.top + 4 : 0;
+    let axisW = 60; try { axisW = mt5Chart.priceScale('right').width(); } catch (e) {}
+    groups.sort((a, b) => a.y - b.y);
+    let lastY = -1e9;
+    groups.forEach(g => {
+        const [first, ...rest] = g.items;
+        rest.forEach(l => { l.el.style.display = 'none'; });
+        const y = Math.max(g.y, lastY + 13);              // different kinds very close: nudge the text, not the line
+        lastY = y;
+        first.el.style.display = '';
+        first.el.style.top = y + 'px';
+        const right = y < infoBottom;
+        first.el.style.left = right ? 'auto' : '';
+        first.el.style.right = right ? (axisW + 4) + 'px' : '';
+        let html = first.html;
+        if (g.items.length > 1) {
+            if (first.meta.side) {
+                const vol = g.items.reduce((a, l) => a + (l.meta.vol || 0), 0);
+                html = first.meta.vol != null ? `${first.meta.side} ${vol.toFixed(2)} <b class="n">×${g.items.length}</b><span class="pl"></span>`
+                                              : `${first.meta.side} <b class="n">×${g.items.length}</b><span class="pl"></span>`;
+            } else if (first.meta.tag) html = `${first.meta.tag} <b class="n">×${g.items.length}</b>`;
+        }
+        if (first.el.dataset.html !== html) { first.el.innerHTML = html; first.el.dataset.html = html; }
+        const pl = first.el.querySelector('.pl');
+        if (pl) {
+            const prs = g.items.map(l => l.pr).filter(v => v != null);
+            const pr = prs.length ? prs.reduce((a, v) => a + v, 0) : null;
             const txt = pr == null ? '' : mt5Signed(pr);
-            if (l.pl.textContent !== txt) { l.pl.textContent = txt; l.pl.className = 'pl ' + mt5Cls(pr); }
+            if (pl.textContent !== txt) { pl.textContent = txt; pl.className = 'pl ' + mt5Cls(pr); }
         }
     });
     mt5TradeLabelRaf = requestAnimationFrame(mt5PlaceTradeLabels);
