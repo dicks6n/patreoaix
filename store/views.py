@@ -104,6 +104,19 @@ TIER_CONFIG = {
 # ==========================================
 
 
+def _public_user_count():
+    """Registered users for the public landing page, shown only once the number is big enough to impress.
+    LANDING_MIN_USERS in .env sets the threshold (default 1000); below it the number is hidden ('')."""
+    try:
+        n = User.objects.filter(is_active=True, is_staff=False).count()
+        if n < int(getattr(settings, 'LANDING_MIN_USERS', 1000) or 1000):
+            return ''
+        step = 10 ** max(0, len(str(n)) - 2)              # 1,234 → "1,200+", 15,678 → "15,000+"
+        return f'{n // step * step:,}+'
+    except Exception:
+        return ''
+
+
 def landing_page_view(request):
     # If the user is already logged in, send them straight to the dashboard/app
     if request.user.is_authenticated:
@@ -145,7 +158,7 @@ def landing_page_view(request):
         'track': track, 'track_rows': track_rows,
         'pro_price': TIER_CONFIG.get('pro', {}).get('price'),
         'telegram_url': getattr(settings, 'TELEGRAM_INVITE_URL', ''),
-        'trader_count': User.objects.count(),
+        'trader_count': _public_user_count(),
         'trade_count': Trade.objects.count(),
         'support_email': settings.SUPPORT_EMAIL,
         'mpesa_enabled': getattr(settings, 'MPESA_DEPOSITS_ENABLED', False),

@@ -82,6 +82,7 @@ ACADEMY_PRO_DAYS = os.environ.get('ACADEMY_PRO_DAYS', '3')
 ACADEMY_REQUIRED_FOR_BONUS = os.environ.get('ACADEMY_REQUIRED_FOR_BONUS', 'False')
 
 # P2P marketplace (/p2p/): real wallets, KYC required. Fee % per trade.
+LANDING_MIN_USERS = int(os.getenv('LANDING_MIN_USERS', '1000') or 1000)   # hide the user count on the landing page below this
 P2P_FEE_PCT = os.environ.get('P2P_FEE_PCT', '0.2')
 # =============================================
 # NOWCRYPTO API CONFIGURATION

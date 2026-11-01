@@ -256,7 +256,7 @@
             {% if track.signals %}<div class="lp-stat"><b>{{ track.signals }}</b><span>AI signals · 30 days</span></div>{% endif %}
             {% if track.hit_rate is not None and track.closed >= 5 %}<div class="lp-stat"><b class="px-up">{% widthratio track.hit_rate 1 100 %}%</b><span>reached target first</span></div>{% endif %}
             {% if track.avg_r is not None and track.closed >= 5 %}<div class="lp-stat"><b class="{% if track.avg_r >= 0 %}px-up{% else %}px-down{% endif %}">{% if track.avg_r >= 0 %}+{% endif %}{{ track.avg_r }}R</b><span>average result</span></div>{% endif %}
-            {% if trader_count > 1 %}<div class="lp-stat"><b>{{ trader_count }}</b><span>registered traders</span></div>{% endif %}
+            {% if trader_count %}<div class="lp-stat"><b>{{ trader_count }}</b><span>registered traders</span></div>{% endif %}
         </div>
 
         <!-- Platform Preview Mockup Box -->
