@@ -18,7 +18,7 @@ from django.templatetags.static import static
 from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_GET
 
-APP_VERSION = '2026-10-29.1'          # bump to make installed apps refresh their cache
+APP_VERSION = '2026-11-01.1'          # bump to make installed apps refresh their cache
 
 
 def _icon(path):
@@ -111,6 +111,7 @@ self.addEventListener('push', e => {
   try { d = e.data ? e.data.json() : {}; } catch (err) { d = { title: 'PATREOAIX', body: e.data ? e.data.text() : '' }; }
   e.waitUntil(self.registration.showNotification(d.title || 'PATREOAIX', {
     body: d.body || '', icon: __ICON__, badge: __BADGE__, tag: d.tag || undefined, data: { url: d.url || '/' }, vibrate: [80, 40, 80],
+    renotify: !!d.tag, timestamp: Date.now(),
   }));
 });
 self.addEventListener('notificationclick', e => {
@@ -118,6 +119,8 @@ self.addEventListener('notificationclick', e => {
   const url = new URL((e.notification.data && e.notification.data.url) || '/', self.location.origin).href;
   e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
     for (const c of list) { if (c.url === url && 'focus' in c) return c.focus(); }
+    const open = list.find(c => c.url.startsWith(self.location.origin) && 'focus' in c);
+    if (open) return open.focus().then(c => (c || open).navigate ? (c || open).navigate(url) : clients.openWindow(url));   // reuse the open app
     return clients.openWindow(url);
   }));
 });

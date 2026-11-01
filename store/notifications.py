@@ -13,7 +13,7 @@ Usage:
         message="Your $50.00 has been credited.",
         category='FUNDING',
         priority='success',
-        action_url='/funding/',
+        action_url='/wallet/',
         action_label='View Wallet',
     )
 """
@@ -67,7 +67,7 @@ def notify(
         message: Full message body
         category: One of CATEGORY_* constants
         priority: 'info' | 'success' | 'warning' | 'error'
-        action_url: Optional deep link, e.g. '/funding/'
+        action_url: Optional deep link, e.g. '/wallet/'
         action_label: Optional CTA text, e.g. 'View Wallet'
         metadata: Optional dict for extra context
         expires_at: Optional datetime for auto-expiry

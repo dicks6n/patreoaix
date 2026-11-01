@@ -45,9 +45,10 @@ def _ajax(request):
 
 
 def _row(n):
+    from .notif_prefs import safe_link
     meta = n.metadata if isinstance(n.metadata, dict) else {}
     return {'id': n.id, 'title': n.title, 'text': n.message, 'time': n.created_at.isoformat(),
-            'url': n.action_url or '', 'label': n.action_label or '', 'priority': n.priority,
+            'url': safe_link(n.action_url), 'label': n.action_label or '', 'priority': n.priority,
             'out': bool(meta.get('out')), 'read': n.is_read}
 
 
@@ -128,7 +129,7 @@ def send_support(request):
     try:
         from .notifications import notify_staff
         notify_staff(title=f'Support message from {request.user.username}', message=text[:300], category='SYSTEM',
-                     action_url='/admin-messages/')
+                     action_url='/admin/messages/')
     except Exception:
         pass
     if not Notification.objects.filter(user=request.user, metadata__chat='support', metadata__out=False,

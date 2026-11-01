@@ -194,6 +194,10 @@ urlpatterns = [
     path('api/copy-signals/count/', views.api_copy_signals_count, name='api_copy_signals_count'),
     path('api/public/ticker/', site_views.api_public_ticker, name='api_public_ticker'),
     path('api/notifications/', site_views.api_notifications, name='api_notifications'),
+    # old notification links (already stored in users' notifications) → the real pages
+    path('funding/', RedirectView.as_view(url='/wallet/'), name='old_funding'),
+    path('mt5/', RedirectView.as_view(url='/terminal/'), name='old_mt5'),
+    path('admin-messages/', RedirectView.as_view(url='/admin/messages/'), name='old_admin_messages'),
     path('api/mt5/messages/', mt5_messages.chats, name='mt5_messages'),
     path('api/mt5/messages/read-all/', mt5_messages.read_all, name='mt5_messages_read_all'),
     path('api/mt5/messages/support/send/', mt5_messages.send_support, name='mt5_messages_send'),

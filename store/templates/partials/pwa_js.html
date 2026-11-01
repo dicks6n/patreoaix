@@ -16,6 +16,12 @@
     <button type="button" class="go" id="pxInstallGo">Install</button>
     <button type="button" class="x" id="pxInstallX" aria-label="Not now">&times;</button>
 </div>
+<div class="px-install" id="pxPushAsk" role="dialog" aria-label="Turn on notifications">
+    <img src="{% static 'store/icons/icon-192.png' %}" alt="">
+    <div><b>Turn on notifications</b><span>Deposits, trades, P2P orders and alerts pop up on this phone.</span></div>
+    <button type="button" class="go" id="pxPushGo">Turn on</button>
+    <button type="button" class="x" id="pxPushX" aria-label="Not now">&times;</button>
+</div>
 <script>
 (function () {
     var VAPID = '{{ vapid_public_key|default:"" }}';
@@ -79,6 +85,29 @@
             });
         },
     };
+    // a test pop-up on this device (the server sends it to the device's subscription)
+    window.pxPush.test = function () {
+        return ready().then(function (r) { return r.pushManager.getSubscription(); }).then(function (s) {
+            if (!s) throw new Error('Turn notifications on first.');
+            return post(Object.assign(s.toJSON(), { test: true }));
+        });
+    };
+    // Installed app (home screen): ask once to turn pop-ups on. The permission prompt must follow a tap (iPhone).
+    (function () {
+        var ask = document.getElementById('pxPushAsk');
+        if (!ask || !supported || !standalone || Notification.permission !== 'default') return;
+        try { if (Date.now() - (+localStorage.getItem('px_push_x') || 0) < 3 * 864e5) return; } catch (e) {}
+        if (!document.querySelector('a[href="/profile/"], #acct-wrapper')) return;          // signed-in pages only
+        setTimeout(function () { ask.classList.add('show'); }, 2500);
+        document.getElementById('pxPushGo').addEventListener('click', function () {
+            var b = this; b.disabled = true; b.textContent = '…';
+            window.pxPush.enable().then(function () { ask.classList.remove('show'); })
+                .catch(function (e) { ask.classList.remove('show'); alert(e.message); });
+        });
+        document.getElementById('pxPushX').addEventListener('click', function () {
+            ask.classList.remove('show'); try { localStorage.setItem('px_push_x', Date.now()); } catch (e) {}
+        });
+    })();
     // Keep the server's copy fresh when the browser rotates the subscription
     if (supported && Notification.permission === 'granted') {
         ready().then(function (r) { return r.pushManager.getSubscription(); }).then(function (s) { if (s) post(Object.assign(s.toJSON(), { test: false })); }).catch(function () {});

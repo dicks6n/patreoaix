@@ -1588,7 +1588,7 @@ def cancel_subscription(request):
             message=message,
             category='FUNDING',
             priority='info',
-            action_url='/funding/',
+            action_url='/wallet/',
             action_label='View Balance',
         )
 
@@ -3319,7 +3319,7 @@ def execute_trade(request):
                             f"{volume} lots @ {entry_price} · "
                             f"Margin locked: ${margin_required:.2f}"
                         ),
-                        action_url='/mt5/',
+                        action_url='/terminal/',
                         action_label='View Terminal',
                     )
                 except Exception as e:
@@ -4674,96 +4674,53 @@ def run_sentiment_analysis_view(request): return redirect('ai_prediction_models'
 
 @login_required
 def notification_settings(request):
-    """
-    User notification preferences page.
-    Saves toggles + digest + quiet hours.
-    """
+    """Notification centre: the inbox (every notification, clickable) and the settings that decide what pops up
+    on the user's devices (store/notif_prefs.py). Settings are saved on the account."""
+    from . import notif_prefs as NP, push
+    from django.utils.timesince import timesince
     user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
-
     if request.method == 'POST':
-        # Channel toggles
-        email_notifications = request.POST.get('email_notifications') == 'on'
-        sms_notifications = request.POST.get('sms_notifications') == 'on'
-        push_notifications = request.POST.get('push_notifications') == 'on'
+        act = request.POST.get('action', 'save')
+        if act == 'read_all':
+            Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+            return redirect(reverse('notification_settings') + '#inbox')
+        if act == 'clear_read':
+            Notification.objects.filter(user=request.user, is_read=True).update(is_archived=True)
+            messages.success(request, 'Read notifications cleared.')
+            return redirect(reverse('notification_settings') + '#inbox')
+        prefs = NP.get(request.user)
+        prefs['push'] = request.POST.get('push') == 'on'
+        prefs['cats'] = {k: request.POST.get(f'cat_{k}') == 'on' for k, *_ in NP.CATEGORIES}
+        def hhmm(v, d):
+            v = (v or '').strip()
+            return v if len(v) == 5 and v[2] == ':' and v[:2].isdigit() and v[3:].isdigit() and int(v[:2]) < 24 and int(v[3:]) < 60 else d
+        prefs['quiet'] = {'on': request.POST.get('quiet_on') == 'on', 'start': hhmm(request.POST.get('quiet_start'), '22:00'),
+                          'end': hhmm(request.POST.get('quiet_end'), '07:00')}
+        user_profile.notif_prefs = prefs
+        fields = ['notif_prefs']
+        sms = request.POST.get('sms') == 'on'
+        if sms and not user_profile.phone_number:
+            messages.error(request, 'Add your phone number on your profile first, then turn SMS alerts on.')
+        else:
+            user_profile.sms_opt_in = sms
+            fields.append('sms_opt_in')
+        user_profile.save(update_fields=fields)
+        messages.success(request, 'Notification settings saved.')
+        return redirect(reverse('notification_settings') + '#settings')
 
-        # Category toggles
-        trade_alerts = request.POST.get('trade_alerts') == 'on'
-        funding_alerts = request.POST.get('funding_alerts') == 'on'
-        security_alerts = request.POST.get('security_alerts') == 'on'
-        kyc_alerts = request.POST.get('kyc_alerts') == 'on'
-        referral_alerts = request.POST.get('referral_alerts') == 'on'
-        marketing_alerts = request.POST.get('marketing_alerts') == 'on'
+    qs = Notification.objects.filter(user=request.user, is_archived=False).order_by('-created_at')
+    items = list(qs[:60])
+    for n in items:
+        n.kind = NP.of_notification(n)
+        n.link = NP.safe_link(n.action_url)
+        n.ago = timesince(n.created_at).split(',')[0]
+    prefs = NP.get(request.user)
+    return render(request, 'store/notification-settings.html', {
+        'user_profile': user_profile, 'items': items, 'unread': qs.filter(is_read=False).count(),
+        'prefs': prefs, 'categories': [(k, t, d, ic, prefs['cats'].get(k, True)) for k, t, d, ic in NP.CATEGORIES],
+        'push_ready': push.enabled(),
+    })
 
-        # SMS specific
-        sms_otp = request.POST.get('sms_otp') == '1'
-        sms_transactional = request.POST.get('sms_transactional') == '1'
-        sms_trades = request.POST.get('sms_trades') == '1'
-        sms_security = request.POST.get('sms_security') == '1'
-
-        # Delivery preferences
-        digest_frequency = request.POST.get('digest_frequency', 'instant')
-        quiet_hours_start = request.POST.get('quiet_hours_start', '22:00')
-        quiet_hours_end = request.POST.get('quiet_hours_end', '07:00')
-        user_tz = request.POST.get('timezone', 'Africa/Nairobi')
-
-        # Save to UserProfile (extend model if needed)
-        user_profile.sms_opt_in = sms_notifications
-        user_profile.save(update_fields=['sms_opt_in'])
-
-        # Store extras in a JSON field (or create a NotificationPreference model)
-        # For simplicity, we can store in cache until you add a dedicated model
-        from django.core.cache import cache
-        cache.set(f"notif_prefs_{request.user.id}", {
-            'email_notifications': email_notifications,
-            'sms_notifications': sms_notifications,
-            'push_notifications': push_notifications,
-            'trade_alerts': trade_alerts,
-            'funding_alerts': funding_alerts,
-            'security_alerts': security_alerts,
-            'kyc_alerts': kyc_alerts,
-            'referral_alerts': referral_alerts,
-            'marketing_alerts': marketing_alerts,
-            'sms_otp': sms_otp,
-            'sms_transactional': sms_transactional,
-            'sms_trades': sms_trades,
-            'sms_security': sms_security,
-            'digest_frequency': digest_frequency,
-            'quiet_hours_start': quiet_hours_start,
-            'quiet_hours_end': quiet_hours_end,
-            'timezone': user_tz,
-        }, timeout=None)
-
-        messages.success(request, '✅ Notification preferences saved successfully!')
-        return redirect('notification_settings')
-
-    # Load existing prefs (from cache for now)
-    from django.core.cache import cache
-    prefs = cache.get(f"notif_prefs_{request.user.id}", {})
-
-    context = {
-        'user_profile': user_profile,
-        # Channels
-        'email_notifications': prefs.get('email_notifications', bool(request.user.email)),
-        'push_enabled': prefs.get('push_notifications', False),
-        # Categories
-        'trade_alerts': prefs.get('trade_alerts', True),
-        'funding_alerts': prefs.get('funding_alerts', True),
-        'security_alerts': prefs.get('security_alerts', True),
-        'kyc_alerts': prefs.get('kyc_alerts', True),
-        'referral_alerts': prefs.get('referral_alerts', True),
-        'marketing_alerts': prefs.get('marketing_alerts', False),
-        # SMS specific
-        'sms_otp': prefs.get('sms_otp', True),
-        'sms_transactional': prefs.get('sms_transactional', True),
-        'sms_trades': prefs.get('sms_trades', True),
-        'sms_security': prefs.get('sms_security', True),
-        # Delivery
-        'digest_frequency': prefs.get('digest_frequency', 'instant'),
-        'quiet_hours_start': prefs.get('quiet_hours_start', '22:00'),
-        'quiet_hours_end': prefs.get('quiet_hours_end', '07:00'),
-        'user_tz': prefs.get('timezone', 'Africa/Nairobi'),
-    }
-    return render(request, 'store/notification-settings.html', context)
 
 @login_required
 def webhook_automations(request):  # Renamed from webhook_automations_view
@@ -5237,7 +5194,7 @@ def admin_crypto_deposits_view(request):
                     message=f"${deposit.amount:.2f} has been credited to your Exchange balance.\nTxID: {deposit.tx_hash[:20]}...",
                     category='FUNDING',
                     priority='success',
-                    action_url='/funding/',
+                    action_url='/wallet/',
                     action_label='View Wallet',
                 )
 
@@ -6116,7 +6073,7 @@ def admin_dashboard_hub_view(request):
                         message=f"${payment.amount:.2f} has been credited to your Exchange balance.\nTxID: {payment.tx_hash[:20]}...",
                         category='FUNDING',
                         priority='success',
-                        action_url='/funding/',
+                        action_url='/wallet/',
                         action_label='View Wallet',
                     )
 
@@ -6202,7 +6159,7 @@ def admin_dashboard_hub_view(request):
                             message=f"${payment.amount:.2f} has been credited to your Exchange balance.",
                             category='FUNDING',
                             priority='success',
-                            action_url='/funding/',
+                            action_url='/wallet/',
                             action_label='View Wallet',
                         )
 
@@ -6246,7 +6203,7 @@ def admin_dashboard_hub_view(request):
                             message=f"Your withdrawal of ${payment.amount:.2f} has been approved.",
                             category='FUNDING',
                             priority='success',
-                            action_url='/funding/',
+                            action_url='/wallet/',
                             action_label='View Wallet',
                         )
 
@@ -6381,7 +6338,7 @@ def admin_dashboard_hub_view(request):
                         message=f'${payout.requested_amount:.2f} has been credited to your Exchange balance.',
                         category='PAYOUT',
                         priority='success',
-                        action_url='/funding/',
+                        action_url='/wallet/',
                         action_label='View Balance',
                     )
 
@@ -11063,7 +11020,7 @@ def api_push_subscribe(request):
     except (ValueError, TypeError) as e:
         return JsonResponse({'success': False, 'error': str(e)})
     if data.get('test', True):
-        push.safe_send(request.user, '🔔 Notifications are on', 'You will get signals, price alerts and copy trades here.', '/price-alerts/', tag='welcome')
+        push.safe_send(request.user, '🔔 Notifications are on', 'Deposits, trades, P2P orders and alerts will pop up here.', '/notifications/', tag='welcome')
     return JsonResponse({'success': True, 'subscribed': True})
 
 

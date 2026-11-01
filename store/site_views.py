@@ -233,11 +233,12 @@ def api_market_overview(request):
 @login_required
 @require_GET
 def api_notifications(request):
+    from .notif_prefs import safe_link
     qs = Notification.objects.filter(user=request.user, is_archived=False)
     items = [{
         'id': n.id, 'title': n.title, 'message': n.message, 'category': n.category,
         'priority': n.priority, 'icon': n.icon, 'color': n.color, 'is_read': n.is_read,
-        'action_url': n.action_url or '', 'time_ago': timesince(n.created_at).split(',')[0] + ' ago',
+        'action_url': safe_link(n.action_url), 'time_ago': timesince(n.created_at).split(',')[0] + ' ago',
         'created_at': n.created_at.isoformat(),
     } for n in qs[:20]]
     unread = qs.filter(is_read=False).count()

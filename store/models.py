@@ -25,6 +25,7 @@ class UserProfile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     subscription_tier = models.CharField(max_length=50, default='free')
     avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)    # profile photo (square JPEG, profile page)
+    notif_prefs = models.JSONField(default=dict, blank=True)    # notification preferences (store/notif_prefs.py)
     is_active_subscription = models.BooleanField(default=False)
     trial_used = models.BooleanField(default=False)          # the free 3-day Pro trial (store/membership.py)
     is_kyc_verified = models.BooleanField(default=False)
@@ -1772,9 +1773,14 @@ def push_new_notification(sender, instance, created, **kwargs):
     if not created:
         return
     from .push import enabled, safe_send
+    meta = instance.metadata if isinstance(instance.metadata, dict) else {}
+    if meta.get('out'):
+        return                                         # the user's own chat message: nothing to pop up
     if enabled():
-        safe_send(instance.user, instance.title, instance.message, instance.action_url or '/',
-                  tag=f'n{instance.pk}')
+        from .notif_prefs import should_push, safe_link
+        if should_push(instance):
+            safe_send(instance.user, instance.title or 'PATREOAIX', instance.message, safe_link(instance.action_url) or '/',
+                      tag=f'n{instance.pk}')
 
 
 # ============================================================

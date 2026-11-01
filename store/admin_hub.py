@@ -120,7 +120,7 @@ def handle(request):
         Notification.objects.create(
             user=user, title=f"Balance {'credited' if signed > 0 else 'debited'}: ${amount:.2f}",
             message=f"{reason}\nNew exchange balance: ${acc.balance:.2f}", category='FUNDING',
-            priority='success' if signed > 0 else 'warning', action_url='/funding/', action_label='View wallet')
+            priority='success' if signed > 0 else 'warning', action_url='/wallet/', action_label='View wallet')
         messages.success(request, f"{'Credited' if signed > 0 else 'Debited'} ${amount:.2f} {'to' if signed > 0 else 'from'} @{user.username}. New balance ${acc.balance:.2f}.")
         return _back(request, q=request.POST.get('q') or user.username)
 
