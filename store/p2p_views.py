@@ -11,7 +11,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
-from . import p2p
+from . import p2p, transfers
 from .models import P2PAd, P2PMessage, P2POrder, P2PPaymentMethod
 
 
@@ -38,6 +38,10 @@ def market(request):
                 p2p.grant_demo(request.user)
                 messages.success(request, 'Demo balance topped up: 1,000 USDT, 0.02 BTC and 0.5 ETH to practise with.')
                 return redirect(request.get_full_path())
+            if act == 'express':
+                o = p2p.express(request.user, request.POST.get('side'), (request.POST.get('asset') or 'USDT').upper(),
+                                (request.POST.get('cur') or 'KES').upper(), request.POST.get('fiat'))
+                return redirect('p2p_order', ref=o.ref)
             if act == 'take':
                 o = p2p.open_order(request.user, request.POST.get('ad'), fiat=request.POST.get('fiat'),
                                    coins=request.POST.get('coins'), method_id=request.POST.get('method'))
@@ -52,7 +56,8 @@ def market(request):
     cur = cur if cur in p2p.CURRENCIES else 'KES'
     method = request.GET.get('method') or ''
     qs = P2PAd.objects.filter(status='ACTIVE', asset=asset, currency=cur, demo=not p2p.live(),
-                              side='SELL' if side == 'buy' else 'BUY').exclude(user=request.user).select_related('user')
+                              side='SELL' if side == 'buy' else 'BUY').exclude(user=request.user) \
+        .exclude(user_id__in=p2p.blocked_ids(request.user)).select_related('user')
     ads = [a for a in qs.order_by('price' if side == 'buy' else '-price')[:100] if not method or method in a.methods]
     try:
         want = float(str(request.GET.get('amount') or '').replace(',', '')) if request.GET.get('amount') else None
@@ -69,7 +74,8 @@ def market(request):
     ctx = dict(_common(request), side=side, asset=asset, cur=cur, method=method, ads=ads, amount=request.GET.get('amount', ''),
                currencies=[(k, v[0], v[1]) for k, v in p2p.CURRENCIES.items()], methods=p2p.methods_for(cur),
                my_methods=list(P2PPaymentMethod.objects.filter(user=request.user, is_active=True)),
-               method_names=dict((k, v[0]) for k, v in p2p.METHODS.items()), tab='market')
+               method_names=dict((k, v[0]) for k, v in p2p.METHODS.items()), tab='market',
+               buy_pause=p2p.buy_pause(request.user) if side == 'buy' else None, now=timezone.now())
     resp = render(request, 'store/p2p_market.html', ctx)
     resp.set_cookie('p2p_cur', cur, max_age=365 * 86400, samesite='Lax')
     return resp
@@ -139,7 +145,11 @@ def order_page(request, ref):
             elif act == 'release':
                 if request.POST.get('confirm') != 'yes':
                     raise p2p.P2PError('Tick the box to confirm you received the money in your account.')
-                p2p.release(request.user, ref)
+                p2p.release(request.user, ref, password=request.POST.get('password'))
+            elif act == 'block':
+                other = o.seller if o.buyer_id == request.user.id else o.buyer
+                p2p.block(request.user, other.username)
+                messages.info(request, f'{other.username} is blocked: you will not see their ads and they cannot take yours.')
             elif act == 'appeal':
                 p2p.appeal(request.user, ref, request.POST.get('reason', ''))
             elif act == 'feedback':
@@ -221,3 +231,27 @@ def admin_appeals(request):
         'ads': P2PAd.objects.filter(status='ACTIVE').count(),
     }
     return render(request, 'store/p2p_admin.html', dict(_common(request), appeals=appeals, recent=recent, stats=stats, tab='admin'))
+
+
+@login_required
+def trader(request, username):
+    """Public trader profile: stats, open ads and recent feedback."""
+    from django.contrib.auth.models import User
+    from .models import P2PBlock, P2PFeedback
+    u = User.objects.filter(username=username, is_active=True).first()
+    if not u:
+        raise Http404
+    if request.method == 'POST' and u.id != request.user.id:
+        on = request.POST.get('action') == 'block'
+        p2p.block(request.user, u.username, on=on)
+        messages.info(request, f'{u.username} {"blocked" if on else "unblocked"}.')
+        return redirect('p2p_trader', username=u.username)
+    ads = list(P2PAd.objects.filter(user=u, status='ACTIVE', demo=not p2p.live()).order_by('asset', 'currency'))
+    for a in ads:
+        a.method_names = [p2p.method_name(m) for m in a.methods]
+        a.remaining_txt = p2p.fmt(a.asset, a.remaining)
+    return render(request, 'store/p2p_trader.html', dict(
+        _common(request), trader=u, stats=p2p.merchant_stats(u), ads=ads, tab='market',
+        feedback=P2PFeedback.objects.filter(to_user=u).select_related('from_user').order_by('-created_at')[:20],
+        blocked=P2PBlock.objects.filter(user=request.user, blocked=u).exists(), me=u.id == request.user.id,
+        kyc=transfers.kyc_ok(u), joined=u.date_joined))

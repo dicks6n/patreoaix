@@ -76,3 +76,27 @@ def promos(request):
 def _ref_days():
     from .referral_rewards import days
     return days()
+
+
+def p2p_attention(request):
+    """P2P orders waiting for this user (buyer must pay, seller must release, or an appeal) → bar on every page."""
+    if not getattr(request, 'user', None) or not request.user.is_authenticated:
+        return {}
+    try:
+        from django.db.models import Q
+        from .models import P2POrder
+        u = request.user
+        o = (P2POrder.objects.filter(Q(buyer=u, status='PENDING') | Q(seller=u, status='PAID') |
+                                     Q(Q(buyer=u) | Q(seller=u), status='APPEAL'))
+             .only('ref', 'status', 'buyer_id', 'asset', 'fiat_amount', 'currency').order_by('created_at').first())
+    except Exception:
+        return {}
+    if not o:
+        return {}
+    if o.status == 'APPEAL':
+        text = f'Appeal open on P2P order {o.ref}: add your proof in the chat.'
+    elif o.buyer_id == u.id:
+        text = f'P2P order {o.ref}: pay {o.fiat_amount:,.0f} {o.currency} and tap "I have paid" before the timer ends.'
+    else:
+        text = f'P2P order {o.ref}: the buyer paid. Check your account and release the {o.asset}.'
+    return {'p2p_attention': {'ref': o.ref, 'text': text}}

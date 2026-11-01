@@ -49,6 +49,18 @@
 <div class="pp-wrap">
     {% include 'partials/p2p_nav.html' %}
 
+    {% if buy_pause and buy_pause > now %}<div class="pp-msg error">Buying is paused until {{ buy_pause|date:"d M H:i" }} because of 3 cancelled or unpaid orders in 24 hours. You can still sell.</div>{% endif %}
+
+    <form method="post" class="pp-card" style="border-color:var(--px-accent)">{% csrf_token %}
+        <input type="hidden" name="action" value="express"><input type="hidden" name="side" value="{{ side }}">
+        <input type="hidden" name="asset" value="{{ asset }}"><input type="hidden" name="cur" value="{{ cur }}">
+        <div class="pp-h" style="margin-bottom:8px"><h2><i class="fa-solid fa-bolt mr-1" style="color:var(--px-accent)"></i> Express {% if side == 'buy' %}buy{% else %}sell{% endif %}</h2><p>We pick the best price from a reliable trader for you</p></div>
+        <div class="pm-filters" style="margin-top:0">
+            <div class="pp-field"><label>{% if side == 'buy' %}I want to spend{% else %}I want to receive{% endif %} ({{ cur }})</label><input name="fiat" inputmode="decimal" required placeholder="e.g. 5000"></div>
+            <button class="pp-btn {% if side == 'buy' %}buy{% else %}sell{% endif %}" type="submit" {% if not can_trade.0 %}disabled{% endif %}>{% if side == 'buy' %}Buy{% else %}Sell{% endif %} {{ asset }} now</button>
+        </div>
+    </form>
+
     <div class="pp-card">
         <div class="pp-h" style="margin-bottom:0">
             <div class="pm-side">
@@ -73,7 +85,7 @@
         <div class="pp-h"><h2>{% if side == 'buy' %}Buy {{ asset }} with {{ cur }}{% else %}Sell {{ asset }} for {{ cur }}{% endif %}</h2><p>{{ ads|length }} offer{{ ads|length|pluralize }} · {% if side == 'buy' %}cheapest first{% else %}best price first{% endif %}</p></div>
         {% for a in ads %}
         <div class="pm-ad">
-            <div class="pm-who"><span class="pm-avatar">{{ a.user.username|first|upper }}</span><b>{{ a.user.username }}</b>
+            <div class="pm-who"><span class="pm-avatar">{{ a.user.username|first|upper }}</span><a href="{% url 'p2p_trader' a.user.username %}"><b>{{ a.user.username }}</b></a>
                 <small>{{ a.st.trades_30d }} trades (30d){% if a.st.completion is not None %} · {{ a.st.completion }}% completion{% endif %}{% if a.st.positive is not None %} · 👍 {{ a.st.positive }}%{% endif %}{% if a.st.release_min %} · releases in ~{{ a.st.release_min }} min{% endif %}</small></div>
             <div class="pm-price">{{ a.price|floatformat:"2g" }} <small>{{ cur }}/{{ asset }}</small></div>
             <div class="pm-lim">Available <b>{{ a.remaining_txt }} {{ asset }}</b><br>Limit <b>{{ a.min_fiat|floatformat:"0g" }} – {{ a.max_now|floatformat:"0g" }}</b> {{ cur }}</div>

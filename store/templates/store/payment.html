@@ -459,6 +459,7 @@
                     Transfer Between Accounts
                 </h3>
                 <p class="text-[11px] text-slate-400 mt-0.5">Move funds between Exchange and Trading accounts</p>
+                <a href="{% url 'wallet_send' %}" class="inline-flex items-center gap-1.5 mt-2 text-[12px] font-bold" style="color:var(--px-accent)"><i class="fa-solid fa-paper-plane text-[10px]"></i> Send money to another PATREOAIX user →</a>
             </div>
 
             <form method="POST" action="{% url 'transfer_between_accounts' %}" class="space-y-4">

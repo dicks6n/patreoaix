@@ -187,7 +187,7 @@
                 <div class="pf-line"><span>Your wallet</span><b>${{ wallet|floatformat:"2g" }}</b></div>
                 <div class="pf-total"><span>Total</span><b id="pfTotal">$0</b></div>
                 <button class="pf-btn" type="submit" id="pfGo"><i class="fa-solid fa-lock"></i> Pay from wallet</button>
-                <a class="pf-sub" href="/account-operations/funding/payment-methods/deposit" style="text-align:center;text-decoration:underline">Deposit USDT to your wallet</a>
+                <p class="pf-sub" style="text-align:center">Top up: <a href="{% url 'funding_deposit' %}" style="text-decoration:underline">Deposit</a> · <a href="{% url 'p2p' %}" style="text-decoration:underline">Buy USDT on P2P</a> · <a href="{% url 'wallet' %}" style="text-decoration:underline">Wallet</a></p>
             </form>
         </div>
     </div>

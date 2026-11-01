@@ -1,0 +1,110 @@
+{% extends 'base_dashboard.html' %}
+
+{% block message_toasts %}{% endblock %}
+{% block title %}Send money · PATREOAIX{% endblock %}
+{% block page_title %}Send money{% endblock %}
+
+{% block extra_head %}
+<style>
+    .ws-wrap { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; max-width: 1000px; align-items: start; }
+    .ws-card { background: var(--px-panel); border: 1px solid var(--px-line); border-radius: 16px; padding: 20px; }
+    .ws-card h2 { font-size: 17px; font-weight: 900; color: var(--px-text); margin-bottom: 4px; }
+    .ws-sub { font-size: 12px; color: var(--px-mute); }
+    .ws-msg { grid-column: 1 / -1; padding: 12px 14px; font-size: 13px; font-weight: 600; border-radius: 12px; background: var(--px-panel-2); color: var(--px-text); border: 1px solid var(--px-line); }
+    .ws-msg.error { border-color: var(--px-down); color: var(--px-down); } .ws-msg.success { border-color: var(--px-up); }
+    .ws-field { margin-top: 14px; }
+    .ws-field label { display: block; font-size: 11px; font-weight: 800; color: var(--px-mute); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+    .ws-field input { width: 100%; background: var(--px-panel-2); border: 1px solid var(--px-line); color: var(--px-text); border-radius: 12px; padding: 12px; font-size: 15px; }
+    .ws-amount { position: relative; }
+    .ws-amount input { padding-left: 28px; font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 700; }
+    .ws-amount::before { content: '$'; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-family: 'JetBrains Mono', monospace; font-size: 22px; color: var(--px-mute); }
+    .ws-max { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 11px; font-weight: 900; color: var(--px-accent); background: none; border: 0; cursor: pointer; }
+    .ws-who { display: none; align-items: center; gap: 10px; margin-top: 8px; padding: 10px 12px; border-radius: 12px; background: var(--px-panel-2); border: 1px solid var(--px-up); }
+    .ws-who.show { display: flex; }
+    .ws-who.bad { display: flex; border-color: var(--px-down); color: var(--px-down); font-size: 12.5px; }
+    .ws-who .av { width: 34px; height: 34px; border-radius: 50%; background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); display: flex; align-items: center; justify-content: center; font-weight: 900; flex: none; }
+    .ws-who b { color: var(--px-text); font-size: 14px; }
+    .ws-who small { display: block; font-size: 11.5px; color: var(--px-mute); }
+    .ws-btn { width: 100%; margin-top: 16px; padding: 13px; border-radius: 12px; font-size: 15px; font-weight: 900; background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); border: 0; cursor: pointer; }
+    .ws-btn[disabled] { opacity: .5; cursor: not-allowed; }
+    .ws-kv { display: flex; justify-content: space-between; font-size: 13px; color: var(--px-dim); padding: 7px 0; border-bottom: 1px solid var(--px-line-soft); }
+    .ws-kv b { color: var(--px-text); font-family: 'JetBrains Mono', monospace; }
+    .ws-recent a { display: flex; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--px-line-soft); font-size: 13px; color: var(--px-text); }
+    @media (max-width: 820px) { .ws-wrap { grid-template-columns: 1fr; } .ws-card { padding: 16px; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ws-wrap">
+    {% for m in messages %}<div class="ws-msg {{ m.tags }}">{{ m }}</div>{% endfor %}
+
+    <form method="post" class="ws-card" id="wsForm" autocomplete="off">{% csrf_token %}
+        <input type="hidden" name="idem" value="{{ idem }}">
+        <h2><i class="fa-solid fa-paper-plane mr-1" style="color:var(--px-accent)"></i> Send to a PATREOAIX user</h2>
+        <p class="ws-sub">Instant and free. Money moves from your wallet to theirs.</p>
+        <div class="ws-field"><label for="wsTo">To</label>
+            <input id="wsTo" name="to" required value="{{ data.to|default:'' }}" placeholder="Username, email, trader ID (PXT-…) or phone">
+            <div class="ws-who" id="wsWho"></div>
+        </div>
+        <div class="ws-field"><label for="wsAmt">Amount (USD)</label>
+            <div class="ws-amount"><input id="wsAmt" name="amount" inputmode="decimal" required value="{{ data.amount|default:'' }}" placeholder="0.00"><button type="button" class="ws-max" id="wsMax">MAX</button></div>
+        </div>
+        <div class="ws-field"><label for="wsNote">Note (optional)</label><input id="wsNote" name="note" maxlength="140" value="{{ data.note|default:'' }}" placeholder="e.g. Rent, thanks for the signal"></div>
+        <div class="ws-field"><label for="wsPw">Your password</label><input id="wsPw" type="password" name="password" required autocomplete="current-password" placeholder="Confirm with your account password"></div>
+        <button class="ws-btn" type="submit" id="wsGo" disabled>Send</button>
+        <p class="ws-sub" style="margin-top:10px">Check the name before you send: transfers between users cannot be reversed.</p>
+    </form>
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="ws-card">
+            <h2 style="font-size:15px">Your limits</h2>
+            <div class="ws-kv"><span>Available</span><b>${{ available|floatformat:"2g" }}</b></div>
+            {% if bonus_locked %}<div class="ws-kv"><span>Bonus (locked)</span><b>${{ bonus_locked|floatformat:"2g" }}</b></div>{% endif %}
+            <div class="ws-kv"><span>Per transfer</span><b>$1 – ${{ lim.max|floatformat:"0g" }}</b></div>
+            <div class="ws-kv"><span>Left today</span><b>${{ left_today|floatformat:"2g" }} / ${{ daily|floatformat:"0g" }}</b></div>
+            {% if not kyc %}<p class="ws-sub" style="margin-top:10px"><a href="{% url 'kyc_status' %}" class="underline">Verify your identity</a> to send up to ${{ lim.daily|floatformat:"0g" }} a day.</p>{% endif %}
+            <p class="ws-sub" style="margin-top:10px">Need more? <a href="{% url 'funding_deposit' %}" class="underline">Deposit</a> or <a href="{% url 'p2p' %}" class="underline">buy USDT on P2P</a>.</p>
+        </div>
+        {% if recent %}
+        <div class="ws-card ws-recent">
+            <h2 style="font-size:15px">Recent</h2>
+            {% for t in recent %}<a href="?to={{ t.other.username }}"><span>{% if t.out %}To{% else %}From{% endif %} <b>@{{ t.other.username }}</b></span><span class="{% if t.out %}wl-dn{% endif %}" style="font-family:'JetBrains Mono',monospace;color:{% if t.out %}var(--px-down){% else %}var(--px-up){% endif %}">{% if t.out %}−{% else %}+{% endif %}${{ t.amount|floatformat:2 }}</span></a>{% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var to = document.getElementById('wsTo'), who = document.getElementById('wsWho'), go = document.getElementById('wsGo');
+    var amt = document.getElementById('wsAmt'), ok = false, t = null, AVAIL = {{ available|stringformat:"s" }};
+    function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    function paint() {
+        var a = parseFloat((amt.value || '').replace(/,/g, ''));
+        go.disabled = !(ok && a >= 1);
+        go.textContent = ok && a >= 1 ? 'Send $' + a.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' to @' + who.dataset.user : 'Send';
+    }
+    function look() {
+        var q = to.value.trim(); ok = false; paint();
+        if (q.length < 3) { who.className = 'ws-who'; return; }
+        fetch('{% url "wallet_lookup" %}?q=' + encodeURIComponent(q), { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) {
+            if (to.value.trim() !== q) return;
+            if (!d.success) { who.className = 'ws-who bad'; who.textContent = d.error; return; }
+            ok = true; who.dataset.user = d.username; who.className = 'ws-who show';
+            who.innerHTML = '<span class="av">' + esc(d.initial) + '</span><span><b>' + esc(d.name) + '</b> ' + (d.verified ? '<i class="fa-solid fa-circle-check" style="color:var(--px-up)" title="Verified"></i>' : '') + '<small>@' + esc(d.username) + (d.verified ? ' · identity verified' : ' · not verified yet') + '</small></span>';
+            paint();
+        }).catch(function () {});
+    }
+    to.addEventListener('input', function () { clearTimeout(t); t = setTimeout(look, 350); });
+    amt.addEventListener('input', paint);
+    document.getElementById('wsMax').addEventListener('click', function () { amt.value = Math.floor(AVAIL * 100) / 100; paint(); });
+    document.getElementById('wsForm').addEventListener('submit', function (e) {
+        if (!confirm(go.textContent + '?\n\nTransfers cannot be reversed.')) { e.preventDefault(); return; }
+        go.disabled = true; go.textContent = 'Sending…';
+    });
+    if (to.value) look();
+})();
+</script>
+{% endblock %}

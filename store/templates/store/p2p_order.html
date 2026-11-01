@@ -97,7 +97,10 @@
             <div class="po-warn">Open your {{ o.pay_to.0.method }} app or bank and check that <b>{{ o.fiat_amount|floatformat:"2g" }} {{ o.currency }}</b> from <b>{{ other.username }}</b> has really arrived. Fake SMS and edited screenshots are common: never release on a screenshot alone.</div>
             <form method="post">{% csrf_token %}<input type="hidden" name="action" value="release">
                 <label class="po-confirm"><input type="checkbox" name="confirm" value="yes" required> I confirm the money is in my account.</label>
-                <div class="po-actions"><button class="pp-btn sell" type="submit"><i class="fa-solid fa-unlock"></i> Release {{ amount_txt }} {{ o.asset }}</button></div>
+                <div class="po-actions">
+                    <input type="password" name="password" required autocomplete="current-password" placeholder="Your account password" style="flex:1;min-width:180px;background:var(--px-panel-2);border:1px solid var(--px-line);color:var(--px-text);border-radius:10px;padding:9px 10px;font-size:13px">
+                    <button class="pp-btn sell" type="submit"><i class="fa-solid fa-unlock"></i> Release {{ amount_txt }} {{ o.asset }}</button>
+                </div>
             </form>
             {% elif i_buy and o.status == 'PAID' %}
             <p class="pp-sub" style="margin-top:12px">Waiting for {{ other.username }} to confirm your payment and release the coins.</p>
@@ -113,7 +116,7 @@
             {% if o.status == 'APPEAL' %}<div class="po-warn"><b>Appeal open</b> by {{ o.appeal_by.username }}: "{{ o.appeal_reason }}". Upload proof in the chat; support decides within 24 hours.</div>{% endif %}
             {% if o.status == 'COMPLETED' %}
             <div class="po-actions"><span class="pp-up" style="font-weight:800"><i class="fa-solid fa-circle-check"></i> Completed {{ o.completed_at|date:"d M H:i" }}</span>
-                {% if i_buy %}<a class="pp-btn ghost sm" href="/copy-trading/">Use your {{ o.asset }}</a>{% endif %}</div>
+                {% if i_buy %}<a class="pp-btn ghost sm" href="{% url 'wallet' %}"><i class="fa-solid fa-wallet"></i> Open wallet</a>{% if live and o.asset == 'USDT' %}<a class="pp-btn ghost sm" href="{% url 'wallet_send' %}">Send to a user</a><a class="pp-btn ghost sm" href="{% url 'funded' %}">Buy a challenge</a><a class="pp-btn ghost sm" href="{% url 'subscription_billing' %}">Subscribe</a>{% endif %}{% endif %}</div>
             {% if not my_feedback %}
             <form method="post" class="po-actions">{% csrf_token %}<input type="hidden" name="action" value="feedback">
                 <input name="comment" maxlength="200" placeholder="Feedback for {{ other.username }} (optional)" style="flex:1;min-width:180px;background:var(--px-panel-2);border:1px solid var(--px-line);color:var(--px-text);border-radius:10px;padding:8px 10px;font-size:13px">
@@ -137,7 +140,8 @@
             {% endif %}
 
             <div style="margin-top:14px;font-size:12px;color:var(--px-mute)">
-                <b style="color:var(--px-text)">{{ other.username }}</b> · {{ other_stats.trades }} trades{% if other_stats.completion is not None %} · {{ other_stats.completion }}% completion{% endif %}{% if other_stats.positive is not None %} · 👍 {{ other_stats.positive }}%{% endif %}
+                <a href="{% url 'p2p_trader' other.username %}" class="underline"><b style="color:var(--px-text)">{{ other.username }}</b></a> · {{ other_stats.trades }} trades{% if other_stats.completion is not None %} · {{ other_stats.completion }}% completion{% endif %}{% if other_stats.positive is not None %} · 👍 {{ other_stats.positive }}%{% endif %}
+                {% if not staff_view %}<form method="post" style="display:inline">{% csrf_token %}<input type="hidden" name="action" value="block"><button type="submit" class="po-copy" style="color:var(--px-mute)" onclick="return confirm('Block {{ other.username }}? You will not see their ads and they cannot take yours.')">Block user</button></form>{% endif %}
             </div>
         </div>
 

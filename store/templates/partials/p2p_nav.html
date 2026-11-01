@@ -4,6 +4,7 @@
         <a href="{% url 'p2p' %}" class="{% if tab == 'market' %}on{% endif %}"><i class="fa-solid fa-store"></i> Market</a>
         <a href="{% url 'p2p_orders' %}" class="{% if tab == 'orders' %}on{% endif %}"><i class="fa-solid fa-receipt"></i> My orders{% if open_n %} <span class="badge">{{ open_n }}</span>{% endif %}</a>
         <a href="{% url 'p2p_ads' %}" class="{% if tab == 'ads' %}on{% endif %}"><i class="fa-solid fa-bullhorn"></i> My ads &amp; payment</a>
+        <a href="{% url 'wallet' %}"><i class="fa-solid fa-wallet"></i> Wallet</a>
         {% if request.user.is_staff %}<a href="{% url 'p2p_admin' %}" class="{% if tab == 'admin' %}on{% endif %}"><i class="fa-solid fa-scale-balanced"></i> Appeals</a>{% endif %}
     </nav>
 </div>

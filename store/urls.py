@@ -4,7 +4,7 @@ from . import mt5_views
 from . import site_views
 from . import pwa
 from .membership import members_only, auto_trading_only   # signals: Pro / VIP only · Starter trades manually
-from . import p2p_views
+from . import p2p_views, wallet_views
 from store.views import cryptomus_verify , landing_page_view , connect_ctrader
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import CustomTokenObtainPairSerializer
@@ -31,6 +31,9 @@ urlpatterns = [
     path('api/price-alert/', views.api_price_alert, name='api_price_alert'),
     path('academy/', views.academy_page, name='academy'),
     path('academy/<slug:key>/', views.academy_lesson, name='academy_lesson'),
+    path('wallet/', wallet_views.wallet, name='wallet'),
+    path('wallet/send/', wallet_views.send, name='wallet_send'),
+    path('wallet/lookup/', wallet_views.lookup, name='wallet_lookup'),
     path('p2p/', p2p_views.market, name='p2p'),
     path('p2p/orders/', p2p_views.my_orders, name='p2p_orders'),
     path('p2p/ads/', p2p_views.my_ads, name='p2p_ads'),
@@ -38,6 +41,7 @@ urlpatterns = [
     path('p2p/order/<str:ref>/poll/', p2p_views.order_poll, name='p2p_order_poll'),
     path('p2p/proof/<int:msg_id>/', p2p_views.proof, name='p2p_proof'),
     path('p2p/appeals/', p2p_views.admin_appeals, name='p2p_admin'),
+    path('p2p/u/<str:username>/', p2p_views.trader, name='p2p_trader'),
     path('copy-trading/', views.copy_trading_page, name='copy_trading'),
     path('api/copy-trading/sync/', views.api_copy_trading_sync, name='api_copy_trading_sync'),
     path('api/copy-trading/close/', views.api_copy_trading_close, name='api_copy_trading_close'),

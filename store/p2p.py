@@ -20,8 +20,10 @@ from decimal import Decimal, ROUND_DOWN
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count, F, Q
 from django.utils import timezone
+
+from .ledger import retry_busy as _retry_busy
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +58,8 @@ ASSETS = {                        # decimals, demo grant, name
 }
 TIME_LIMITS = [15, 30, 45, 60]
 MAX_OPEN_ORDERS = 3
+CANCEL_LIMIT = 3                  # cancelled / unpaid orders in 24 h before buying is paused for 24 h
+BUYER_CANCELS = ('Cancelled by the buyer', 'The payment time ran out')
 
 
 class P2PError(Exception):
@@ -122,26 +126,26 @@ def balances(user, demo=None):
 
 def grant_demo(user):
     """Test mode: top the demo balances up (1,000 USDT, 0.02 BTC, 0.5 ETH)."""
-    with transaction.atomic():
-        for asset, (_, grant, _) in ASSETS.items():
-            h = _holder(user, asset, True, lock=True)
-            if h.balance < grant:
-                h.balance = grant
-                h.save(update_fields=['balance', 'updated_at'])
+    from .models import P2PBalance
+    for asset, (_, grant, _) in ASSETS.items():
+        h = _holder(user, asset, True)
+        P2PBalance.objects.filter(pk=h.pk, balance__lt=grant).update(balance=grant, updated_at=timezone.now())
     return balances(user, True)
 
 
 def _move(user, asset, amount, demo, kind, details):
-    """Add (amount > 0) or take (amount < 0) coins; caller is inside a transaction."""
+    """Add (amount > 0) or take (amount < 0) coins with one atomic UPDATE; caller is inside a transaction."""
+    from . import ledger
     from .models import Transaction
-    h = _holder(user, asset, demo, lock=True)
-    if amount < 0 and D(h.balance) < -amount:
-        raise P2PError(f'Not enough {"demo " if demo else ""}{asset}: you need {fmt(asset, -amount)} and have {fmt(asset, h.balance)}.')
-    h.balance = D(h.balance) + amount
-    h.save(update_fields=['balance', 'updated_at'])
+    h = _holder(user, asset, demo)
+    if amount < 0:
+        if not ledger.debit(type(h), h.pk, -amount):
+            h.refresh_from_db()
+            raise P2PError(f'Not enough {"demo " if demo else ""}{asset}: you need {fmt(asset, -amount)} and have {fmt(asset, h.balance)}.')
+    elif amount > 0:
+        ledger.credit(type(h), h.pk, amount)
     if not demo and asset == 'USDT':               # the wallet's history (unknown types don't touch balances)
         Transaction.objects.create(user=user, amount=abs(amount), transaction_type=kind, details=details[:255])
-    return h.balance
 
 
 def can_trade(user):
@@ -182,6 +186,7 @@ def _dec(v, what):
     return d
 
 
+@_retry_busy
 def post_ad(user, data):
     """Create a BUY or SELL ad. SELL ads lock the USDT now."""
     from .models import P2PAd, P2PPaymentMethod
@@ -231,33 +236,42 @@ def post_ad(user, data):
     return ad
 
 
+@_retry_busy
 def set_ad_status(user, ad_id, status):
     from .models import P2PAd
+    ad = P2PAd.objects.filter(user=user, pk=ad_id).exclude(status='CLOSED').first()
+    if not ad:
+        raise P2PError('Ad not found.')
+    if status != 'CLOSED':
+        P2PAd.objects.filter(pk=ad.pk, status__in=('ACTIVE', 'PAUSED')).update(status=status, updated_at=timezone.now())
+        ad.refresh_from_db()
+        return ad
+    if ad.orders.filter(status__in=('PENDING', 'PAID', 'APPEAL')).exists():
+        raise P2PError('Finish the open orders on this ad first.')
     with transaction.atomic():
-        ad = P2PAd.objects.select_for_update().filter(user=user, pk=ad_id).first()
-        if not ad or ad.status == 'CLOSED':
-            raise P2PError('Ad not found.')
-        if status == 'CLOSED':
-            if ad.orders.filter(status__in=('PENDING', 'PAID', 'APPEAL')).exists():
-                raise P2PError('Finish the open orders on this ad first.')
-            if ad.side == 'SELL' and ad.remaining > 0:
-                _move(user, ad.asset, ad.remaining, ad.demo, 'P2P_REFUND', f'P2P ad closed: {fmt(ad.asset, ad.remaining)} {ad.asset} unlocked')
-            ad.remaining = D('0') if ad.side == 'SELL' else ad.remaining
-        ad.status = status
-        ad.save(update_fields=['status', 'remaining', 'updated_at'])
+        left = ad.remaining
+        # close only if nothing changed since we read it (an order opened a moment ago would change `remaining`)
+        if not P2PAd.objects.filter(pk=ad.pk, remaining=left).exclude(status='CLOSED').update(
+                status='CLOSED', remaining=D('0') if ad.side == 'SELL' else left, updated_at=timezone.now()):
+            raise P2PError('The ad just changed (a new order?). Refresh and try again.')
+        if ad.side == 'SELL' and left > 0:
+            _move(user, ad.asset, left, ad.demo, 'P2P_REFUND', f'P2P ad closed: {fmt(ad.asset, left)} {ad.asset} unlocked')
+    ad.refresh_from_db()
     return ad
 
 
-# ═══════════════════════════════════════════════════════════════
-# STATS
-# ═══════════════════════════════════════════════════════════════
 def merchant_stats(user):
     from .models import P2POrder, P2PFeedback
     since = timezone.now() - timedelta(days=30)
     mine = P2POrder.objects.filter(Q(buyer=user) | Q(seller=user))
     done = mine.filter(status='COMPLETED')
     recent = mine.filter(created_at__gte=since)
-    finished = recent.filter(status__in=('COMPLETED', 'CANCELLED')).count()
+    # only failures that are this user's fault count against them: orders they cancelled or left unpaid as the
+    # buyer, and appeals decided against them (a seller is not punished when a buyer walks away)
+    at_fault = recent.filter(buyer=user, status='CANCELLED', cancel_reason__in=BUYER_CANCELS).count() \
+        + recent.filter(seller=user, status='COMPLETED', resolved_by__isnull=False).count() \
+        + recent.filter(buyer=user, status='CANCELLED', cancel_reason='Appeal: refunded to the seller').count()
+    finished = recent.filter(status='COMPLETED').count() + at_fault
     fb = P2PFeedback.objects.filter(to_user=user)
     pos, total = fb.filter(positive=True).count(), fb.count()
     rel = [(o.completed_at - o.paid_at).total_seconds() for o in done.filter(seller=user, paid_at__isnull=False)[:50]]
@@ -293,6 +307,66 @@ def _notify(user, order, title, message, ok=True):
         pass
 
 
+def blocked_ids(user):
+    """Users this user blocked or was blocked by (no trading in either direction)."""
+    from .models import P2PBlock
+    mine = set(P2PBlock.objects.filter(user=user).values_list('blocked_id', flat=True))
+    theirs = set(P2PBlock.objects.filter(blocked=user).values_list('user_id', flat=True))
+    return mine | theirs
+
+
+def block(user, other_username, on=True):
+    from django.contrib.auth.models import User
+    from .models import P2PBlock
+    other = User.objects.filter(username=other_username).first()
+    if not other or other.id == user.id:
+        raise P2PError('User not found.')
+    if on:
+        P2PBlock.objects.get_or_create(user=user, blocked=other)
+    else:
+        P2PBlock.objects.filter(user=user, blocked=other).delete()
+    return other
+
+
+def buy_pause(user):
+    """→ datetime until which this user cannot open buy orders (too many cancels / unpaid), or None."""
+    from .models import P2POrder
+    since = timezone.now() - timedelta(hours=24)
+    rows = list(P2POrder.objects.filter(buyer=user, status='CANCELLED', cancelled_at__gte=since,
+                                        cancel_reason__in=BUYER_CANCELS).order_by('-cancelled_at').values_list('cancelled_at', flat=True))
+    if len(rows) >= CANCEL_LIMIT:
+        return rows[CANCEL_LIMIT - 1] + timedelta(hours=24)
+    return None
+
+
+def express(user, side, asset, currency, fiat):
+    """Pick the best offer that fits `fiat` and open the order. side: 'buy' or 'sell' (what the user wants)."""
+    from .models import P2PAd, P2PPaymentMethod
+    fiat = _q(_dec(fiat, 'amount'))
+    want_sell = side == 'sell'
+    qs = P2PAd.objects.filter(status='ACTIVE', asset=asset, currency=currency, demo=not live(),
+                              side='BUY' if want_sell else 'SELL', min_fiat__lte=fiat, max_fiat__gte=fiat) \
+        .exclude(user=user).exclude(user_id__in=blocked_ids(user)).order_by('-price' if want_sell else 'price')
+    mine = {m.method: m for m in P2PPaymentMethod.objects.filter(user=user, is_active=True)} if want_sell else {}
+    for ad in qs[:50]:
+        if ad.remaining * ad.price < fiat:
+            continue
+        method_id = None
+        if want_sell:
+            match = next((mine[k] for k in ad.methods if k in mine), None)
+            if not match:
+                continue
+            method_id = match.id
+        st = merchant_stats(ad.user)
+        if st['completion'] is not None and st['completion'] < 60:
+            continue                                      # skip unreliable traders in express mode
+        return open_order(user, ad.id, fiat=fiat, method_id=method_id)
+    if want_sell and not mine:
+        raise P2PError('Add a payment method first (My ads & payment) so buyers can pay you.')
+    raise P2PError(f'No offer can take {fiat:,} {currency} right now. Try another amount or pick an offer in the list.')
+
+
+@_retry_busy
 def open_order(user, ad_id, fiat=None, coins=None, method_id=None):
     """Take an ad. fiat (local money) or coins says how much; method_id is the taker's payment method on a BUY ad."""
     from .models import P2PAd, P2POrder, P2PPaymentMethod
@@ -302,11 +376,18 @@ def open_order(user, ad_id, fiat=None, coins=None, method_id=None):
     if P2POrder.objects.filter(Q(buyer=user) | Q(seller=user), status__in=('PENDING', 'PAID')).count() >= MAX_OPEN_ORDERS:
         raise P2PError(f'You can have up to {MAX_OPEN_ORDERS} open orders. Finish one first.')
     with transaction.atomic():
-        ad = P2PAd.objects.select_for_update().filter(pk=ad_id).first()
+        ad = P2PAd.objects.filter(pk=ad_id).first()
         if not ad or ad.status != 'ACTIVE':
             raise P2PError('This ad is no longer available.')
         if ad.user_id == user.id:
             raise P2PError('You cannot trade with your own ad.')
+        if ad.user_id in blocked_ids(user):
+            raise P2PError('You cannot trade with this user.')
+        if ad.side == 'SELL':
+            until = buy_pause(user)
+            if until and until > timezone.now():
+                raise P2PError(f'Buying is paused until {timezone.localtime(until):%d %b %H:%M} because of '
+                               f'{CANCEL_LIMIT} cancelled or unpaid orders in 24 hours.')
         if ad.demo != (not live()):
             raise P2PError('This ad belongs to the other mode (demo / live).')
         asset = ad.asset
@@ -334,10 +415,12 @@ def open_order(user, ad_id, fiat=None, coins=None, method_id=None):
                 raise P2PError(f'Choose one of your payment methods: {", ".join(method_name(m) for m in ad.methods)}.')
             pay_to = [{'method': method_name(pm.method), 'name': pm.account_name, 'number': pm.account_number, 'bank': pm.bank_name}]
             _move(user, asset, -amount, ad.demo, 'P2P_ESCROW', f'P2P sell: {fmt(asset, amount)} {asset} locked in escrow')
-        ad.remaining -= amount
-        if ad.remaining <= 0 or ad.remaining * ad.price < ad.min_fiat:
-            ad.status = 'PAUSED' if ad.side == 'SELL' else ad.status
-        ad.save(update_fields=['remaining', 'status', 'updated_at'])
+        if not P2PAd.objects.filter(pk=ad.pk, status='ACTIVE', remaining__gte=amount).update(
+                remaining=F('remaining') - amount, updated_at=timezone.now()):
+            raise P2PError('Someone just took this offer. Refresh and try again.')   # rolls back the escrow above
+        ad.refresh_from_db()
+        if ad.side == 'SELL' and (ad.remaining <= 0 or ad.remaining * ad.price < ad.min_fiat):
+            P2PAd.objects.filter(pk=ad.pk, status='ACTIVE').update(status='PAUSED')
         o = P2POrder.objects.create(
             ref='P2P' + secrets.token_hex(4).upper(), ad=ad, buyer=buyer, seller=seller, asset=asset, amount=amount, fee=fee,
             price=ad.price, fiat_amount=fiat_amt, currency=ad.currency, pay_to=pay_to, escrow_in_ad=escrow_in_ad,
@@ -349,26 +432,26 @@ def open_order(user, ad_id, fiat=None, coins=None, method_id=None):
     return o
 
 
-def _get(user, ref, lock=True, staff=False):
+def _get(user, ref, lock=False, staff=False):
     from .models import P2POrder
-    qs = P2POrder.objects.select_for_update() if lock else P2POrder.objects
-    o = qs.select_related('ad', 'buyer', 'seller').filter(ref=ref).first()
+    o = P2POrder.objects.select_related('ad', 'buyer', 'seller').filter(ref=ref).first()
     if not o or not (staff or user.id in (o.buyer_id, o.seller_id)):
         raise P2PError('Order not found.')
     return o
 
 
+@_retry_busy
 def mark_paid(user, ref):
-    with transaction.atomic():
-        o = _get(user, ref)
-        if o.buyer_id != user.id:
-            raise P2PError('Only the buyer can mark the order as paid.')
-        if o.status != 'PENDING':
-            raise P2PError('This order is not waiting for payment.')
-        if timezone.now() > o.expires_at:
-            raise P2PError('The payment time is over: the order was cancelled.')
-        o.status, o.paid_at = 'PAID', timezone.now()
-        o.save(update_fields=['status', 'paid_at'])
+    from .models import P2POrder
+    o = _get(user, ref)
+    if o.buyer_id != user.id:
+        raise P2PError('Only the buyer can mark the order as paid.')
+    now = timezone.now()
+    if not P2POrder.objects.filter(pk=o.pk, status='PENDING', expires_at__gt=now).update(status='PAID', paid_at=now):
+        o.refresh_from_db()
+        raise P2PError('The payment time is over: the order was cancelled.' if o.status in ('PENDING', 'CANCELLED')
+                       else 'This order is not waiting for payment.')
+    o.refresh_from_db()
     _sys(o, f'{user.username} marked the order as paid. Seller: check that {o.fiat_amount:,} {o.currency} has really '
             'arrived in your account (not just an SMS or screenshot), then release.')
     _notify(o.seller, o, f'💰 Buyer paid: release {fmt(o.asset, o.amount)} {o.asset} ({o.ref})',
@@ -377,62 +460,74 @@ def mark_paid(user, ref):
 
 
 def _return_escrow(o):
-    """Cancel / refund: the USDT goes back where it came from."""
+    """Cancel / refund: the coins go back where they came from (caller already moved the order's status)."""
     from .models import P2PAd
+    now = timezone.now()
     if o.escrow_in_ad:
-        ad = P2PAd.objects.select_for_update().get(pk=o.ad_id)
-        if ad.status == 'CLOSED':
-            _move(o.seller, o.asset, o.amount, o.demo, 'P2P_REFUND', f'P2P order {o.ref} cancelled: {fmt(o.asset, o.amount)} {o.asset} returned')
-        else:
-            ad.remaining += o.amount
+        # back onto the ad while it is open; if it was closed meanwhile, straight back to the seller
+        if P2PAd.objects.filter(pk=o.ad_id).exclude(status='CLOSED').update(remaining=F('remaining') + o.amount, updated_at=now):
+            ad = P2PAd.objects.get(pk=o.ad_id)
             if ad.status == 'PAUSED' and ad.remaining * ad.price >= ad.min_fiat:
-                ad.status = 'ACTIVE'
-            ad.save(update_fields=['remaining', 'status', 'updated_at'])
+                P2PAd.objects.filter(pk=ad.pk, status='PAUSED').update(status='ACTIVE')
+        else:
+            _move(o.seller, o.asset, o.amount, o.demo, 'P2P_REFUND', f'P2P order {o.ref} cancelled: {fmt(o.asset, o.amount)} {o.asset} returned')
     else:
         _move(o.seller, o.asset, o.amount, o.demo, 'P2P_REFUND', f'P2P order {o.ref} cancelled: {fmt(o.asset, o.amount)} {o.asset} returned')
-        ad = P2PAd.objects.select_for_update().get(pk=o.ad_id)
-        ad.remaining += o.amount
-        ad.save(update_fields=['remaining', 'updated_at'])
+        P2PAd.objects.filter(pk=o.ad_id).exclude(status='CLOSED').update(remaining=F('remaining') + o.amount, updated_at=now)
 
 
+@_retry_busy
 def cancel(user, ref, reason='Cancelled by the buyer', system=False):
+    """Buyer cancels an unpaid order, or the timer runs out (system). A paid order is never cancelled this way."""
+    from .models import P2POrder
+    o = _get(user, ref, staff=system)
+    if not system and o.buyer_id != user.id:
+        raise P2PError('Only the buyer can cancel. If you were not paid, wait for the timer or appeal.')
+    now = timezone.now()
+    q = P2POrder.objects.filter(pk=o.pk, status='PENDING')
+    if system:
+        q = q.filter(expires_at__lte=now)              # the buyer may have tapped "paid" a moment ago
     with transaction.atomic():
-        o = _get(user, ref, staff=system)
-        if not system and o.buyer_id != user.id:
-            raise P2PError('Only the buyer can cancel. If you were not paid, wait for the timer or appeal.')
-        if o.status not in ('PENDING',) and not system:
-            raise P2PError('A paid order cannot be cancelled by the buyer. Open an appeal if something is wrong.')
-        if o.status in ('COMPLETED', 'CANCELLED'):
-            return o
+        if not q.update(status='CANCELLED', cancelled_at=now, cancel_reason=reason[:200]):
+            o.refresh_from_db()
+            if system:
+                return o
+            raise P2PError('A paid order cannot be cancelled by the buyer. Open an appeal if something is wrong.'
+                           if o.status in ('PAID', 'APPEAL') else 'This order is already finished.')
         _return_escrow(o)
-        o.status, o.cancelled_at, o.cancel_reason = 'CANCELLED', timezone.now(), reason[:200]
-        o.save(update_fields=['status', 'cancelled_at', 'cancel_reason'])
+    o.refresh_from_db()
     _sys(o, f'Order cancelled: {reason}. The {o.asset} is back with the seller.')
     for u in (o.buyer, o.seller):
-        if u.id != getattr(user, 'id', None):
+        if u.id != getattr(user, 'id', None) or system:
             _notify(u, o, f'P2P order {o.ref} cancelled', reason, ok=False)
     return o
 
 
-def release(user, ref, staff=False, note=''):
-    """Seller (or staff in an appeal) sends the USDT to the buyer."""
+@_retry_busy
+def release(user, ref, staff=False, note='', password=None):
+    """Seller (after the buyer marked paid, with their password) or staff (appeal) sends the coins to the buyer."""
+    from .models import P2POrder, Transaction
+    if not staff and not (password and user.check_password(password)):
+        raise P2PError('Wrong password. Enter your account password to release.')
+    o = _get(user, ref, staff=staff)
+    if not staff and o.seller_id != user.id:
+        raise P2PError(f'Only the seller can release the {o.asset}.')
+    allowed = ('PENDING', 'PAID', 'APPEAL') if staff else ('PAID',)
+    changes = {'status': 'COMPLETED', 'completed_at': timezone.now()}
+    if staff:
+        changes.update(resolution=(note or 'Released to the buyer by support')[:255], resolved_by=user)
     with transaction.atomic():
-        o = _get(user, ref, staff=staff)
-        if not staff and o.seller_id != user.id:
-            raise P2PError(f'Only the seller can release the {o.asset}.')
-        if o.status not in ('PENDING', 'PAID', 'APPEAL') or (o.status == 'APPEAL' and not staff):
-            raise P2PError('This order cannot be released now.')
+        if not P2POrder.objects.filter(pk=o.pk, status__in=allowed).update(**changes):   # exactly one release
+            o.refresh_from_db()
+            raise P2PError('Release is possible once the buyer has marked the order as paid.' if o.status == 'PENDING'
+                           else 'This order cannot be released now.')
         _move(o.buyer, o.asset, o.amount - o.fee, o.demo, 'P2P_BUY', f'P2P {o.ref}: bought {fmt(o.asset, o.amount)} {o.asset} for {o.fiat_amount:,} {o.currency}')
         if not o.demo and o.asset == 'USDT':
-            from .models import Transaction
             Transaction.objects.create(user=o.seller, amount=o.amount, transaction_type='P2P_SELL',
                                        details=f'P2P {o.ref}: sold {fmt(o.asset, o.amount)} {o.asset} for {o.fiat_amount:,} {o.currency}')
             if o.fee:
                 Transaction.objects.create(user=o.buyer, amount=o.fee, transaction_type='P2P_FEE', details=f'P2P fee {o.ref}')
-        o.status, o.completed_at = 'COMPLETED', timezone.now()
-        if staff:
-            o.resolution, o.resolved_by = (note or 'Released to the buyer by support')[:255], user
-        o.save(update_fields=['status', 'completed_at', 'resolution', 'resolved_by'])
+    o.refresh_from_db()
     _sys(o, f'{fmt(o.asset, o.amount - o.fee)} {o.asset} released to {o.buyer.username}' + (f' (fee {fmt(o.asset, o.fee)})' if o.fee else '') +
             ('. Decided by support.' if staff else '. Trade complete.'))
     _notify(o.buyer, o, f'✅ {fmt(o.asset, o.amount - o.fee)} {o.asset} received ({o.ref})', f'The seller released your {o.asset}. Leave feedback for them.')
@@ -441,17 +536,20 @@ def release(user, ref, staff=False, note=''):
     return o
 
 
+@_retry_busy
 def appeal(user, ref, reason):
-    with transaction.atomic():
-        o = _get(user, ref)
-        if o.status != 'PAID':
-            raise P2PError('You can appeal once the buyer has marked the order as paid.')
-        if timezone.now() < o.paid_at + timedelta(minutes=10) and user.id == o.buyer_id:
-            raise P2PError('Give the seller 10 minutes to check the payment before appealing.')
-        if len((reason or '').strip()) < 10:
-            raise P2PError('Explain what happened (at least a sentence).')
-        o.status, o.appeal_by, o.appeal_reason = 'APPEAL', user, reason.strip()[:2000]
-        o.save(update_fields=['status', 'appeal_by', 'appeal_reason'])
+    from .models import P2POrder
+    o = _get(user, ref)
+    if o.status != 'PAID':
+        raise P2PError('You can appeal once the buyer has marked the order as paid.')
+    if user.id == o.buyer_id and timezone.now() < o.paid_at + timedelta(minutes=10):
+        raise P2PError('Give the seller 10 minutes to check the payment before appealing.')
+    reason = (reason or '').strip()
+    if len(reason) < 10:
+        raise P2PError('Explain what happened (at least a sentence).')
+    if not P2POrder.objects.filter(pk=o.pk, status='PAID').update(status='APPEAL', appeal_by=user, appeal_reason=reason[:2000]):
+        raise P2PError('This order just changed. Refresh the page.')
+    o.refresh_from_db()
     _sys(o, f'{user.username} opened an appeal: "{o.appeal_reason}". Support will review the chat and proofs. '
             'Upload your payment proof / statement here.')
     other = o.seller if user.id == o.buyer_id else o.buyer
@@ -459,17 +557,18 @@ def appeal(user, ref, reason):
     return o
 
 
+@_retry_busy
 def resolve_refund(staff_user, ref, note=''):
-    """Staff: the buyer did not pay → USDT back to the seller."""
+    """Staff: the buyer did not pay → coins back to the seller."""
+    from .models import P2POrder
+    o = _get(staff_user, ref, staff=True)
     with transaction.atomic():
-        o = _get(staff_user, ref, staff=True)
-        if o.status not in ('APPEAL', 'PAID', 'PENDING'):
+        if not P2POrder.objects.filter(pk=o.pk, status__in=('APPEAL', 'PAID', 'PENDING')).update(
+                status='CANCELLED', cancelled_at=timezone.now(), cancel_reason='Appeal: refunded to the seller',
+                resolution=(note or 'Refunded to the seller by support')[:255], resolved_by=staff_user):
             raise P2PError('This order is already finished.')
         _return_escrow(o)
-        o.status, o.cancelled_at = 'CANCELLED', timezone.now()
-        o.cancel_reason = 'Appeal: refunded to the seller'
-        o.resolution, o.resolved_by = (note or 'Refunded to the seller by support')[:255], staff_user
-        o.save(update_fields=['status', 'cancelled_at', 'cancel_reason', 'resolution', 'resolved_by'])
+    o.refresh_from_db()
     _sys(o, f'Support decided: the {o.asset} goes back to the seller. ' + (note or ''))
     for u in (o.buyer, o.seller):
         _notify(u, o, f'Appeal decided: {o.ref}', f'Support returned the {o.asset} to the seller.', ok=u.id == o.seller_id)

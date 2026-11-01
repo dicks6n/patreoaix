@@ -24,6 +24,8 @@ from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
 
+from .ledger import retry_busy as _retry_busy
+
 logger = logging.getLogger(__name__)
 
 D = Decimal
@@ -125,6 +127,7 @@ def _new_account(user, plan_type, size, phase, price=D('0'), ref='', previous=No
         price_paid=price, order_ref=ref, previous=previous)
 
 
+@_retry_busy
 def buy(user, plan_type, size, qty=1):
     """Pay from the wallet (EXCHANGE balance) and open `qty` Phase 1 accounts. Returns the new accounts."""
     from .models import Account, PropAccount, Transaction, Notification
@@ -144,12 +147,12 @@ def buy(user, plan_type, size, qty=1):
     trader_id(user)
     ref = 'PXO-' + secrets.token_hex(3).upper()
     with transaction.atomic():
+        from . import ledger
         wallet, _ = Account.objects.get_or_create(user=user, account_type='EXCHANGE', defaults={'balance': D('0')})
-        wallet = Account.objects.select_for_update().get(pk=wallet.pk)
-        if wallet.balance < q['total']:
-            raise PropError(f"Not enough balance: the order is ${q['total']} and your wallet has ${wallet.balance}. Deposit first.")
-        wallet.balance -= q['total']
-        wallet.save(update_fields=['balance', 'updated_at'])
+        if not ledger.debit(Account, wallet.pk, q['total']):          # one atomic UPDATE: no double charge
+            wallet.refresh_from_db()
+            raise PropError(f"Not enough balance: the order is ${q['total']} and your wallet has ${wallet.balance}. "
+                            "Top up with a deposit or buy USDT on P2P.")
         Transaction.objects.create(user=user, amount=q['total'], transaction_type='CHALLENGE_FEE',
                                    details=f"{qty}× {RULES[plan_type]['name']} ${size:,} challenge · order {ref}"
                                            + (f" · {q['discount']}% bundle discount" if q['discount'] else ''))

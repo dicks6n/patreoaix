@@ -1,0 +1,54 @@
+{% extends 'base_dashboard.html' %}
+
+{% block message_toasts %}{% endblock %}
+{% block title %}{{ trader.username }} · P2P trader · PATREOAIX{% endblock %}
+{% block page_title %}P2P Trader{% endblock %}
+{% block extra_head %}{% include 'partials/p2p_head.html' %}{% endblock %}
+
+{% block content %}
+<div class="pp-wrap">
+    {% include 'partials/p2p_nav.html' %}
+    <div class="pp-card">
+        <div class="pp-h">
+            <h2><span style="display:inline-flex;width:38px;height:38px;border-radius:50%;background:var(--px-accent);color:var(--px-accent-ink,#0b0e14);align-items:center;justify-content:center;font-weight:900;margin-right:8px">{{ trader.username|first|upper }}</span>{{ trader.username }}
+                {% if kyc %}<span class="pp-tag" style="color:var(--px-up)"><i class="fa-solid fa-circle-check"></i> Verified</span>{% endif %}</h2>
+            <p>Member since {{ joined|date:"M Y" }}</p>
+        </div>
+        <div class="pp-grid">
+            <div class="pp-field"><label>Completed trades</label><b class="pp-mono" style="font-size:18px">{{ stats.trades }}</b></div>
+            <div class="pp-field"><label>30-day trades</label><b class="pp-mono" style="font-size:18px">{{ stats.trades_30d }}</b></div>
+            <div class="pp-field"><label>Completion</label><b class="pp-mono" style="font-size:18px">{% if stats.completion is not None %}{{ stats.completion }}%{% else %}–{% endif %}</b></div>
+            <div class="pp-field"><label>Positive</label><b class="pp-mono" style="font-size:18px">{% if stats.positive is not None %}{{ stats.positive }}% ({{ stats.feedback }}){% else %}–{% endif %}</b></div>
+            <div class="pp-field"><label>Avg. release</label><b class="pp-mono" style="font-size:18px">{% if stats.release_min %}{{ stats.release_min }} min{% else %}–{% endif %}</b></div>
+        </div>
+        {% if not me %}
+        <form method="post" style="margin-top:12px">{% csrf_token %}
+            {% if blocked %}<button class="pp-btn ghost sm" name="action" value="unblock">Unblock</button>
+            {% else %}<button class="pp-btn ghost sm" name="action" value="block" onclick="return confirm('Block {{ trader.username }}?')"><i class="fa-solid fa-ban"></i> Block</button>{% endif %}
+        </form>
+        {% endif %}
+    </div>
+    <div class="pp-card">
+        <div class="pp-h"><h2>Open ads</h2></div>
+        {% if ads %}
+        <div class="pp-scroll"><table class="pp-table">
+            <thead><tr><th>Ad</th><th>Price</th><th>Available</th><th>Limits</th><th>Payment</th><th></th></tr></thead>
+            <tbody>{% for a in ads %}<tr>
+                <td><b class="{% if a.side == 'SELL' %}pp-dn{% else %}pp-up{% endif %}">{% if a.side == 'SELL' %}Sells{% else %}Buys{% endif %}</b> {{ a.asset }}</td>
+                <td class="pp-mono">{{ a.price|floatformat:"2g" }} {{ a.currency }}</td>
+                <td class="pp-mono">{{ a.remaining_txt }}</td>
+                <td class="pp-mono">{{ a.min_fiat|floatformat:"0g" }} – {{ a.max_fiat|floatformat:"0g" }}</td>
+                <td>{% for n in a.method_names %}<span class="pp-tag">{{ n }}</span>{% endfor %}</td>
+                <td>{% if not me %}<a class="pp-btn sm {% if a.side == 'SELL' %}buy{% else %}sell{% endif %}" href="{% url 'p2p' %}?side={% if a.side == 'SELL' %}buy{% else %}sell{% endif %}&asset={{ a.asset }}&cur={{ a.currency }}">{% if a.side == 'SELL' %}Buy{% else %}Sell{% endif %}</a>{% endif %}</td>
+            </tr>{% endfor %}</tbody>
+        </table></div>
+        {% else %}<p class="pp-sub">No open ads.</p>{% endif %}
+    </div>
+    <div class="pp-card">
+        <div class="pp-h"><h2>Feedback</h2></div>
+        {% for f in feedback %}
+        <p style="font-size:13px;color:var(--px-text);padding:8px 0;border-bottom:1px solid var(--px-line-soft)">{% if f.positive %}👍{% else %}👎{% endif %} <b>{{ f.from_user.username }}</b> <span class="pp-mute">{{ f.created_at|date:"d M Y" }}</span>{% if f.comment %} · {{ f.comment }}{% endif %}</p>
+        {% empty %}<p class="pp-sub">No feedback yet.</p>{% endfor %}
+    </div>
+</div>
+{% endblock %}

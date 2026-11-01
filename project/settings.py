@@ -228,6 +228,7 @@ TEMPLATES = [
                 'store.context_processors.site_flags',
                 'store.context_processors.membership',
                 'store.context_processors.promos',
+                'store.context_processors.p2p_attention',
   #
             ],
         },

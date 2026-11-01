@@ -1,0 +1,122 @@
+{% extends 'base_dashboard.html' %}
+
+{% block message_toasts %}{% endblock %}
+{% block title %}Wallet · PATREOAIX{% endblock %}
+{% block page_title %}Wallet{% endblock %}
+
+{% block extra_head %}
+<style>
+    .wl-wrap { display: flex; flex-direction: column; gap: 16px; max-width: 1100px; }
+    .wl-card { background: var(--px-panel); border: 1px solid var(--px-line); border-radius: 16px; padding: 18px; }
+    .wl-h { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+    .wl-h h2 { font-size: 16px; font-weight: 800; color: var(--px-text); }
+    .wl-h p, .wl-sub { font-size: 12px; color: var(--px-mute); }
+    .wl-msg { padding: 12px 14px; font-size: 13px; font-weight: 600; border-radius: 12px; background: var(--px-panel-2); color: var(--px-text); border: 1px solid var(--px-line); }
+    .wl-msg.error { border-color: var(--px-down); color: var(--px-down); } .wl-msg.success { border-color: var(--px-up); }
+    .wl-hero { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
+    .wl-hero span { font-size: 11px; font-weight: 800; color: var(--px-mute); text-transform: uppercase; letter-spacing: .06em; }
+    .wl-hero b { display: block; font-family: 'JetBrains Mono', monospace; font-size: 34px; color: var(--px-text); line-height: 1.1; margin-top: 4px; }
+    .wl-hero small { font-size: 12px; color: var(--px-mute); }
+    .wl-id { text-align: right; }
+    .wl-id code { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--px-text); background: var(--px-panel-2); padding: 4px 8px; border-radius: 8px; }
+    .wl-actions { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-top: 16px; }
+    .wl-act { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 6px; border-radius: 14px; background: var(--px-panel-2); border: 1px solid var(--px-line); color: var(--px-text); font-size: 12.5px; font-weight: 800; text-align: center; }
+    .wl-act:hover { border-color: var(--px-accent); }
+    .wl-act i { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 16px; background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); }
+    .wl-act.alt i { background: var(--px-panel); color: var(--px-accent); border: 1px solid var(--px-line); }
+    .wl-bals { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+    .wl-bal { padding: 14px; border-radius: 14px; background: var(--px-panel-2); display: flex; flex-direction: column; gap: 4px; color: var(--px-text); }
+    .wl-bal span { font-size: 11px; font-weight: 800; color: var(--px-mute); text-transform: uppercase; letter-spacing: .05em; }
+    .wl-bal b { font-family: 'JetBrains Mono', monospace; font-size: 19px; }
+    .wl-bal small { font-size: 12px; color: var(--px-mute); }
+    .wl-bal a { font-size: 12px; font-weight: 800; color: var(--px-accent); margin-top: 4px; }
+    .wl-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .wl-table th { text-align: left; font-size: 10.5px; color: var(--px-mute); text-transform: uppercase; letter-spacing: .05em; padding: 8px; border-bottom: 1px solid var(--px-line); }
+    .wl-table td { padding: 10px 8px; border-bottom: 1px solid var(--px-line-soft); color: var(--px-text); }
+    .wl-table .num { font-family: 'JetBrains Mono', monospace; text-align: right; white-space: nowrap; }
+    .wl-scroll { overflow-x: auto; }
+    .wl-up { color: var(--px-up); } .wl-dn { color: var(--px-down); } .wl-mute { color: var(--px-mute); }
+    .wl-tag { font-size: 10.5px; font-weight: 800; padding: 3px 7px; border-radius: 6px; background: var(--px-panel-2); color: var(--px-dim); white-space: nowrap; }
+    .wl-links { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+    .wl-link { display: flex; gap: 10px; align-items: center; padding: 12px; border-radius: 12px; background: var(--px-panel-2); color: var(--px-text); font-size: 13px; }
+    .wl-link i { color: var(--px-accent); width: 18px; text-align: center; }
+    .wl-link small { display: block; font-size: 11.5px; color: var(--px-mute); }
+    @media (max-width: 760px) { .wl-actions { grid-template-columns: repeat(3, 1fr); } .wl-hero b { font-size: 28px; } .wl-id { text-align: left; } .wl-card { padding: 14px; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wl-wrap">
+    {% for m in messages %}<div class="wl-msg {{ m.tags }}">{{ m }}</div>{% endfor %}
+
+    <div class="wl-card">
+        <div class="wl-hero">
+            <div>
+                <span>Wallet balance (USD / USDT)</span>
+                <b>${{ wallet_bal|floatformat:"2g" }}</b>
+                <small>Available to send or withdraw: ${{ available|floatformat:"2g" }}{% if bonus_locked %} · bonus locked ${{ bonus_locked|floatformat:"2g" }}{% endif %}</small>
+            </div>
+            <div class="wl-id">
+                <span>Receive money: share</span>
+                <div style="margin-top:6px"><code>@{{ request.user.username }}</code>{% if trader_id %} <code>{{ trader_id }}</code>{% endif %}
+                    <button type="button" class="wl-tag" style="cursor:pointer;border:0" onclick="navigator.clipboard&&navigator.clipboard.writeText('{{ request.user.username }}');this.textContent='Copied'">Copy</button></div>
+            </div>
+        </div>
+        <div class="wl-actions">
+            <a class="wl-act" href="{% url 'funding_deposit' %}"><i class="fa-solid fa-arrow-down"></i>Deposit</a>
+            <a class="wl-act" href="{% url 'funding_deposit' %}?tab=withdrawal"><i class="fa-solid fa-arrow-up"></i>Withdraw</a>
+            <a class="wl-act" href="{% url 'wallet_send' %}"><i class="fa-solid fa-paper-plane"></i>Send</a>
+            <a class="wl-act alt" href="{% url 'p2p' %}"><i class="fa-solid fa-people-arrows"></i>P2P{% if p2p_open %} ({{ p2p_open }}){% endif %}</a>
+            <a class="wl-act alt" href="{% url 'funding_deposit' %}?tab=transfer"><i class="fa-solid fa-right-left"></i>To trading</a>
+            <a class="wl-act alt" href="{% url 'funding_deposit' %}?tab=history"><i class="fa-solid fa-clock-rotate-left"></i>History</a>
+        </div>
+    </div>
+
+    <div class="wl-card">
+        <div class="wl-h"><h2>My balances</h2><p>Everything your account holds</p></div>
+        <div class="wl-bals">
+            <div class="wl-bal"><span>Wallet</span><b>${{ wallet_bal|floatformat:"2g" }}</b><small>Deposits, P2P, transfers, subscriptions and challenges</small><a href="{% url 'funding_deposit' %}">Deposit →</a></div>
+            <div class="wl-bal"><span>Trading account</span><b>${{ trading_bal|floatformat:"2g" }}</b><small>Used by the MT5 terminal</small><a href="{% url 'mt5_terminal' %}">Open terminal →</a></div>
+            <div class="wl-bal"><span>P2P {% if not p2p_live %}demo {% endif %}coins</span><b style="font-size:15px">{% for a, b in p2p_bals %}{{ b }} {{ a }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</b><small>{% if p2p_live %}Live P2P balances{% else %}Practice coins (test mode){% endif %}</small><a href="{% url 'p2p' %}">P2P market →</a></div>
+            <div class="wl-bal"><span>Funded challenges</span><b>{{ props }}</b><small>Active challenge / funded accounts</small><a href="{% url 'funded' %}">My accounts →</a></div>
+        </div>
+    </div>
+
+    {% if sent %}
+    <div class="wl-card">
+        <div class="wl-h"><h2>Transfers</h2><a class="wl-sub" href="{% url 'wallet_send' %}" style="color:var(--px-accent);font-weight:800">Send money →</a></div>
+        <div class="wl-scroll"><table class="wl-table">
+            <tbody>{% for t in sent %}<tr>
+                <td>{% if t.out %}<i class="fa-solid fa-arrow-up wl-dn"></i> To{% else %}<i class="fa-solid fa-arrow-down wl-up"></i> From{% endif %} <b>@{{ t.other.username }}</b>{% if t.note %}<br><span class="wl-mute" style="font-size:12px">{{ t.note }}</span>{% endif %}</td>
+                <td class="wl-mute" style="font-size:12px">{{ t.ref }}<br>{{ t.created_at|date:"d M H:i" }}</td>
+                <td class="num {% if t.out %}wl-dn{% else %}wl-up{% endif %}">{% if t.out %}−{% else %}+{% endif %}${{ t.amount|floatformat:"2g" }}</td>
+            </tr>{% endfor %}</tbody>
+        </table></div>
+    </div>
+    {% endif %}
+
+    <div class="wl-card">
+        <div class="wl-h"><h2>Recent activity</h2><a class="wl-sub" href="{% url 'funding_deposit' %}?tab=history">Full history →</a></div>
+        {% if rows %}
+        <div class="wl-scroll"><table class="wl-table">
+            <tbody>{% for t in rows %}<tr>
+                <td><span class="wl-tag">{{ t.label }}</span></td>
+                <td style="font-size:12.5px">{{ t.details|default:""|truncatechars:70 }}<br><span class="wl-mute" style="font-size:11.5px">{{ t.created_at|date:"d M Y H:i" }}{% if t.status and t.status != 'completed' %} · {{ t.status }}{% endif %}</span></td>
+                <td class="num {% if t.credit %}wl-up{% else %}wl-dn{% endif %}">{% if t.credit %}+{% else %}−{% endif %}${{ t.amount|floatformat:"2g" }}</td>
+            </tr>{% endfor %}</tbody>
+        </table></div>
+        {% else %}<p class="wl-sub">No activity yet. <a href="{% url 'funding_deposit' %}" class="underline">Make your first deposit</a> or <a href="{% url 'p2p' %}" class="underline">buy USDT on P2P</a>.</p>{% endif %}
+    </div>
+
+    <div class="wl-card">
+        <div class="wl-h"><h2>Use your balance</h2></div>
+        <div class="wl-links">
+            <a class="wl-link" href="{% url 'subscription_billing' %}"><i class="fa-solid fa-crown"></i><span>Subscribe to Pro<small>Every AI signal, copy trading, coach</small></span></a>
+            <a class="wl-link" href="{% url 'funded' %}"><i class="fa-solid fa-trophy"></i><span>Buy a funded challenge<small>$5K – $200K accounts</small></span></a>
+            <a class="wl-link" href="{% url 'mt5_terminal' %}"><i class="fa-solid fa-chart-column"></i><span>Trade in the terminal<small>Move funds to your trading account first</small></span></a>
+            <a class="wl-link" href="{% url 'p2p' %}?side=sell"><i class="fa-solid fa-money-bill-wave"></i><span>Cash out with P2P<small>Sell to other users for M-Pesa, MoMo or bank</small></span></a>
+            <a class="wl-link" href="{% url 'referral_dashboard' %}"><i class="fa-solid fa-user-group"></i><span>Invite friends<small>7 days of Pro for both of you</small></span></a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -2042,3 +2042,33 @@ class DiditWebhookEvent(models.Model):
 
     def __str__(self):
         return f"{self.event_id} {self.status}"
+
+
+# ============================================================
+# WALLET: user-to-user transfers (store/transfers.py)
+# ============================================================
+class WalletTransfer(models.Model):
+    ref = models.CharField(max_length=16, unique=True)
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='transfers_sent')
+    recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='transfers_received')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    note = models.CharField(max_length=140, blank=True)
+    idem_key = models.CharField(max_length=40)              # one submit = one transfer, even if the button is pressed twice
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = ['sender', 'idem_key']
+
+    def __str__(self):
+        return f"{self.ref} {self.sender} → {self.recipient} ${self.amount}"
+
+
+class P2PBlock(models.Model):
+    """A trader the user does not want to trade with (their ads are hidden, they cannot take the user's ads)."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='p2p_blocks')
+    blocked = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['user', 'blocked']

@@ -728,55 +728,78 @@
             </a>
             {% endif %}
             <div>
-                <p class="nav-section-label">Trade</p>
+                <p class="nav-section-label">Home</p>
                 <div class="space-y-0.5">
                     <a href="/" class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}nav-active{% endif %}">
                         <i class="fa-solid fa-table-columns"></i><span>Dashboard</span>
                     </a>
+                </div>
+            </div>
+            <div>
+                <p class="nav-section-label">Wallet</p>
+                <div class="space-y-0.5">
+                    <a href="{% url 'wallet' %}" class="nav-item {% if request.resolver_match.url_name == 'wallet' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-wallet"></i><span>My Wallet</span>
+                    </a>
+                    <a href="{% url 'funding_deposit' %}" class="nav-item {% if request.resolver_match.url_name == 'funding_deposit' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-arrow-down"></i><span>Deposit &amp; Withdraw</span>
+                    </a>
+                    <a href="{% url 'wallet_send' %}" class="nav-item {% if request.resolver_match.url_name == 'wallet_send' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-paper-plane"></i><span>Send to a User</span>
+                    </a>
+                    <a href="{% url 'p2p' %}" class="nav-item {% if request.resolver_match.url_name == 'p2p' or request.resolver_match.url_name|slice:':3' == 'p2p' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-people-arrows"></i><span>P2P Trading</span><span class="nav-pill">NEW</span>
+                    </a>
+                </div>
+            </div>
+            <div>
+                <p class="nav-section-label">Trade</p>
+                <div class="space-y-0.5">
                     <a href="{% url 'market_overview' %}" class="nav-item {% if request.resolver_match.url_name == 'market_overview' %}nav-active{% endif %}">
                         <i class="fa-solid fa-earth-americas"></i><span>AI Signals &amp; Market Overview</span>
                     </a>
-                    <a href="{% url 'digits_trading' %}" class="nav-item {% if request.resolver_match.url_name == 'digits_trading' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-bolt"></i><span>AI Signal Generator</span>
+                    <a href="{% url 'mt5_terminal' %}" class="nav-item {% if request.resolver_match.url_name == 'mt5_terminal' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-mobile-screen"></i><span>MT5 Terminal</span>
                     </a>
                     <a href="{% url 'trade' %}" class="nav-item {% if request.resolver_match.url_name == 'trade' %}nav-active{% endif %}">
                         <i class="fa-solid fa-chart-column"></i><span>Live Trading</span>
                     </a>
-                    <a href="{% url 'p2p' %}" class="nav-item {% if request.resolver_match.url_name|slice:':3' == 'p2p' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-people-arrows"></i><span>P2P Trading</span><span class="nav-pill">NEW</span>
+                    <a href="{% url 'digits_trading' %}" class="nav-item {% if request.resolver_match.url_name == 'digits_trading' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-bolt"></i><span>AI Signal Generator</span>
                     </a>
-                    <a href="{% url 'funded' %}" class="nav-item {% if request.resolver_match.url_name == 'funded' %}nav-active{% endif %}">
+                    <a href="{% url 'copy_trading' %}" class="nav-item {% if request.resolver_match.url_name == 'copy_trading' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-robot"></i><span>AI Copy Trading</span>
+                    </a>
+                    <a href="{% url 'price_alerts' %}" class="nav-item {% if request.resolver_match.url_name == 'price_alerts' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-bell"></i><span>Price Alerts</span>
+                    </a>
+                </div>
+            </div>
+            <div>
+                <p class="nav-section-label">Funded</p>
+                <div class="space-y-0.5">
+                    <a href="{% url 'funded' %}" class="nav-item {% if request.resolver_match.url_name == 'funded' or request.resolver_match.url_name == 'funded_legacy' %}nav-active{% endif %}">
                         <i class="fa-solid fa-trophy"></i><span>Funded Challenges</span>
                     </a>
                 </div>
             </div>
-
             <div>
-                <p class="nav-section-label">AI Intelligence</p>
+                <p class="nav-section-label">Learn &amp; Analyse</p>
                 <div class="space-y-0.5">
+                    <a href="{% url 'academy' %}" class="nav-item {% if request.resolver_match.url_name == 'academy' or request.resolver_match.url_name == 'academy_lesson' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-graduation-cap"></i><span>Beginner Academy</span>
+                    </a>
                     <a href="{% url 'ai_prediction_models' %}" class="nav-item {% if request.resolver_match.url_name == 'ai_prediction_models' %}nav-active{% endif %}">
                         <i class="fa-solid fa-brain"></i><span>Prediction Models</span>
                     </a>
                     <a href="{% url 'ai_risk_analyzer' %}" class="nav-item {% if request.resolver_match.url_name == 'ai_risk_analyzer' %}nav-active{% endif %}">
                         <i class="fa-solid fa-shield-halved"></i><span>Risk Analyzer</span>
                     </a>
-                    <a href="{% url 'ai_trade_journal' %}" class="nav-item {% if request.resolver_match.url_name == 'ai_trade_journal' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-book-open"></i><span>Trade Journal</span>
-                    </a>
                     <a href="{% url 'ai_strategy_builder' %}" class="nav-item {% if request.resolver_match.url_name == 'ai_strategy_builder' %}nav-active{% endif %}">
                         <i class="fa-solid fa-diagram-project"></i><span>Strategy Builder</span>
                     </a>
                     <a href="{% url 'news_sentiment' %}" class="nav-item {% if request.resolver_match.url_name == 'news_sentiment' %}nav-active{% endif %}">
                         <i class="fa-solid fa-newspaper"></i><span>News &amp; Sentiment</span>
-                    </a>
-                    <a href="{% url 'academy' %}" class="nav-item {% if request.resolver_match.url_name == 'academy' or request.resolver_match.url_name == 'academy_lesson' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-graduation-cap"></i><span>Beginner Academy</span>
-                    </a>
-                    <a href="{% url 'price_alerts' %}" class="nav-item {% if request.resolver_match.url_name == 'price_alerts' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-bell"></i><span>Price Alerts</span>
-                    </a>
-                    <a href="{% url 'copy_trading' %}" class="nav-item {% if request.resolver_match.url_name == 'copy_trading' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-robot"></i><span>AI Copy Trading</span>
                     </a>
                     <a href="{% url 'news_impact' %}" class="nav-item {% if request.resolver_match.url_name == 'news_impact' %}nav-active{% endif %}">
                         <i class="fa-solid fa-landmark"></i><span>News Impact (NFP · CPI · FOMC)</span>
@@ -786,7 +809,6 @@
                     </a>
                 </div>
             </div>
-
             <div>
                 <p class="nav-section-label">Portfolio</p>
                 <div class="space-y-0.5">
@@ -796,46 +818,39 @@
                     <a href="{% url 'trade_history' %}" class="nav-item {% if request.resolver_match.url_name == 'trade_history' %}nav-active{% endif %}">
                         <i class="fa-solid fa-clock-rotate-left"></i><span>Trade History</span>
                     </a>
+                    <a href="{% url 'ai_trade_journal' %}" class="nav-item {% if request.resolver_match.url_name == 'ai_trade_journal' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-book-open"></i><span>Trade Journal</span>
+                    </a>
                     <a href="{% url 'risk_metrics' %}" class="nav-item {% if request.resolver_match.url_name == 'risk_metrics' %}nav-active{% endif %}">
                         <i class="fa-solid fa-scale-balanced"></i><span>Risk Metrics</span>
                     </a>
                 </div>
             </div>
-
             <div>
                 <p class="nav-section-label">Automation</p>
                 <div class="space-y-0.5">
                     <a href="{% url 'bot' %}" class="nav-item {% if request.resolver_match.url_name == 'bot' %}nav-active{% endif %}">
                         <i class="fa-solid fa-robot"></i><span>Bot Center</span>
                     </a>
-                    {% if request.user.is_staff %}
-                    <a href="{% url 'admin_revenue' %}" class="nav-item {% if request.resolver_match.url_name == 'admin_revenue' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-chart-column"></i><span>Revenue (admin)</span>
-                    </a>
-                    <a href="{% url 'signal_posters' %}" class="nav-item {% if request.resolver_match.url_name == 'signal_posters' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-image"></i><span>Signal Posters</span>
-                    </a>
-                    {% endif %}
                     <a href="{% url 'webhooks' %}" class="nav-item {% if request.resolver_match.url_name == 'webhooks' %}nav-active{% endif %}">
                         <i class="fa-solid fa-code"></i><span>Webhooks</span>
                     </a>
                 </div>
             </div>
-
             <div>
                 <p class="nav-section-label">Account</p>
                 <div class="space-y-0.5">
                     <a href="{% url 'profile' %}" class="nav-item {% if request.resolver_match.url_name == 'profile' %}nav-active{% endif %}">
                         <i class="fa-solid fa-user-shield"></i><span>Profile &amp; Security</span>
                     </a>
-                    <a href="{% url 'referral_dashboard' %}" class="nav-item {% if request.resolver_match.url_name == 'referral_dashboard' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-user-group"></i><span>Referrals</span>
+                    <a href="{% url 'kyc_status' %}" class="nav-item {% if request.resolver_match.url_name == 'kyc_status' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-id-card"></i><span>Verification (KYC)</span>
                     </a>
                     <a href="{% url 'subscription_billing' %}" class="nav-item {% if request.resolver_match.url_name == 'subscription_billing' %}nav-active{% endif %}">
                         <i class="fa-solid fa-crown"></i><span>Subscription</span><span class="nav-pill">{% if is_member %}{{ member_tier }}{% else %}PRO{% endif %}</span>
                     </a>
-                    <a href="{% url 'funded' %}" class="nav-item {% if request.resolver_match.url_name == 'funded' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-credit-card"></i><span>Funded Accounts</span>
+                    <a href="{% url 'referral_dashboard' %}" class="nav-item {% if request.resolver_match.url_name == 'referral_dashboard' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-user-group"></i><span>Referrals</span>
                     </a>
                     <a href="{% url 'ai_support' %}" class="nav-item {% if request.resolver_match.url_name == 'ai_support' %}nav-active{% endif %}">
                         <i class="fa-solid fa-circle-question"></i><span>Help Center</span>
@@ -846,6 +861,28 @@
                     </button>
                 </div>
             </div>
+            {% if request.user.is_staff %}
+            <div>
+                <p class="nav-section-label">Admin</p>
+                <div class="space-y-0.5">
+                    <a href="{% url 'admin_revenue' %}" class="nav-item {% if request.resolver_match.url_name == 'admin_revenue' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-chart-pie"></i><span>Revenue</span>
+                    </a>
+                    <a href="{% url 'p2p_admin' %}" class="nav-item {% if request.resolver_match.url_name == 'p2p_admin' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-scale-balanced"></i><span>P2P Appeals</span>
+                    </a>
+                    <a href="{% url 'admin_kyc_queue' %}" class="nav-item {% if request.resolver_match.url_name == 'admin_kyc_queue' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-id-badge"></i><span>KYC Queue</span>
+                    </a>
+                    <a href="{% url 'signal_posters' %}" class="nav-item {% if request.resolver_match.url_name == 'signal_posters' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-image"></i><span>Signal Posters</span>
+                    </a>
+                    <a href="{% url 'admin_dashboard_hub' %}" class="nav-item {% if request.resolver_match.url_name == 'admin_dashboard_hub' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-gauge"></i><span>Admin Hub</span>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
         </nav>
 
         <div class="p-3 shrink-0 safe-bottom" style="border-top:1px solid var(--px-line)">
@@ -900,6 +937,7 @@
                     </div>
                 </div>
 
+                <span class="hidden sm:block"><a href="{% url 'wallet' %}" class="header-icon-btn" title="Wallet" aria-label="Wallet"><i class="fa-solid fa-wallet"></i></a></span>
                 <!-- Terminal shortcut (desktop / tablet only — mobile uses the bottom bar) -->
                 <span class="hidden sm:block">
                     <a href="{% url 'mt5_terminal' %}" class="header-icon-btn" title="Trading terminal" aria-label="Open trading terminal">
@@ -1009,6 +1047,11 @@
             </div>
             {% endif %}
 
+            {% if p2p_attention and request.resolver_match.url_name != 'p2p_order' %}
+            <a href="{% url 'p2p_order' p2p_attention.ref %}" style="display:flex;align-items:center;gap:10px;padding:11px 14px;margin-bottom:14px;border-radius:12px;background:var(--px-accent);color:var(--px-accent-ink,#0b0e14);font-size:13px;font-weight:800">
+                <i class="fa-solid fa-bell"></i><span style="flex:1;min-width:0">{{ p2p_attention.text }}</span><span style="white-space:nowrap">Open order →</span>
+            </a>
+            {% endif %}
             {% block content %}{% endblock %}
         </main>
 
@@ -1050,8 +1093,8 @@
             <div class="w-14 shrink-0" aria-hidden="true"></div>
 
             <!-- right tabs -->
-            <a href="{% url 'portfolio' %}" class="px-tab {% if request.resolver_match.url_name == 'portfolio' %}active{% endif %}">
-                <i class="fa-solid fa-briefcase"></i><span>Portfolio</span>
+            <a href="{% url 'wallet' %}" class="px-tab {% if request.resolver_match.url_name == 'wallet' or request.resolver_match.url_name == 'wallet_send' %}active{% endif %}">
+                <i class="fa-solid fa-wallet"></i><span>Wallet</span>
             </a>
             <a href="{% url 'profile' %}" class="px-tab {% if request.resolver_match.url_name == 'profile' %}active{% endif %}">
                 <i class="fa-solid fa-user"></i><span>Profile</span>

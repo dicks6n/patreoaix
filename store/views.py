@@ -4715,52 +4715,9 @@ def webhook_automations(request):  # Renamed from webhook_automations_view
 
 @login_required
 def internal_transfer(request):
-    if request.method == 'POST':
-        amount_str = request.POST.get('amount')
-        recipient_username = request.POST.get('recipient_username')
-        try:
-            amount = Decimal(amount_str)
-            if amount <= 0:
-                messages.error(request, "Transfer amount must be greater than zero.")
-                return redirect('funding_deposit')
-
-            sender_account, _ = Account.objects.get_or_create(user=request.user, account_type='EXCHANGE')
-            recipient_user = get_object_or_404(User, username=recipient_username)
-            
-            if recipient_user == request.user:
-                messages.error(request, "You cannot transfer funds to yourself.")
-                return redirect('funding_deposit')
-                
-            recipient_account, _ = Account.objects.get_or_create(user=recipient_user, account_type='EXCHANGE')
-            
-            if sender_account.balance >= amount:
-                with transaction.atomic():
-                    sender_account.balance -= amount
-                    sender_account.save()
-                    
-                    recipient_account.balance += amount
-                    recipient_account.save()
-                    
-                    # Log for sender
-                    Transaction.objects.create(
-                        user=request.user,
-                        amount=amount,
-                        transaction_type='INTERNAL_TRANSFER',
-                        details=f"Transfer to @{recipient_user.username}"
-                    )
-                    # Log for recipient
-                    Transaction.objects.create(
-                        user=recipient_user,
-                        amount=amount,
-                        transaction_type='INTERNAL_TRANSFER',
-                        details=f"Received from @{request.user.username}"
-                    )
-                messages.success(request, f"Successfully transferred ${amount} to @{recipient_user.username}.")
-            else:
-                messages.error(request, "Insufficient funds for internal transfer.")
-        except (InvalidOperation, ValueError, TypeError):
-            messages.error(request, "Invalid transfer details or amount.")
-    return redirect('funding_deposit')
+    """Old user-to-user transfer form: replaced by /wallet/send/ (password, limits, no double-spend)."""
+    to = request.POST.get('recipient_username') or request.GET.get('to') or ''
+    return redirect(f"{reverse('wallet_send')}?to={to}" if to else reverse('wallet_send'))
 
 @login_required
 def funding_deposit(request):
