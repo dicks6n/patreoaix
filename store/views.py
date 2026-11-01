@@ -11079,6 +11079,27 @@ def api_push_subscribe(request):
     return JsonResponse({'success': True, 'subscribed': True})
 
 
+@require_POST
+def api_fcm_register(request):
+    """The Android app registers its Firebase token for the signed-in user. It sends the WebView's login cookie and
+    the csrftoken cookie as X-CSRFToken (normal CSRF check, so no other website can register a phone on a user's
+    account). Body: {"token": "...", "device": "...", "unregister": false}."""
+    from . import fcm
+    if not request.user.is_authenticated:
+        return JsonResponse({'success': False, 'error': 'Sign in first.'}, status=401)
+    if 'PatreoaixApp/' not in request.META.get('HTTP_USER_AGENT', ''):
+        return JsonResponse({'success': False, 'error': 'Only the PATREOAIX app can register.'}, status=403)
+    try:
+        data = json.loads(request.body or '{}')
+        if data.get('unregister'):
+            fcm.unregister(request.user, data.get('token', ''))
+            return JsonResponse({'success': True, 'registered': False})
+        fcm.register(request.user, data.get('token'), data.get('device') or request.META.get('HTTP_USER_AGENT', ''))
+    except (ValueError, TypeError) as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': True, 'registered': True, 'instant': fcm.enabled()})
+
+
 @login_required
 def price_alerts_page(request):
     from . import price_alerts as pa, push

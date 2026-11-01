@@ -75,6 +75,8 @@ REFERRAL_MAX_REWARDS_PER_MONTH = os.environ.get('REFERRAL_MAX_REWARDS_PER_MONTH'
 VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY', '')
 VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY', '')
 VAPID_EMAIL = os.environ.get('VAPID_EMAIL', '')
+# Android app instant notifications: path to the Firebase service-account JSON (on the server, never in git)
+FIREBASE_CREDENTIALS = os.environ.get('FIREBASE_CREDENTIALS', '')
 
 # Beginner academy (/academy/): finishing all lessons gives ACADEMY_PRO_DAYS of Pro once. With
 # ACADEMY_REQUIRED_FOR_BONUS=True the first-deposit bonus is only paid after the academy is finished.

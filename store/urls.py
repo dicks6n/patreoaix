@@ -28,6 +28,7 @@ urlpatterns = [
     path('results/', views.public_results, name='public_results'),
     path('results/card.png', views.public_results_png, name='public_results_png'),
     path('api/push/subscribe/', views.api_push_subscribe, name='api_push_subscribe'),
+    path('api/push/fcm/', views.api_fcm_register, name='api_fcm_register'),
     path('price-alerts/', views.price_alerts_page, name='price_alerts'),
     path('api/price-alert/', views.api_price_alert, name='api_price_alert'),
     path('academy/', views.academy_page, name='academy'),

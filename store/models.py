@@ -1746,6 +1746,18 @@ class PushSubscription(models.Model):
         return f"Push {self.user} ({self.user_agent[:40]})"
 
 
+class FcmDevice(models.Model):
+    """The PATREOAIX Android app on one phone: its Firebase Cloud Messaging token (store/fcm.py)."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='fcm_devices')
+    token = models.CharField(max_length=4096, unique=True)
+    device = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_ok_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"App {self.user} ({self.device[:40]})"
+
+
 class PriceWatch(models.Model):
     """'Tell me when gold reaches 4,050': fires once, by push + in-app notification."""
     CONDITIONS = [('above', 'Rises to'), ('below', 'Falls to')]
@@ -1772,15 +1784,19 @@ def push_new_notification(sender, instance, created, **kwargs):
     """Every in-app notification also goes to the user's phone / desktop (store/push.py; off without VAPID keys)."""
     if not created:
         return
+    from . import fcm
     from .push import enabled, safe_send
     meta = instance.metadata if isinstance(instance.metadata, dict) else {}
     if meta.get('out'):
         return                                         # the user's own chat message: nothing to pop up
-    if enabled():
+    if enabled() or fcm.enabled():
         from .notif_prefs import should_push, safe_link
         if should_push(instance):
-            safe_send(instance.user, instance.title or 'PATREOAIX', instance.message, safe_link(instance.action_url) or '/',
-                      tag=meta.get('tag') or f'n{instance.pk}', sticky=bool(meta.get('sticky')))
+            args = (instance.user, instance.title or 'PATREOAIX', instance.message, safe_link(instance.action_url) or '/')
+            kw = {'tag': meta.get('tag') or f'n{instance.pk}', 'sticky': bool(meta.get('sticky'))}
+            if enabled():
+                safe_send(*args, **kw)
+            fcm.safe_send(*args, category='p2p' if meta.get('p2p') else instance.category, **kw)   # Android app
 
 
 # ============================================================
