@@ -910,9 +910,9 @@
 
         <div class="p-3 shrink-0 safe-bottom" style="border-top:1px solid var(--px-line)">
             <div class="flex items-center gap-2.5 p-2 rounded-lg" style="background:var(--px-panel-2)">
-                <div class="w-8 h-8 rounded-md flex items-center justify-center text-xs font-bold shrink-0" style="background:var(--px-accent-soft);color:var(--px-accent)">
-                    {{ user.username|default:"U"|slice:":2"|upper }}
-                </div>
+                <a href="{% url 'profile' %}" class="w-8 h-8 rounded-md flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden" style="background:var(--px-accent-soft);color:var(--px-accent)" aria-label="My profile">
+                    {% if my_avatar %}<img src="{{ my_avatar }}" alt="" style="width:100%;height:100%;object-fit:cover">{% else %}{{ user.username|default:"U"|slice:":2"|upper }}{% endif %}
+                </a>
                 <div class="min-w-0 flex-1">
                     <p class="text-xs font-semibold truncate" style="color:var(--px-text)">{{ user.get_full_name|default:user.username }}</p>
                     <p class="text-[11px] truncate" style="color:var(--px-mute)">{{ user.email }}</p>
@@ -998,7 +998,7 @@
                 <!-- Account -->
                 <div class="relative block" id="acct-wrapper">
                     <button onclick="document.getElementById('acct-menu').classList.toggle('hidden')" class="flex items-center gap-2 h-9 pl-1 pr-2 rounded-lg" style="border:1px solid var(--px-line)">
-                        <span class="w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-bold" style="background:var(--px-accent-soft);color:var(--px-accent)">{{ user.username|default:"U"|slice:":2"|upper }}</span>
+                        <span class="w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-bold overflow-hidden" style="background:var(--px-accent-soft);color:var(--px-accent)">{% if my_avatar %}<img src="{{ my_avatar }}" alt="" style="width:100%;height:100%;object-fit:cover">{% else %}{{ user.username|default:"U"|slice:":2"|upper }}{% endif %}</span>
                         <i class="fa-solid fa-chevron-down text-[9px]" style="color:var(--px-mute)"></i>
                     </button>
                     <div id="acct-menu" class="hidden px-pop absolute right-0 top-11 w-60 py-1.5 z-50">

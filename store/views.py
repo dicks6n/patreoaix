@@ -704,77 +704,141 @@ def connect_binance(request):
 
 
 def _profile_save(request):
-    """POST half of the profile page (the second `profile` below used to replace this one, so saves did nothing)."""
-    kyc_record = KYCProfile.objects.filter(user=request.user).first()
-    user_notifications = Notification.objects.filter(user=request.user)[:5]
-    funded_account, _ = FundedAccount.objects.get_or_create(user=request.user)
+    """POST actions of the profile page. Returns a redirect, or None when nothing matched."""
+    from .models import SupportTicket
     user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    action = request.POST.get('action') or ('update_sms' if 'update_sms' in request.POST else 'personal' if 'first_name' in request.POST else '')
 
-    # ═══════════════════════════════════════════════════════
-    # ✅ Handle form submits
-    # ═══════════════════════════════════════════════════════
-    if request.method == 'POST':
+    if action == 'personal':
+        u = request.user
+        u.first_name = (request.POST.get('first_name') or '').strip()[:150]
+        u.last_name = (request.POST.get('last_name') or '').strip()[:150]
+        u.save(update_fields=['first_name', 'last_name'])
+        messages.success(request, 'Your details were saved.')
+        return redirect(reverse('profile') + '#personal')
 
-        # ── SMS / Phone number save ──
-        if 'update_sms' in request.POST:
-            phone = request.POST.get('phone_number', '').strip()
-            sms_opt_in = request.POST.get('sms_opt_in') == 'on'
-
-            # Normalize phone via Twilio service
-            if phone:
+    if action in ('phone', 'update_sms'):
+        phone = (request.POST.get('phone_number') or '').strip()
+        if phone:
+            try:
                 from .sms_service import sms_service
                 phone = sms_service.normalize_phone(phone)
+            except Exception:
+                pass
+        user_profile.phone_number = phone or None
+        user_profile.sms_opt_in = request.POST.get('sms_opt_in') == 'on'
+        user_profile.save(update_fields=['phone_number', 'sms_opt_in'])
+        messages.success(request, 'Phone and SMS alerts saved.')
+        return redirect(reverse('profile') + '#personal')
 
-            user_profile.phone_number = phone or None
-            user_profile.sms_opt_in = sms_opt_in
-            user_profile.save(update_fields=['phone_number', 'sms_opt_in'])
-
-            messages.success(request, '✅ Phone number saved! You\'ll receive SMS updates.')
+    if action == 'avatar':
+        f = request.FILES.get('avatar')
+        if not f:
+            messages.error(request, 'Choose a photo first.')
             return redirect('profile')
-
-        # ── Personal info save ──
-        elif 'email' in request.POST:
-            user = request.user
-            user.email = request.POST.get('email', '').strip()
-            user.first_name = request.POST.get('first_name', '').strip()
-            user.last_name = request.POST.get('last_name', '').strip()
-            user.save(update_fields=['email', 'first_name', 'last_name'])
-
-            messages.success(request, '✅ Profile updated successfully!')
+        if f.size > 6 * 1024 * 1024:
+            messages.error(request, 'The photo is larger than 6 MB.')
             return redirect('profile')
+        try:
+            import io, secrets as _sec
+            from PIL import Image, ImageOps
+            from django.core.files.base import ContentFile
+            img = Image.open(f); img.load()
+            img = ImageOps.exif_transpose(img).convert('RGB')
+            side = min(img.size)
+            img = img.crop(((img.width - side) // 2, (img.height - side) // 2, (img.width + side) // 2, (img.height + side) // 2)).resize((320, 320))
+            out = io.BytesIO(); img.save(out, 'JPEG', quality=88)            # re-encoded: no metadata, no hidden payloads
+        except Exception:
+            messages.error(request, 'That file is not a photo. Use a JPG or PNG.')
+            return redirect('profile')
+        old = user_profile.avatar.name if user_profile.avatar else None
+        user_profile.avatar.save(f'{request.user.id}_{_sec.token_hex(6)}.jpg', ContentFile(out.getvalue()), save=True)
+        if old:
+            try:
+                user_profile.avatar.storage.delete(old)
+            except Exception:
+                pass
+        messages.success(request, 'Profile photo updated.')
+        return redirect('profile')
 
-    # ... rest of your existing code ...
+    if action == 'avatar_remove':
+        if user_profile.avatar:
+            try:
+                user_profile.avatar.delete(save=False)
+            except Exception:
+                pass
+            user_profile.avatar = None
+            user_profile.save(update_fields=['avatar'])
+        messages.success(request, 'Profile photo removed.')
+        return redirect('profile')
+
+    if action == 'delete_request':
+        if not request.user.check_password(request.POST.get('password') or ''):
+            messages.error(request, 'Wrong password: the deletion request was not sent.')
+            return redirect(reverse('profile') + '#security')
+        reason = (request.POST.get('reason') or '').strip()[:1000]
+        SupportTicket.objects.create(user=request.user, category='Account & Security', subject='Account deletion request',
+                                     description=f'The user asked to close and delete the account.\n\nReason: {reason or "(none given)"}')
+        try:
+            from .notifications import notify_staff
+            notify_staff(title=f'Account deletion request: {request.user.username}', message=reason or 'No reason given.',
+                         category='SECURITY', action_url='/admin/messages/')
+        except Exception:
+            pass
+        messages.success(request, 'Your request was sent. Support will confirm by email after checking your balances and open positions.')
+        return redirect(reverse('profile') + '#security')
     return None
 
 
 @login_required
 def profile(request):
+    from decimal import Decimal as _D
+    from .models import PaymentRequest, ReferralProfile, Referral, Trade
+    from allauth.account.models import EmailAddress
+    from . import membership
     kyc_record = KYCProfile.objects.filter(user=request.user).first()
-    user_notifications = Notification.objects.filter(user=request.user)[:5]
-    funded_account, _ = FundedAccount.objects.get_or_create(user=request.user)
     user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
-
     if request.method == 'POST':
         saved = _profile_save(request)
         if saved is not None:
             return saved
-    
-    # Generate Trader ID and dynamic account type based on subscription status
-    if user_profile.is_active_subscription:
-        trader_id = f"#TRD-{1000 + request.user.id}"
-        account_type = f"Funded ${int(funded_account.balance)}" if funded_account.is_funded else f"Funded {user_profile.subscription_tier.upper()}"
-    else:
-        trader_id = "Pending Subscription"
-        account_type = "Free / Starter"
+        return redirect('profile')
 
+    u = request.user
+    wallet = Account.objects.filter(user=u, account_type='EXCHANGE').first()
+    trading = Account.objects.filter(user=u, account_type='TRADING').first()
+    trades = Trade.objects.filter(user=u)
+    won, lost = trades.filter(status='WON').count(), trades.filter(status='LOST').count()
+    tier, active = membership.tier_of(u)
+    member = active and any(t in tier for t in membership.MEMBER_TIERS)
+    plan = ('Pro trial' if 'TRIAL' in tier else tier.title()) if member else 'Starter'
+    ref, _ = ReferralProfile.objects.get_or_create(user=u)
+    email_ok = EmailAddress.objects.filter(user=u, email__iexact=u.email, verified=True).exists()
+    kyc_status = (kyc_record.status if kyc_record else 'NOT_SUBMITTED') or 'NOT_SUBMITTED'
+    checklist = [
+        ('Verify your email', email_ok, reverse('account_email')),
+        ('Verify your identity (KYC)', str(kyc_status).upper() == 'APPROVED', reverse('kyc_status')),
+        ('Add your phone for SMS alerts', bool(user_profile.phone_number), '#personal'),
+        ('Add a profile photo', bool(user_profile.avatar), '#photo'),
+        ('Make your first deposit', bool(wallet and wallet.balance > 0) or PaymentRequest.objects.filter(user=u, status__in=['APPROVED', 'COMPLETED']).exists(), '/wallet/'),
+    ]
     context = {
-        'notifications': user_notifications,
-        'funded_account': funded_account,
         'user_profile': user_profile,
-        'trader_id': trader_id,
-        'account_type': account_type,
-        'kyc_record': kyc_record,
+        'kyc_record': kyc_record, 'kyc_status': str(kyc_status).upper(),
+        'trader_id': f'PX-{100000 + u.id}',
+        'plan': plan, 'is_member': member, 'plan_expires': user_profile.subscription_expires_at if member else None,
+        'wallet_balance': wallet.balance if wallet else _D('0'), 'trading_balance': trading.balance if trading else _D('0'),
+        'open_positions': trades.filter(status='OPEN').count(), 'closed_trades': won + lost,
+        'win_rate': round(won * 100 / (won + lost)) if won + lost else None,
+        'referral_link': ref.referral_link,
+        'referrals': Referral.objects.filter(referrer=u).count(),
+        'email_verified': email_ok,
+        'checklist': checklist, 'checklist_done': sum(1 for c in checklist if c[1]),
+        'activity': Notification.objects.filter(user=u, is_archived=False).order_by('-created_at')[:6],
+        'payments': PaymentRequest.objects.filter(user=u).order_by('-created_at')[:6],
+        'sms_ready': bool(user_profile.phone_number),
     }
+    context['checklist_pct'] = round(context['checklist_done'] * 100 / len(checklist))
     return render(request, 'store/profile.html', context)
 
 

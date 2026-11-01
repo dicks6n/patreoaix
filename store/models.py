@@ -24,6 +24,7 @@ from .fields import EncryptedTokenField
 class UserProfile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     subscription_tier = models.CharField(max_length=50, default='free')
+    avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)    # profile photo (square JPEG, profile page)
     is_active_subscription = models.BooleanField(default=False)
     trial_used = models.BooleanField(default=False)          # the free 3-day Pro trial (store/membership.py)
     is_kyc_verified = models.BooleanField(default=False)

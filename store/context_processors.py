@@ -39,8 +39,15 @@ def membership(request):
         tier, active = tier_of(request.user)
         member = active and any(t in tier for t in MEMBER_TIERS)
         days = trial_days_left(request.user) if member and 'TRIAL' in tier else None
+        avatar = ''
+        try:
+            from .models import UserProfile
+            p = UserProfile.objects.filter(user=request.user).only('avatar').first()
+            avatar = p.avatar.url if p and p.avatar else ''
+        except Exception:
+            pass
         return {'is_member': member, 'member_tier': (f'TRIAL · {days}d' if days is not None else tier) if member else '',
-                'on_trial': days is not None, 'trial_available': not member and trial_available(request.user)}
+                'on_trial': days is not None, 'trial_available': not member and trial_available(request.user), 'my_avatar': avatar}
     except Exception:
         return {'is_member': False, 'member_tier': ''}
 

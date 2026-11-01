@@ -1,1235 +1,394 @@
 {% extends 'base_dashboard.html' %}
-{% load static %}
 
-{% block title %}Profile & Security - PATREOAIX{% endblock %}
+{% block message_toasts %}{% endblock %}
+{% block title %}My profile · PATREOAIX{% endblock %}
+{% block page_title %}My profile{% endblock %}
+
+{% block extra_head %}
+<style>
+    .pf { display: flex; flex-direction: column; gap: 16px; max-width: 1180px; }
+    .pf-card { background: var(--px-panel); border: 1px solid var(--px-line); border-radius: 18px; padding: 20px; min-width: 0; }
+    .pf-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+    .pf-h h2 { font-size: 15px; font-weight: 800; color: var(--px-text); display: flex; align-items: center; gap: 8px; }
+    .pf-h h2 i { color: var(--px-accent); font-size: 14px; }
+    .pf-h p, .pf-sub { font-size: 12.5px; color: var(--px-mute); line-height: 1.5; }
+    .pf-flash { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-radius: 12px; font-size: 13px; font-weight: 600; border: 1px solid var(--px-line); background: var(--px-panel); }
+    .pf-flash.ok { border-color: var(--px-up); color: var(--px-up); } .pf-flash.err { border-color: var(--px-down); color: var(--px-down); }
+
+    /* hero */
+    .pf-hero { position: relative; overflow: hidden; padding: 0; }
+    .pf-cover { height: 96px; background: radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--px-accent) 38%, transparent), transparent 55%),
+                radial-gradient(120% 160% at 100% 0%, color-mix(in srgb, #0a84ff 30%, transparent), transparent 60%), var(--px-panel-2); }
+    .pf-hero-in { display: flex; gap: 18px; align-items: flex-end; padding: 0 22px 20px; margin-top: -44px; flex-wrap: wrap; }
+    .pf-av { position: relative; width: 96px; height: 96px; border-radius: 26px; flex: none; background: var(--px-accent); color: var(--px-accent-ink, #0b0e14);
+             display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 900; border: 4px solid var(--px-panel); overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+    .pf-av img { width: 100%; height: 100%; object-fit: cover; }
+    .pf-av-btn { position: absolute; right: -6px; bottom: -6px; width: 34px; height: 34px; border-radius: 50%; background: var(--px-panel); color: var(--px-text);
+                 border: 1px solid var(--px-line); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,.25); }
+    .pf-who { flex: 1; min-width: 200px; padding-bottom: 2px; padding-top: 52px; }
+    .pf-who h1 { font-size: 22px; font-weight: 900; color: var(--px-text); line-height: 1.2; overflow-wrap: anywhere; }
+    .pf-who .u { font-size: 13px; color: var(--px-mute); margin-top: 2px; overflow-wrap: anywhere; }
+    .pf-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .pf-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 700;
+                background: var(--px-panel-2); color: var(--px-dim); border: 1px solid var(--px-line); }
+    .pf-badge.gold { color: var(--px-accent); border-color: color-mix(in srgb, var(--px-accent) 45%, transparent); background: color-mix(in srgb, var(--px-accent) 10%, transparent); }
+    .pf-badge.ok { color: var(--px-up); border-color: color-mix(in srgb, var(--px-up) 45%, transparent); background: var(--px-up-soft); }
+    .pf-badge.warn { color: #ff9f0a; border-color: rgba(255,159,10,.45); background: rgba(255,159,10,.1); }
+    .pf-id { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; padding-bottom: 4px; padding-top: 52px; }
+    .pf-id small { font-size: 10.5px; font-weight: 700; color: var(--px-mute); text-transform: uppercase; letter-spacing: .08em; }
+    .pf-id button { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px; background: var(--px-panel-2); border: 1px solid var(--px-line);
+                    color: var(--px-text); font: 700 13px/1 'JetBrains Mono', ui-monospace, monospace; cursor: pointer; }
+    .pf-stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1px; background: var(--px-line); border-top: 1px solid var(--px-line); }
+    .pf-stat { background: var(--px-panel); padding: 14px 16px; min-width: 0; }
+    .pf-stat span { display: block; font-size: 10.5px; font-weight: 700; color: var(--px-mute); text-transform: uppercase; letter-spacing: .07em; }
+    .pf-stat b { display: block; margin-top: 4px; font: 800 17px/1.2 'JetBrains Mono', ui-monospace, monospace; color: var(--px-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    @media (max-width: 1100px) { .pf-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @media (max-width: 560px) { .pf-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pf-hero-in { flex-direction: column; align-items: flex-start; gap: 12px; padding: 0 16px 16px; }
+        .pf-who, .pf-id { padding-top: 0; width: 100%; } .pf-id { align-items: flex-start; flex-direction: row; justify-content: space-between; align-items: center; } .pf-cover { height: 84px; } }
+
+    /* tabs */
+    .pf-tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 4px; border-radius: 14px; background: var(--px-panel); border: 1px solid var(--px-line); }
+    .pf-tabs::-webkit-scrollbar { display: none; }
+    .pf-tabs a { flex: none; display: inline-flex; align-items: center; gap: 7px; padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: 700; color: var(--px-dim); white-space: nowrap; }
+    .pf-tabs a.on { background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); }
+    .pf-pane { display: none; } .pf-pane.on { display: grid; }
+    .pf-grid { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+    .pf-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+    @media (max-width: 1023px) { .pf-grid { grid-template-columns: minmax(0, 1fr); } }
+
+    /* forms & rows */
+    .pf-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .pf-form .full { grid-column: 1 / -1; }
+    @media (max-width: 560px) { .pf-form { grid-template-columns: 1fr; } }
+    .pf-f label { display: block; font-size: 11px; font-weight: 700; color: var(--px-mute); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+    .pf-in { width: 100%; padding: 11px 13px; border-radius: 11px; background: var(--px-panel-2); border: 1px solid var(--px-line); color: var(--px-text); font-size: 14px; outline: none; }
+    .pf-in:focus { border-color: var(--px-accent); }
+    .pf-in[readonly] { color: var(--px-mute); }
+    .pf-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 11px 16px; border-radius: 11px; font-size: 13px; font-weight: 800;
+              background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); border: 0; cursor: pointer; white-space: nowrap; }
+    .pf-btn.ghost { background: var(--px-panel-2); color: var(--px-text); border: 1px solid var(--px-line); }
+    .pf-btn.danger { background: transparent; color: var(--px-down); border: 1px solid color-mix(in srgb, var(--px-down) 50%, transparent); }
+    .pf-btn.sm { padding: 8px 12px; font-size: 12px; border-radius: 9px; }
+    .pf-btn:disabled { opacity: .55; cursor: default; }
+    .pf-row { display: flex; align-items: center; gap: 12px; padding: 13px 0; border-top: 1px solid var(--px-line-soft, var(--px-line)); }
+    .pf-row:first-child { border-top: 0; padding-top: 0; }
+    .pf-row .ic { width: 38px; height: 38px; border-radius: 11px; flex: none; display: flex; align-items: center; justify-content: center; background: var(--px-panel-2); color: var(--px-dim); font-size: 14px; }
+    .pf-row .tx { flex: 1; min-width: 0; }
+    .pf-row .tx b { display: block; font-size: 13.5px; color: var(--px-text); overflow-wrap: anywhere; }
+    .pf-row .tx small { display: block; font-size: 12px; color: var(--px-mute); margin-top: 2px; overflow-wrap: anywhere; }
+    .pf-check { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--px-panel-2); border: 1px solid var(--px-line); font-size: 13px; color: var(--px-text); }
+    .pf-check i.fa-circle-check { color: var(--px-up); } .pf-check i.fa-circle { color: var(--px-mute); }
+    .pf-check.done { color: var(--px-mute); text-decoration: line-through; }
+    .pf-check .go { margin-left: auto; font-size: 12px; font-weight: 800; color: var(--px-accent); text-decoration: none; }
+    .pf-bar { height: 8px; border-radius: 8px; background: var(--px-panel-2); overflow: hidden; }
+    .pf-bar i { display: block; height: 100%; border-radius: 8px; background: linear-gradient(90deg, var(--px-accent), var(--px-up)); }
+    .pf-act { display: flex; gap: 10px; padding: 10px 0; border-top: 1px solid var(--px-line-soft, var(--px-line)); }
+    .pf-act:first-child { border-top: 0; padding-top: 0; }
+    .pf-act .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex: none; background: var(--px-mute); }
+    .pf-act .dot.success { background: var(--px-up); } .pf-act .dot.error { background: var(--px-down); } .pf-act .dot.warning { background: #ff9f0a; } .pf-act .dot.info { background: #0a84ff; }
+    .pf-act b { display: block; font-size: 13px; color: var(--px-text); overflow-wrap: anywhere; }
+    .pf-act small { display: block; font-size: 12px; color: var(--px-mute); overflow-wrap: anywhere; }
+    .pf-switch { position: relative; width: 44px; height: 26px; flex: none; }
+    .pf-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .pf-switch span { position: absolute; inset: 0; border-radius: 26px; background: var(--px-panel-2); border: 1px solid var(--px-line); transition: .2s; cursor: pointer; }
+    .pf-switch span::after { content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: .2s; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+    .pf-switch input:checked + span { background: var(--px-up); border-color: var(--px-up); }
+    .pf-switch input:checked + span::after { transform: translateX(18px); }
+    .pf-meter { display: flex; gap: 4px; margin-top: 6px; } .pf-meter i { flex: 1; height: 4px; border-radius: 4px; background: var(--px-panel-2); }
+    .pf-meter.s1 i:nth-child(-n+1) { background: var(--px-down); } .pf-meter.s2 i:nth-child(-n+2) { background: #ff9f0a; }
+    .pf-meter.s3 i:nth-child(-n+3) { background: #ffd60a; } .pf-meter.s4 i:nth-child(-n+4) { background: var(--px-up); }
+    .pf-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .pf-table th { text-align: left; font-size: 10.5px; color: var(--px-mute); text-transform: uppercase; letter-spacing: .06em; padding: 8px 6px; border-bottom: 1px solid var(--px-line); }
+    .pf-table td { padding: 11px 6px; border-bottom: 1px solid var(--px-line-soft, var(--px-line)); color: var(--px-text); white-space: nowrap; }
+    .pf-pill { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; background: var(--px-panel-2); color: var(--px-dim); }
+    .pf-pill.ok { background: var(--px-up-soft); color: var(--px-up); } .pf-pill.bad { background: var(--px-down-soft); color: var(--px-down); }
+    .pf-plan { padding: 18px; border-radius: 16px; background: linear-gradient(135deg, color-mix(in srgb, var(--px-accent) 16%, var(--px-panel-2)), var(--px-panel-2)); border: 1px solid color-mix(in srgb, var(--px-accent) 35%, var(--px-line)); }
+    .pf-plan b { font-size: 24px; font-weight: 900; color: var(--px-text); }
+    .pf-modal { position: fixed; inset: 0; z-index: 120; background: rgba(0,0,0,.55); display: none; align-items: center; justify-content: center; padding: 16px; }
+    .pf-modal.on { display: flex; }
+    .pf-modal .box { width: 100%; max-width: 440px; background: var(--px-panel); border: 1px solid var(--px-line); border-radius: 18px; padding: 20px; }
+</style>
+{% endblock %}
 
 {% block content %}
-{% include 'partials/legacy_skin.html' %}
-<style>
-    /* profile in the site palette: gold = action/brand, green = OK, red = danger */
-    main .bg-gradient-to-br.from-indigo-500.to-purple-600 { background: var(--px-accent) !important; color: var(--px-accent-ink) !important; box-shadow: none !important; }
-    main [class*="bg-indigo-500/10"], main [class*="bg-purple-500/10"] { background: var(--px-accent-soft) !important; border-color: transparent !important; color: var(--px-accent) !important; }
-    main .w-10.h-10[class*="bg-emerald-500/10"], main .w-10.h-10[class*="bg-amber-500/10"] { background: var(--px-accent-soft) !important; border-color: transparent !important; color: var(--px-accent) !important; }
-    main .w-10.h-10 i { color: inherit !important; }
-    main .text-purple-400 { color: var(--px-accent) !important; }
-    main .bg-emerald-600, main .bg-amber-600 { background: var(--px-accent) !important; color: var(--px-accent-ink) !important; box-shadow: none !important; }
-    main .bg-emerald-600 *, main .bg-amber-600 * { color: var(--px-accent-ink) !important; }
-    main .bg-emerald-600:hover, main .bg-amber-600:hover { filter: brightness(1.06); }
-    main .blur-3xl { display: none; }
-    main .bg-gradient-to-br.from-slate-900.to-slate-950 { background: var(--px-panel) !important; border-color: var(--px-line) !important; }
-    input:checked + .toggle-slider { background-color: var(--px-accent) !important; }
-    .toggle-slider { background-color: var(--px-panel-2) !important; border: 1px solid var(--px-line); }
-    main input[type=checkbox] { accent-color: var(--px-accent); }
-    main .border-amber-500\/20.bg-amber-500\/5 { background: var(--px-accent-soft) !important; border-color: transparent !important; }
-    .px-wallet-qr { width: 112px; flex-shrink: 0; padding: 7px; background: #fff; border-radius: 12px; box-shadow: 0 0 0 1px var(--px-line); }
-    .px-wallet-qr svg { display: block; width: 100%; height: auto; }
-</style>
-<!-- LOADING SPINNER -->
-<div id="loading-spinner" class="fixed inset-0 z-[9999] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center transition-opacity duration-500">
-    <div class="relative flex items-center justify-center">
-        <div class="w-20 h-20 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin"></div>
-        <div class="absolute w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center animate-pulse">
-            <div class="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
-        </div>
-    </div>
-    <div class="mt-5 text-center space-y-1">
-        <p class="text-xs font-mono tracking-widest text-indigo-300 uppercase animate-pulse">Loading Profile</p>
-        <p class="text-[10px] font-mono text-slate-500">Syncing your account data...</p>
-    </div>
-</div>
+<div class="pf">
+    {% if messages %}{% for m in messages %}<div class="pf-flash {% if m.tags == 'error' %}err{% else %}ok{% endif %}" role="status"><i class="fa-solid {% if m.tags == 'error' %}fa-circle-exclamation{% else %}fa-circle-check{% endif %}"></i>{{ m }}</div>{% endfor %}{% endif %}
 
-<style>
-    .spinner-hidden { opacity: 0; pointer-events: none; visibility: hidden; }
-
-    .profile-card {
-        background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 27, 75, 0.4) 100%);
-        border: 1px solid rgba(99, 102, 241, 0.15);
-        border-radius: 20px;
-        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
-    }
-
-    @media (max-width: 640px) {
-        .profile-card { border-radius: 16px; }
-    }
-
-    .input-field {
-        width: 100%;
-        background: rgba(2, 6, 23, 0.9);
-        border: 1px solid rgba(99, 102, 241, 0.2);
-        border-radius: 12px;
-        padding: 12px 16px;
-        font-size: 13px;
-        color: #ffffff;
-        font-family: 'JetBrains Mono', monospace;
-        transition: all 0.2s ease;
-    }
-
-    .input-field:focus {
-        outline: none;
-        border-color: rgba(99, 102, 241, 0.6);
-        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-    }
-
-    .input-field::placeholder { color: #64748b; }
-
-    .status-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 5px 12px;
-        border-radius: 999px;
-        font-size: 10px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-
-    .toggle-switch {
-        position: relative;
-        display: inline-block;
-        width: 44px;
-        height: 24px;
-    }
-    .toggle-switch input {
-        opacity: 0;
-        width: 0;
-        height: 0;
-    }
-    .toggle-slider {
-        position: absolute;
-        cursor: pointer;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: #1e293b;
-        transition: 0.3s;
-        border-radius: 24px;
-    }
-    .toggle-slider:before {
-        position: absolute;
-        content: "";
-        height: 18px;
-        width: 18px;
-        left: 3px;
-        bottom: 3px;
-        background-color: white;
-        transition: 0.3s;
-        border-radius: 50%;
-    }
-    input:checked + .toggle-slider {
-        background-color: #10b981;
-    }
-    input:checked + .toggle-slider:before {
-        transform: translateX(20px);
-    }
-
-    .strength-bar {
-        height: 4px;
-        border-radius: 4px;
-        background: #1e293b;
-        overflow: hidden;
-        display: flex;
-        gap: 2px;
-    }
-    .strength-segment {
-        flex: 1;
-        background: #1e293b;
-        transition: background 0.3s ease;
-    }
-
-    @keyframes modalIn {
-        from { opacity: 0; transform: scale(0.95) translateY(10px); }
-        to { opacity: 1; transform: scale(1) translateY(0); }
-    }
-    .modal-in { animation: modalIn 0.2s ease-out; }
-
-    .password-input-wrapper { position: relative; }
-    .password-input-wrapper .toggle-password {
-        position: absolute;
-        right: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #64748b;
-        cursor: pointer;
-        transition: color 0.2s;
-        background: transparent;
-        border: none;
-        padding: 4px;
-    }
-    .password-input-wrapper .toggle-password:hover { color: #ffffff; }
-</style>
-
-<div class="space-y-5 pb-4">
-
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <!-- HEADER BANNER                                            -->
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <div class="profile-card p-5 sm:p-6 relative overflow-hidden">
-        <div class="absolute -top-20 -right-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
-        <div class="absolute -bottom-20 -left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
-        <div class="relative z-10">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div class="flex items-center gap-4">
-                    <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-2xl font-black text-white shadow-xl shadow-indigo-500/30 border-2 border-indigo-400/30">
-                        {{ user.username|slice:":2"|upper }}
-                    </div>
-                    <div class="min-w-0">
-                        <h1 class="text-xl sm:text-2xl font-black text-white truncate">
-                            {{ user.get_full_name|default:user.username }}
-                        </h1>
-                        <p class="text-xs text-slate-400 truncate">{{ user.email|default:"No email set" }}</p>
-                        <div class="flex items-center gap-2 mt-2">
-                            <span class="status-badge bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                                {{ account_type }}
-                            </span>
-                        </div>
-                    </div>
+    <!-- ═══ HERO ═══ -->
+    <section class="pf-card pf-hero" id="photo">
+        <div class="pf-cover"></div>
+        <div class="pf-hero-in">
+            <div class="pf-av">
+                {% if user_profile.avatar %}<img src="{{ user_profile.avatar.url }}" alt="Profile photo">{% else %}{{ user.first_name|default:user.username|slice:":1"|upper }}{{ user.last_name|slice:":1"|upper }}{% endif %}
+                <label class="pf-av-btn" for="pfAvatar" title="Change photo" aria-label="Change photo"><i class="fa-solid fa-camera"></i></label>
+            </div>
+            <form method="post" enctype="multipart/form-data" id="pfAvatarForm" hidden>{% csrf_token %}<input type="hidden" name="action" value="avatar"><input type="file" name="avatar" id="pfAvatar" accept="image/*"></form>
+            <div class="pf-who">
+                <h1>{{ user.get_full_name|default:user.username }}</h1>
+                <div class="u">@{{ user.username }} · {{ user.email }}</div>
+                <div class="pf-badges">
+                    <span class="pf-badge {% if is_member %}gold{% endif %}"><i class="fa-solid fa-crown"></i> {{ plan }}</span>
+                    {% if kyc_status == 'APPROVED' %}<span class="pf-badge ok"><i class="fa-solid fa-shield-halved"></i> Verified</span>
+                    {% elif kyc_status == 'PENDING' or kyc_status == 'IN_REVIEW' %}<span class="pf-badge warn"><i class="fa-solid fa-hourglass-half"></i> KYC in review</span>
+                    {% else %}<a href="{% url 'kyc_status' %}" class="pf-badge warn"><i class="fa-solid fa-id-card"></i> Not verified</a>{% endif %}
+                    <span class="pf-badge"><i class="fa-regular fa-calendar"></i> Member since {{ user.date_joined|date:"M Y" }}</span>
+                    {% if user_profile.avatar %}<form method="post" style="display:inline">{% csrf_token %}<input type="hidden" name="action" value="avatar_remove"><button class="pf-badge" style="cursor:pointer"><i class="fa-regular fa-trash-can"></i> Remove photo</button></form>{% endif %}
                 </div>
-
-                <button onclick="saveProfile()" id="save-btn" class="px-5 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-black transition shadow-lg shadow-indigo-600/25 flex items-center gap-2 cursor-pointer">
-                    <i class="fa-solid fa-floppy-disk text-[10px]"></i>
-                    <span>Save Changes</span>
-                </button>
+            </div>
+            <div class="pf-id">
+                <small>Trader ID</small>
+                <button type="button" onclick="pfCopy('{{ trader_id }}', this)" title="Copy">{{ trader_id }} <i class="fa-regular fa-copy"></i></button>
             </div>
         </div>
-    </div>
-
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <!-- STATS GRID                                               -->
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div class="profile-card p-4">
-            <div class="flex items-center justify-between mb-2">
-                <span class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Trader ID</span>
-                <i class="fa-solid fa-id-badge text-indigo-400 text-xs"></i>
-            </div>
-            <p class="text-sm font-black text-white font-mono truncate">{{ trader_id }}</p>
+        <div class="pf-stats">
+            <div class="pf-stat"><span>Wallet</span><b>${{ wallet_balance|floatformat:"2g" }}</b></div>
+            <div class="pf-stat"><span>Trading account</span><b>${{ trading_balance|floatformat:"2g" }}</b></div>
+            <div class="pf-stat"><span>Open positions</span><b>{{ open_positions }}</b></div>
+            <div class="pf-stat"><span>Win rate</span><b>{% if win_rate is not None %}{{ win_rate }}%{% else %}–{% endif %}</b></div>
+            <div class="pf-stat"><span>Referrals</span><b>{{ referrals }}</b></div>
+            <div class="pf-stat"><span>Plan</span><b>{{ plan }}</b></div>
         </div>
+    </section>
 
-        <div class="profile-card p-4">
-            <div class="flex items-center justify-between mb-2">
-                <span class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">KYC Status</span>
-                <i class="fa-solid fa-shield-halved text-emerald-400 text-xs"></i>
-            </div>
-            {% if kyc_record and kyc_record.status|upper == 'APPROVED' %}
-                <p class="text-sm font-black text-emerald-400 font-mono">Verified</p>
-            {% elif kyc_record and kyc_record.status|upper == 'PENDING' %}
-                <p class="text-sm font-black text-amber-400 font-mono">Pending</p>
-            {% else %}
-                <p class="text-sm font-black text-rose-400 font-mono">Not Started</p>
-            {% endif %}
-        </div>
+    <!-- ═══ TABS ═══ -->
+    <nav class="pf-tabs" role="tablist">
+        <a href="#overview" data-tab="overview" class="on"><i class="fa-solid fa-gauge-high"></i> Overview</a>
+        <a href="#personal" data-tab="personal"><i class="fa-regular fa-user"></i> Personal</a>
+        <a href="#security" data-tab="security"><i class="fa-solid fa-lock"></i> Security</a>
+        <a href="#plan" data-tab="plan"><i class="fa-solid fa-crown"></i> Plan &amp; billing</a>
+    </nav>
 
-        <div class="profile-card p-4">
-            <div class="flex items-center justify-between mb-2">
-                <span class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Member Since</span>
-                <i class="fa-solid fa-calendar text-purple-400 text-xs"></i>
-            </div>
-            <p class="text-sm font-black text-white font-mono">{{ user.date_joined|date:"Y"|default:"2026" }}</p>
-        </div>
-
-        <div class="profile-card p-4">
-            <div class="flex items-center justify-between mb-2">
-                <span class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Funded Balance</span>
-                <i class="fa-solid fa-wallet text-amber-400 text-xs"></i>
-            </div>
-            <p class="text-sm font-black text-emerald-400 font-mono">${{ funded_account.balance|default:"0.00" }}</p>
-        </div>
-    </div>
-
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <!-- MAIN GRID                                                -->
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-
-        <div class="lg:col-span-2 space-y-5">
-
-            <!-- ═══════════════════════════════════════════════ -->
-            <!-- PERSONAL INFORMATION (with phone save)         -->
-            <!-- ═══════════════════════════════════════════════ -->
-            <div class="profile-card p-5 sm:p-6">
-                <div class="flex items-center gap-3 mb-5 pb-4 border-b border-slate-800/60">
-                    <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
-                        <i class="fa-solid fa-user text-sm"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-base font-bold text-white">Personal Information</h3>
-                        <p class="text-[10px] text-slate-500 mt-0.5">Your basic account details</p>
-                    </div>
-                </div>
-
-                <form method="POST" id="profile-form" class="space-y-4">
-                    {% csrf_token %}
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
-                                <i class="fa-solid fa-user text-[9px] mr-1.5 text-indigo-400"></i>
-                                Username
-                            </label>
-                            <input type="text" value="{{ user.username }}" disabled class="input-field opacity-60">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
-                                <i class="fa-solid fa-envelope text-[9px] mr-1.5 text-indigo-400"></i>
-                                Email Address
-                            </label>
-                            <input type="email" name="email" value="{{ user.email }}" placeholder="your@email.com" class="input-field">
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
-                                <i class="fa-solid fa-signature text-[9px] mr-1.5 text-indigo-400"></i>
-                                First Name
-                            </label>
-                            <input type="text" name="first_name" value="{{ user.first_name }}" placeholder="John" class="input-field">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
-                                <i class="fa-solid fa-signature text-[9px] mr-1.5 text-indigo-400"></i>
-                                Last Name
-                            </label>
-                            <input type="text" name="last_name" value="{{ user.last_name }}" placeholder="Doe" class="input-field">
-                        </div>
-                    </div>
-                </form>
-            </div>
-
-            <!-- ═══════════════════════════════════════════════ -->
-            <!-- 📱 SMS NOTIFICATIONS (NEW)                     -->
-            <!-- ═══════════════════════════════════════════════ -->
-            <div class="profile-card p-5 sm:p-6">
-                <div class="flex items-center gap-3 mb-5 pb-4 border-b border-slate-800/60">
-                    <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-                        <i class="fa-solid fa-comment-sms text-sm"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-base font-bold text-white">SMS Notifications</h3>
-                        <p class="text-[10px] text-slate-500 mt-0.5">Get instant updates on withdrawals, deposits & security</p>
-                    </div>
-                </div>
-
-                <form method="POST" action="{% url 'profile' %}" class="space-y-4">
-                    {% csrf_token %}
-                    <input type="hidden" name="update_sms" value="1">
-
-                    <div>
-                        <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
-                            <i class="fa-solid fa-phone text-[9px] mr-1.5 text-emerald-400"></i>
-                            Phone Number
-                        </label>
-                        <input type="tel" name="phone_number" id="phone-number-input"
-                               value="{{ user_profile.phone_number|default:'' }}"
-                               placeholder="+254712345678"
-                               class="input-field">
-                        <p class="text-[10px] text-slate-500 mt-1.5">
-                            Include country code. Kenya: <span class="font-mono text-slate-400">+254712345678</span>, US: <span class="font-mono text-slate-400">+15551234567</span>
-                        </p>
-                    </div>
-
-                    <!-- SMS opt-in toggle -->
-                    <label class="flex items-start gap-3 bg-slate-950/60 border border-slate-800/60 rounded-xl p-4 cursor-pointer hover:border-emerald-500/30 transition">
-                        <input type="checkbox" name="sms_opt_in" {% if user_profile.sms_opt_in %}checked{% endif %}
-                               class="mt-0.5 rounded border-slate-700 bg-slate-950 text-emerald-600 focus:ring-0">
-                        <div class="flex-1">
-                            <p class="text-xs font-bold text-white">Enable SMS alerts</p>
-                            <p class="text-[10px] text-slate-400 mt-0.5 leading-relaxed">
-                                Receive transactional SMS when your withdrawal is submitted, approved, or when there's a security alert on your account.
-                            </p>
-                        </div>
-                    </label>
-
-                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-xs transition shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-floppy-disk text-[10px]"></i>
-                        <span>Save Phone Number</span>
-                    </button>
-                </form>
-
-                {% if user_profile.phone_number and user_profile.sms_opt_in %}
-                <div class="mt-4 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20 flex items-start gap-2">
-                    <i class="fa-solid fa-circle-check text-emerald-400 text-sm mt-0.5"></i>
-                    <div>
-                        <p class="text-[11px] text-emerald-300 font-bold">SMS active</p>
-                        <p class="text-[10px] text-slate-400 mt-0.5">
-                            You'll receive updates at <span class="font-mono text-slate-300">{{ user_profile.phone_number }}</span>
-                        </p>
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-
-            <!-- ═══════════════════════════════════════════════ -->
-            <!-- DEPOSIT WALLET                                 -->
-            <!-- ═══════════════════════════════════════════════ -->
-            <div class="profile-card p-5 sm:p-6">
-                <div class="flex items-center gap-3 mb-5 pb-4 border-b border-slate-800/60">
-                    <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-                        <i class="fa-brands fa-bitcoin text-sm"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-base font-bold text-white">Binance Deposit Wallet</h3>
-                        <p class="text-[10px] text-slate-500 mt-0.5">USDT TRC20 · Send deposits to this address</p>
-                    </div>
-                </div>
-
-                <div class="bg-slate-950/60 border border-slate-800/60 rounded-xl p-4 mb-3 flex flex-col sm:flex-row gap-4 sm:items-center">
-                    <div class="px-wallet-qr mx-auto sm:mx-0">{% include 'partials/usdt_qr.html' %}</div>
-                    <div class="flex-1 min-w-0">
-                    <p class="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2">Wallet Address</p>
-                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                        <input type="text" id="profileBinanceWallet" readonly value="TTjvfn3jT5BYtV76jC8zgT6CUaWfukSRYA"
-                               class="input-field flex-1 text-xs">
-                        <button type="button" onclick="copyProfileWallet()"
-                                class="px-5 py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-xl transition shadow-lg shadow-amber-600/20 flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap">
-                            <i class="fa-solid fa-copy text-[10px]"></i>
-                            <span>Copy</span>
-                        </button>
-                    </div>
-                    </div>
-                </div>
-
-                <div class="flex items-start gap-3 bg-amber-500/5 border border-amber-500/20 rounded-xl p-3">
-                    <i class="fa-solid fa-triangle-exclamation text-amber-400 text-sm mt-0.5"></i>
-                    <div>
-                        <p class="text-[11px] text-amber-300 font-bold mb-0.5">Important</p>
-                        <p class="text-[10px] text-amber-200/70 leading-relaxed">Only send USDT on the TRC20 network. Sending other assets or networks may result in permanent loss.</p>
-                    </div>
-                </div>
-
-                <p id="profileCopyFeedback" class="text-[11px] text-emerald-400 font-bold mt-3 hidden font-mono items-center gap-1.5">
-                    <i class="fa-solid fa-check-circle"></i> Address copied to clipboard!
-                </p>
-            </div>
-
-            <!-- ═══════════════════════════════════════════════ -->
-            <!-- SECURITY                                       -->
-            <!-- ═══════════════════════════════════════════════ -->
-            <div class="profile-card p-5 sm:p-6">
-                <div class="flex items-center gap-3 mb-5 pb-4 border-b border-slate-800/60">
-                    <div class="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
-                        <i class="fa-solid fa-lock text-sm"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-base font-bold text-white">Security</h3>
-                        <p class="text-[10px] text-slate-500 mt-0.5">Protect your account</p>
-                    </div>
-                </div>
-
-                <div class="space-y-3">
-                    <div class="flex items-center justify-between bg-slate-950/60 border border-slate-800/60 rounded-xl p-4">
-                        <div class="flex items-center gap-3 min-w-0">
-                            <div class="w-9 h-9 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400">
-                                <i class="fa-solid fa-key text-xs"></i>
-                            </div>
-                            <div class="min-w-0">
-                                <p class="text-xs font-bold text-white">Password</p>
-                                <p id="password-last-updated" class="text-[10px] text-slate-500">Change regularly for security</p>
-                            </div>
-                        </div>
-                        <button onclick="openPasswordModal()" class="px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[10px] font-bold border border-rose-500/20 transition cursor-pointer">
-                            Change
-                        </button>
-                    </div>
-
-                    <div class="flex items-center justify-between bg-slate-950/60 border border-slate-800/60 rounded-xl p-4">
-                        <div class="flex items-center gap-3 min-w-0">
-                            <div class="w-9 h-9 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400">
-                                <i class="fa-solid fa-desktop text-xs"></i>
-                            </div>
-                            <div class="min-w-0">
-                                <p class="text-xs font-bold text-white">Active Sessions</p>
-                                <p id="sessions-count-label" class="text-[10px] text-slate-500">Manage devices</p>
-                            </div>
-                        </div>
-                        <button onclick="openSessionsModal()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold transition cursor-pointer">
-                            Manage
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
-        <!-- RIGHT SIDEBAR -->
-        <div class="space-y-5">
-
-            <!-- KYC -->
-            <div class="profile-card p-5">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                        <i class="fa-solid fa-shield-halved text-emerald-400 text-xs"></i>
-                        KYC Verification
-                    </h3>
-                </div>
-
-                {% if kyc_record and kyc_record.status|upper == 'APPROVED' %}
-                    <div class="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-center">
-                        <div class="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto mb-3">
-                            <i class="fa-solid fa-check text-emerald-400 text-lg"></i>
-                        </div>
-                        <p class="text-sm font-bold text-emerald-400">Verified</p>
-                        <p class="text-[10px] text-slate-400 mt-1">Your identity is confirmed</p>
-                    </div>
-                {% elif kyc_record and kyc_record.status|upper == 'PENDING' %}
-                    <div class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-center">
-                        <div class="w-12 h-12 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center mx-auto mb-3">
-                            <i class="fa-solid fa-clock text-amber-400 text-lg"></i>
-                        </div>
-                        <p class="text-sm font-bold text-amber-400">Pending Review</p>
-                        <p class="text-[10px] text-slate-400 mt-1">Verification in progress</p>
-                        <a href="{% url 'kyc_status' %}" class="inline-block mt-3 px-4 py-2 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-[10px] font-bold border border-amber-500/30 transition">
-                            View Status
-                        </a>
-                    </div>
-                {% else %}
-                    <div class="bg-slate-950/60 border border-slate-800/60 rounded-xl p-4 text-center">
-                        <div class="w-12 h-12 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center mx-auto mb-3">
-                            <i class="fa-solid fa-id-card text-slate-500 text-lg"></i>
-                        </div>
-                        <p class="text-sm font-bold text-white">Not Verified</p>
-                        <p class="text-[10px] text-slate-400 mt-1 mb-3">Verify to unlock all features</p>
-                        <a href="{% url 'kyc_submit' %}" class="inline-block px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold transition shadow-lg shadow-emerald-600/20">
-                            Start Verification
-                        </a>
-                    </div>
-                {% endif %}
-            </div>
-
-            <!-- Recent Activity -->
-            <div class="profile-card p-5">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                        <i class="fa-regular fa-bell text-indigo-400 text-xs"></i>
-                        Recent Activity
-                    </h3>
-                    <span class="text-[10px] text-slate-500">{{ notifications|length }}</span>
-                </div>
-
-                <div class="space-y-3 max-h-80 overflow-y-auto">
-                    {% for note in notifications %}
-                    <div class="flex items-start gap-3 bg-slate-950/60 border border-slate-800/60 rounded-xl p-3">
-                        <div class="mt-1 w-2 h-2 rounded-full {% if not note.is_read %}bg-emerald-500 animate-pulse{% else %}bg-slate-600{% endif %} shrink-0"></div>
-                        <div class="min-w-0 flex-1">
-                            <p class="text-xs font-bold text-white truncate">{{ note.title }}</p>
-                            <p class="text-[10px] text-slate-400 mt-0.5 leading-relaxed">{{ note.message|truncatechars:80 }}</p>
-                        </div>
-                    </div>
-                    {% empty %}
-                    <div class="text-center py-6">
-                        <i class="fa-solid fa-inbox text-slate-600 text-2xl mb-2"></i>
-                        <p class="text-xs text-slate-500">No recent activity</p>
-                    </div>
+    <!-- ═══ OVERVIEW ═══ -->
+    <section class="pf-pane pf-grid on" data-pane="overview">
+        <div class="pf-col">
+            <div class="pf-card">
+                <div class="pf-h"><h2><i class="fa-solid fa-list-check"></i> Complete your profile</h2><span class="pf-sub">{{ checklist_done }} of {{ checklist|length }}</span></div>
+                <div class="pf-bar"><i style="width: {{ checklist_pct }}%"></i></div>
+                <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
+                    {% for label, done, link in checklist %}
+                    <div class="pf-check {% if done %}done{% endif %}"><i class="{% if done %}fa-solid fa-circle-check{% else %}fa-regular fa-circle{% endif %}"></i>{{ label }}{% if not done %}<a class="go" href="{{ link }}" {% if link|slice:":1" == '#' %}data-jump="{{ link|slice:'1:' }}"{% endif %}>Do it →</a>{% endif %}</div>
                     {% endfor %}
                 </div>
             </div>
-
-            <!-- Preferences -->
-            <div class="profile-card p-5">
-                <h3 class="text-sm font-bold text-white flex items-center gap-2 mb-4">
-                    <i class="fa-solid fa-sliders text-purple-400 text-xs"></i>
-                    Preferences
-                </h3>
-
-                <div class="space-y-3">
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs text-slate-300">Email Notifications</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" checked onchange="showToast(this.checked ? 'Email notifications enabled' : 'Email notifications disabled', 'info')">
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs text-slate-300">Trade Alerts</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" checked onchange="showToast(this.checked ? 'Trade alerts enabled' : 'Trade alerts disabled', 'info')">
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs text-slate-300">Marketing Emails</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" onchange="showToast(this.checked ? 'Marketing emails enabled' : 'Marketing emails disabled', 'info')">
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Danger Zone -->
-            <div class="profile-card p-5 border border-rose-500/20">
-                <h3 class="text-sm font-bold text-white flex items-center gap-2 mb-3">
-                    <i class="fa-solid fa-triangle-exclamation text-rose-400 text-xs"></i>
-                    Danger Zone
-                </h3>
-                <p class="text-[10px] text-slate-400 mb-3 leading-relaxed">Log out safely from this device.</p>
-                <form method="POST" action="{% url 'logout' %}" class="inline w-full">
-                    {% csrf_token %}
-                    <button type="submit" class="w-full px-4 py-2.5 rounded-xl bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 text-xs font-bold border border-rose-500/20 transition flex items-center justify-center gap-2 cursor-pointer">
-                        <i class="fa-solid fa-right-from-bracket text-[10px]"></i>
-                        Log Out of Account
-                    </button>
-                </form>
+            <div class="pf-card">
+                <div class="pf-h"><h2><i class="fa-regular fa-bell"></i> Recent activity</h2><a class="pf-sub" href="/terminal/" style="color:var(--px-accent);font-weight:700">All messages →</a></div>
+                {% for n in activity %}
+                <div class="pf-act"><span class="dot {{ n.priority }}"></span><div style="min-width:0"><b>{{ n.title|default:n.message|truncatechars:80 }}</b>{% if n.title %}<small>{{ n.message|truncatechars:110 }}</small>{% endif %}<small>{{ n.created_at|timesince }} ago</small></div></div>
+                {% empty %}<p class="pf-sub">No activity yet. Trades, deposits and account updates appear here.</p>{% endfor %}
             </div>
         </div>
-    </div>
+        <div class="pf-col">
+            <div class="pf-card">
+                <div class="pf-h"><h2><i class="fa-solid fa-user-group"></i> Invite friends</h2></div>
+                <p class="pf-sub" style="margin-bottom:12px">Share your link. You earn rewards when friends join and trade.</p>
+                <div style="display:flex;gap:8px"><input class="pf-in" readonly value="{{ referral_link }}" id="pfRef" aria-label="Your referral link"><button class="pf-btn sm" type="button" onclick="pfCopy(document.getElementById('pfRef').value, this)"><i class="fa-regular fa-copy"></i> Copy</button></div>
+                <a href="{% url 'referral_dashboard' %}" class="pf-btn ghost sm" style="margin-top:10px;width:100%">Referral dashboard · {{ referrals }} joined</a>
+            </div>
+            <div class="pf-card">
+                <div class="pf-h"><h2><i class="fa-solid fa-bolt"></i> Quick actions</h2></div>
+                <div class="pf-row"><span class="ic"><i class="fa-solid fa-arrow-down"></i></span><div class="tx"><b>Deposit</b><small>Add USDT or mobile money</small></div><a class="pf-btn ghost sm" href="/wallet/">Wallet</a></div>
+                <div class="pf-row"><span class="ic"><i class="fa-solid fa-id-card"></i></span><div class="tx"><b>Identity verification</b><small>{% if kyc_status == 'APPROVED' %}Verified{% else %}Needed for withdrawals and P2P{% endif %}</small></div><a class="pf-btn ghost sm" href="{% url 'kyc_status' %}">{% if kyc_status == 'APPROVED' %}View{% else %}Verify{% endif %}</a></div>
+                <div class="pf-row"><span class="ic"><i class="fa-solid fa-sliders"></i></span><div class="tx"><b>Notification settings</b><small>Email, push and alert preferences</small></div><a class="pf-btn ghost sm" href="{% url 'notification_settings' %}">Open</a></div>
+                <div class="pf-row"><span class="ic"><i class="fa-solid fa-headset"></i></span><div class="tx"><b>Support</b><small>Chat with the team</small></div><a class="pf-btn ghost sm" href="/support/">Contact</a></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══ PERSONAL ═══ -->
+    <section class="pf-pane pf-grid" data-pane="personal">
+        <div class="pf-col">
+            <form method="post" class="pf-card">{% csrf_token %}<input type="hidden" name="action" value="personal">
+                <div class="pf-h"><div><h2><i class="fa-regular fa-id-badge"></i> Personal details</h2><p>Use your legal name: it must match your ID for withdrawals and P2P.</p></div></div>
+                <div class="pf-form">
+                    <div class="pf-f"><label for="pfFirst">First name</label><input class="pf-in" id="pfFirst" name="first_name" value="{{ user.first_name }}" maxlength="150" autocomplete="given-name"></div>
+                    <div class="pf-f"><label for="pfLast">Last name</label><input class="pf-in" id="pfLast" name="last_name" value="{{ user.last_name }}" maxlength="150" autocomplete="family-name"></div>
+                    <div class="pf-f full"><label>Username</label><input class="pf-in" value="{{ user.username }}" readonly></div>
+                </div>
+                <div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="pf-btn"><i class="fa-solid fa-check"></i> Save details</button></div>
+            </form>
+            <div class="pf-card">
+                <div class="pf-h"><h2><i class="fa-regular fa-envelope"></i> Email</h2></div>
+                <div class="pf-row"><span class="ic"><i class="fa-regular fa-envelope"></i></span><div class="tx"><b>{{ user.email }}</b><small>{% if email_verified %}<span style="color:var(--px-up)">Verified</span>{% else %}<span style="color:#ff9f0a">Not verified yet</span>{% endif %} · used for login codes and receipts</small></div><a class="pf-btn ghost sm" href="{% url 'account_email' %}">{% if email_verified %}Change{% else %}Verify{% endif %}</a></div>
+            </div>
+        </div>
+        <div class="pf-col">
+            <form method="post" class="pf-card">{% csrf_token %}<input type="hidden" name="action" value="phone">
+                <div class="pf-h"><div><h2><i class="fa-solid fa-mobile-screen"></i> Phone &amp; SMS alerts</h2><p>Withdrawals, deposits and security alerts by SMS.</p></div></div>
+                <div class="pf-f"><label for="pfPhone">Phone number</label><input class="pf-in" id="pfPhone" name="phone_number" value="{{ user_profile.phone_number|default:'' }}" placeholder="+254712345678" inputmode="tel" autocomplete="tel"></div>
+                <p class="pf-sub" style="margin-top:6px">With the country code, e.g. +254 for Kenya.</p>
+                <div class="pf-row" style="margin-top:8px"><div class="tx"><b>SMS alerts</b><small>Security alerts and money movements</small></div><label class="pf-switch"><input type="checkbox" name="sms_opt_in" {% if user_profile.sms_opt_in %}checked{% endif %}><span></span></label></div>
+                <button class="pf-btn" style="width:100%;margin-top:6px"><i class="fa-solid fa-check"></i> Save phone</button>
+            </form>
+        </div>
+    </section>
+
+    <!-- ═══ SECURITY ═══ -->
+    <section class="pf-pane pf-grid" data-pane="security">
+        <div class="pf-col">
+            <form class="pf-card" id="pfPwd" autocomplete="off">
+                <div class="pf-h"><div><h2><i class="fa-solid fa-key"></i> Change password</h2><p>At least 8 characters. Other devices stay signed in until you log them out below.</p></div></div>
+                <div class="pf-form">
+                    <div class="pf-f full"><label for="pfCur">Current password</label><input class="pf-in" type="password" id="pfCur" autocomplete="current-password" required></div>
+                    <div class="pf-f"><label for="pfNew">New password</label><input class="pf-in" type="password" id="pfNew" autocomplete="new-password" required minlength="8"><div class="pf-meter" id="pfMeter"><i></i><i></i><i></i><i></i></div></div>
+                    <div class="pf-f"><label for="pfNew2">Repeat new password</label><input class="pf-in" type="password" id="pfNew2" autocomplete="new-password" required></div>
+                </div>
+                <div id="pfPwdMsg" class="pf-sub" style="margin-top:10px"></div>
+                <div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="pf-btn" id="pfPwdBtn"><i class="fa-solid fa-lock"></i> Update password</button></div>
+            </form>
+            <div class="pf-card">
+                <div class="pf-h"><div><h2><i class="fa-solid fa-display"></i> Devices &amp; sessions</h2><p>Where your account is signed in.</p></div><button class="pf-btn danger sm" type="button" id="pfOut" onclick="pfRevokeAll()">Log out others</button></div>
+                <div id="pfSessions"><p class="pf-sub">Loading…</p></div>
+            </div>
+        </div>
+        <div class="pf-col">
+            <div class="pf-card">
+                <div class="pf-h"><h2><i class="fa-solid fa-shield-halved"></i> Account security</h2></div>
+                <div class="pf-row"><span class="ic"><i class="fa-solid fa-id-card"></i></span><div class="tx"><b>Identity (KYC)</b><small>{{ kyc_status|title|cut:"_" }}</small></div><a class="pf-btn ghost sm" href="{% url 'kyc_status' %}">Open</a></div>
+                <div class="pf-row"><span class="ic"><i class="fa-regular fa-envelope"></i></span><div class="tx"><b>Email</b><small>{% if email_verified %}Verified{% else %}Not verified{% endif %}</small></div><a class="pf-btn ghost sm" href="{% url 'account_email' %}">Manage</a></div>
+                <div class="pf-row"><span class="ic"><i class="fa-solid fa-mobile-screen"></i></span><div class="tx"><b>SMS security alerts</b><small>{% if sms_ready and user_profile.sms_opt_in %}On · {{ user_profile.phone_number }}{% else %}Off{% endif %}</small></div><a class="pf-btn ghost sm" href="#personal" data-jump="personal">Set up</a></div>
+                <div class="pf-row"><span class="ic"><i class="fa-regular fa-clock"></i></span><div class="tx"><b>Last sign-in</b><small>{{ user.last_login|date:"d M Y, H:i"|default:"–" }}</small></div></div>
+            </div>
+            <div class="pf-card" style="border-color:color-mix(in srgb, var(--px-down) 35%, var(--px-line))">
+                <div class="pf-h"><h2 style="color:var(--px-down)"><i class="fa-solid fa-triangle-exclamation" style="color:var(--px-down)"></i> Danger zone</h2></div>
+                <div class="pf-row"><div class="tx"><b>Log out</b><small>Sign out of this device</small></div>
+                    <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="pf-btn ghost sm"><i class="fa-solid fa-right-from-bracket"></i> Log out</button></form></div>
+                <div class="pf-row"><div class="tx"><b>Delete my account</b><small>Support closes it after your balances and positions are settled</small></div>
+                    <button class="pf-btn danger sm" type="button" onclick="document.getElementById('pfDel').classList.add('on')">Request</button></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══ PLAN & BILLING ═══ -->
+    <section class="pf-pane pf-grid" data-pane="plan">
+        <div class="pf-col">
+            <div class="pf-card">
+                <div class="pf-h"><h2><i class="fa-solid fa-receipt"></i> Recent payments</h2><a class="pf-sub" href="/wallet/" style="color:var(--px-accent);font-weight:700">Wallet history →</a></div>
+                <div style="overflow-x:auto">
+                <table class="pf-table">
+                    <thead><tr><th>Date</th><th>Type</th><th>Method</th><th>Amount</th><th>Status</th></tr></thead>
+                    <tbody>
+                    {% for p in payments %}<tr><td>{{ p.created_at|date:"d M Y" }}</td><td>{{ p.transaction_type|cut:"_"|title }}</td><td>{{ p.payment_method|default:"–" }}</td><td style="font-family:'JetBrains Mono',monospace">${{ p.amount|floatformat:"2g" }}</td>
+                        <td><span class="pf-pill {% if p.status == 'APPROVED' or p.status == 'COMPLETED' %}ok{% elif p.status == 'REJECTED' or p.status == 'FAILED' %}bad{% endif %}">{{ p.status|title }}</span></td></tr>
+                    {% empty %}<tr><td colspan="5" class="pf-sub" style="white-space:normal">No payments yet.</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+                </div>
+            </div>
+        </div>
+        <div class="pf-col">
+            <div class="pf-card">
+                <div class="pf-plan">
+                    <span class="pf-badge {% if is_member %}gold{% endif %}"><i class="fa-solid fa-crown"></i> Current plan</span>
+                    <div style="margin-top:10px"><b>{{ plan }}</b></div>
+                    <p class="pf-sub" style="margin-top:4px">{% if is_member %}{% if plan_expires %}Renews or ends on {{ plan_expires|date:"d M Y" }}{% else %}Active{% endif %}{% else %}Manual trading, P2P buying and the academy.{% endif %}</p>
+                    <a href="{% url 'subscription_billing' %}" class="pf-btn" style="width:100%;margin-top:14px">{% if is_member %}Manage plan{% else %}<i class="fa-solid fa-crown"></i> Upgrade to Pro / VIP{% endif %}</a>
+                </div>
+                {% if not is_member %}
+                <div style="margin-top:12px">
+                    <div class="pf-row"><span class="ic"><i class="fa-solid fa-brain"></i></span><div class="tx"><b>Every AI signal</b><small>Live A+ / A setups with entry, stop and target</small></div></div>
+                    <div class="pf-row"><span class="ic"><i class="fa-solid fa-robot"></i></span><div class="tx"><b>Automation</b><small>AI copy trading and bots</small></div></div>
+                    <div class="pf-row"><span class="ic"><i class="fa-solid fa-people-arrows"></i></span><div class="tx"><b>Sell on P2P</b><small>Pro: normal methods · VIP: all methods</small></div></div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════ -->
-<!-- PASSWORD CHANGE MODAL                                    -->
-<!-- ═══════════════════════════════════════════════════════ -->
-<div id="password-modal" class="hidden fixed inset-0 z-[9999] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
-    <div class="bg-gradient-to-br from-slate-900 to-slate-950 border border-indigo-500/30 rounded-2xl w-full max-w-md shadow-2xl modal-in overflow-hidden">
-
-        <div class="relative p-6 border-b border-slate-800/60">
-            <div class="absolute -top-20 -right-20 w-56 h-56 bg-rose-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
-            <div class="relative flex items-start justify-between gap-4">
-                <div class="flex items-center gap-3">
-                    <div class="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
-                        <i class="fa-solid fa-key text-lg"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-base font-bold text-white">Change Password</h3>
-                        <p class="text-[10px] text-slate-400 mt-0.5">Update your account password</p>
-                    </div>
-                </div>
-                <button onclick="closePasswordModal()" class="text-slate-400 hover:text-white transition p-1">
-                    <i class="fa-solid fa-xmark text-lg"></i>
-                </button>
-            </div>
-        </div>
-
-        <div class="p-6 space-y-4">
-            <div>
-                <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
-                    Current Password
-                </label>
-                <div class="password-input-wrapper">
-                    <input type="password" id="current-password" placeholder="Enter current password" class="input-field pr-12">
-                    <button type="button" class="toggle-password" onclick="togglePasswordVisibility('current-password', this)">
-                        <i class="fa-solid fa-eye text-xs"></i>
-                    </button>
-                </div>
-            </div>
-
-            <div>
-                <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
-                    New Password
-                </label>
-                <div class="password-input-wrapper">
-                    <input type="password" id="new-password" placeholder="Enter new password" class="input-field pr-12" oninput="updatePasswordStrength(this.value)">
-                    <button type="button" class="toggle-password" onclick="togglePasswordVisibility('new-password', this)">
-                        <i class="fa-solid fa-eye text-xs"></i>
-                    </button>
-                </div>
-
-                <div class="mt-3">
-                    <div class="strength-bar">
-                        <div class="strength-segment" id="seg-1"></div>
-                        <div class="strength-segment" id="seg-2"></div>
-                        <div class="strength-segment" id="seg-3"></div>
-                        <div class="strength-segment" id="seg-4"></div>
-                    </div>
-                    <div class="flex items-center justify-between mt-2">
-                        <span id="strength-label" class="text-[10px] text-slate-500 font-mono">Enter a password</span>
-                        <span id="strength-score" class="text-[10px] text-slate-500 font-mono"></span>
-                    </div>
-                </div>
-
-                <div class="mt-3 space-y-1.5">
-                    <div class="flex items-center gap-2 text-[10px]" id="req-length">
-                        <i class="fa-solid fa-circle text-[6px] text-slate-600"></i>
-                        <span class="text-slate-500">At least 8 characters</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-[10px]" id="req-upper">
-                        <i class="fa-solid fa-circle text-[6px] text-slate-600"></i>
-                        <span class="text-slate-500">Contains uppercase letter</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-[10px]" id="req-number">
-                        <i class="fa-solid fa-circle text-[6px] text-slate-600"></i>
-                        <span class="text-slate-500">Contains a number</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-[10px]" id="req-special">
-                        <i class="fa-solid fa-circle text-[6px] text-slate-600"></i>
-                        <span class="text-slate-500">Contains special character</span>
-                    </div>
-                </div>
-            </div>
-
-            <div>
-                <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
-                    Confirm New Password
-                </label>
-                <div class="password-input-wrapper">
-                    <input type="password" id="confirm-password" placeholder="Re-enter new password" class="input-field pr-12" oninput="checkPasswordsMatch()">
-                    <button type="button" class="toggle-password" onclick="togglePasswordVisibility('confirm-password', this)">
-                        <i class="fa-solid fa-eye text-xs"></i>
-                    </button>
-                </div>
-                <p id="match-feedback" class="text-[10px] mt-2 hidden">
-                    <i class="fa-solid fa-circle-check mr-1"></i> Passwords match
-                </p>
-            </div>
-        </div>
-
-        <div class="p-5 border-t border-slate-800/60 flex items-center justify-end gap-3 bg-slate-950/40">
-            <button onclick="closePasswordModal()" class="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer">
-                Cancel
-            </button>
-            <button id="change-password-btn" onclick="submitPasswordChange()"
-                    class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-bold transition shadow-lg shadow-rose-600/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer">
-                <i class="fa-solid fa-key text-[10px]"></i>
-                <span>Change Password</span>
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ -->
-<!-- ACTIVE SESSIONS MODAL                                    -->
-<!-- ═══════════════════════════════════════════════════════ -->
-<div id="sessions-modal" class="hidden fixed inset-0 z-[9999] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
-    <div class="bg-gradient-to-br from-slate-900 to-slate-950 border border-indigo-500/30 rounded-2xl w-full max-w-2xl shadow-2xl modal-in overflow-hidden max-h-[90vh] flex flex-col">
-
-        <div class="relative p-5 sm:p-6 border-b border-slate-800/60 flex items-center justify-between gap-4">
-            <div class="absolute -top-20 -right-20 w-56 h-56 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
-            <div class="relative flex items-center gap-3">
-                <div class="w-11 h-11 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
-                    <i class="fa-solid fa-shield-halved text-lg"></i>
-                </div>
-                <div>
-                    <h3 class="text-base font-bold text-white">Active Sessions</h3>
-                    <p class="text-[10px] text-slate-400 mt-0.5">Devices currently logged into your account</p>
-                </div>
-            </div>
-
-            <button onclick="closeSessionsModal()" class="text-slate-400 hover:text-white transition p-1">
-                <i class="fa-solid fa-xmark text-lg"></i>
-            </button>
-        </div>
-
-        <div class="p-5 sm:p-6 overflow-y-auto flex-1">
-            <div id="sessions-list" class="space-y-3">
-                <div class="text-center py-8">
-                    <i class="fa-solid fa-circle-notch animate-spin text-indigo-400 text-2xl"></i>
-                    <p class="text-xs text-slate-400 mt-2">Loading your sessions...</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="p-4 sm:p-5 border-t border-slate-800/60 bg-slate-950/40 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <button onclick="revokeAllOtherSessions()" id="revoke-all-btn"
-                    class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 text-xs font-bold border border-rose-500/20 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
-                <i class="fa-solid fa-triangle-exclamation text-[10px]"></i>
-                <span>Log Out All Other Devices</span>
-            </button>
-            <button onclick="closeSessionsModal()" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer">
-                Close
-            </button>
-        </div>
-    </div>
+<!-- delete account -->
+<div class="pf-modal" id="pfDel" role="dialog" aria-label="Delete account">
+    <form method="post" class="box">{% csrf_token %}<input type="hidden" name="action" value="delete_request">
+        <h2 style="font-size:17px;font-weight:900;color:var(--px-text)">Delete your account?</h2>
+        <p class="pf-sub" style="margin:8px 0 14px">Support checks that your balances are withdrawn and positions are closed, then deletes the account and confirms by email. This cannot be undone.</p>
+        <div class="pf-f"><label for="pfDelWhy">Why are you leaving? (optional)</label><textarea class="pf-in" id="pfDelWhy" name="reason" rows="3" maxlength="1000"></textarea></div>
+        <div class="pf-f" style="margin-top:10px"><label for="pfDelPw">Your password</label><input class="pf-in" id="pfDelPw" type="password" name="password" required autocomplete="current-password"></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px"><button type="button" class="pf-btn ghost" onclick="document.getElementById('pfDel').classList.remove('on')">Cancel</button><button class="pf-btn danger">Send request</button></div>
+    </form>
 </div>
 
 <script>
-    // ═══════════════════════════════════════════════════════
-    // COPY WALLET
-    // ═══════════════════════════════════════════════════════
-    function copyProfileWallet() {
-        const walletInput = document.getElementById('profileBinanceWallet');
-        walletInput.select();
-        walletInput.setSelectionRange(0, 99999);
-        navigator.clipboard.writeText(walletInput.value);
-
-        const feedback = document.getElementById('profileCopyFeedback');
-        feedback.classList.remove('hidden');
-        feedback.classList.add('flex');
-        setTimeout(() => {
-            feedback.classList.add('hidden');
-            feedback.classList.remove('flex');
-        }, 2500);
+(function () {
+    // tabs (with #hash, so links like /profile/#security open the right tab)
+    const tabs = [...document.querySelectorAll('.pf-tabs a')], panes = [...document.querySelectorAll('.pf-pane')];
+    function show(name, push) {
+        if (!panes.some(p => p.dataset.pane === name)) name = 'overview';
+        tabs.forEach(t => t.classList.toggle('on', t.dataset.tab === name));
+        panes.forEach(p => p.classList.toggle('on', p.dataset.pane === name));
+        if (push) history.replaceState(null, '', '#' + name);
     }
+    tabs.forEach(t => t.addEventListener('click', e => { e.preventDefault(); show(t.dataset.tab, true); }));
+    document.querySelectorAll('[data-jump]').forEach(a => a.addEventListener('click', e => {
+        const k = a.dataset.jump;
+        if (k === 'photo') { e.preventDefault(); document.getElementById('pfAvatar').click(); return; }
+        e.preventDefault(); show(k, true); window.scrollTo({ top: document.querySelector('.pf-tabs').offsetTop - 70, behavior: 'smooth' });
+    }));
+    show((location.hash || '#overview').slice(1));
+    window.addEventListener('hashchange', () => show(location.hash.slice(1)));
 
-    // ═══════════════════════════════════════════════════════
-    // AUTO-FORMAT PHONE NUMBER
-    // ═══════════════════════════════════════════════════════
-    document.getElementById('phone-number-input')?.addEventListener('blur', function() {
-        let val = this.value.trim().replace(/\s/g, '').replace(/-/g, '');
+    // photo: upload as soon as one is chosen
+    document.getElementById('pfAvatar').addEventListener('change', e => { if (e.target.files.length) document.getElementById('pfAvatarForm').submit(); });
 
-        if (!val) return;
+    window.pfCopy = function (text, btn) {
+        const done = () => { const o = btn.innerHTML; btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied'; setTimeout(() => btn.innerHTML = o, 1400); };
+        if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, done);
+        else { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); try { document.execCommand('copy'); } catch (e) {} t.remove(); done(); }
+    };
+    const csrf = () => (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-        // Kenya local format (07xx)
-        if (val.startsWith('0') && !val.startsWith('+')) {
-            this.value = '+254' + val.slice(1);
-        }
-        // Any number without +
-        else if (!val.startsWith('+')) {
-            this.value = '+' + val;
-        }
+    // password
+    const nw = document.getElementById('pfNew'), meter = document.getElementById('pfMeter');
+    nw.addEventListener('input', () => {
+        const v = nw.value; let sc = 0;
+        if (v.length >= 8) sc++; if (/[A-Z]/.test(v) && /[a-z]/.test(v)) sc++; if (/\d/.test(v)) sc++; if (/[^A-Za-z0-9]/.test(v) || v.length >= 14) sc++;
+        meter.className = 'pf-meter' + (v ? ' s' + Math.max(1, sc) : '');
     });
-
-    // ═══════════════════════════════════════════════════════
-    // SAVE PROFILE
-    // ═══════════════════════════════════════════════════════
-    function saveProfile() {
-        const btn = document.getElementById('save-btn');
-        const form = document.getElementById('profile-form');
-
+    document.getElementById('pfPwd').addEventListener('submit', async e => {
+        e.preventDefault();
+        const msg = document.getElementById('pfPwdMsg'), btn = document.getElementById('pfPwdBtn');
+        const cur = document.getElementById('pfCur').value, n1 = nw.value, n2 = document.getElementById('pfNew2').value;
+        msg.style.color = 'var(--px-down)';
+        if (n1.length < 8) { msg.textContent = 'The new password needs at least 8 characters.'; return; }
+        if (n1 !== n2) { msg.textContent = 'The two new passwords are different.'; return; }
         btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[10px]"></i> <span>Saving...</span>';
+        try {
+            const r = await fetch('{% url "change_password_api" %}', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf(), 'X-Requested-With': 'XMLHttpRequest' },
+                                                                       body: JSON.stringify({ current_password: cur, new_password: n1 }) });
+            const d = await r.json();
+            if (d.success) { msg.style.color = 'var(--px-up)'; msg.textContent = 'Password updated.'; e.target.reset(); meter.className = 'pf-meter'; }
+            else msg.textContent = d.error || 'The password was not changed.';
+        } catch (err) { msg.textContent = 'Connection problem. Try again.'; }
+        btn.disabled = false;
+    });
 
-        // Submit the form
-        form.submit();
+    // sessions
+    async function sessions() {
+        const box = document.getElementById('pfSessions');
+        try {
+            const d = await (await fetch('{% url "api_list_sessions" %}', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })).json();
+            if (!d.success) throw 0;
+            if (!d.sessions.length) { box.innerHTML = '<p class="pf-sub">Only this device.</p>'; return; }
+            box.innerHTML = d.sessions.map(s => {
+                const icon = s.device_type === 'mobile' ? 'fa-mobile-screen' : s.device_type === 'tablet' ? 'fa-tablet-screen-button' : 'fa-laptop';
+                const when = s.last_activity ? new Date(s.last_activity).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+                return `<div class="pf-row"><span class="ic"><i class="fa-solid ${icon}"></i></span><div class="tx"><b>${esc(s.device_label)}${s.is_current ? ' <span class="pf-pill ok">This device</span>' : ''}</b><small>${esc(s.ip_address)}${when ? ' · ' + esc(when) : ''}</small></div>`
+                     + (s.is_current ? '' : `<button class="pf-btn danger sm" type="button" onclick="pfRevoke(${Number(s.id)}, this)">Log out</button>`) + '</div>';
+            }).join('');
+            document.getElementById('pfOut').hidden = !d.sessions.some(s => !s.is_current);
+        } catch (e) { box.innerHTML = '<p class="pf-sub">Sessions could not be loaded.</p>'; }
     }
-
-    // ═══════════════════════════════════════════════════════
-    // PASSWORD MODAL
-    // ═══════════════════════════════════════════════════════
-    function openPasswordModal() {
-        document.getElementById('password-modal').classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
-
-        document.getElementById('current-password').value = '';
-        document.getElementById('new-password').value = '';
-        document.getElementById('confirm-password').value = '';
-        document.getElementById('match-feedback').classList.add('hidden');
-
-        updatePasswordStrength('');
-
-        setTimeout(() => document.getElementById('current-password').focus(), 200);
-    }
-
-    function closePasswordModal() {
-        document.getElementById('password-modal').classList.add('hidden');
-        document.body.style.overflow = '';
-    }
-
-    // ═══════════════════════════════════════════════════════
-    // TOGGLE PASSWORD VISIBILITY
-    // ═══════════════════════════════════════════════════════
-    function togglePasswordVisibility(inputId, btn) {
-        const input = document.getElementById(inputId);
-        const icon = btn.querySelector('i');
-
-        if (input.type === 'password') {
-            input.type = 'text';
-            icon.className = 'fa-solid fa-eye-slash text-xs';
-        } else {
-            input.type = 'password';
-            icon.className = 'fa-solid fa-eye text-xs';
-        }
-    }
-
-    // ═══════════════════════════════════════════════════════
-    // PASSWORD STRENGTH
-    // ═══════════════════════════════════════════════════════
-    function updatePasswordStrength(password) {
-        const requirements = {
-            length: password.length >= 8,
-            upper: /[A-Z]/.test(password),
-            number: /[0-9]/.test(password),
-            special: /[!@#$%^&*(),.?":{}|<>]/.test(password),
-        };
-
-        updateRequirement('req-length', requirements.length);
-        updateRequirement('req-upper', requirements.upper);
-        updateRequirement('req-number', requirements.number);
-        updateRequirement('req-special', requirements.special);
-
-        const score = Object.values(requirements).filter(Boolean).length;
-
-        const colors = ['#1e293b', '#ef4444', '#f59e0b', '#f59e0b', '#10b981'];
-        const labels = ['Enter a password', 'Weak', 'Fair', 'Good', 'Strong'];
-
-        for (let i = 1; i <= 4; i++) {
-            const seg = document.getElementById(`seg-${i}`);
-            if (i <= score) {
-                seg.style.background = colors[score];
-            } else {
-                seg.style.background = '#1e293b';
-            }
-        }
-
-        const label = document.getElementById('strength-label');
-        const scoreEl = document.getElementById('strength-score');
-
-        if (!password) {
-            label.textContent = 'Enter a password';
-            label.className = 'text-[10px] text-slate-500 font-mono';
-            scoreEl.textContent = '';
-        } else {
-            label.textContent = labels[score];
-            label.className = `text-[10px] font-mono font-bold ${
-                score === 1 ? 'text-rose-400' :
-                score === 2 ? 'text-amber-400' :
-                score === 3 ? 'text-amber-400' :
-                score === 4 ? 'text-emerald-400' : 'text-slate-500'
-            }`;
-            scoreEl.textContent = `${score}/4`;
-            scoreEl.className = `text-[10px] font-mono ${
-                score === 1 ? 'text-rose-400' :
-                score === 2 ? 'text-amber-400' :
-                score === 3 ? 'text-amber-400' :
-                score === 4 ? 'text-emerald-400' : 'text-slate-500'
-            }`;
-        }
-    }
-
-    function updateRequirement(id, met) {
-        const el = document.getElementById(id);
-        const icon = el.querySelector('i');
-        const text = el.querySelector('span');
-
-        if (met) {
-            icon.className = 'fa-solid fa-circle-check text-[10px] text-emerald-400';
-            text.className = 'text-emerald-400';
-        } else {
-            icon.className = 'fa-solid fa-circle text-[6px] text-slate-600';
-            text.className = 'text-slate-500';
-        }
-    }
-
-    // ═══════════════════════════════════════════════════════
-    // CHECK PASSWORDS MATCH
-    // ═══════════════════════════════════════════════════════
-    function checkPasswordsMatch() {
-        const newPwd = document.getElementById('new-password').value;
-        const confirmPwd = document.getElementById('confirm-password').value;
-        const feedback = document.getElementById('match-feedback');
-
-        if (!confirmPwd) {
-            feedback.classList.add('hidden');
-            return;
-        }
-
-        feedback.classList.remove('hidden');
-
-        if (newPwd === confirmPwd && newPwd.length > 0) {
-            feedback.className = 'text-[10px] mt-2 text-emerald-400 font-bold';
-            feedback.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> Passwords match';
-        } else {
-            feedback.className = 'text-[10px] mt-2 text-rose-400 font-bold';
-            feedback.innerHTML = '<i class="fa-solid fa-circle-xmark mr-1"></i> Passwords do not match';
-        }
-    }
-
-    // ═══════════════════════════════════════════════════════
-    // SUBMIT PASSWORD CHANGE
-    // ═══════════════════════════════════════════════════════
-    async function submitPasswordChange() {
-        const currentPwd = document.getElementById('current-password').value;
-        const newPwd = document.getElementById('new-password').value;
-        const confirmPwd = document.getElementById('confirm-password').value;
-        const btn = document.getElementById('change-password-btn');
-
-        if (!currentPwd) { showToast('Please enter your current password', 'error'); return; }
-        if (!newPwd) { showToast('Please enter a new password', 'error'); return; }
-        if (newPwd.length < 8) { showToast('Password must be at least 8 characters', 'error'); return; }
-        if (!/[A-Z]/.test(newPwd)) { showToast('Password must contain an uppercase letter', 'error'); return; }
-        if (!/[0-9]/.test(newPwd)) { showToast('Password must contain a number', 'error'); return; }
-        if (newPwd !== confirmPwd) { showToast('Passwords do not match', 'error'); return; }
-        if (newPwd === currentPwd) { showToast('New password must be different from current', 'error'); return; }
-
+    window.pfRevoke = async function (id, btn) {
         btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[10px]"></i> <span>Updating...</span>';
-
-        try {
-            const response = await fetch('/api/change-password/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken'),
-                },
-                body: JSON.stringify({
-                    current_password: currentPwd,
-                    new_password: newPwd,
-                }),
-            });
-
-            const data = await response.json();
-
-            if (response.ok && data.success) {
-                btn.innerHTML = '<i class="fa-solid fa-check text-[10px]"></i> <span>Updated!</span>';
-                btn.classList.add('bg-emerald-600');
-
-                showToast('Password changed successfully!', 'success');
-
-                const lastUpdated = document.getElementById('password-last-updated');
-                if (lastUpdated) lastUpdated.textContent = 'Last updated just now';
-
-                setTimeout(() => {
-                    closePasswordModal();
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fa-solid fa-key text-[10px]"></i> <span>Change Password</span>';
-                    btn.classList.remove('bg-emerald-600');
-                }, 1500);
-            } else {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-key text-[10px]"></i> <span>Change Password</span>';
-                showToast(data.error || 'Failed to change password', 'error');
-            }
-        } catch (err) {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-key text-[10px]"></i> <span>Change Password</span>';
-            showToast('Network error. Please try again.', 'error');
-        }
-    }
-
-    // ═══════════════════════════════════════════════════════
-    // SESSIONS MODAL
-    // ═══════════════════════════════════════════════════════
-    function openSessionsModal() {
-        document.getElementById('sessions-modal').classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
-        loadSessions();
-    }
-
-    function closeSessionsModal() {
-        document.getElementById('sessions-modal').classList.add('hidden');
-        document.body.style.overflow = '';
-    }
-
-    async function loadSessions() {
-        const list = document.getElementById('sessions-list');
-        list.innerHTML = `
-            <div class="text-center py-8">
-                <i class="fa-solid fa-circle-notch animate-spin text-indigo-400 text-2xl"></i>
-                <p class="text-xs text-slate-400 mt-2">Loading your sessions...</p>
-            </div>
-        `;
-
-        try {
-            const res = await fetch('/api/sessions/');
-            const data = await res.json();
-
-            if (!data.success || !data.sessions || data.sessions.length === 0) {
-                list.innerHTML = `
-                    <div class="text-center py-8">
-                        <i class="fa-solid fa-desktop text-slate-600 text-3xl mb-3"></i>
-                        <p class="text-xs text-slate-400">No active sessions found</p>
-                    </div>
-                `;
-                document.getElementById('sessions-count-label').textContent = 'No active sessions';
-                return;
-            }
-
-            // Update the count label
-            const label = document.getElementById('sessions-count-label');
-            if (label) {
-                label.textContent = `${data.count} active session${data.count > 1 ? 's' : ''}`;
-            }
-
-            // Render sessions
-            list.innerHTML = data.sessions.map(s => `
-                <div class="bg-slate-950/60 border ${s.is_current ? 'border-emerald-500/40' : 'border-slate-800/60'} rounded-xl p-4 flex items-start justify-between gap-3">
-                    <div class="flex items-start gap-3 min-w-0 flex-1">
-                        <div class="w-10 h-10 rounded-lg ${s.is_current ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-slate-800/60 border-slate-700 text-slate-400'} border flex items-center justify-center shrink-0">
-                            <i class="fa-solid ${s.device_type === 'mobile' ? 'fa-mobile-screen' : s.device_type === 'tablet' ? 'fa-tablet-screen-button' : 'fa-desktop'} text-sm"></i>
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <div class="flex items-center gap-2 flex-wrap">
-                                <p class="text-xs font-bold text-white">${s.browser} on ${s.os_name}</p>
-                                ${s.is_current ? '<span class="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[9px] font-bold">CURRENT</span>' : ''}
-                            </div>
-                            <p class="text-[10px] text-slate-500 font-mono mt-1">
-                                <i class="fa-solid fa-location-dot text-[8px] mr-1"></i>${s.ip_address}
-                            </p>
-                            <p class="text-[10px] text-slate-500 font-mono mt-0.5">
-                                <i class="fa-solid fa-clock text-[8px] mr-1"></i>Last active: ${new Date(s.last_activity).toLocaleString()}
-                            </p>
-                        </div>
-                    </div>
-                    ${!s.is_current ? `
-                        <button onclick="revokeSession(${s.id}, this)"
-                                class="px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[10px] font-bold border border-rose-500/30 transition shrink-0 cursor-pointer">
-                            <i class="fa-solid fa-xmark mr-1"></i>Revoke
-                        </button>
-                    ` : ''}
-                </div>
-            `).join('');
-        } catch (err) {
-            list.innerHTML = `
-                <div class="text-center py-8">
-                    <i class="fa-solid fa-circle-exclamation text-rose-400 text-3xl mb-3"></i>
-                    <p class="text-xs text-rose-400">Failed to load sessions</p>
-                </div>
-            `;
-        }
-    }
-
-    async function revokeSession(sessionId, btn) {
-        if (!confirm('Revoke this session? The device will be logged out.')) return;
-
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[10px]"></i>';
-
-        try {
-            const res = await fetch(`/api/sessions/${sessionId}/revoke/`, {
-                method: 'POST',
-                headers: { 'X-CSRFToken': getCookie('csrftoken') },
-            });
-            const data = await res.json();
-
-            if (data.success) {
-                showToast('Session revoked', 'success');
-                loadSessions();
-            } else {
-                showToast(data.error || 'Failed to revoke', 'error');
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-xmark mr-1"></i>Revoke';
-            }
-        } catch (err) {
-            showToast('Network error', 'error');
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-xmark mr-1"></i>Revoke';
-        }
-    }
-
-    async function revokeAllOtherSessions() {
-        if (!confirm('Log out all OTHER devices? You\'ll stay logged in here.')) return;
-
-        const btn = document.getElementById('revoke-all-btn');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[10px]"></i> <span>Revoking...</span>';
-
-        try {
-            const res = await fetch('/api/sessions/revoke-all/', {
-                method: 'POST',
-                headers: { 'X-CSRFToken': getCookie('csrftoken') },
-            });
-            const data = await res.json();
-
-            if (data.success) {
-                showToast(`${data.revoked_count} session${data.revoked_count !== 1 ? 's' : ''} revoked`, 'success');
-                loadSessions();
-            } else {
-                showToast('Failed to revoke sessions', 'error');
-            }
-        } catch (err) {
-            showToast('Network error', 'error');
-        } finally {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-[10px]"></i> <span>Log Out All Other Devices</span>';
-        }
-    }
-
-    // ═══════════════════════════════════════════════════════
-    // CLOSE MODALS ON ESC / BACKDROP
-    // ═══════════════════════════════════════════════════════
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            closePasswordModal();
-            closeSessionsModal();
-        }
-    });
-
-    document.getElementById('password-modal')?.addEventListener('click', (e) => {
-        if (e.target.id === 'password-modal') closePasswordModal();
-    });
-
-    document.getElementById('sessions-modal')?.addEventListener('click', (e) => {
-        if (e.target.id === 'sessions-modal') closeSessionsModal();
-    });
-
-    // ═══════════════════════════════════════════════════════
-    // COOKIE HELPER
-    // ═══════════════════════════════════════════════════════
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
-
-    // ═══════════════════════════════════════════════════════
-    // TOAST
-    // ═══════════════════════════════════════════════════════
-    function showToast(message, type = 'info') {
-        const colors = {
-            info: 'bg-indigo-900/90 border-indigo-500 text-indigo-200',
-            success: 'bg-emerald-900/90 border-emerald-500 text-emerald-200',
-            warn: 'bg-amber-900/90 border-amber-500 text-amber-200',
-            error: 'bg-rose-900/90 border-rose-500 text-rose-200'
-        };
-        const icons = {
-            info: 'fa-circle-info',
-            success: 'fa-circle-check',
-            warn: 'fa-circle-exclamation',
-            error: 'fa-triangle-exclamation'
-        };
-
-        const toast = document.createElement('div');
-        toast.className = `fixed bottom-5 right-5 z-[10000] px-4 py-3 rounded-xl border font-mono text-xs shadow-2xl backdrop-blur-md transition-all duration-300 ${colors[type]}`;
-        toast.innerHTML = `<i class="fa-solid ${icons[type]} mr-2"></i> ${message}`;
-        document.body.appendChild(toast);
-
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            toast.style.transform = 'translateX(20px)';
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
-    }
-
-    // ═══════════════════════════════════════════════════════
-    // INIT
-    // ═══════════════════════════════════════════════════════
-    document.addEventListener('DOMContentLoaded', () => {
-        setTimeout(() => {
-            const spinner = document.getElementById('loading-spinner');
-            if (spinner) {
-                spinner.classList.add('spinner-hidden');
-                setTimeout(() => spinner.remove(), 500);
-            }
-        }, 400);
-
-        // Load sessions count on page load
-        fetch('/api/sessions/')
-            .then(r => r.json())
-            .then(data => {
-                const label = document.getElementById('sessions-count-label');
-                if (label && data.success) {
-                    const count = data.count || 0;
-                    label.textContent = `${count} active session${count !== 1 ? 's' : ''}`;
-                }
-            })
-            .catch(() => {});
-    });
-
-    // ── Added: keep the preference switches as set (on this device), and Escape closes the modals ──
-    (function () {
-        const card = [...document.querySelectorAll('.profile-card')].find(c => /Preferences/.test(c.querySelector('h3')?.textContent || ''));
-        if (card) {
-            card.querySelectorAll('.toggle-switch input[type=checkbox]').forEach(cb => {
-                const key = 'px-pref:' + (cb.closest('.flex')?.querySelector('span')?.textContent || '').trim();
-                try {
-                    const saved = localStorage.getItem(key);
-                    if (saved !== null) cb.checked = saved === '1';
-                } catch (e) {}
-                cb.addEventListener('change', () => { try { localStorage.setItem(key, cb.checked ? '1' : '0'); } catch (e) {} });
-            });
-            const note = document.createElement('p');
-            note.className = 'text-[10px] text-slate-500 mt-3';
-            note.textContent = 'Saved on this device.';
-            card.appendChild(note);
-        }
-        document.addEventListener('keydown', e => {
-            if (e.key !== 'Escape') return;
-            if (typeof closePasswordModal === 'function') closePasswordModal();
-            if (typeof closeSessionsModal === 'function') closeSessionsModal();
-        });
-    })();
+        await fetch(`/api/sessions/${id}/revoke/`, { method: 'POST', headers: { 'X-CSRFToken': csrf(), 'X-Requested-With': 'XMLHttpRequest' } });
+        sessions();
+    };
+    window.pfRevokeAll = async function () {
+        if (!confirm('Log out every other device?')) return;
+        await fetch('{% url "api_revoke_all_sessions" %}', { method: 'POST', headers: { 'X-CSRFToken': csrf(), 'X-Requested-With': 'XMLHttpRequest' } });
+        sessions();
+    };
+    sessions();
+    document.getElementById('pfDel').addEventListener('click', e => { if (e.target.id === 'pfDel') e.target.classList.remove('on'); });
+})();
 </script>
 {% endblock %}
