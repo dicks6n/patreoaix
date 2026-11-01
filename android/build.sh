@@ -39,8 +39,10 @@ java -cp "$TOOLS/dx.jar" com.android.dx.command.Main --dex --min-sdk-version=24 
 
 cp "$B/base.apk" "$B/unsigned.apk"
 (cd "$B" && zip -q -X -0 unsigned.apk classes.dex)
+python3 "$HERE/tools/zipalign.py" "$B/unsigned.apk" "$B/aligned.apk"     # Firebase / Play refuse unaligned APKs
 
 javac -nowarn -cp "$TOOLS/apksig.jar" -d "$B" "$HERE/tools/SignApk.java"
 OUT="$ROOT/store/static/store/downloads"; mkdir -p "$OUT"
-java --add-exports java.base/sun.security.x509=ALL-UNNAMED --add-exports java.base/sun.security.pkcs=ALL-UNNAMED --add-exports java.base/sun.security.util=ALL-UNNAMED -cp "$TOOLS/apksig.jar:$B" SignApk "$B/unsigned.apk" "$OUT/patreoaix.apk" "$KEYSTORE" patreoaix
+java --add-exports java.base/sun.security.x509=ALL-UNNAMED --add-exports java.base/sun.security.pkcs=ALL-UNNAMED --add-exports java.base/sun.security.util=ALL-UNNAMED -cp "$TOOLS/apksig.jar:$B" SignApk "$B/aligned.apk" "$OUT/patreoaix.apk" "$KEYSTORE" patreoaix
+python3 "$HERE/tools/zipalign.py" --check "$OUT/patreoaix.apk"           # still aligned after signing
 ls -l "$OUT/patreoaix.apk"; sha256sum "$OUT/patreoaix.apk"

@@ -5455,7 +5455,7 @@ def account_leverage_view(request):
 # ANDROID APP (android/ → store/static/store/downloads/patreoaix.apk)
 # ═══════════════════════════════════════════════════════════════
 ANDROID_APP = {
-    'package': 'com.patreoaix.app', 'version': '1.1', 'min_android': '7.0',
+    'package': 'com.patreoaix.app', 'version': '1.1.1', 'min_android': '7.0',
     # SHA-256 of the signing certificate (public; the keystore itself is never in the repository)
     'cert_sha256': '4D:EC:3D:F1:26:47:3F:67:6E:8B:0C:B7:1E:E5:F6:68:B5:E6:B1:6B:E2:48:0D:A3:83:29:CA:34:CD:3B:14:84',
 }
