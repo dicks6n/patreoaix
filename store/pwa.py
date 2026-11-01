@@ -18,7 +18,7 @@ from django.templatetags.static import static
 from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_GET
 
-APP_VERSION = '2026-11-01.1'          # bump to make installed apps refresh their cache
+APP_VERSION = '2026-11-01.2'          # bump to make installed apps refresh their cache
 
 
 def _icon(path):
@@ -109,9 +109,12 @@ self.addEventListener('message', e => { if (e.data === 'skip-waiting') self.skip
 self.addEventListener('push', e => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch (err) { d = { title: 'PATREOAIX', body: e.data ? e.data.text() : '' }; }
+  // like a messaging app: heads-up banner with sound and vibration, the app icon, a white status-bar icon,
+  // one stack per P2P order (tag), important ones stay until opened, and an Open button
   e.waitUntil(self.registration.showNotification(d.title || 'PATREOAIX', {
-    body: d.body || '', icon: __ICON__, badge: __BADGE__, tag: d.tag || undefined, data: { url: d.url || '/' }, vibrate: [80, 40, 80],
-    renotify: !!d.tag, timestamp: Date.now(),
+    body: d.body || '', icon: __ICON__, badge: __BADGE__, tag: d.tag || ('px-' + Date.now()), data: { url: d.url || '/' },   // renotify needs a tag
+    vibrate: [200, 100, 200], renotify: true, silent: false, requireInteraction: !!d.sticky, timestamp: Date.now(),
+    actions: [{ action: 'open', title: d.url && d.url.indexOf('/p2p/') === 0 ? 'Open order' : 'Open' }],
   }));
 });
 self.addEventListener('notificationclick', e => {
@@ -131,7 +134,7 @@ self.addEventListener('notificationclick', e => {
 def service_worker(request):
     icons = [_icon(p) for p in ('store/icons/icon-192.png', 'store/icons/icon-512.png', 'store/icons/apple-touch-icon.png')]
     js = SW.replace('__VERSION__', APP_VERSION).replace('__ICONS__', ', '.join(json.dumps(i) for i in icons)) \
-        .replace('__ICON__', json.dumps(icons[0])).replace('__BADGE__', json.dumps(_icon('store/icons/favicon-32.png')))
+        .replace('__ICON__', json.dumps(icons[0])).replace('__BADGE__', json.dumps(_icon('store/icons/badge-96.png')))
     resp = HttpResponse(js, content_type='application/javascript')
     resp['Service-Worker-Allowed'] = '/'
     resp['Cache-Control'] = 'no-cache'

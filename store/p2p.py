@@ -339,12 +339,44 @@ def _sys(order, text):
     P2PMessage.objects.create(order=order, text=text)
 
 
-def _notify(user, order, title, message, ok=True):
+def _notify(user, order, title, message, ok=True, sticky=False):
+    """In-app + phone notification about an order. Notifications of one order stack together on the phone
+    (tag p2p-<ref>); sticky ones (buyer paid, appeals) stay on screen until opened."""
     from .models import Notification
     try:
         Notification.objects.create(user=user, title=title[:200], message=message, category='TRADE',
                                     priority='success' if ok else 'warning', action_url=f'/p2p/order/{order.ref}/',
-                                    action_label='Open order')
+                                    action_label='Open order',
+                                    metadata={'tag': f'p2p-{order.ref}', 'sticky': bool(sticky), 'p2p': order.ref})
+    except Exception:
+        pass
+
+
+def _notify_chat(order, sender, text, has_image):
+    """A chat message in an order → the other trader is told, like a messaging app. Several messages in a row
+    update one notification (and pop up again) instead of filling the inbox."""
+    from datetime import timedelta as _td
+    from .models import Notification
+    other = order.seller if sender.id == order.buyer_id else order.buyer
+    if not other or other.id == sender.id:
+        return
+    preview = (text or '').strip() or ('📷 Photo' if has_image else '')
+    title = f'💬 {sender.username} · P2P {order.ref}'
+    try:
+        n = Notification.objects.filter(user=other, is_read=False, metadata__chat_order=order.ref,
+                                        created_at__gte=timezone.now() - _td(minutes=10)).order_by('-id').first()
+        if n:
+            lines = (n.message.split('\n') + [preview])[-4:]
+            n.message, n.title = '\n'.join(lines)[:600], title
+            n.save(update_fields=['message', 'title'])
+            from . import push
+            from .notif_prefs import should_push
+            if push.enabled() and should_push(n):
+                push.safe_send(other, title, preview, f'/p2p/order/{order.ref}/', tag=f'p2p-{order.ref}')
+        else:
+            Notification.objects.create(user=other, title=title, message=preview[:600], category='TRADE', priority='info',
+                                        action_url=f'/p2p/order/{order.ref}/', action_label='Reply',
+                                        metadata={'tag': f'p2p-{order.ref}', 'p2p': order.ref, 'chat_order': order.ref})
     except Exception:
         pass
 
@@ -513,7 +545,7 @@ def mark_paid(user, ref):
     o.refresh_from_db()
     _sys(o, f'{user.username} marked the order as paid. Seller: check that {o.fiat_amount:,} {o.currency} has really '
             'arrived in your account (not just an SMS or screenshot), then release.')
-    _notify(o.seller, o, f'💰 Buyer paid: release {fmt(o.asset, o.amount)} {o.asset} ({o.ref})',
+    _notify(o.seller, o, f'💰 Buyer paid: release {fmt(o.asset, o.amount)} {o.asset} ({o.ref})', sticky=True, message=
             f'Check your {o.currency} account for {o.fiat_amount:,} {o.currency} from {o.buyer.username}, then release.')
     return o
 
@@ -612,7 +644,7 @@ def appeal(user, ref, reason):
     _sys(o, f'{user.username} opened an appeal: "{o.appeal_reason}". Support will review the chat and proofs. '
             'Upload your payment proof / statement here.')
     other = o.seller if user.id == o.buyer_id else o.buyer
-    _notify(other, o, f'⚠️ Appeal opened on {o.ref}', 'Upload your proof in the order chat; support will decide.', ok=False)
+    _notify(other, o, f'⚠️ Appeal opened on {o.ref}', 'Upload your proof in the order chat; support will decide.', ok=False, sticky=True)
     return o
 
 
@@ -658,7 +690,10 @@ def message(user, ref, text='', image=None):
             raise P2PError('Attach a photo (JPG, PNG) or a PDF.')
         ext = {'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf'}.get(ctype, 'jpg')
         image.name = f'{o.ref}_{secrets.token_hex(8)}.{ext}'
-    return P2PMessage.objects.create(order=o, sender=user, text=text, image=image or '')
+    m = P2PMessage.objects.create(order=o, sender=user, text=text, image=image or '')
+    if not user.is_staff or user.id in (o.buyer_id, o.seller_id):
+        _notify_chat(o, user, text, image is not None)
+    return m
 
 
 def expire_due():
@@ -674,9 +709,36 @@ def expire_due():
     return n
 
 
+def remind_due():
+    """Reminders: the buyer 5 minutes before the payment timer ends, the seller when a paid order waits 15 minutes."""
+    from datetime import timedelta as _td
+    from django.core.cache import cache
+    from .models import P2POrder
+    now = timezone.now()
+    n = 0
+    for o in P2POrder.objects.filter(status='PENDING', expires_at__gt=now, expires_at__lte=now + _td(minutes=5)).select_related('buyer'):
+        if cache.add(f'p2p:remind:pay:{o.ref}', 1, 3600):
+            mins = max(1, int((o.expires_at - now).total_seconds() // 60))
+            _notify(o.buyer, o, f'⏰ {mins} min left to pay ({o.ref})',
+                    f'Pay {o.fiat_amount:,} {o.currency} and tap "I have paid", or the order is cancelled.', ok=False, sticky=True)
+            n += 1
+    for o in P2POrder.objects.filter(status='PAID', paid_at__lte=now - _td(minutes=15)).select_related('seller', 'buyer'):
+        if cache.add(f'p2p:remind:release:{o.ref}', 1, 6 * 3600):
+            _notify(o.seller, o, f'⏳ Buyer is waiting: {o.ref}',
+                    f'{o.buyer.username} marked {o.fiat_amount:,} {o.currency} as paid. Check your account and release, or open an appeal.',
+                    ok=False, sticky=True)
+            n += 1
+    return n
+
+
 def safe_expire():
     try:
-        return expire_due()
+        n = expire_due()
     except Exception as e:
         logger.warning(f'P2P expire: {e}')
-        return 0
+        n = 0
+    try:
+        remind_due()
+    except Exception as e:
+        logger.warning(f'P2P reminders: {e}')
+    return n

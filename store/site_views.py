@@ -238,7 +238,9 @@ def api_notifications(request):
     items = [{
         'id': n.id, 'title': n.title, 'message': n.message, 'category': n.category,
         'priority': n.priority, 'icon': n.icon, 'color': n.color, 'is_read': n.is_read,
-        'action_url': safe_link(n.action_url), 'time_ago': timesince(n.created_at).split(',')[0] + ' ago',
+        'action_url': safe_link(n.action_url),
+        'tag': (n.metadata or {}).get('tag', '') if isinstance(n.metadata, dict) else '',
+        'sticky': bool((n.metadata or {}).get('sticky')) if isinstance(n.metadata, dict) else False, 'time_ago': timesince(n.created_at).split(',')[0] + ' ago',
         'created_at': n.created_at.isoformat(),
     } for n in qs[:20]]
     unread = qs.filter(is_read=False).count()

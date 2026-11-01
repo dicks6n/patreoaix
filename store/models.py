@@ -1780,7 +1780,7 @@ def push_new_notification(sender, instance, created, **kwargs):
         from .notif_prefs import should_push, safe_link
         if should_push(instance):
             safe_send(instance.user, instance.title or 'PATREOAIX', instance.message, safe_link(instance.action_url) or '/',
-                      tag=f'n{instance.pk}')
+                      tag=meta.get('tag') or f'n{instance.pk}', sticky=bool(meta.get('sticky')))
 
 
 # ============================================================

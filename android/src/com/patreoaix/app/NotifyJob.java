@@ -32,6 +32,8 @@ import java.net.URL;
 public class NotifyJob extends JobService {
     private static final int PERIODIC_ID = 7001, NOW_ID = 7002;
     private static final String CHANNEL = "alerts";
+    private static final String GROUP = "com.patreoaix.app.ALERTS";
+    private static final int SUMMARY_ID = 7100;
 
     static void schedule(Context c) {
         JobScheduler js = (JobScheduler) c.getSystemService(Context.JOB_SCHEDULER_SERVICE);
@@ -94,13 +96,22 @@ public class NotifyJob extends JobService {
         SharedPreferences sp = c.getSharedPreferences("notify", Context.MODE_PRIVATE);
         long last = sp.getLong("last_id", -1), max = last;
         boolean first = last < 0;                         // first run: remember what is there, don't flood
+        int posted = 0;
         NotificationManager nm = (NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE);
         if (Build.VERSION.SDK_INT >= 26) {
             NotificationChannel ch = new NotificationChannel(CHANNEL, c.getString(R.string.channel_name), NotificationManager.IMPORTANCE_HIGH);
             ch.setDescription(c.getString(R.string.channel_desc));
             ch.enableVibration(true);
+            ch.setVibrationPattern(new long[]{0, 200, 100, 200});
+            ch.enableLights(true);
+            ch.setLightColor(0xFFF5B301);
+            ch.setShowBadge(true);
+            ch.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
             nm.createNotificationChannel(ch);
         }
+        android.graphics.Bitmap big = null;
+        try { big = android.graphics.BitmapFactory.decodeResource(c.getResources(), R.mipmap.ic_launcher); } catch (Exception e) { }
+        java.util.ArrayList<String> lines = new java.util.ArrayList<String>();
         for (int k = items.length() - 1; k >= 0; k--) {        // oldest first
             JSONObject n = items.getJSONObject(k);
             long id = n.optLong("id");
@@ -109,6 +120,9 @@ public class NotifyJob extends JobService {
             String title = n.optString("title", "PATREOAIX");
             String body = n.optString("message", "");
             String url = n.optString("action_url", "");
+            String tag = n.optString("tag", "");
+            boolean sticky = n.optBoolean("sticky", false);
+            lines.add(title + (body.isEmpty() ? "" : ": " + body.replace('\n', ' ')));
             Intent open = new Intent(c, MainActivity.class).putExtra("url", url.startsWith("/") ? url : "/notifications/")
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             int flags = PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0);
@@ -122,9 +136,31 @@ public class NotifyJob extends JobService {
                 .setAutoCancel(true)
                 .setColor(0xFFF5B301)
                 .setWhen(System.currentTimeMillis())
-                .setShowWhen(true);
+                .setShowWhen(true)
+                .setGroup(GROUP)                                   // stacked under one PATREOAIX group, like a chat app
+                .setCategory(tag.startsWith("p2p-") ? Notification.CATEGORY_MESSAGE : Notification.CATEGORY_EVENT)
+                .setVisibility(Notification.VISIBILITY_PRIVATE);
+            if (big != null) b.setLargeIcon(big);
+            if (sticky) b.setOngoing(false).setPriority(Notification.PRIORITY_MAX);
             if (Build.VERSION.SDK_INT < 26) b.setPriority(Notification.PRIORITY_HIGH).setDefaults(Notification.DEFAULT_ALL);
-            try { nm.notify((int) (id % Integer.MAX_VALUE), b.build()); } catch (SecurityException e) { return; }
+            try {
+                if (!tag.isEmpty()) nm.notify(tag, 1, b.build());       // one notification per P2P order, updated in place
+                else nm.notify((int) (id % Integer.MAX_VALUE), b.build());
+            } catch (SecurityException e) { return; }
+            posted++;
+        }
+        if (posted > 0 && Build.VERSION.SDK_INT >= 24) {                // the group summary: "3 new alerts"
+            Notification.InboxStyle inbox = new Notification.InboxStyle();
+            for (int k = Math.max(0, lines.size() - 5); k < lines.size(); k++) inbox.addLine(lines.get(k));
+            inbox.setSummaryText(lines.size() + (lines.size() == 1 ? " new alert" : " new alerts"));
+            Intent openAll = new Intent(c, MainActivity.class).putExtra("url", "/notifications/")
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            PendingIntent pAll = PendingIntent.getActivity(c, 0, openAll, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            Notification.Builder sum = Build.VERSION.SDK_INT >= 26 ? new Notification.Builder(c, CHANNEL) : new Notification.Builder(c);
+            sum.setSmallIcon(R.drawable.ic_stat).setColor(0xFFF5B301).setStyle(inbox).setGroup(GROUP).setGroupSummary(true)
+                .setContentTitle("PATREOAIX").setContentText(lines.size() + " new alerts").setContentIntent(pAll).setAutoCancel(true);
+            if (big != null) sum.setLargeIcon(big);
+            try { nm.notify(SUMMARY_ID, sum.build()); } catch (SecurityException e) { }
         }
         sp.edit().putLong("last_id", Math.max(max, 0)).apply();
     }

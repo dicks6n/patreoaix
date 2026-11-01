@@ -42,19 +42,22 @@ def unsubscribe(user, endpoint):
     return PushSubscription.objects.filter(user=user, endpoint=endpoint).delete()[0]
 
 
-def send(user, title, body='', url='/', tag=None):
-    """Push to every device of the user. Returns how many devices accepted it."""
+def send(user, title, body='', url='/', tag=None, sticky=False):
+    """Push to every device of the user. Returns how many devices accepted it.
+    tag: notifications with the same tag replace each other (one P2P order = one stack); sticky: stays until opened."""
     if not enabled() or not user:
         return 0
     from pywebpush import webpush, WebPushException
     from .models import PushSubscription
-    payload = json.dumps({'title': title[:120], 'body': (body or '')[:300], 'url': url or '/', 'tag': tag or ''})
+    payload = json.dumps({'title': title[:120], 'body': (body or '')[:300], 'url': url or '/', 'tag': tag or '',
+                          'sticky': bool(sticky)})
     claims = {'sub': 'mailto:' + (getattr(settings, 'VAPID_EMAIL', '') or 'support@patreoaix.com')}
     ok = 0
     for sub in PushSubscription.objects.filter(user=user):
         try:
             webpush({'endpoint': sub.endpoint, 'keys': {'p256dh': sub.p256dh, 'auth': sub.auth}}, payload,
-                    vapid_private_key=settings.VAPID_PRIVATE_KEY, vapid_claims=dict(claims), ttl=3600, timeout=5)
+                    vapid_private_key=settings.VAPID_PRIVATE_KEY, vapid_claims=dict(claims), ttl=86400, timeout=5,
+                    headers={'Urgency': 'high'})
             ok += 1
             PushSubscription.objects.filter(pk=sub.pk).update(last_ok_at=timezone.now())
         except WebPushException as e:

@@ -33,8 +33,8 @@ PY
     -o "$B/base.apk" "$B/compiled/res.zip"
 
 javac --release 8 -nowarn -encoding UTF-8 -cp "$TOOLS/android-all.jar" -d "$B/classes" \
-    $(find "$HERE/src" "$B/gen" -name '*.java') 2>&1 | grep -v "warning: \[options\]" || true
-test -f "$B/classes/com/patreoaix/app/MainActivity.class"
+    $(find "$HERE/src" "$B/gen" -name '*.java')            # any compile error stops the build (set -e)
+for c in MainActivity NotifyJob BootReceiver; do test -f "$B/classes/com/patreoaix/app/$c.class"; done
 java -cp "$TOOLS/dx.jar" com.android.dx.command.Main --dex --min-sdk-version=24 --output="$B/classes.dex" "$B/classes"
 
 cp "$B/base.apk" "$B/unsigned.apk"
