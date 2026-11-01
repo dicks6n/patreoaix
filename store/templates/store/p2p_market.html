@@ -72,7 +72,7 @@
         <form class="pm-filters" method="get">
             <input type="hidden" name="side" value="{{ side }}"><input type="hidden" name="asset" value="{{ asset }}">
             <div class="pp-field"><label>Currency</label>
-                <select name="cur" onchange="this.form.method.value='';this.form.submit()">{% for k, n, f in currencies %}<option value="{{ k }}" {% if k == cur %}selected{% endif %}>{{ f }} {{ k }} · {{ n }}</option>{% endfor %}</select></div>
+                <select name="cur" onchange="this.form.method.value='';this.form.submit()">{% for region, items in currency_groups %}<optgroup label="{{ region }}">{% for k, n, flag in items %}<option value="{{ k }}" {% if k == cur %}selected{% endif %}>{{ flag }} {{ k }} · {{ n }}</option>{% endfor %}</optgroup>{% endfor %}</select></div>
             <div class="pp-field"><label>Payment</label>
                 <select name="method" onchange="this.form.submit()"><option value="">All payment methods</option>{% for k, n, _ in methods %}<option value="{{ k }}" {% if k == method %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
             <div class="pp-field"><label>Amount ({{ cur }})</label><input name="amount" inputmode="decimal" value="{{ amount }}" placeholder="Any amount"></div>

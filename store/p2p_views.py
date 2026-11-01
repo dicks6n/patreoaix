@@ -11,7 +11,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
-from . import p2p, transfers
+from . import p2p, p2p_markets, transfers
 from .models import P2PAd, P2PMessage, P2POrder, P2PPaymentMethod
 
 
@@ -76,7 +76,7 @@ def market(request):
         a.remaining_txt = p2p.fmt(a.asset, a.remaining)
         a.max_now = min(a.max_fiat, p2p._q(a.remaining * a.price))
     ctx = dict(_common(request), side=side, asset=asset, cur=cur, method=method, ads=ads, amount=request.GET.get('amount', ''),
-               currencies=[(k, v[0], v[1]) for k, v in p2p.CURRENCIES.items()], methods=p2p.methods_for(cur),
+               currency_groups=p2p.currency_groups(), methods=p2p.methods_for(cur), cur_name=p2p.CURRENCIES[cur][0], cur_flag=p2p.CURRENCIES[cur][1],
                my_methods=list(P2PPaymentMethod.objects.filter(user=request.user, is_active=True)),
                method_names=dict((k, v[0]) for k, v in p2p.METHODS.items()), tab='market',
                buy_pause=p2p.buy_pause(request.user) if side == 'buy' else None, now=timezone.now())
@@ -120,10 +120,10 @@ def my_ads(request):
     methods = list(P2PPaymentMethod.objects.filter(user=request.user, is_active=True))
     for m in methods:
         m.label = p2p.method_name(m.method)
-        m.currency = next((c for c, v in p2p.CURRENCIES.items() if m.method in v[2]), '')
+        m.currency = 'any' if m.method in p2p_markets.UNIVERSAL else ' '.join(c for c, v in p2p.CURRENCIES.items() if m.method in v[3])
     return render(request, 'store/p2p_ads.html', dict(
         _common(request), ads=ads, methods=methods, tab='ads', time_limits=p2p.TIME_LIMITS,
-        currencies=[(k, v[0], v[1]) for k, v in p2p.CURRENCIES.items()],
+        currency_groups=p2p.currency_groups(),
         all_methods={c: p2p.methods_for(c) for c in p2p.CURRENCIES}, stats=p2p.merchant_stats(request.user),
         form_error=form_error, f=form_data, f_methods=form_data.getlist('methods') if form_data else [],
         f_pay=form_data.getlist('pay_methods') if form_data else []))

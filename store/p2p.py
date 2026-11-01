@@ -23,33 +23,12 @@ from django.db.models import Count, F, Q
 from django.utils import timezone
 
 from .ledger import retry_busy as _retry_busy
+from .p2p_markets import CURRENCIES, METHODS, grouped as currency_groups   # 130+ currencies, local + global methods
 
 logger = logging.getLogger(__name__)
 
 D = Decimal
-CURRENCIES = {
-    'KES': ('Kenyan shilling', '🇰🇪', ['mpesa_ke', 'airtel_ke', 'bank_ke', 'cash_ke']),
-    'UGX': ('Ugandan shilling', '🇺🇬', ['mtn_ug', 'airtel_ug', 'bank_ug']),
-    'TZS': ('Tanzanian shilling', '🇹🇿', ['mpesa_tz', 'tigo_tz', 'airtel_tz', 'bank_tz']),
-    'RWF': ('Rwandan franc', '🇷🇼', ['mtn_rw', 'airtel_rw', 'bank_rw']),
-    'NGN': ('Nigerian naira', '🇳🇬', ['bank_ng', 'opay_ng', 'palmpay_ng', 'kuda_ng']),
-    'GHS': ('Ghanaian cedi', '🇬🇭', ['mtn_gh', 'telecel_gh', 'bank_gh']),
-    'ZAR': ('South African rand', '🇿🇦', ['bank_za', 'capitec_za']),
-    'USD': ('US dollar', '🇺🇸', ['bank_us', 'wise', 'skrill']),
-}
-METHODS = {
-    'mpesa_ke': ('M-Pesa', 'Phone number'), 'airtel_ke': ('Airtel Money', 'Phone number'),
-    'bank_ke': ('Bank transfer', 'Account number'), 'cash_ke': ('M-Pesa Paybill / Till', 'Paybill or till number'),
-    'mtn_ug': ('MTN Mobile Money', 'Phone number'), 'airtel_ug': ('Airtel Money', 'Phone number'), 'bank_ug': ('Bank transfer', 'Account number'),
-    'mpesa_tz': ('Vodacom M-Pesa', 'Phone number'), 'tigo_tz': ('Mixx by Yas (Tigo Pesa)', 'Phone number'),
-    'airtel_tz': ('Airtel Money', 'Phone number'), 'bank_tz': ('Bank transfer', 'Account number'),
-    'mtn_rw': ('MTN MoMo', 'Phone number'), 'airtel_rw': ('Airtel Money', 'Phone number'), 'bank_rw': ('Bank transfer', 'Account number'),
-    'bank_ng': ('Bank transfer', 'Account number'), 'opay_ng': ('OPay', 'OPay number'), 'palmpay_ng': ('PalmPay', 'PalmPay number'),
-    'kuda_ng': ('Kuda', 'Account number'),
-    'mtn_gh': ('MTN MoMo', 'Phone number'), 'telecel_gh': ('Telecel Cash', 'Phone number'), 'bank_gh': ('Bank transfer', 'Account number'),
-    'bank_za': ('Bank transfer (EFT)', 'Account number'), 'capitec_za': ('Capitec Pay', 'Phone or account number'),
-    'bank_us': ('Bank transfer', 'Account number'), 'wise': ('Wise', 'Email or Wise tag'), 'skrill': ('Skrill', 'Email'),
-}
+
 ASSETS = {                        # decimals, name
     'USDT': (2, 'Tether USD'),
     'BTC': (8, 'Bitcoin'),
@@ -81,7 +60,7 @@ def method_name(key):
 
 
 def methods_for(currency):
-    return [(k, METHODS[k][0], METHODS[k][1]) for k in CURRENCIES.get(currency, ('', '', []))[2]]
+    return [(k, METHODS[k][0], METHODS[k][1]) for k in CURRENCIES.get(currency, ('', '', '', []))[3]]
 
 
 def _q(v):
@@ -199,7 +178,7 @@ def post_ad(user, data):
     except ValueError:
         limit = 15
     limit = limit if limit in TIME_LIMITS else 15
-    allowed = set(CURRENCIES[cur][2])
+    allowed = set(CURRENCIES[cur][3])
     if side == 'SELL':
         ids = data.getlist('pay_methods') if hasattr(data, 'getlist') else data.get('pay_methods', [])
         pms = list(P2PPaymentMethod.objects.filter(user=user, is_active=True, pk__in=[i for i in ids if str(i).isdigit()], method__in=allowed))

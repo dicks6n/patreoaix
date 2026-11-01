@@ -45,7 +45,7 @@
         <div class="pp-h"><h2><i class="fa-solid fa-wallet mr-1"></i> My payment methods</h2><p>Where buyers send you money when you sell</p></div>
         {% for m in methods %}
         <div class="pa-method">
-            <div><b>{{ m.label }} · {{ m.currency }}</b><small>{{ m.account_name }} · {{ m.account_number }}{% if m.bank_name %} · {{ m.bank_name }}{% endif %}</small></div>
+            <div><b>{{ m.label }} · {% if m.currency == 'any' %}all currencies{% else %}{{ m.currency|truncatewords:3 }}{% endif %}</b><small>{{ m.account_name }} · {{ m.account_number }}{% if m.bank_name %} · {{ m.bank_name }}{% endif %}</small></div>
             <form method="post" onsubmit="return confirm('Remove this payment method?')">{% csrf_token %}<input type="hidden" name="action" value="del_method"><input type="hidden" name="id" value="{{ m.id }}"><button class="pp-btn ghost sm" type="submit" aria-label="Remove"><i class="fa-solid fa-trash"></i></button></form>
         </div>
         {% empty %}
@@ -53,7 +53,7 @@
         {% endfor %}
         <form method="post" class="pp-grid" style="margin-top:10px">{% csrf_token %}
             <input type="hidden" name="action" value="add_method">
-            <div class="pp-field"><label>Currency</label><select id="pmCur">{% for k, n, flag in currencies %}<option value="{{ k }}">{{ flag }} {{ k }}</option>{% endfor %}</select></div>
+            <div class="pp-field"><label>Currency</label><select id="pmCur">{% for region, items in currency_groups %}<optgroup label="{{ region }}">{% for k, n, flag in items %}<option value="{{ k }}">{{ flag }} {{ k }} · {{ n }}</option>{% endfor %}</optgroup>{% endfor %}</select></div>
             <div class="pp-field"><label>Method</label><select name="method" id="pmMethod"></select></div>
             <div class="pp-field"><label>Full name on the account</label><input name="account_name" required maxlength="100" value="{{ request.user.get_full_name }}"></div>
             <div class="pp-field"><label id="pmNumLabel">Phone / account number</label><input name="account_number" required maxlength="60"></div>
@@ -81,7 +81,7 @@
                 <div class="pa-checks">{% for a in assets %}<label><input type="radio" name="asset" value="{{ a }}" {% if f.asset == a or not f.asset and forloop.first %}checked{% endif %}> {{ a }}</label>{% endfor %}</div>
             </div>
             <div class="pp-grid">
-                <div class="pp-field"><label>Currency</label><select name="currency" id="adCur">{% for k, n, flag in currencies %}<option value="{{ k }}" {% if f.currency == k %}selected{% endif %}>{{ flag }} {{ k }}</option>{% endfor %}</select></div>
+                <div class="pp-field"><label>Currency</label><select name="currency" id="adCur">{% for region, items in currency_groups %}<optgroup label="{{ region }}">{% for k, n, flag in items %}<option value="{{ k }}" {% if f.currency == k %}selected{% endif %}>{{ flag }} {{ k }} · {{ n }}</option>{% endfor %}</optgroup>{% endfor %}</select></div>
                 <div class="pp-field"><label>Price per coin (<span data-cur>KES</span>)</label><input name="price" inputmode="decimal" required placeholder="e.g. 130" value="{{ f.price|default:'' }}"></div>
                 <div class="pp-field"><label>Total amount (<span data-asset>USDT</span>)</label><input name="total" inputmode="decimal" required placeholder="e.g. 500" value="{{ f.total|default:'' }}"></div>
                 <div class="pp-field"><label>Min order (<span data-cur>KES</span>)</label><input name="min_fiat" inputmode="decimal" required placeholder="e.g. 1000" value="{{ f.min_fiat|default:'' }}"></div>
@@ -164,7 +164,7 @@
         if (buy) bm.innerHTML = (M[c] || []).map(function (m, i) { var on = KEPT.length ? KEPT.indexOf(m[0]) >= 0 : i === 0; return '<label><input type="checkbox" name="methods" value="' + m[0] + '"' + (on ? ' checked' : '') + '> ' + m[1] + '</label>'; }).join('');
         var sm = document.getElementById('adSellMethods'), any = false;
         sm.hidden = buy;
-        sm.querySelectorAll('label').forEach(function (l) { var ok = l.dataset.cur === c; l.hidden = !ok; l.querySelector('input').disabled = !ok; any = any || ok; });
+        sm.querySelectorAll('label').forEach(function (l) { var ok = l.dataset.cur === 'any' || (' ' + l.dataset.cur + ' ').indexOf(' ' + c + ' ') >= 0; l.hidden = !ok; l.querySelector('input').disabled = !ok; any = any || ok; });
         document.getElementById('adNoMethods').hidden = buy || any;
         document.getElementById('adHint').textContent = buy
             ? 'Sellers lock their ' + asset + ' when they take your ad; you pay them by ' + c + ', they release the coins to you.'
