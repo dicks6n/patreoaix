@@ -690,11 +690,15 @@
         /* phones: the header has several buttons right of the bell, so a dropdown anchored to the bell ran off the
            left edge. Show the panels as sheets under the header, inside the screen. */
         @media (max-width: 640px) {
-            #notif-dropdown { position: fixed; top: 60px; left: 10px; right: 10px; width: auto; max-width: none; }
-            #notif-list { max-height: calc(100dvh - 190px); }
+            #notif-dropdown { position: fixed; top: calc(62px + env(safe-area-inset-top)); left: 10px; right: 10px; width: auto; max-width: none; z-index: 60; }
+            #notif-list { max-height: min(58vh, calc(100dvh - 260px)); }
+            #notif-backdrop.show { display: block; }
             #acct-menu { position: fixed; top: 60px; right: 10px; left: auto; max-width: calc(100vw - 20px); }
             .px-notif-item { padding: 12px 14px; }
         }
+        #notif-backdrop { display: none; position: fixed; inset: 0; z-index: 25; background: rgba(0,0,0,.45); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
+        .notif-x { width: 30px; height: 30px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: var(--px-dim); border: 1px solid var(--px-line); background: transparent; cursor: pointer; }
+        .notif-x:hover { color: var(--px-text); background: var(--px-hover); }
         /* notifications list */
         .px-notif-item { display: flex; gap: 12px; padding: 12px 16px; cursor: pointer; border-bottom: 1px solid var(--px-line-soft); }
         .px-notif-item:hover { background: var(--px-hover); }
@@ -978,13 +982,17 @@
                         <i class="fa-regular fa-bell"></i>
                         <span id="notif-badge" class="hidden absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center" style="background:var(--px-down);color:#fff;border:2px solid var(--px-bg)">0</span>
                     </button>
+                    <div id="notif-backdrop" onclick="closeNotificationDropdown()"></div>
                     <div id="notif-dropdown" class="hidden px-pop absolute right-0 top-11 w-[380px] max-w-[calc(100vw-24px)] overflow-hidden z-50">
                         <div class="px-4 py-3 flex items-center justify-between" style="border-bottom:1px solid var(--px-line)">
                             <div>
                                 <h3 class="text-sm font-semibold" style="color:var(--px-text)">Notifications</h3>
                                 <p class="text-[11px] mt-0.5" style="color:var(--px-mute)" id="notif-subtitle">Loading…</p>
                             </div>
-                            <button onclick="markAllNotificationsRead()" class="text-[11px] font-semibold" style="color:var(--px-accent)">Mark all read</button>
+                            <div class="flex items-center gap-2">
+                                <button onclick="markAllNotificationsRead()" class="text-[11px] font-semibold" style="color:var(--px-accent)">Mark all read</button>
+                                <button type="button" class="notif-x" onclick="closeNotificationDropdown()" aria-label="Close notifications"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
                         </div>
                         <div id="notif-list" class="max-h-[420px] overflow-y-auto">
                             <div class="p-8 text-center text-xs" style="color:var(--px-mute)"><i class="fa-solid fa-spinner fa-spin"></i></div>
@@ -1180,7 +1188,9 @@
             const pairs = [['notif-wrapper', 'notif-dropdown'], ['acct-wrapper', 'acct-menu']];
             pairs.forEach(([w, d]) => {
                 const wrap = document.getElementById(w), dd = document.getElementById(d);
-                if (wrap && dd && !wrap.contains(e.target)) dd.classList.add('hidden');
+                if (wrap && dd && !wrap.contains(e.target)) {
+                    if (d === 'notif-dropdown') closeNotificationDropdown(); else dd.classList.add('hidden');
+                }
             });
         });
         function setVH() { document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`); }
@@ -1358,12 +1368,32 @@
         // ══════════════════════════════════════════
         const NOTIF_CSRF = '{{ csrf_token }}';
         let notifUnread = null;
+        // On phones the panel is a sheet with a backdrop; back button, Esc, ✕ or a tap outside closes it.
+        let notifHist = false;
+        function openNotificationDropdown() {
+            const dd = document.getElementById('notif-dropdown');
+            if (!dd) return;
+            document.getElementById('acct-menu')?.classList.add('hidden');
+            dd.classList.remove('hidden');
+            const bd = document.getElementById('notif-backdrop');
+            if (bd) { if (bd.parentElement !== document.body) document.body.appendChild(bd); bd.classList.add('show'); }   // outside the header (its blur would trap it)
+            loadNotifications();
+            if (window.innerWidth <= 640 && !notifHist) { try { history.pushState({ pxNotif: 1 }, ''); notifHist = true; } catch (e) {} }
+        }
+        function closeNotificationDropdown(fromHistory) {
+            const dd = document.getElementById('notif-dropdown');
+            if (!dd || dd.classList.contains('hidden')) return;
+            dd.classList.add('hidden');
+            document.getElementById('notif-backdrop')?.classList.remove('show');
+            if (notifHist) { notifHist = false; if (!fromHistory) { try { history.back(); } catch (e) {} } }
+        }
         function toggleNotificationDropdown() {
             const dd = document.getElementById('notif-dropdown');
             if (!dd) return;
-            dd.classList.toggle('hidden');
-            if (!dd.classList.contains('hidden')) loadNotifications();
+            dd.classList.contains('hidden') ? openNotificationDropdown() : closeNotificationDropdown();
         }
+        window.addEventListener('popstate', () => { if (notifHist) closeNotificationDropdown(true); });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNotificationDropdown(); });
         async function loadNotifications() {
             try {
                 const res = await fetch('/api/notifications/', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
