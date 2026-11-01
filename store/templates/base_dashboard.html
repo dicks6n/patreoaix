@@ -631,6 +631,7 @@
         }
         .px-tab i { font-size: 17px; line-height: 1; }
         .px-tab:active { transform: scale(0.94); }
+        @media (max-width: 1023px) { #pxCookie { bottom: calc(86px + env(safe-area-inset-bottom)) !important; } }   /* keep the tab bar tappable */
         .px-tab.active { color: var(--px-accent); font-weight: 700; }
 
         .px-fab {
@@ -937,6 +938,7 @@
                     </div>
                 </div>
 
+                <span class="hidden sm:block"><a href="{% url 'p2p' %}" class="header-icon-btn" title="P2P: buy &amp; sell crypto" aria-label="P2P" style="width:auto;padding:0 10px;gap:6px;font-size:12px;font-weight:700"><i class="fa-solid fa-people-arrows"></i><span class="hidden sm:inline">P2P</span></a></span>
                 <span class="hidden sm:block"><a href="{% url 'wallet' %}" class="header-icon-btn" title="Wallet" aria-label="Wallet"><i class="fa-solid fa-wallet"></i></a></span>
                 <!-- Terminal shortcut (desktop / tablet only — mobile uses the bottom bar) -->
                 <span class="hidden sm:block">
@@ -1096,12 +1098,13 @@
             <div class="w-14 shrink-0" aria-hidden="true"></div>
 
             <!-- right tabs -->
+            <a href="{% url 'p2p' %}" class="px-tab {% if request.resolver_match.url_name|slice:':3' == 'p2p' %}active{% endif %}">
+                <i class="fa-solid fa-people-arrows"></i><span>P2P</span>
+            </a>
             <a href="{% url 'wallet' %}" class="px-tab {% if request.resolver_match.url_name == 'wallet' or request.resolver_match.url_name == 'wallet_send' %}active{% endif %}">
                 <i class="fa-solid fa-wallet"></i><span>Wallet</span>
             </a>
-            <a href="{% url 'profile' %}" class="px-tab {% if request.resolver_match.url_name == 'profile' %}active{% endif %}">
-                <i class="fa-solid fa-user"></i><span>Profile</span>
-            </a>
+
 
             <!-- FAB centered over spacer -->
             <a href="{% url 'trade' %}" class="px-fab" aria-label="Trade">

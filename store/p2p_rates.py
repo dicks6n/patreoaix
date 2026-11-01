@@ -108,18 +108,57 @@ def refresh_ad_prices(force=False):
     from .models import P2PAd
     if not force and not cache.add('p2p:refresh', 1, 60):
         return 0
+    from django.db import transaction
+    from .models import P2PAd
+    ads = list(P2PAd.objects.filter(price_type='margin').exclude(status='CLOSED').only('id', 'asset', 'currency', 'margin', 'price'))
+    markets = {k: market_price(*k) for k in {(a.asset, a.currency) for a in ads}}   # network first, outside the write
     n = 0
-    markets = {}
-    for ad in P2PAd.objects.filter(price_type='margin').exclude(status='CLOSED').only('id', 'asset', 'currency', 'margin', 'price'):
-        k = (ad.asset, ad.currency)
-        if k not in markets:
-            markets[k] = market_price(*k)
-        if markets[k]:
-            p = with_margin(markets[k], ad.margin)
-            if p != ad.price:
-                P2PAd.objects.filter(pk=ad.pk).update(price=p)
-                n += 1
+    with transaction.atomic():                     # one short write (SQLite: one lock, not hundreds)
+        for ad in ads:
+            m = markets.get((ad.asset, ad.currency))
+            if m:
+                p = with_margin(m, ad.margin)
+                if p != ad.price:
+                    P2PAd.objects.filter(pk=ad.pk).update(price=p)
+                    n += 1
     return n
+
+
+def fx_cached(currency):
+    """USD → currency from the cache only (never waits on the network; for page loads)."""
+    t = cache.get(FX_KEY) or cache.get(FX_LAST_KEY) or {}
+    return t.get((currency or '').upper())
+
+
+def market_price_fast(asset, currency):
+    """market_price() without any network call: cached rates, or None."""
+    usd, rate = coin_usd(asset), fx_cached(currency)
+    if not usd or not rate:
+        return None
+    return (usd * rate).quantize(D('0.01'), rounding=ROUND_HALF_UP)
+
+
+def refresh_pair(asset, currency):
+    """Fast page-load refresh: only the margin ads of one coin/currency, cached rates, at most every 20 s."""
+    from django.db import transaction
+    from .models import P2PAd
+    try:
+        if not cache.add(f'p2p:refresh:{asset}:{currency}', 1, 20):
+            return 0
+        m = market_price_fast(asset, currency)
+        if not m:
+            return 0
+        n = 0
+        with transaction.atomic():
+            for ad in P2PAd.objects.filter(price_type='margin', asset=asset, currency=currency, status='ACTIVE').only('id', 'margin', 'price'):
+                p = with_margin(m, ad.margin)
+                if p != ad.price:
+                    P2PAd.objects.filter(pk=ad.pk).update(price=p)
+                    n += 1
+        return n
+    except Exception as e:
+        logger.warning(f'P2P pair refresh: {e}')
+        return 0
 
 
 def safe_refresh():

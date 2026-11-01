@@ -24,14 +24,15 @@ def _common(request):
     u = request.user
     open_n = P2POrder.objects.filter(Q(buyer=u) | Q(seller=u), status__in=('PENDING', 'PAID', 'APPEAL')).count()
     bals = p2p.balances(u)
+    lvl = p2p.seller_level(u)
     return {'live': p2p.live(), 'fee_pct': p2p.fee_pct(), 'open_n': open_n, 'assets': list(p2p.ASSETS.keys()),
-            'bals': [(a, p2p.fmt(a, b)) for a, b in bals.items()], 'can_trade': p2p.can_trade(u)}
+            'bals': [(a, p2p.fmt(a, b)) for a, b in bals.items()], 'can_trade': p2p.can_trade(u),
+            'sell_level': lvl, 'sell_level_name': p2p.LEVELS[lvl], 'high_risk': sorted(p2p.HIGH_RISK)}
 
 
 @login_required
 def market(request):
     p2p.safe_expire()
-    p2p_rates.safe_refresh()                    # margin ads follow the live market (at most once a minute)
     if request.method == 'POST':
         act = request.POST.get('action')
         try:
@@ -57,6 +58,7 @@ def market(request):
     cur = (request.GET.get('cur') or request.COOKIES.get('p2p_cur') or 'KES').upper()
     cur = cur if cur in p2p.CURRENCIES else 'KES'
     method = request.GET.get('method') or ''
+    p2p_rates.refresh_pair(asset, cur)          # this pair only, cached rates: no waiting on the network
     qs = P2PAd.objects.filter(status='ACTIVE', asset=asset, currency=cur, demo=False,
                               side='SELL' if side == 'buy' else 'BUY').exclude(user=request.user) \
         .exclude(user_id__in=p2p.blocked_ids(request.user)).select_related('user')
@@ -69,6 +71,12 @@ def market(request):
                 stock[k] = p2p.balance(a.user, a.asset)
             a._stock = stock[k]
     ads = [a for a in ads if not a.pool or a._stock * a.price >= a.min_fiat]
+    levels = {}                                      # sell ads only while the owner's plan allows them (Pro / VIP)
+    for a in ads:
+        if a.side == 'SELL' and a.user_id not in levels:
+            levels[a.user_id] = p2p.seller_level(a.user)
+    ads = [a for a in ads if a.side != 'SELL' or levels[a.user_id] == 'vip'
+           or (levels[a.user_id] == 'pro' and not any(k in p2p.HIGH_RISK for k in a.methods))]
     try:
         want = float(str(request.GET.get('amount') or '').replace(',', '')) if request.GET.get('amount') else None
     except ValueError:
@@ -77,13 +85,16 @@ def market(request):
         ads = [a for a in ads if float(a.min_fiat) <= want <= float(a.max_fiat) and want <= float(a.remaining * a.price)]
     stats = p2p.stats_map([a.user for a in ads])
     mine = list(P2PPaymentMethod.objects.filter(user=request.user, is_active=True))
+    my_lvl = p2p.seller_level(request.user)
     for a in ads:
-        a.my_methods = [(m.id, f'{p2p.method_name(m.method)} · {m.account_number}') for m in mine if m.method in a.methods]
+        a.my_methods = [(m.id, f'{p2p.method_name(m.method)} · {m.account_number}') for m in mine
+                        if m.method in a.methods and (my_lvl == 'vip' or (my_lvl == 'pro' and m.method not in p2p.HIGH_RISK))]
+        a.risky = any(k in p2p.HIGH_RISK for k in a.methods)
         a.method_opts = [(k, p2p.method_name(k), p2p.METHODS.get(k, ('', 'Number'))[1]) for k in a.methods]
         a.st = stats[a.user_id]
         a.method_names = [p2p.method_name(m) for m in a.methods]
         if a.pool:                                   # desk sell offer: what the desk really holds right now
-            a.remaining = min(a.remaining, p2p.balance(a.user, a.asset))
+            a.remaining = min(a.remaining, a._stock)
         a.remaining_txt = p2p.fmt(a.asset, a.remaining)
         a.max_now = min(a.max_fiat, p2p._q(a.remaining * a.price))
         a.desk = a.user.is_staff
@@ -91,7 +102,7 @@ def market(request):
                currency_groups=p2p.currency_groups(), methods=p2p.methods_for(cur), cur_name=p2p.CURRENCIES[cur][0], cur_flag=p2p.CURRENCIES[cur][1],
                my_methods=list(P2PPaymentMethod.objects.filter(user=request.user, is_active=True)),
                method_names=dict((k, v[0]) for k, v in p2p.METHODS.items()), tab='market',
-               market_now=p2p_rates.market_price(asset, cur),
+               market_now=p2p_rates.market_price_fast(asset, cur),
                buy_pause=p2p.buy_pause(request.user) if side == 'buy' else None, now=timezone.now())
     resp = render(request, 'store/p2p_market.html', ctx)
     resp.set_cookie('p2p_cur', cur, max_age=365 * 86400, samesite='Lax')
@@ -133,6 +144,7 @@ def my_ads(request):
     methods = list(P2PPaymentMethod.objects.filter(user=request.user, is_active=True))
     for m in methods:
         m.label = p2p.method_name(m.method)
+        m.risky = m.method in p2p.HIGH_RISK
         m.currency = 'any' if m.method in p2p_markets.UNIVERSAL else ' '.join(c for c, v in p2p.CURRENCIES.items() if m.method in v[3])
     return render(request, 'store/p2p_ads.html', dict(
         _common(request), ads=ads, methods=methods, tab='ads', time_limits=p2p.TIME_LIMITS,

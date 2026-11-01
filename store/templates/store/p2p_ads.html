@@ -30,6 +30,16 @@
 <div class="pp-wrap">
     {% include 'partials/p2p_nav.html' %}
 
+    <div class="pp-msg" style="margin-bottom:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <span style="flex:1;min-width:220px"><i class="fa-solid fa-shield-halved mr-1"></i> Your P2P level: <b>{{ sell_level_name }}</b>.
+        {% if sell_level == 'none' %}Starter accounts can buy. Selling needs a <b>Pro</b> plan; high-risk methods (PayPal, Cash App, Venmo, Zelle, Skrill, Neteller, Revolut, Payoneer, Chime, Apple Cash) need <b>VIP</b>.
+        {% elif sell_level == 'pro' %}You can sell with normal methods (mobile money, bank, Wise…). High-risk reversible methods (PayPal, Cash App, Venmo, Zelle, Skrill…) need <b>VIP</b>.
+        {% else %}You can sell with every method, including high-risk ones. Check every payment carefully before releasing.{% endif %}
+        <a class="underline" href="{% url 'legal_doc' 'p2p' %}#sellers">Seller rules</a></span>
+        {% if sell_level != 'vip' %}<a class="pp-btn sm" href="{% url 'subscription_billing' %}">Upgrade</a>{% endif %}
+    </div>
+
+
     <div class="pp-card">
         <div class="pp-h"><h2>My merchant profile</h2><p>What other traders see next to your ads</p></div>
         <div class="pa-stats">
@@ -45,7 +55,7 @@
         <div class="pp-h"><h2><i class="fa-solid fa-wallet mr-1"></i> My payment methods</h2><p>Where buyers send you money when you sell</p></div>
         {% for m in methods %}
         <div class="pa-method">
-            <div><b>{{ m.label }} · {% if m.currency == 'any' %}all currencies{% else %}{{ m.currency|truncatewords:3 }}{% endif %}</b><small>{{ m.account_name }} · {{ m.account_number }}{% if m.bank_name %} · {{ m.bank_name }}{% endif %}</small></div>
+            <div><b>{{ m.label }}{% if m.risky %} <span class="pp-tag" title="High-risk: payments can be reversed">⚠ high-risk</span>{% endif %} · {% if m.currency == 'any' %}all currencies{% else %}{{ m.currency|truncatewords:3 }}{% endif %}</b><small>{{ m.account_name }} · {{ m.account_number }}{% if m.bank_name %} · {{ m.bank_name }}{% endif %}</small></div>
             <form method="post" onsubmit="return confirm('Remove this payment method?')">{% csrf_token %}<input type="hidden" name="action" value="del_method"><input type="hidden" name="id" value="{{ m.id }}"><button class="pp-btn ghost sm" type="submit" aria-label="Remove"><i class="fa-solid fa-trash"></i></button></form>
         </div>
         {% empty %}
@@ -136,16 +146,20 @@
 {% block extra_js %}
 {{ all_methods|json_script:"p2pMethods" }}
 {{ f_methods|json_script:"p2pKept" }}
+{{ high_risk|json_script:"p2pRisky" }}
+{{ sell_level|json_script:"p2pLevel" }}
 <script>
 (function () {
     var M = JSON.parse(document.getElementById('p2pMethods').textContent);
     var KEPT = JSON.parse(document.getElementById('p2pKept').textContent);
+    var RISKY = JSON.parse(document.getElementById('p2pRisky').textContent), LEVEL = JSON.parse(document.getElementById('p2pLevel').textContent);
+    function riskTag(k) { return RISKY.indexOf(k) >= 0 ? (LEVEL === 'vip' ? ' ⚠ high-risk' : ' 🔒 VIP only') : ''; }
     var err = document.getElementById('adError');
     if (err) setTimeout(function () { err.scrollIntoView({ block: 'center' }); }, 50);
     // payment-method form: methods for the chosen currency
     var pmCur = document.getElementById('pmCur'), pmMethod = document.getElementById('pmMethod');
     function fillPm() {
-        pmMethod.innerHTML = (M[pmCur.value] || []).map(function (m) { return '<option value="' + m[0] + '" data-label="' + m[2] + '">' + m[1] + '</option>'; }).join('');
+        pmMethod.innerHTML = (M[pmCur.value] || []).map(function (m) { return '<option value="' + m[0] + '" data-label="' + m[2] + '"' + (RISKY.indexOf(m[0]) >= 0 && LEVEL !== 'vip' ? ' disabled' : '') + '>' + m[1] + riskTag(m[0]) + '</option>'; }).join('');
         pmLabel();
     }
     function pmLabel() {

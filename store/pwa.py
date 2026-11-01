@@ -51,11 +51,11 @@ def manifest(request):
         'categories': ['finance', 'business'],
         'icons': icons,
         'shortcuts': [
+            {'name': 'P2P: buy & sell crypto', 'short_name': 'P2P', 'url': '/p2p/?source=pwa', 'icons': [icons[0]]},
             {'name': 'Terminal', 'url': '/terminal/?source=pwa', 'icons': [icons[0]]},
             {'name': 'Dashboard', 'url': '/?source=pwa', 'icons': [icons[0]]},
             {'name': 'Market overview', 'url': '/market-overview/?source=pwa', 'icons': [icons[0]]},
             {'name': 'Price alerts', 'url': '/price-alerts/?source=pwa', 'icons': [icons[0]]},
-            {'name': 'Copy trading', 'url': '/copy-trading/?source=pwa', 'icons': [icons[0]]},
             {'name': 'Deposit', 'url': '/account-operations/funding/payment-methods/deposit?source=pwa', 'icons': [icons[0]]},
         ],
     }

@@ -129,6 +129,59 @@ def can_trade(user):
 
 
 # ═══════════════════════════════════════════════════════════════
+# WHO MAY SELL (by plan)
+#   Starter / free trial : buy only
+#   Pro                  : sell with normal payment methods
+#   VIP, staff (Desk)    : sell with every method, including the high-risk (reversible) ones
+# ═══════════════════════════════════════════════════════════════
+HIGH_RISK = frozenset({'paypal', 'cashapp_us', 'venmo_us', 'zelle_us', 'skrill', 'neteller', 'revolut', 'revolut_ro',
+                       'payoneer', 'chime_us', 'apple_cash_us'})
+LEVELS = {'none': 'Buyer only', 'pro': 'Seller (Pro)', 'vip': 'Seller · all methods (VIP)'}
+
+
+def is_high_risk(key):
+    return key in HIGH_RISK
+
+
+def seller_level(user):
+    """'none' | 'pro' | 'vip'. Only paid, active plans may sell; the free trial may not."""
+    if not getattr(user, 'is_authenticated', False):
+        return 'none'
+    if user.is_staff:
+        return 'vip'
+    from .membership import tier_of
+    tier, active = tier_of(user)
+    if not active:
+        return 'none'
+    return {'VIP': 'vip', 'PRO': 'pro'}.get(tier, 'none')
+
+
+def check_can_sell(user, method_keys=()):
+    """Raise P2PError when this user's plan does not allow selling with these methods."""
+    level = seller_level(user)
+    if level == 'none':
+        raise P2PError('Selling on P2P needs a Pro or VIP plan. Starter accounts can buy. Upgrade at /subscription/.')
+    risky = sorted({method_name(k) for k in method_keys if k in HIGH_RISK})
+    if risky and level != 'vip':
+        raise P2PError(f'{", ".join(risky)} {"is a" if len(risky) == 1 else "are"} high-risk (reversible) payment '
+                       f'method{"" if len(risky) == 1 else "s"}: only VIP sellers may receive payments there. '
+                       'Choose another method or upgrade to VIP at /subscription/.')
+
+
+def can_sell_with(user, method_keys=()):
+    try:
+        check_can_sell(user, method_keys)
+        return True
+    except P2PError:
+        return False
+
+
+def ad_owner_may_sell(ad):
+    """A SELL ad stays on the market only while its owner's plan still covers it."""
+    return ad.side != 'SELL' or can_sell_with(ad.user, ad.methods or ())
+
+
+# ═══════════════════════════════════════════════════════════════
 # PAYMENT METHODS & ADS
 # ═══════════════════════════════════════════════════════════════
 def add_method(user, data):
@@ -136,6 +189,7 @@ def add_method(user, data):
     key = data.get('method', '')
     if key not in METHODS:
         raise P2PError('Choose a payment method.')
+    check_can_sell(user, [key])                    # payment methods are where a seller gets paid
     name, number = (data.get('account_name') or '').strip(), (data.get('account_number') or '').strip()
     if len(name) < 3 or len(number) < 4:
         raise P2PError('Enter the account name and number exactly as registered.')
@@ -161,6 +215,8 @@ def post_ad(user, data):
     if not ok:
         raise P2PError(why)
     side = 'SELL' if data.get('side') == 'SELL' else 'BUY'
+    if side == 'SELL':
+        check_can_sell(user)
     asset = (data.get('asset') or 'USDT').upper()
     if asset not in ASSETS:
         raise P2PError('Choose USDT, BTC or ETH.')
@@ -202,6 +258,7 @@ def post_ad(user, data):
         if not pms:
             raise P2PError(f'Add at least one {cur} payment method where buyers will pay you.')
         keys = sorted({p.method for p in pms})
+        check_can_sell(user, keys)
     else:
         keys = data.getlist('methods') if hasattr(data, 'getlist') else data.get('methods', [])
         keys = sorted({k for k in keys if k in allowed})
@@ -328,9 +385,11 @@ def express(user, side, asset, currency, fiat):
     """Pick the best offer that fits `fiat` and open the order. side: 'buy' or 'sell' (what the user wants)."""
     from .models import P2PAd, P2PPaymentMethod
     from . import p2p_rates
-    p2p_rates.safe_refresh()
+    p2p_rates.refresh_pair(asset, currency)
     fiat = _q(_dec(fiat, 'amount'))
     want_sell = side == 'sell'
+    if want_sell:
+        check_can_sell(user)
     qs = P2PAd.objects.filter(status='ACTIVE', asset=asset, currency=currency, demo=not live(),
                               side='BUY' if want_sell else 'SELL', min_fiat__lte=fiat, max_fiat__gte=fiat) \
         .exclude(user=user).exclude(user_id__in=blocked_ids(user)).order_by('-price' if want_sell else 'price')
@@ -339,8 +398,10 @@ def express(user, side, asset, currency, fiat):
         if ad.remaining * ad.price < fiat:
             continue
         method_id = None
+        if not want_sell and not ad_owner_may_sell(ad):
+            continue
         if want_sell:
-            match = next((mine[k] for k in ad.methods if k in mine), None)
+            match = next((mine[k] for k in ad.methods if k in mine and can_sell_with(user, [k])), None)
             if not match:
                 continue
             method_id = match.id
@@ -370,6 +431,8 @@ def open_order(user, ad_id, fiat=None, coins=None, method_id=None):
             raise P2PError('You cannot trade with your own ad.')
         if ad.user_id in blocked_ids(user):
             raise P2PError('You cannot trade with this user.')
+        if ad.side == 'SELL' and not ad_owner_may_sell(ad):
+            raise P2PError('This ad is no longer available.')
         if ad.side == 'SELL':
             until = buy_pause(user)
             if until and until > timezone.now():
@@ -404,9 +467,11 @@ def open_order(user, ad_id, fiat=None, coins=None, method_id=None):
                     raise P2PError('This offer is temporarily out of stock. Try a smaller amount or another offer.')
         else:                                       # taker sells to the advertiser: lock the taker's USDT now
             buyer, seller, escrow_in_ad = ad.user, user, False
+            check_can_sell(user)
             pm = P2PPaymentMethod.objects.filter(user=user, pk=method_id, is_active=True, method__in=ad.methods).first()
             if not pm:
                 raise P2PError(f'Choose one of your payment methods: {", ".join(method_name(m) for m in ad.methods)}.')
+            check_can_sell(user, [pm.method])
             pay_to = [{'method': method_name(pm.method), 'name': pm.account_name, 'number': pm.account_number, 'bank': pm.bank_name}]
             _move(user, asset, -amount, ad.demo, 'P2P_ESCROW', f'P2P sell: {fmt(asset, amount)} {asset} locked in escrow')
         if not P2PAd.objects.filter(pk=ad.pk, status='ACTIVE', remaining__gte=amount).update(

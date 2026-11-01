@@ -10785,7 +10785,7 @@ def _legal(request, template, current=''):
     return render(request, template, {
         'domain': settings.SITE_DOMAIN, 'updated': '1 November 2026', 'legal_docs': LEGAL_DOCS, 'current': current,
         'contact': settings.SUPPORT_EMAIL,
-        'p2p_fee': p2p.fee_pct(), 'p2p_cancel_limit': p2p.CANCEL_LIMIT, 'p2p_currencies': len(p2p.CURRENCIES),
+        'p2p_fee': p2p.fee_pct(), 'p2p_cancel_limit': p2p.CANCEL_LIMIT, 'p2p_high_risk': sorted({p2p.method_name(k) for k in p2p.HIGH_RISK}), 'p2p_currencies': len(p2p.CURRENCIES),
         'p2p_max_open': p2p.MAX_OPEN_ORDERS, 'p2p_time_limits': p2p.TIME_LIMITS,
         'tr_max': lim['max'], 'tr_daily': lim['daily'], 'tr_no_kyc': lim['no_kyc_daily'],
         'prop_catalog': prop_firm.catalog(), 'prop_leverage': prop_firm.LEVERAGE, 'prop_payout_days': prop_firm.PAYOUT_EVERY_DAYS,

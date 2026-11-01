@@ -1,5 +1,12 @@
-<a href="{% url 'p2p' %}" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:14px;background:var(--px-panel,#141821);border:1px solid var(--px-accent,#f5b301);color:var(--px-text,#e8ecf3);text-decoration:none;margin:0 0 14px">
-    <span style="width:38px;height:38px;border-radius:10px;background:var(--px-accent,#f5b301);color:var(--px-accent-ink,#0b0e14);display:inline-flex;align-items:center;justify-content:center;flex:none"><i class="fa-solid fa-people-arrows"></i></span>
-    <span style="flex:1;min-width:0"><b style="display:block;font-size:14px">Buy USDT, BTC or ETH with M-Pesa, MoMo or bank</b><span style="font-size:12px;opacity:.75">P2P: trade directly with other users · coins protected by escrow</span></span>
-    <span style="font-size:13px;font-weight:800;color:var(--px-accent,#f5b301);white-space:nowrap">Open P2P →</span>
-</a>
+<div style="padding:12px 14px;border-radius:14px;background:var(--px-panel,#141821);border:1px solid var(--px-accent,#f5b301);color:var(--px-text,#e8ecf3);margin:0 0 14px">
+    <a href="{% url 'p2p' %}" style="display:flex;align-items:center;gap:12px;color:inherit;text-decoration:none">
+        <span style="width:38px;height:38px;border-radius:10px;background:var(--px-accent,#f5b301);color:var(--px-accent-ink,#0b0e14);display:inline-flex;align-items:center;justify-content:center;flex:none"><i class="fa-solid fa-people-arrows"></i></span>
+        <span style="flex:1;min-width:0"><b style="display:block;font-size:14px">P2P: buy or sell USDT, BTC, ETH</b><span style="font-size:12px;opacity:.75">M-Pesa, MoMo, bank and more · coins protected by escrow</span></span>
+        <span style="font-size:13px;font-weight:800;color:var(--px-accent,#f5b301);white-space:nowrap">Open →</span>
+    </a>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px">
+        <a href="{% url 'p2p' %}?side=buy" style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:42px;border-radius:10px;background:var(--px-up,#16c784);color:#fff;font-size:13px;font-weight:800;text-decoration:none"><i class="fa-solid fa-arrow-down"></i> Buy</a>
+        <a href="{% url 'p2p' %}?side=sell" style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:42px;border-radius:10px;background:var(--px-down,#ea3943);color:#fff;font-size:13px;font-weight:800;text-decoration:none"><i class="fa-solid fa-arrow-up"></i> Sell</a>
+        <a href="{% url 'p2p_orders' %}" style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:42px;border-radius:10px;border:1px solid var(--px-line,#2a3040);color:inherit;font-size:13px;font-weight:700;text-decoration:none"><i class="fa-solid fa-receipt"></i> Orders</a>
+    </div>
+</div>
