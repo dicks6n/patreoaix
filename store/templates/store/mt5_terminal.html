@@ -229,6 +229,19 @@ main { padding: 0 !important; }
         backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
     }
     .mt5-draw-hint.show { display: block; }
+    /* selected object: name, colours, delete, done (top of the chart) */
+    .mt5-obj-bar { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); z-index: 8; display: none; align-items: center; gap: 8px;
+        padding: 6px 6px 6px 12px; border-radius: 22px; background: rgba(28,28,30,.92); color: #fff; box-shadow: 0 6px 20px rgba(0,0,0,.35);
+        -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); max-width: calc(100% - 16px); white-space: nowrap; }
+    .mt5-obj-bar.show { display: flex; }
+    .mt5-obj-bar .on-name { font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    .mt5-obj-bar .oc-wrap { display: flex; gap: 6px; }
+    .mt5-obj-bar .oc { width: 20px; height: 20px; border-radius: 50%; border: 2px solid transparent; padding: 0; cursor: pointer; flex-shrink: 0; }
+    .mt5-obj-bar .oc.on { border-color: #fff; box-shadow: 0 0 0 1px rgba(255,255,255,.4); }
+    .mt5-obj-bar .ob { height: 30px; min-width: 30px; border-radius: 15px; border: 0; background: rgba(255,255,255,.12); color: #fff; font-size: 13px; cursor: pointer; padding: 0 9px; flex-shrink: 0; }
+    .mt5-obj-bar .ob.done { background: #0a84ff; font-weight: 700; }
+    @media (max-width: 380px) { .mt5-obj-bar .on-name { display: none; } .mt5-obj-bar .oc-wrap { gap: 4px; } .mt5-obj-bar .oc { width: 18px; height: 18px; } }
+    .mt5-draw-hint { top: 50px !important; }
 
     .mt5-one-click {
         position: absolute; top: 8px; left: 8px; z-index: 6; display: flex; align-items: stretch;
@@ -1029,6 +1042,12 @@ main { padding: 0 !important; }
             <div id="mt5-trade-labels"></div>
             <div id="mt5-legends"></div>
             <div class="mt5-draw-hint" id="mt5-draw-hint"></div>
+            <div class="mt5-obj-bar" id="mt5-obj-bar">
+                <span class="on-name" id="mt5-obj-name">Object</span>
+                <span class="oc-wrap"><button class="oc" data-c="#0a84ff" style="background:#0a84ff" onclick="mt5ColorSelectedDrawing('#0a84ff')" aria-label="Colour"></button><button class="oc" data-c="#ff453a" style="background:#ff453a" onclick="mt5ColorSelectedDrawing('#ff453a')" aria-label="Colour"></button><button class="oc" data-c="#30d158" style="background:#30d158" onclick="mt5ColorSelectedDrawing('#30d158')" aria-label="Colour"></button><button class="oc" data-c="#ff9f0a" style="background:#ff9f0a" onclick="mt5ColorSelectedDrawing('#ff9f0a')" aria-label="Colour"></button><button class="oc" data-c="#bf5af2" style="background:#bf5af2" onclick="mt5ColorSelectedDrawing('#bf5af2')" aria-label="Colour"></button><button class="oc" data-c="#8e8e93" style="background:#8e8e93" onclick="mt5ColorSelectedDrawing('#8e8e93')" aria-label="Colour"></button></span>
+                <button class="ob" onclick="mt5DeleteSelectedDrawing()" aria-label="Delete"><i class="fa-solid fa-trash-can"></i></button>
+                <button class="ob done" onclick="mt5DeselectDrawing()">Done</button>
+            </div>
             <div class="mt5-chart-info" id="mt5-chart-info">
                 <div class="l1"><span class="sym" onclick="mt5OpenChartSymbolSheet()"><span id="mt5-ci-sym">XAUUSD</span> <small>▼</small></span> <span id="mt5-ci-tf">M5</span></div>
                 <div class="l2" id="mt5-ci-name">Gold vs US Dollar</div>
@@ -3614,6 +3633,7 @@ async function mt5InitChartInner() {
     const L = LWC();
     mt5RestoreTimeframeUI();
     mt5Drawings = mt5Load('mt5Draw:' + mt5ChartSymbol, []) || [];
+    mt5SelDraw = -1; mt5DrawDrag = null; document.getElementById('mt5-obj-bar')?.classList.remove('show');
     document.getElementById('mt5-chart-symbol').textContent = mt5ChartSymbol;
     document.getElementById('mt5-chart-symbol-tf').textContent = '▾ ' + (MT5_TF_LABEL[mt5ChartTimeframe] || 'M5');
     document.getElementById('mt5-chart-symbol-name').textContent = MT5_SYMBOL_NAMES[mt5ChartSymbol] || mt5ChartSymbol;
@@ -4216,14 +4236,21 @@ function mt5RemoveAllIndicators() {
     mt5RenderIndicatorList(); mt5RenderIndicators();
 }
 
-// ─── drawings ───
+// ─── drawings (objects like MT5 mobile) ───
+// Pick an object → it appears in the middle of the chart, selected, with round anchor points.
+// Drag a point to place it exactly (a price / time tag follows the finger), drag the line itself to move it all,
+// tap an object later to select it again. The object bar (top) has colours, delete and Done.
 const MT5_FIBO_LEVELS = [0, 23.6, 38.2, 50, 61.8, 100, 161.8, 261.8, 423.6];
+const MT5_OBJ_NAMES = { hline: 'Horizontal Line', trend: 'Trend Line', rect: 'Rectangle', fibo: 'Fibonacci Retracement' };
+const MT5_OBJ_COLORS = ['#0a84ff', '#ff453a', '#30d158', '#ff9f0a', '#bf5af2', '#8e8e93'];
+let mt5SelDraw = -1;          // index of the selected object in mt5Drawings
+let mt5DrawDrag = null;       // { k: 'move' | 1 | 2 | 'price', x0, y0, orig, id }
 function mt5SetupDrawCanvas() {
     const canvas = document.getElementById('mt5-draw-canvas');
     if (!canvas) return;
     mt5DrawCanvas = canvas;
     mt5DrawCtx = canvas.getContext('2d');
-    canvas.style.pointerEvents = mt5ActiveTool ? 'auto' : 'none';
+    mt5DrawPointerMode();
     if (!canvas.dataset.bound) {
         canvas.dataset.bound = '1';
         canvas.addEventListener('pointerdown', mt5OnDrawPointerDown);
@@ -4232,6 +4259,9 @@ function mt5SetupDrawCanvas() {
         canvas.addEventListener('pointercancel', mt5OnDrawPointerUp);
     }
     mt5ResizeDrawCanvas(); mt5RedrawDrawings();
+}
+function mt5DrawPointerMode() {      // the canvas takes touches only while an object is selected (else the chart pans)
+    if (mt5DrawCanvas) mt5DrawCanvas.style.pointerEvents = mt5SelDraw >= 0 ? 'auto' : 'none';
 }
 function mt5ResizeDrawCanvas() {
     if (!mt5DrawCanvas || !mt5DrawCtx) return;
@@ -4245,54 +4275,99 @@ function mt5ResizeDrawCanvas() {
     mt5DrawCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 function mt5MainPaneHeight() { try { return mt5Chart.panes()[0].getHeight(); } catch (e) { return null; } }
+function mt5PlotWidth() {
+    const w = document.getElementById('mt5-chart-wrap').getBoundingClientRect().width;
+    try { return w - mt5Chart.priceScale('right').width(); } catch (e) { return w - 60; }
+}
+// screen geometry of an object: its anchor points and a hit test for its body
+function mt5DrawGeom(d) {
+    const W = mt5PlotWidth();
+    if (d.type === 'hline') {
+        const y = mt5PriceToY(d.price); if (y == null) return null;
+        return { pts: [{ k: 'price', x: W - 34, y }], hit: (x, yy) => Math.abs(yy - y) < 14 };
+    }
+    const x1 = mt5TimeToX(d.t1), y1 = mt5PriceToY(d.p1), x2 = mt5TimeToX(d.t2), y2 = mt5PriceToY(d.p2);
+    if (x1 == null || y1 == null || x2 == null || y2 == null) return null;
+    const seg = (x, y) => { const dx = x2 - x1, dy = y2 - y1, L = dx * dx + dy * dy || 1;
+        const t = Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / L));
+        return Math.hypot(x - (x1 + t * dx), y - (y1 + t * dy)); };
+    const hit = d.type === 'rect'
+        ? (x, y) => x >= Math.min(x1, x2) - 10 && x <= Math.max(x1, x2) + 10 && y >= Math.min(y1, y2) - 10 && y <= Math.max(y1, y2) + 10
+        : d.type === 'fibo'
+            ? (x, y) => seg(x, y) < 14 || (x >= Math.min(x1, x2) - 6 && x <= Math.max(x1, x2, Math.min(x1, x2) + 40) + 6
+                       && MT5_FIBO_LEVELS.some(lv => { const yy = mt5PriceToY(d.p2 + (d.p1 - d.p2) * lv / 100); return yy != null && Math.abs(y - yy) < 10; }))
+            : (x, y) => seg(x, y) < 14;
+    return { pts: [{ k: 1, x: x1, y: y1 }, { k: 2, x: x2, y: y2 }], hit };
+}
 function mt5RedrawDrawings() {
     if (!mt5DrawCtx || !mt5DrawCanvas || !mt5Chart || !mt5CandleSeries) return;
     const wrap = document.getElementById('mt5-chart-wrap');
     const rect = wrap.getBoundingClientRect();
     const ctx = mt5DrawCtx, dec = mt5Decimals(mt5ChartSymbol);
     ctx.clearRect(0, 0, rect.width, rect.height);
-    const h = mt5MainPaneHeight() || rect.height;
+    const h = mt5MainPaneHeight() || rect.height, W = mt5PlotWidth();
     ctx.save();
     ctx.beginPath(); ctx.rect(0, 0, rect.width, h); ctx.clip();
-    const all = mt5DraftDrawing ? [...mt5Drawings, mt5DraftDrawing] : mt5Drawings;
     const label = (text, x, y, color) => {
         ctx.font = '600 10px -apple-system, "SF Pro Text", sans-serif';
         ctx.fillStyle = color; ctx.fillText(text, x, y);
     };
-    for (const d of all) {
-        if (!d) continue;
+    mt5Drawings.forEach((d, idx) => {
+        if (!d) return;
+        const sel = idx === mt5SelDraw;
         const color = d.color || '#0a84ff';
-        ctx.lineWidth = 1; ctx.strokeStyle = color; ctx.fillStyle = color;
+        ctx.lineWidth = sel ? 2 : 1; ctx.strokeStyle = color; ctx.fillStyle = color;
         if (d.type === 'hline') {
-            const y = mt5PriceToY(d.price); if (y == null) continue;
-            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(rect.width, y); ctx.stroke();
+            const y = mt5PriceToY(d.price); if (y == null) return;
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
             label(Number(d.price).toFixed(dec), 6, y - 4, color);
-            continue;
+        } else {
+            const x1 = mt5TimeToX(d.t1), y1 = mt5PriceToY(d.p1), x2 = mt5TimeToX(d.t2), y2 = mt5PriceToY(d.p2);
+            if (x1 == null || y1 == null || x2 == null || y2 == null) return;
+            if (d.type === 'trend') {
+                ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+            } else if (d.type === 'rect') {
+                ctx.fillStyle = color + '26';
+                ctx.fillRect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
+                ctx.strokeRect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
+            } else if (d.type === 'fibo') {
+                ctx.setLineDash([3, 3]);
+                ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+                ctx.setLineDash([]);
+                const xa = Math.min(x1, x2), xb = Math.max(x1, x2, xa + 40);
+                MT5_FIBO_LEVELS.forEach(lv => {
+                    const price = d.p2 + (d.p1 - d.p2) * lv / 100;
+                    const y = mt5PriceToY(price); if (y == null) return;
+                    ctx.strokeStyle = color;
+                    ctx.beginPath(); ctx.moveTo(xa, y); ctx.lineTo(xb, y); ctx.stroke();
+                    label(`${lv.toFixed(1)}  ${price.toFixed(dec)}`, xa + 2, y - 3, color);
+                });
+            }
         }
-        const x1 = mt5TimeToX(d.t1), y1 = mt5PriceToY(d.p1), x2 = mt5TimeToX(d.t2), y2 = mt5PriceToY(d.p2);
-        if (x1 == null || y1 == null || x2 == null || y2 == null) continue;
-        if (d.type === 'trend') {
-            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-            [[x1, y1], [x2, y2]].forEach(([x, y]) => { ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill(); });
-        } else if (d.type === 'rect') {
-            ctx.fillStyle = color + '26';
-            ctx.fillRect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
-            ctx.strokeRect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
-        } else if (d.type === 'fibo') {
-            ctx.setLineDash([3, 3]);
-            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-            ctx.setLineDash([]);
-            const xa = Math.min(x1, x2), xb = Math.max(x1, x2, xa + 40);
-            MT5_FIBO_LEVELS.forEach(lv => {
-                const price = d.p2 + (d.p1 - d.p2) * lv / 100;
-                const y = mt5PriceToY(price); if (y == null) return;
-                ctx.strokeStyle = '#FF0000';
-                ctx.beginPath(); ctx.moveTo(xa, y); ctx.lineTo(xb, y); ctx.stroke();
-                label(`${lv.toFixed(1)}  ${price.toFixed(dec)}`, xa + 2, y - 3, '#FF0000');
+        if (sel) {                                        // anchor points: white dots with the object's colour
+            const g = mt5DrawGeom(d);
+            (g ? g.pts : []).forEach(pt => {
+                ctx.beginPath(); ctx.arc(pt.x, pt.y, 7, 0, Math.PI * 2);
+                ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = color; ctx.stroke();
             });
         }
-    }
+    });
     ctx.restore();
+    // while dragging: price tag on the price axis and time tag at the bottom, like MT5
+    if (mt5DrawDrag && mt5DrawDrag.tag) {
+        const t = mt5DrawDrag.tag, axisX = W;
+        ctx.font = '600 11px -apple-system, "SF Pro Text", sans-serif';
+        const pw = ctx.measureText(t.price).width + 10;
+        ctx.fillStyle = '#0a84ff'; ctx.fillRect(axisX, t.y - 9, Math.max(pw, rect.width - axisX), 18);
+        ctx.fillStyle = '#fff'; ctx.fillText(t.price, axisX + 5, t.y + 4);
+        if (t.time) {
+            const tw = ctx.measureText(t.time).width + 12, tx = Math.min(Math.max(t.x - tw / 2, 0), W - tw);
+            ctx.fillStyle = '#0a84ff'; ctx.fillRect(tx, h - 18, tw, 18);
+            ctx.fillStyle = '#fff'; ctx.fillText(t.time, tx + 6, h - 5);
+        }
+        ctx.strokeStyle = 'rgba(10,132,255,.5)'; ctx.setLineDash([4, 4]); ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(0, t.y); ctx.lineTo(W, t.y); ctx.moveTo(t.x, 0); ctx.lineTo(t.x, h); ctx.stroke(); ctx.setLineDash([]);
+    }
 }
 function mt5PriceToY(price) { try { return mt5CandleSeries.priceToCoordinate(price); } catch (e) { return null; } }
 function mt5YToPrice(y) { try { return mt5CandleSeries.coordinateToPrice(y); } catch (e) { return null; } }
@@ -4322,58 +4397,123 @@ function mt5GetCanvasPos(ev) {
     const rect = document.getElementById('mt5-chart-wrap').getBoundingClientRect();
     return { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
 }
+function mt5DefaultDrawing(tool) {
+    const h = mt5MainPaneHeight() || document.getElementById('mt5-chart-wrap').getBoundingClientRect().height, W = mt5PlotWidth();
+    const P = y => mt5YToPrice(y), T = x => mt5XToTime(x);
+    if (tool === 'hline') { const price = P(h * 0.5); return price == null ? null : { type: 'hline', price, color: '#0a84ff' }; }
+    const box = { trend: [0.3, 0.64, 0.7, 0.36], rect: [0.36, 0.38, 0.64, 0.62], fibo: [0.3, 0.7, 0.7, 0.3] }[tool];
+    const d = { type: tool, t1: T(W * box[0]), p1: P(h * box[1]), t2: T(W * box[2]), p2: P(h * box[3]),
+                color: tool === 'rect' ? '#20B2AA' : tool === 'fibo' ? '#ff453a' : '#0a84ff' };
+    return [d.t1, d.p1, d.t2, d.p2].some(v => v == null) ? null : d;
+}
+// Objects menu → place the object in the middle of the chart, selected, ready to be positioned
 function mt5ToggleDraw(tool) {
-    mt5ActiveTool = mt5ActiveTool === tool ? null : tool;
-    if (mt5DrawCanvas) mt5DrawCanvas.style.pointerEvents = mt5ActiveTool ? 'auto' : 'none';
-    const ids = { hline: 'btn-hline', trend: 'btn-trend', rect: 'btn-rect', fibo: 'btn-fibo' };
-    Object.entries(ids).forEach(([t, id]) => document.getElementById(id)?.classList.toggle('active', t === mt5ActiveTool));
-    const hint = document.getElementById('mt5-draw-hint');
-    const labels = { hline: 'Tap the chart to place a horizontal line', trend: 'Drag to draw a trend line',
-                     rect: 'Drag to draw a rectangle', fibo: 'Drag from the swing start to its end' };
-    hint.textContent = labels[mt5ActiveTool] || '';
-    hint.classList.toggle('show', !!mt5ActiveTool);
+    if (!mt5Chart || !mt5CandleSeries) return;
+    const d = mt5DefaultDrawing(tool);
+    if (!d) { mt5Toast('Open the chart first'); return; }
+    mt5Drawings.push(d); mt5SaveDrawings();
+    mt5SelectDrawing(mt5Drawings.length - 1, true);
 }
 function mt5ToggleFib() { mt5ToggleDraw('fibo'); }
+function mt5SelectDrawing(i, fresh) {
+    mt5SelDraw = i;
+    mt5DrawPointerMode();
+    const bar = document.getElementById('mt5-obj-bar'), hint = document.getElementById('mt5-draw-hint');
+    if (i >= 0) {
+        const d = mt5Drawings[i];
+        document.getElementById('mt5-obj-name').textContent = MT5_OBJ_NAMES[d.type] || 'Object';
+        bar.querySelectorAll('.oc').forEach(b => b.classList.toggle('on', b.dataset.c === d.color));
+        bar.classList.add('show');
+        hint.textContent = d.type === 'hline' ? 'Drag the line or its point to the price you want'
+                                              : 'Drag the points to position it · drag the line to move it';
+        hint.classList.toggle('show', !!fresh);
+        if (fresh) setTimeout(() => hint.classList.remove('show'), 3500);
+    } else {
+        bar.classList.remove('show'); hint.classList.remove('show');
+    }
+    mt5RedrawDrawings();
+}
+function mt5DeselectDrawing() { mt5DrawDrag = null; mt5SelectDrawing(-1); }
+function mt5DeleteSelectedDrawing() {
+    if (mt5SelDraw < 0) return;
+    mt5Drawings.splice(mt5SelDraw, 1); mt5SaveDrawings(); mt5DeselectDrawing();
+}
+function mt5ColorSelectedDrawing(c) {
+    if (mt5SelDraw < 0) return;
+    mt5Drawings[mt5SelDraw].color = c; mt5SaveDrawings(); mt5SelectDrawing(mt5SelDraw);
+}
+// which object (and which point of it) is under x, y — selected object first, then the newest
+function mt5HitDrawing(x, y) {
+    const order = [...mt5Drawings.keys()].reverse();
+    if (mt5SelDraw >= 0) order.unshift(mt5SelDraw);
+    for (const i of order) {
+        const g = mt5DrawGeom(mt5Drawings[i]); if (!g) continue;
+        if (i === mt5SelDraw) { const pt = g.pts.find(p => Math.hypot(p.x - x, p.y - y) < 24); if (pt) return { i, k: pt.k }; }
+        if (g.hit(x, y)) return { i, k: 'move' };
+    }
+    return null;
+}
+// a tap on the chart (from the chart's tap handler): select an object if one is under the finger
+function mt5TrySelectDrawing(ev) {
+    const pos = mt5GetCanvasPos(ev);
+    const h = mt5HitDrawing(pos.x, pos.y);
+    if (!h) return false;
+    mt5SelectDrawing(h.i);
+    return true;
+}
+function mt5DragTag(x, y, price, time) {
+    const dec = mt5Decimals(mt5ChartSymbol);
+    let tt = '';
+    if (time != null) { const d = new Date(time * 1000); tt = d.toLocaleDateString([], { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+    return { x, y, price: Number(price).toFixed(dec), time: tt };
+}
 function mt5OnDrawPointerDown(ev) {
-    if (!mt5ActiveTool) return;
+    if (mt5SelDraw < 0) return;
     ev.preventDefault();
     const pos = mt5GetCanvasPos(ev);
-    if (pos.y > (mt5MainPaneHeight() || Infinity)) return;
-    const price = mt5YToPrice(pos.y), time = mt5XToTime(pos.x);
-    if (price == null || time == null) return;
-    if (mt5ActiveTool === 'hline') {
-        mt5Drawings.push({ type: 'hline', price, color: '#0a84ff' });
-        mt5SaveDrawings(); mt5ToggleDraw('hline'); mt5RedrawDrawings();
-        return;
-    }
-    mt5IsDragging = true;
-    mt5DraftDrawing = { type: mt5ActiveTool, t1: time, p1: price, t2: time, p2: price, color: mt5ActiveTool === 'rect' ? '#20B2AA' : '#0a84ff' };
+    const h = mt5HitDrawing(pos.x, pos.y);
+    if (!h) { mt5DeselectDrawing(); return; }              // tapped empty chart: done editing
+    if (h.i !== mt5SelDraw) mt5SelectDrawing(h.i);
+    mt5DrawDrag = { k: h.k, x0: pos.x, y0: pos.y, orig: JSON.parse(JSON.stringify(mt5Drawings[h.i])), id: ev.pointerId, moved: false };
     try { mt5DrawCanvas.setPointerCapture(ev.pointerId); } catch (e) {}
 }
 function mt5OnDrawPointerMove(ev) {
-    if (!mt5IsDragging || !mt5DraftDrawing) return;
+    const g = mt5DrawDrag;
+    if (!g || mt5SelDraw < 0) return;
     ev.preventDefault();
-    const pos = mt5GetCanvasPos(ev);
+    const pos = mt5GetCanvasPos(ev), d = mt5Drawings[mt5SelDraw], o = g.orig;
+    if (Math.hypot(pos.x - g.x0, pos.y - g.y0) > 3) g.moved = true;
     const price = mt5YToPrice(pos.y), time = mt5XToTime(pos.x);
-    if (price == null || time == null) return;
-    mt5DraftDrawing.t2 = time; mt5DraftDrawing.p2 = price;
-    mt5RedrawDrawings();
-}
-function mt5OnDrawPointerUp() {
-    if (!mt5IsDragging) return;
-    mt5IsDragging = false;
-    const d = mt5DraftDrawing; mt5DraftDrawing = null;
-    if (d && (d.t1 !== d.t2 || d.p1 !== d.p2)) {
-        mt5Drawings.push(d); mt5SaveDrawings(); mt5ToggleDraw(d.type);
+    if (price == null) return;
+    if (g.k === 'price' || (d.type === 'hline' && g.k === 'move')) {
+        d.price = o.price + (price - mt5YToPrice(g.y0));
+        g.tag = mt5DragTag(pos.x, mt5PriceToY(d.price), d.price, null);
+    } else if (g.k === 1 || g.k === 2) {
+        if (time == null) return;
+        d['t' + g.k] = time; d['p' + g.k] = price;
+        g.tag = mt5DragTag(pos.x, pos.y, price, time);
+    } else if (g.k === 'move') {
+        const t0 = mt5XToTime(g.x0), p0 = mt5YToPrice(g.y0);
+        if (time == null || t0 == null || p0 == null) return;
+        const dt = time - t0, dp = price - p0;
+        d.t1 = o.t1 + dt; d.t2 = o.t2 + dt; d.p1 = o.p1 + dp; d.p2 = o.p2 + dp;
+        g.tag = mt5DragTag(mt5TimeToX(d.t1), mt5PriceToY(d.p1), d.p1, d.t1);
     }
     mt5RedrawDrawings();
 }
+function mt5OnDrawPointerUp() {
+    if (!mt5DrawDrag) return;
+    const moved = mt5DrawDrag.moved;
+    mt5DrawDrag = null;
+    if (moved) mt5SaveDrawings();
+    mt5RedrawDrawings();
+}
 function mt5SaveDrawings() { mt5Store('mt5Draw:' + mt5ChartSymbol, mt5Drawings); }
-function mt5UndoDraw() { if (!mt5Drawings.length) return; mt5Drawings.pop(); mt5SaveDrawings(); mt5RedrawDrawings(); }
+function mt5UndoDraw() { if (!mt5Drawings.length) return; mt5Drawings.pop(); mt5SaveDrawings(); mt5DeselectDrawing(); }
 function mt5ClearDrawings() {
     if (!mt5Drawings.length) return;
     if (!confirm('Delete all objects on this chart?')) return;
-    mt5Drawings = []; mt5DraftDrawing = null; mt5SaveDrawings(); mt5RedrawDrawings();
+    mt5Drawings = []; mt5DraftDrawing = null; mt5SaveDrawings(); mt5DeselectDrawing();
 }
 
 // positions
@@ -5409,15 +5549,19 @@ document.addEventListener('DOMContentLoaded', () => { mt5LoadAccounts(); setInte
     if (wrap) {
         let down = null;
         wrap.addEventListener('pointerdown', e => {
-            down = e.isPrimary ? { x: e.clientX, y: e.clientY, t: Date.now(), id: e.pointerId } : null;
+            down = e.isPrimary ? { x: e.clientX, y: e.clientY, t: Date.now(), id: e.pointerId,
+                                   editing: typeof mt5SelDraw !== 'undefined' && mt5SelDraw >= 0 } : null;
         }, true);
         wrap.addEventListener('pointerup', e => {
             const d = down; down = null;
             if (!d || d.id !== e.pointerId) return;
+            if (d.editing) return;                       // this tap finished editing an object: nothing else
             if (Date.now() - d.t > 350 || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 8) return;
             if (e.target.closest('button, a, input, select, .lg-row, #mt5-trade-labels, .mt5-chart-reset, .mt5-chart-symbol-header, .mt5-chart-info')) return;
             if (typeof mt5ActiveTool !== 'undefined' && mt5ActiveTool) return;
             if (typeof mt5CO !== 'undefined' && mt5CO) return;
+            if (typeof mt5SelDraw !== 'undefined' && mt5SelDraw >= 0) return;          // editing an object
+            if (typeof mt5TrySelectDrawing === 'function' && mt5TrySelectDrawing(e)) return;   // tapped an object: select it
             setTimeout(() => mt5OpenTfWheel(e.clientX, e.clientY), 0);
         }, true);
         wrap.addEventListener('pointercancel', () => { down = null; }, true);
@@ -5437,6 +5581,7 @@ document.addEventListener('DOMContentLoaded', () => { mt5LoadAccounts(); setInte
     const OVERLAYS = [                      // top-most first: [element id, how to close it]
         ['mt5-deriv-sheet', () => document.getElementById('mt5-deriv-sheet')?.remove(), true],
         ['mt5-tf-wheel', () => mt5CloseTfWheel()],
+        ['mt5-obj-bar', () => mt5DeselectDrawing()],
         ['mt5-chat-panel', () => mt5CloseChat()],
         ['mt5-dom-modal', () => mt5CloseDOM()],
         ['mt5-ind-edit', () => mt5CloseIndicatorEditor()],
