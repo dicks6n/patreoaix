@@ -1,0 +1,35 @@
+{% extends 'base_dashboard.html' %}
+
+{% block message_toasts %}{% endblock %}
+{% block title %}{% if which == 'candles' %}Candlestick{% else %}Chart pattern{% endif %} cheat sheet · PATREOAIX Academy{% endblock %}
+{% block page_title %}Academy{% endblock %}
+{% block extra_head %}{% include 'partials/academy_css.html' %}{% endblock %}
+
+{% block content %}
+<div class="ak-wrap" style="max-width:1200px">
+    <div class="ak-card">
+        <a href="{% url 'academy' %}#library" class="ak-sub"><i class="fa-solid fa-arrow-left mr-1"></i> Library</a>
+        <div class="ak-h" style="font-size:21px;margin-top:8px">{% if which == 'candles' %}Candlestick{% else %}Chart pattern{% endif %} cheat sheet</div>
+        <p class="ak-sub">{{ items|length }} patterns at a glance. Tap one for the full lesson.{% if which == 'candles' %} Charts marked <span class="ak-real">Real chart</span> are real market examples.{% endif %}</p>
+        <div class="ak-tabs" style="margin-top:12px">
+            <a class="{% if which == 'candles' %}on{% endif %}" href="?show=candles">Candlesticks</a>
+            <a class="{% if which == 'patterns' %}on{% endif %}" href="?show=patterns">Chart patterns</a>
+            <a href="{% url 'chart_ai' %}"><i class="fa-solid fa-camera mr-1"></i> Read my chart</a>
+        </div>
+    </div>
+
+    <div class="ak-grid" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))">
+        {% for tp in items %}
+        <a class="ak-tile" href="{% url 'academy_topic' course.key tp.key %}">
+            {% if tp.picture %}{{ tp.picture.svg }}{% endif %}
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-top:4px">
+                <b>{{ tp.title }}</b>
+                {% if tp.picture.real %}<span class="ak-real" title="{{ tp.picture.symbol }} {{ tp.picture.timeframe }} {{ tp.picture.at|date:'d M Y' }}">{{ tp.picture.symbol }} {{ tp.picture.timeframe }}</span>{% endif %}
+            </div>
+            {% if tp.signal %}<span class="ak-sig {% if 'Bullish' in tp.signal %}bull{% elif 'Bearish' in tp.signal %}bear{% endif %}" style="align-self:flex-start">{{ tp.signal }}</span>{% endif %}
+            <small>{{ tp.summary|join:" · " }}</small>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

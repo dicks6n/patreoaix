@@ -1,0 +1,169 @@
+{% extends 'base_dashboard.html' %}
+
+{% block message_toasts %}{% endblock %}
+{% block title %}Read my chart (AI) · PATREOAIX Academy{% endblock %}
+{% block page_title %}Read my chart{% endblock %}
+{% block extra_head %}{% include 'partials/academy_css.html' %}
+<style>
+    .ca-drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 170px; padding: 18px; border-radius: 14px; border: 2px dashed var(--px-line); background: var(--px-panel-2); text-align: center; cursor: pointer; color: var(--px-dim); font-size: 13px; }
+    .ca-drop.on { border-color: var(--px-accent); }
+    .ca-drop i { font-size: 28px; color: var(--px-accent); }
+    .ca-drop img { max-width: 100%; max-height: 320px; border-radius: 10px; }
+    .ca-bias { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .ca-bias .big { font-size: 26px; font-weight: 900; text-transform: uppercase; }
+    .ca-meter { flex: 1; min-width: 160px; height: 10px; border-radius: 10px; background: var(--px-panel-2); overflow: hidden; }
+    .ca-meter i { display: block; height: 100%; border-radius: 10px; background: var(--px-accent); }
+    .ca-sec h3 { font-size: 13px; font-weight: 900; color: var(--px-text); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; }
+    .ca-sec p { font-size: 14px; color: var(--px-dim); line-height: 1.65; }
+    .ca-item { padding: 11px 13px; border-radius: 12px; background: var(--px-panel-2); border: 1px solid var(--px-line); margin-top: 8px; font-size: 13.5px; color: var(--px-dim); line-height: 1.55; }
+    .ca-item b { color: var(--px-text); }
+    .ca-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 640px) { .ca-2 { grid-template-columns: 1fr; } }
+    .ca-plan div { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--px-line); font-size: 13.5px; }
+    .ca-plan div:last-child { border-bottom: 0; }
+    .ca-plan span { width: 110px; flex: none; color: var(--px-mute); font-weight: 700; }
+    .ca-plan b { color: var(--px-text); font-weight: 600; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ak-wrap" style="max-width:860px">
+    <div class="ak-card">
+        <div class="ak-h" style="font-size:20px"><i class="fa-solid fa-camera mr-1" style="color:var(--px-accent)"></i> What does this chart mean?</div>
+        <p class="ak-sub">Upload or paste a screenshot of any chart (MT5, TradingView, Deriv, Binance…). The AI explains the trend, structure, candlestick and chart patterns, key levels and a strategy with entry, stop and target. For markets our scanner follows, you also get the live Market Overview verdict from real price history.</p>
+        {% if not enabled %}<div class="ca-item" style="border-color:var(--px-down);color:var(--px-down)">Chart reading is not switched on yet: the site needs its GEMINI_API_KEY.</div>{% endif %}
+
+        <form method="post" enctype="multipart/form-data" id="caForm" style="margin-top:14px">{% csrf_token %}
+            <label class="ca-drop" id="caDrop" for="caFile">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+                <b style="color:var(--px-text)">Tap to choose a screenshot</b>
+                <span>or drag it here · or paste it (Ctrl+V) · PNG / JPG up to 8 MB</span>
+            </label>
+            <input type="file" name="chart" id="caFile" accept="image/*" hidden>
+            <div class="ca-2" style="margin-top:12px">
+                <div><label class="ak-sub" style="display:block;margin-bottom:4px">Market (optional, if the AI can't see it)</label>
+                    <select name="symbol" class="ak-input"><option value="">Detect from the image</option>{% for s in symbols %}<option value="{{ s }}" {% if picked == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+                <div><label class="ak-sub" style="display:block;margin-bottom:4px">Question (optional)</label>
+                    <input name="note" class="ak-input" maxlength="300" value="{{ note }}" placeholder="e.g. Is this a good place to buy?"></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px">
+                <button class="ak-btn" type="submit" id="caGo" disabled><i class="fa-solid fa-wand-magic-sparkles"></i> Read my chart</button>
+                <span class="ak-sub" style="margin:0">{% if left is None %}Unlimited (staff){% else %}{{ left }} of {{ limit }} readings left today{% endif %} · images are not stored</span>
+            </div>
+        </form>
+        {% if error %}<div class="ca-item" style="border-color:var(--px-down);color:var(--px-down);margin-top:12px"><i class="fa-solid fa-circle-exclamation mr-1"></i> {{ error }}</div>{% endif %}
+    </div>
+
+    {% if result %}
+    {% if result.not_chart %}
+    <div class="ak-card"><p class="ak-sub" style="margin:0">That image doesn't look like a price chart. Upload a screenshot that shows the candles.</p></div>
+    {% else %}
+    <div class="ak-card" id="caResult">
+        <div class="ak-sub">{% if result.symbol %}<b style="color:var(--px-text)">{{ result.symbol }}</b>{% endif %}{% if result.timeframe %} · {{ result.timeframe }}{% endif %} · AI chart reading</div>
+        <div class="ca-bias" style="margin-top:8px">
+            <span class="big" style="color:{% if result.bias == 'bullish' %}var(--px-up){% elif result.bias == 'bearish' %}var(--px-down){% else %}var(--px-mute){% endif %}">{% if result.bias == 'bullish' %}▲{% elif result.bias == 'bearish' %}▼{% else %}◆{% endif %} {{ result.bias }}</span>
+            <div class="ca-meter" title="How clear the picture is"><i style="width:{{ result.confidence }}%"></i></div>
+            <b style="color:var(--px-text)">{{ result.confidence }}% clarity</b>
+        </div>
+        <p style="font-size:14.5px;color:var(--px-text);line-height:1.65;margin-top:12px">{{ result.summary }}</p>
+    </div>
+
+    {% if result.live %}
+    <div class="ak-card" style="border-color:var(--px-accent)">
+        <div class="ca-sec"><h3><i class="fa-solid fa-satellite-dish mr-1" style="color:var(--px-accent)"></i> Live scanner on {{ result.live.symbol }} (real price history)</h3>
+            <p><b style="color:var(--px-text)">{{ result.live.action|default:"—" }}{% if result.live.side %} · {{ result.live.side }}{% endif %}</b>{% if result.live.tf %} on {{ result.live.tf }}{% endif %}{% if result.live.price %} · price {{ result.live.price }}{% endif %}<br>
+            {{ result.live.headline }}{% if result.live.voting %} · {{ result.live.agree }} of {{ result.live.voting }} strategies agree{% endif %}</p>
+            {% if result.live.news %}<p style="color:var(--px-down);margin-top:6px"><i class="fa-solid fa-triangle-exclamation"></i> High-impact news nearby: be careful.</p>{% endif %}
+            <a class="ak-btn ghost" style="margin-top:10px" href="/market-overview/"><i class="fa-solid fa-chart-line"></i> Open in Market Overview</a>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="ca-2">
+        <div class="ak-card ca-sec"><h3>Trend</h3>
+            <p><b style="color:var(--px-text)">{{ result.trend.direction|default:"—"|capfirst }}{% if result.trend.strength %} · {{ result.trend.strength }}{% endif %}</b><br>{{ result.trend.explanation }}</p></div>
+        <div class="ak-card ca-sec"><h3>Market structure</h3><p>{{ result.structure|default:"—" }}</p></div>
+    </div>
+
+    {% if result.patterns %}
+    <div class="ak-card ca-sec"><h3>Patterns on this chart</h3>
+        {% for p in result.patterns %}<div class="ca-item"><b>{{ p.name }}</b>{% if p.type %} <span class="ak-diag">{{ p.type }}</span>{% endif %}{% if p.where %} · {{ p.where }}{% endif %}<br>{{ p.meaning }}
+            {% if p.learn %}<br><a class="underline" style="color:var(--px-accent);font-weight:700" href="/academy/c/{{ p.learn }}/">Learn this pattern →</a>{% endif %}</div>{% endfor %}
+    </div>
+    {% endif %}
+
+    {% if result.levels %}
+    <div class="ak-card ca-sec"><h3>Key levels</h3>
+        {% for l in result.levels %}<div class="ca-item"><b style="color:{% if l.kind == 'support' or l.kind == 'demand' %}var(--px-up){% elif l.kind == 'resistance' or l.kind == 'supply' %}var(--px-down){% else %}var(--px-text){% endif %}">{{ l.kind|capfirst }} {{ l.price }}</b>{% if l.note %} · {{ l.note }}{% endif %}</div>{% endfor %}
+    </div>
+    {% endif %}
+
+    {% if result.scenarios %}
+    <div class="ca-2">
+        {% for s in result.scenarios %}
+        <div class="ak-card ca-sec" style="border-color:{% if 'ull' in s.name %}var(--px-up){% elif 'ear' in s.name %}var(--px-down){% else %}var(--px-line){% endif %}">
+            <h3>{{ s.name }} scenario · {{ s.probability }}%</h3>
+            <p><b style="color:var(--px-text)">If:</b> {{ s.trigger }}<br><b style="color:var(--px-text)">Target:</b> {{ s.target }}<br><b style="color:var(--px-text)">Wrong if:</b> {{ s.invalidation }}</p>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if result.strategy %}
+    <div class="ak-card ca-sec"><h3><i class="fa-solid fa-chess mr-1" style="color:var(--px-accent)"></i> Strategy that fits: {{ result.strategy.setup }}</h3>
+        <div class="ca-plan">
+            <div><span>Entry</span><b>{{ result.strategy.entry }}</b></div>
+            <div><span>Stop loss</span><b>{{ result.strategy.stop_loss }}</b></div>
+            <div><span>Take profit</span><b>{{ result.strategy.take_profit }}</b></div>
+            <div><span>Risk : reward</span><b>{{ result.strategy.risk_reward }}</b></div>
+        </div>
+        <p style="margin-top:10px">{{ result.strategy.explanation }}</p>
+        {% if result.wait_for %}<div class="ca-item"><b>Wait for:</b> {{ result.wait_for }}</div>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if result.indicators %}<div class="ak-card ca-sec"><h3>Indicators</h3><p>{{ result.indicators }}</p></div>{% endif %}
+
+    {% if result.mistakes_to_avoid %}
+    <div class="ak-card ca-sec"><h3>Mistakes to avoid</h3>{% for m in result.mistakes_to_avoid %}<div class="ca-item"><i class="fa-solid fa-xmark mr-1" style="color:var(--px-down)"></i> {{ m }}</div>{% endfor %}</div>
+    {% endif %}
+
+    {% if result.learn %}
+    <div class="ak-card ca-sec"><h3><i class="fa-solid fa-graduation-cap mr-1" style="color:var(--px-accent)"></i> Learn what the AI saw</h3>
+        <div style="display:flex;flex-direction:column;gap:8px">{% for l in result.learn %}<a class="ak-row" href="{% url 'academy_topic' l.course l.topic %}"><span class="n"><i class="fa-solid fa-book"></i></span><span><b>{{ l.title }}</b></span><i class="fa-solid fa-chevron-right go"></i></a>{% endfor %}</div>
+    </div>
+    {% endif %}
+
+    <p class="ak-sub" style="text-align:center">AI readings are education, not financial advice. A screenshot shows only part of the picture: confirm on the live chart, use a stop and risk 1% or less.</p>
+    {% endif %}
+    {% endif %}
+</div>
+
+<script>
+(function () {
+    var input = document.getElementById('caFile'), drop = document.getElementById('caDrop'), go = document.getElementById('caGo'), form = document.getElementById('caForm');
+    function show(file) {
+        if (!file || !/^image\//.test(file.type)) return;
+        var url = URL.createObjectURL(file);
+        drop.innerHTML = '<img alt="Your chart" src="' + url + '"><span>' + file.name.replace(/[<>&"]/g, '') + ' · tap to change</span>';
+        drop.classList.add('on');
+        go.disabled = {% if enabled %}false{% else %}true{% endif %};
+    }
+    function useFile(file) {
+        try { var dt = new DataTransfer(); dt.items.add(file); input.files = dt.files; } catch (e) {}
+        show(file);
+    }
+    input.addEventListener('change', function () { show(input.files[0]); });
+    ['dragover', 'dragenter'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('on'); }); });
+    drop.addEventListener('dragleave', function () { if (!input.files.length) drop.classList.remove('on'); });
+    drop.addEventListener('drop', function (e) { e.preventDefault(); if (e.dataTransfer.files[0]) useFile(e.dataTransfer.files[0]); });
+    document.addEventListener('paste', function (e) {
+        var items = (e.clipboardData || {}).items || [];
+        for (var i = 0; i < items.length; i++) if (items[i].type.indexOf('image') === 0) { useFile(items[i].getAsFile()); break; }
+    });
+    form.addEventListener('submit', function () { go.disabled = true; go.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Reading the chart… (10–20 s)'; });
+    var res = document.getElementById('caResult');
+    if (res) setTimeout(function () { res.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 100);
+})();
+</script>
+{% endblock %}

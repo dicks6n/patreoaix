@@ -1,0 +1,60 @@
+{% extends 'base_dashboard.html' %}
+
+{% block message_toasts %}{% endblock %}
+{% block title %}{{ tp.title }} · {{ course.title }} · PATREOAIX Academy{% endblock %}
+{% block page_title %}Academy{% endblock %}
+{% block extra_head %}{% include 'partials/academy_css.html' %}{% endblock %}
+
+{% block content %}
+<div class="ak-wrap" style="max-width:780px">
+    <div class="ak-card">
+        <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap" class="ak-sub">
+            <a href="{% url 'academy_course' course.key %}"><i class="fa-solid fa-arrow-left mr-1"></i> {{ course.title }}</a>
+            <span>Topic {{ tp.n }} of {{ course.topics|length }}</span>
+        </div>
+        <h1 class="ak-h" style="font-size:22px;margin:10px 0 6px;line-height:1.3">{{ tp.title }}</h1>
+        {% if tp.signal %}<span class="ak-sig {% if 'Bullish' in tp.signal %}bull{% elif 'Bearish' in tp.signal %}bear{% endif %}">{{ tp.signal }}</span>{% endif %}
+
+        {% if pic %}
+        <div style="margin-top:14px">
+            {{ pic.svg }}
+            <div class="ak-cap">
+                {% if pic.real %}
+                <span class="ak-real"><i class="fa-solid fa-chart-column"></i> Real chart</span>
+                <b>{{ pic.symbol }} · {{ pic.timeframe }}</b> · {{ pic.at|date:"d M Y H:i" }} UTC. The boxed candles are the pattern; the {{ pic.after_n }} candles after it moved price
+                <b class="{% if pic.move_after >= 0 %}px-up{% else %}px-down{% endif %}" style="color:{% if pic.move_after >= 0 %}var(--px-up){% else %}var(--px-down){% endif %}">{% if pic.move_after >= 0 %}+{% endif %}{{ pic.move_after|floatformat:2 }}%</b>.
+                Patterns raise the odds; they never guarantee the move.
+                {% else %}
+                <span class="ak-diag"><i class="fa-solid fa-pen-ruler"></i> Diagram</span>
+                {% if tp.real %} A real chart example appears here as soon as the scanner finds one in the market history.{% else %} The textbook shape; on real charts it is rarely this clean.{% endif %}
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="ak-key">
+        <h3><i class="fa-solid fa-bolt mr-1"></i> Key points</h3>
+        <ul>{% for s in tp.summary %}<li>{{ s }}</li>{% endfor %}</ul>
+    </div>
+
+    <div class="ak-card ak-body">
+        {% for p in tp.body %}<p>{{ p|safe }}</p>{% endfor %}
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+        {% if prev %}<a class="ak-btn ghost" href="{% url 'academy_topic' course.key prev.key %}"><i class="fa-solid fa-arrow-left"></i> {{ prev.title|truncatechars:28 }}</a>{% endif %}
+        {% if next %}<a class="ak-btn" href="{% url 'academy_topic' course.key next.key %}">Next: {{ next.title|truncatechars:30 }} <i class="fa-solid fa-arrow-right"></i></a>
+        {% else %}<a class="ak-btn" href="{% url 'academy' %}#library"><i class="fa-solid fa-book-open"></i> Back to the library</a>{% endif %}
+        <a class="ak-btn ghost" href="{% url 'chart_ai' %}"><i class="fa-solid fa-camera"></i> Read my chart</a>
+    </div>
+</div>
+<script>
+(function () {
+    try {
+        var k = '{{ course.key }}/{{ tp.key }}', read = JSON.parse(localStorage.getItem('px_ac_read') || '[]');
+        if (read.indexOf(k) < 0) { read.push(k); localStorage.setItem('px_ac_read', JSON.stringify(read)); }
+    } catch (e) {}
+})();
+</script>
+{% endblock %}

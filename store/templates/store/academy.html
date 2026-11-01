@@ -1,10 +1,11 @@
 {% extends 'base_dashboard.html' %}
 
 {% block message_toasts %}{% endblock %}
-{% block title %}Beginner Academy · PATREOAIX{% endblock %}
-{% block page_title %}Beginner Academy{% endblock %}
+{% block title %}Academy · PATREOAIX{% endblock %}
+{% block page_title %}Academy{% endblock %}
 
 {% block extra_head %}
+{% include 'partials/academy_css.html' %}
 <style>
     .ac-wrap { display: flex; flex-direction: column; gap: 18px; max-width: 900px; }
     .ac-card { background: var(--px-panel); border: 1px solid var(--px-line); border-radius: 16px; padding: 18px; }
@@ -48,6 +49,41 @@
         </div>
         {% if next %}<a class="ac-btn" href="{% url 'academy_lesson' next.key %}"><i class="fa-solid fa-play"></i> {% if done_n %}Continue: lesson {{ next.n }}{% else %}Start lesson 1{% endif %}</a>{% endif %}
     </div>
+
+    <div class="ak-grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr))">
+        <a class="ak-tile" href="{% url 'chart_ai' %}" style="border-color:var(--px-accent)">
+            <span class="ic"><i class="fa-solid fa-camera"></i></span><b>Read my chart (AI)</b>
+            <small>Upload a screenshot of any chart: the AI explains the trend, patterns, levels and a strategy, and adds the live scanner verdict.</small></a>
+        <a class="ak-tile" href="{% url 'academy_cheatsheet' %}">
+            <span class="ic"><i class="fa-solid fa-table-cells"></i></span><b>Candlestick cheat sheet</b>
+            <small>Every pattern on one page with real chart examples: doji, hammer, engulfing, morning star…</small></a>
+        <a class="ak-tile" href="{% url 'academy_cheatsheet' %}?show=patterns">
+            <span class="ic"><i class="fa-solid fa-draw-polygon"></i></span><b>Chart patterns sheet</b>
+            <small>Head and shoulders, double tops, triangles, flags and wedges at a glance.</small></a>
+    </div>
+
+    <div class="ak-card" id="library">
+        <div class="ak-h"><i class="fa-solid fa-book-open mr-1" style="color:var(--px-accent)"></i> Library: {{ courses|length }} courses, {{ topic_total }} topics</div>
+        <p class="ak-sub">Read anything, in any order. No quizzes: each topic has key points, a full explanation and a chart.</p>
+        <form method="get" action="#library" style="margin:12px 0 4px;display:flex;gap:8px"><input class="ak-input" name="q" value="{{ q }}" placeholder="Search: engulfing, RSI, order block, NFP, position size…"><button class="ak-btn" type="submit"><i class="fa-solid fa-magnifying-glass"></i></button></form>
+        {% if q %}
+        <div style="display:flex;flex-direction:column;gap:8px;margin:10px 0 16px">
+            {% for tp in found %}<a class="ak-row" href="{% url 'academy_topic' tp.course tp.key %}"><span class="n"><i class="fa-solid fa-book"></i></span><span><b>{{ tp.title }}</b><small>{{ tp.summary.0 }}</small></span><i class="fa-solid fa-chevron-right go"></i></a>
+            {% empty %}<p class="ak-sub">Nothing found for "{{ q }}".</p>{% endfor %}
+        </div>
+        {% endif %}
+        <div class="ak-grid" style="margin-top:12px">
+            {% for c in courses %}
+            <a class="ak-tile" href="{% url 'academy_course' c.key %}">
+                <span class="ic"><i class="fa-solid {{ c.icon }}"></i></span>
+                <b>{{ c.title }}</b><small>{{ c.blurb }}</small>
+                <small style="color:var(--px-accent);font-weight:800">{{ c.topics|length }} topics →</small>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="ak-h" style="margin-top:4px">Beginner course with quizzes</div>
 
     {% if graduated %}
     <div class="ac-card ac-grad">

@@ -6503,9 +6503,8 @@ def ai_chat_api(request):
             ai_reply = ""
             try:
                 # Automatically loads GEMINI_API_KEY from environment variables/.env
-                client = genai.Client()
-                response = client.models.generate_content(
-                    model='gemini-2.5-flash',
+                from . import chart_ai
+                response = chart_ai.generate(                     # model fallback: retired / busy models are skipped
                     contents=user_message,
                     config={
                         'system_instruction': 'You are PATREOAIX Support Copilot, an expert assistant trained on platform documentation, signal algorithms, trading mechanics, Deriv broker authentication, and webhooks.'
@@ -11108,7 +11107,7 @@ def journal_page(request):
 # ═══════════════════════════════════════════════════════════════
 @login_required
 def academy_page(request):
-    from . import academy, bonus
+    from . import academy, academy_library, bonus
     done = academy.passed(request.user)
     lessons = [dict(l, done=l['key'] in done, n=i + 1) for i, l in enumerate(academy.LESSONS)]
     nxt = next((l for l in lessons if not l['done']), None)
@@ -11117,6 +11116,8 @@ def academy_page(request):
         'graduated': academy.graduated(request.user), 'pro_days': academy.pro_days(),
         'bonus_gated': bonus.enabled() and academy.required_for_bonus(),
         'pct_done': round(len(done & set(academy.BY_KEY)) / len(lessons) * 100),
+        'courses': academy_library.COURSES, 'topic_total': academy_library.total_topics(),
+        'q': request.GET.get('q', ''), 'found': academy_library.search(request.GET.get('q')),
     })
 
 
@@ -11141,6 +11142,74 @@ def academy_lesson(request, key):
         'lesson': lesson, 'n': idx + 1, 'total': len(academy.LESSONS), 'next': nxt,
         'quiz': [{'q': q, 'options': list(enumerate(opts)), 'i': i} for i, (q, opts, _) in enumerate(lesson['quiz'])],
         'done': key in academy.passed(request.user), 'pro_days': academy.pro_days(),
+    })
+
+
+def _academy_pic(tp):
+    """Real chart example for candlestick topics (when found), else the labelled diagram."""
+    from . import academy_charts, academy_examples
+    if not tp.get('pic'):
+        return None
+    if tp.get('real'):
+        try:
+            r = academy_examples.real_picture(tp['pic'])
+        except Exception as e:
+            logger.warning(f'academy real example {tp["pic"]}: {e}')
+            r = None
+        if r:
+            return r
+    svg = academy_charts.picture(tp['pic'])
+    return {'svg': svg, 'real': False} if svg else None
+
+
+@login_required
+def academy_course(request, course):
+    from . import academy_library as lib
+    c = lib.BY_COURSE.get(course)
+    if not c:
+        raise Http404
+    return render(request, 'store/academy_course.html', {'course': c, 'courses': lib.COURSES})
+
+
+@login_required
+def academy_topic(request, course, topic):
+    from . import academy_library as lib
+    c = lib.BY_COURSE.get(course)
+    tp = lib.TOPICS.get((course, topic))
+    if not c or not tp:
+        raise Http404
+    i = c['topics'].index(tp)
+    return render(request, 'store/academy_topic.html', {
+        'course': c, 'tp': tp, 'pic': _academy_pic(tp),
+        'prev': c['topics'][i - 1] if i else None, 'next': c['topics'][i + 1] if i + 1 < len(c['topics']) else None,
+    })
+
+
+@login_required
+def academy_cheatsheet(request):
+    from . import academy_library as lib
+    which = request.GET.get('show') if request.GET.get('show') in ('candles', 'patterns') else 'candles'
+    items = [dict(tp, picture=_academy_pic(tp)) for tp in lib.BY_COURSE[which]['topics'] if tp.get('pic')]
+    return render(request, 'store/academy_cheatsheet.html', {'items': items, 'which': which, 'course': lib.BY_COURSE[which]})
+
+
+@login_required
+def chart_ai_page(request):
+    from . import chart_ai, chart_scanner
+    result, error = None, None
+    if request.method == 'POST':
+        try:
+            result = chart_ai.analyze(request.user, request.FILES.get('chart'), request.POST.get('note', ''))
+            pick = chart_ai.normalize_symbol(request.POST.get('symbol'))
+            if result and not result.get('not_chart') and pick and pick in chart_scanner.SCAN_SYMBOLS:
+                result['symbol_norm'] = pick
+                result['live'] = chart_ai.live_view(pick)
+        except chart_ai.ChartAIError as e:
+            error = str(e)
+    return render(request, 'store/chart_ai.html', {
+        'result': result, 'error': error, 'enabled': chart_ai.enabled(), 'left': chart_ai.left_today(request.user),
+        'limit': chart_ai.daily_limit(request.user), 'symbols': chart_scanner.SCAN_SYMBOLS,
+        'note': request.POST.get('note', ''), 'picked': request.POST.get('symbol', ''),
     })
 
 

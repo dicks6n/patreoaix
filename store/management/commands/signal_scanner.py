@@ -75,6 +75,8 @@ class Command(BaseCommand):
             self.stdout.write(f'   📒 weekly trading reviews sent: {n}')
         from store import ai_learning                      # learn from the closed signals (once a day)
         ai_learning.safe_daily()
+        from store import academy_examples                 # real candlestick examples for the academy (daily)
+        academy_examples.safe_daily()
         from store import news_history                     # release history + reactions (at most hourly)
         news_history.safe_tick()
         from store import telegram_schedule                # morning brief, pulse, news alerts, daily / weekly results

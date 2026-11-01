@@ -787,8 +787,11 @@
             <div>
                 <p class="nav-section-label">Learn &amp; Analyse</p>
                 <div class="space-y-0.5">
-                    <a href="{% url 'academy' %}" class="nav-item {% if request.resolver_match.url_name == 'academy' or request.resolver_match.url_name == 'academy_lesson' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-graduation-cap"></i><span>Beginner Academy</span>
+                    <a href="{% url 'academy' %}" class="nav-item {% if request.resolver_match.url_name|slice:':7' == 'academy' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-graduation-cap"></i><span>Academy &amp; Courses</span>
+                    </a>
+                    <a href="{% url 'chart_ai' %}" class="nav-item {% if request.resolver_match.url_name == 'chart_ai' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-camera"></i><span>Read my chart (AI)</span><span class="nav-pill">NEW</span>
                     </a>
                     <a href="{% url 'ai_prediction_models' %}" class="nav-item {% if request.resolver_match.url_name == 'ai_prediction_models' %}nav-active{% endif %}">
                         <i class="fa-solid fa-brain"></i><span>Prediction Models</span>

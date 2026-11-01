@@ -1832,6 +1832,23 @@ class WeeklyReview(models.Model):
         return f"Review {self.user} {self.week_start}"
 
 
+class AcademyExample(models.Model):
+    """A real chart example of a candlestick pattern, found in market history (store/academy_examples.py)."""
+    key = models.CharField(max_length=40, unique=True)
+    symbol = models.CharField(max_length=20)
+    timeframe = models.CharField(max_length=5)
+    candles = models.JSONField(default=list)          # [[epoch, open, high, low, close], …]
+    mark_from = models.PositiveSmallIntegerField(default=0)
+    mark_to = models.PositiveSmallIntegerField(default=0)
+    move_after = models.FloatField(default=0)         # % move over the candles after the pattern
+    score = models.FloatField(default=0)
+    at = models.DateTimeField()                       # time of the pattern's last candle
+    found_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.key} · {self.symbol} {self.timeframe}"
+
+
 class AcademyProgress(models.Model):
     """A passed academy lesson (store/academy.py); lesson '_graduated' marks the rewards as given."""
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='academy_progress')

@@ -1,0 +1,42 @@
+{% extends 'base_dashboard.html' %}
+
+{% block message_toasts %}{% endblock %}
+{% block title %}{{ course.title }} · Academy · PATREOAIX{% endblock %}
+{% block page_title %}Academy{% endblock %}
+{% block extra_head %}{% include 'partials/academy_css.html' %}{% endblock %}
+
+{% block content %}
+<div class="ak-wrap">
+    <div class="ak-card">
+        <a href="{% url 'academy' %}#library" class="ak-sub"><i class="fa-solid fa-arrow-left mr-1"></i> Library</a>
+        <div class="ak-h" style="font-size:21px;margin-top:8px"><i class="fa-solid {{ course.icon }} mr-1" style="color:var(--px-accent)"></i> {{ course.title }}</div>
+        <p class="ak-sub">{{ course.blurb }} · {{ course.topics|length }} topics · read in any order</p>
+        {% if course.key == 'candles' or course.key == 'patterns' %}<a class="ak-btn ghost" style="margin-top:12px" href="{% url 'academy_cheatsheet' %}{% if course.key == 'patterns' %}?show=patterns{% endif %}"><i class="fa-solid fa-table-cells"></i> All on one page (cheat sheet)</a>{% endif %}
+    </div>
+
+    <div class="ak-card" style="display:flex;flex-direction:column;gap:8px">
+        {% for tp in course.topics %}
+        <a class="ak-row" data-read="{{ course.key }}/{{ tp.key }}" href="{% url 'academy_topic' course.key tp.key %}">
+            <span class="n">{{ tp.n }}</span>
+            <span style="min-width:0"><b>{{ tp.title }}</b><small>{{ tp.summary.0 }}</small>
+                {% if tp.signal %}<span class="ak-sig {% if 'Bullish' in tp.signal %}bull{% elif 'Bearish' in tp.signal %}bear{% endif %}" style="margin-top:5px">{{ tp.signal }}</span>{% endif %}</span>
+            <i class="fa-solid fa-chevron-right go"></i>
+        </a>
+        {% endfor %}
+    </div>
+
+    <div class="ak-card" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <span class="ak-sub" style="flex:1;min-width:200px;margin:0">See a pattern on your own chart? Upload a screenshot and the AI will explain it.</span>
+        <a class="ak-btn" href="{% url 'chart_ai' %}"><i class="fa-solid fa-camera"></i> Read my chart</a>
+    </div>
+</div>
+<script>
+(function () {
+    var read = [];
+    try { read = JSON.parse(localStorage.getItem('px_ac_read') || '[]'); } catch (e) {}
+    document.querySelectorAll('[data-read]').forEach(function (a) {
+        if (read.indexOf(a.dataset.read) >= 0) { a.classList.add('read'); a.querySelector('.n').innerHTML = '<i class="fa-solid fa-check"></i>'; }
+    });
+})();
+</script>
+{% endblock %}
