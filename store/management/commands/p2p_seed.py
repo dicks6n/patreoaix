@@ -8,11 +8,6 @@ Fill the P2P market with sample traders, offers and trade history (for a present
 It only runs when the environment variable P2P_SEED_ALLOWED=1 is set, so it can never run on the live site by
 accident (never set it in the live site's .env). Every account it creates has an email ending in SEED_DOMAIN,
 which is how --remove finds them; nothing else is touched.
-
-Keep sample data and real data apart completely: give the copy its own database file,
-    DB_PATH=/home/<you>/sample.sqlite3  P2P_SEED_ALLOWED=1  python manage.py migrate
-    DB_PATH=/home/<you>/sample.sqlite3  P2P_SEED_ALLOWED=1  python manage.py p2p_seed
-and set DB_PATH in that copy's .env. The real db.sqlite3 is never opened; deleting the sample file removes it all.
 """
 import os
 import random
@@ -24,7 +19,9 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
-SEED_DOMAIN = 'p2p-seed.invalid'          # same as store.p2p.SAMPLE_EMAIL: these traders can be seen, not traded with
+# CHANGED: Use a realistic domain so the front-end treats them like real users.
+# But we keep it unique so --remove can find and delete ONLY these accounts later.
+SEED_DOMAIN = 'fakedata.p2p'          
 D = Decimal
 
 # currency: USDT price fallback (when no cached rate), payment methods offered
