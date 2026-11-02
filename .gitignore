@@ -25,3 +25,4 @@ android/build/
 *.jks
 *.keystore
 keystore-password.txt
+sample.sqlite3

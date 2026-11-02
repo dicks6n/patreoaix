@@ -250,7 +250,8 @@ CHANNEL_LAYERS = {
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',  #
-        'NAME': BASE_DIR / 'db.sqlite3',  #
+        # DB_PATH: another database file (e.g. a presentation copy with sample data); default db.sqlite3
+        'NAME': os.getenv('DB_PATH') or (BASE_DIR / 'db.sqlite3'),
         # the website and the background task write at the same time: wait instead of "database is locked"
         'OPTIONS': {'timeout': 20},
     }

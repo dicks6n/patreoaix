@@ -8,6 +8,11 @@ Fill the P2P market with sample traders, offers and trade history (for a present
 It only runs when the environment variable P2P_SEED_ALLOWED=1 is set, so it can never run on the live site by
 accident (never set it in the live site's .env). Every account it creates has an email ending in SEED_DOMAIN,
 which is how --remove finds them; nothing else is touched.
+
+Keep sample data and real data apart completely: give the copy its own database file,
+    DB_PATH=/home/<you>/sample.sqlite3  P2P_SEED_ALLOWED=1  python manage.py migrate
+    DB_PATH=/home/<you>/sample.sqlite3  P2P_SEED_ALLOWED=1  python manage.py p2p_seed
+and set DB_PATH in that copy's .env. The real db.sqlite3 is never opened; deleting the sample file removes it all.
 """
 import os
 import random
@@ -69,6 +74,8 @@ class Command(BaseCommand):
     def handle(self, *a, **o):
         if os.environ.get('P2P_SEED_ALLOWED') != '1':
             raise CommandError('Refused: set P2P_SEED_ALLOWED=1 (only on the presentation copy, never on the live site).')
+        from django.db import connection
+        self.stdout.write(f"Database: {connection.settings_dict['NAME']}")
         if o['remove']:
             return self.remove()
         if User.objects.filter(email__endswith='@' + SEED_DOMAIN).exists():
