@@ -426,8 +426,8 @@ def express(user, side, asset, currency, fiat):
                               side='BUY' if want_sell else 'SELL', min_fiat__lte=fiat, max_fiat__gte=fiat) \
         .exclude(user=user).exclude(user_id__in=blocked_ids(user)).order_by('-price' if want_sell else 'price')
     mine = {m.method: m for m in P2PPaymentMethod.objects.filter(user=user, is_active=True)} if want_sell else {}
-    for ad in qs[:50]:
-        if ad.remaining * ad.price < fiat:
+    for ad in qs.select_related('user')[:50]:
+        if ad.remaining * ad.price < fiat or is_sample(ad.user):
             continue
         method_id = None
         if not want_sell and not ad_owner_may_sell(ad):
@@ -446,6 +446,13 @@ def express(user, side, asset, currency, fiat):
     raise P2PError(f'No offer can take {fiat:,} {currency} right now. Try another amount or pick an offer in the list.')
 
 
+SAMPLE_EMAIL = '@p2p-seed.invalid'        # sample traders (manage.py p2p_seed): shown in the market, never tradable
+
+
+def is_sample(user):
+    return bool(user and (getattr(user, 'email', '') or '').endswith(SAMPLE_EMAIL))
+
+
 @_retry_busy
 def open_order(user, ad_id, fiat=None, coins=None, method_id=None):
     """Take an ad. fiat (local money) or coins says how much; method_id is the taker's payment method on a BUY ad."""
@@ -461,6 +468,8 @@ def open_order(user, ad_id, fiat=None, coins=None, method_id=None):
             raise P2PError('This ad is no longer available.')
         if ad.user_id == user.id:
             raise P2PError('You cannot trade with your own ad.')
+        if is_sample(ad.user):                     # nobody can send money to a sample trader
+            raise P2PError('This trader is not taking orders right now. Pick another offer.')
         if ad.user_id in blocked_ids(user):
             raise P2PError('You cannot trade with this user.')
         if ad.side == 'SELL' and not ad_owner_may_sell(ad):

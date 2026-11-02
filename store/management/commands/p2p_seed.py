@@ -24,7 +24,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
-SEED_DOMAIN = 'p2p-seed.invalid'
+SEED_DOMAIN = 'p2p-seed.invalid'          # same as store.p2p.SAMPLE_EMAIL: these traders can be seen, not traded with
 D = Decimal
 
 # currency: USDT price fallback (when no cached rate), payment methods offered
