@@ -70,8 +70,11 @@ class Command(BaseCommand):
         p.add_argument('--trades', type=int, default=4000)
         p.add_argument('--days', type=int, default=90, help='spread the trade history over this many days')
         p.add_argument('--remove', action='store_true', help='delete everything this command created')
+        p.add_argument('--status', action='store_true', help='which database is used and how many offers it holds')
 
     def handle(self, *a, **o):
+        if o['status']:
+            return self.status()
         if os.environ.get('P2P_SEED_ALLOWED') != '1':
             raise CommandError('Refused: set P2P_SEED_ALLOWED=1 (only on the presentation copy, never on the live site).')
         from django.db import connection
@@ -225,6 +228,23 @@ class Command(BaseCommand):
         P2PFeedback.objects.bulk_create(fb, batch_size=500)
         P2PMessage.objects.bulk_create(msgs, batch_size=500)
         return len(saved)
+
+    def status(self):
+        from django.db import connection
+        from django.db.models import Count
+        from store.models import P2PAd, P2POrder
+        self.stdout.write(f"Database: {connection.settings_dict['NAME']}")
+        seed = User.objects.filter(email__endswith='@' + SEED_DOMAIN)
+        self.stdout.write(f"Sample traders: {seed.count()}   offers: {P2PAd.objects.filter(user__in=seed).count()}   "
+                          f"trades: {P2POrder.objects.filter(ad__user__in=seed).count()}")
+        rows = P2PAd.objects.filter(status='ACTIVE', demo=False).values('currency', 'side').annotate(n=Count('id')).order_by('currency')
+        line = {}
+        for r in rows:
+            line.setdefault(r['currency'], {})[r['side']] = r['n']
+        for cur, v in line.items():
+            self.stdout.write(f"  {cur}: {v.get('SELL', 0)} sell offers (Buy tab), {v.get('BUY', 0)} buy offers (Sell tab)")
+        if not line:
+            self.stdout.write('  No active offers in this database.')
 
     # ── remove ─────────────────────────────────────────────────
     def remove(self):
