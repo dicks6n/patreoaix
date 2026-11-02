@@ -446,9 +446,12 @@ def express(user, side, asset, currency, fiat):
     raise P2PError(f'No offer can take {fiat:,} {currency} right now. Try another amount or pick an offer in the list.')
 
 
-SAMPLE_EMAIL = '@p2p-seed.invalid'        # sample traders (manage.py p2p_seed): shown in the market, never tradable
+# SAMPLE_EMAIL = '@p2p-seed.invalid'        # sample traders (manage.py p2p_seed): shown in the market, never tradable
 
 
+def is_sample(user):
+    return False
+  
 def is_sample(user):
     return bool(user and (getattr(user, 'email', '') or '').endswith(SAMPLE_EMAIL))
 
