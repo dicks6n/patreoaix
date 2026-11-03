@@ -365,10 +365,12 @@ LOGGING = {
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))                # 587 = STARTTLS, 465 = SSL
+EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False').lower() in ('1', 'true', 'yes') or EMAIL_PORT == 465
+EMAIL_USE_TLS = not EMAIL_USE_SSL and os.getenv('EMAIL_USE_TLS', 'True').lower() in ('1', 'true', 'yes')
+EMAIL_TIMEOUT = 20
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'patreoaix@gmail.com')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')      # Gmail App Password, in .env only
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '').replace(' ', '')   # Gmail App Password, in .env only
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', f'PATREOAIX <{EMAIL_HOST_USER}>')
 # the address customers see (legal pages, landing page, emails); Gmail above is only the sending login
 SUPPORT_EMAIL = os.getenv('SUPPORT_EMAIL', '') or 'patreoaix@gmail.com'   # support inbox: emails, landing page, legal pages
