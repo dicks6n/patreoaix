@@ -372,7 +372,11 @@ EMAIL_TIMEOUT = 20
 # Hosts that block mail ports (PythonAnywhere free): send over HTTPS with Brevo or SendGrid instead (store/mail_backend.py)
 BREVO_API_KEY = os.getenv('BREVO_API_KEY', '')
 SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY', '')
-if BREVO_API_KEY or SENDGRID_API_KEY:
+# or the site's own Gmail through the Gmail API (python manage.py gmail_auth gives the refresh token)
+GMAIL_CLIENT_ID = os.getenv('GMAIL_CLIENT_ID', '')
+GMAIL_CLIENT_SECRET = os.getenv('GMAIL_CLIENT_SECRET', '')
+GMAIL_REFRESH_TOKEN = os.getenv('GMAIL_REFRESH_TOKEN', '')
+if GMAIL_REFRESH_TOKEN or BREVO_API_KEY or SENDGRID_API_KEY:
     EMAIL_BACKEND = 'store.mail_backend.HttpEmailBackend'
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'patreoaix@gmail.com')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '').replace(' ', '')   # Gmail App Password, in .env only
