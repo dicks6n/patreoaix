@@ -27,6 +27,7 @@ class UserProfile(models.Model):
     avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)    # profile photo (square JPEG, profile page)
     notif_prefs = models.JSONField(default=dict, blank=True)    # notification preferences (store/notif_prefs.py)
     payout_accounts = models.JSONField(default=dict, blank=True)   # saved withdrawal accounts (store/payouts.py)
+    p2p_unlocked_at = models.DateTimeField(null=True, blank=True)    # staff lifted a P2P buying pause: older cancels no longer count
     is_active_subscription = models.BooleanField(default=False)
     trial_used = models.BooleanField(default=False)          # the free 3-day Pro trial (store/membership.py)
     is_kyc_verified = models.BooleanField(default=False)

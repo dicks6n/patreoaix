@@ -33,6 +33,20 @@
         </table></div>
         {% else %}<p class="pp-sub">No appeals. 🎉</p>{% endif %}
     </div>
+    <div class="pp-card" id="paused">
+        <div class="pp-h"><h2>Paused buyers</h2><p>Buying pauses for 24 h after 3 cancelled or unpaid orders. Unlock when support agrees.</p></div>
+        {% if paused %}
+        <div class="pp-scroll"><table class="pp-table">
+            <thead><tr><th>User</th><th>Cancelled / unpaid (24 h)</th><th>Paused until</th><th></th></tr></thead>
+            <tbody>{% for u, until, n in paused %}<tr>
+                <td><a class="underline" href="{% url 'p2p_trader' u.username %}">{{ u.username }}</a></td>
+                <td class="pp-mono">{{ n }}</td>
+                <td class="pp-mono">{{ until|date:"d M H:i" }}</td>
+                <td><form method="post" onsubmit="return confirm('Unlock P2P buying for {{ u.username }}?')">{% csrf_token %}<input type="hidden" name="action" value="unlock"><input type="hidden" name="user" value="{{ u.pk }}"><button class="pp-btn sm" type="submit"><i class="fa-solid fa-lock-open"></i> Unlock</button></form></td>
+            </tr>{% endfor %}</tbody>
+        </table></div>
+        {% else %}<p class="pp-sub">Nobody is paused right now.</p>{% endif %}
+    </div>
     {% if recent %}
     <div class="pp-card">
         <div class="pp-h"><h2>Recent decisions</h2></div>

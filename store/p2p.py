@@ -405,12 +405,68 @@ def block(user, other_username, on=True):
 def buy_pause(user):
     """→ datetime until which this user cannot open buy orders (too many cancels / unpaid), or None."""
     from .models import P2POrder
+    from .models import UserProfile
     since = timezone.now() - timedelta(hours=24)
+    unlocked = UserProfile.objects.filter(user=user).values_list('p2p_unlocked_at', flat=True).first()
+    if unlocked and unlocked > since:
+        since = unlocked                           # support lifted the pause: only cancels after that count
     rows = list(P2POrder.objects.filter(buyer=user, status='CANCELLED', cancelled_at__gte=since,
                                         cancel_reason__in=BUYER_CANCELS).order_by('-cancelled_at').values_list('cancelled_at', flat=True))
     if len(rows) >= CANCEL_LIMIT:
         return rows[CANCEL_LIMIT - 1] + timedelta(hours=24)
     return None
+
+
+def paused_buyers():
+    """Users whose P2P buying is paused right now → [(user, until, cancels)] (staff page)."""
+    from django.contrib.auth.models import User
+    from .models import P2POrder
+    since = timezone.now() - timedelta(hours=24)
+    ids = (P2POrder.objects.filter(status='CANCELLED', cancelled_at__gte=since, cancel_reason__in=BUYER_CANCELS)
+           .values('buyer').annotate(n=Count('id')).filter(n__gte=CANCEL_LIMIT).values_list('buyer', flat=True))
+    out = []
+    for u in User.objects.filter(id__in=list(ids)):
+        until = buy_pause(u)
+        if until and until > timezone.now():
+            out.append((u, until, P2POrder.objects.filter(buyer=u, status='CANCELLED', cancelled_at__gte=since,
+                                                          cancel_reason__in=BUYER_CANCELS).count()))
+    return sorted(out, key=lambda r: r[1], reverse=True)
+
+
+def unlock_buying(staff_user, user):
+    """Staff lift a buying pause now (the cancels so far stop counting)."""
+    from .models import Notification, UserProfile
+    p, _ = UserProfile.objects.get_or_create(user=user)
+    p.p2p_unlocked_at = timezone.now()
+    p.save(update_fields=['p2p_unlocked_at'])
+    Notification.objects.create(user=user, category='TRADE', priority='success', title='✅ P2P buying unlocked',
+                                message='Support unlocked P2P buying for you. Please only open orders you will pay: '
+                                        f'{CANCEL_LIMIT} cancelled or unpaid orders in 24 hours pause buying again.',
+                                action_url='/p2p/', action_label='Open P2P', metadata={'chat': 'support', 'by': staff_user.username})
+
+
+def request_unlock(user):
+    """The user asks support to lift their buying pause (one request per pause)."""
+    from django.core.cache import cache
+    from .models import Notification, SupportTicket
+    until = buy_pause(user)
+    if not until or until <= timezone.now():
+        raise P2PError('Your P2P buying is not paused.')
+    key = f'p2p:unlockreq:{user.id}:{until:%Y%m%d%H%M}'
+    if cache.get(key):
+        raise P2PError('Your request is already with support. You will get a notification when it is unlocked.')
+    cache.set(key, 1, 86400)
+    text = (f'Please unlock my P2P buying. It is paused until {timezone.localtime(until):%d %b %H:%M} '
+            f'because of {CANCEL_LIMIT} cancelled or unpaid orders.')
+    Notification.objects.create(user=user, title='', message=text, category='SYSTEM', priority='info',
+                                metadata={'chat': 'support', 'out': True}, is_read=True)
+    SupportTicket.objects.create(user=user, category='P2P', subject='Unlock P2P buying', description=text)
+    try:
+        from .notifications import notify_staff
+        notify_staff(title=f'P2P unlock request from {user.username}', message=text, category='SYSTEM',
+                     action_url='/p2p/appeals/#paused')
+    except Exception:
+        pass
 
 
 def express(user, side, asset, currency, fiat):
@@ -478,7 +534,8 @@ def open_order(user, ad_id, fiat=None, coins=None, method_id=None):
             until = buy_pause(user)
             if until and until > timezone.now():
                 raise P2PError(f'Buying is paused until {timezone.localtime(until):%d %b %H:%M} because of '
-                               f'{CANCEL_LIMIT} cancelled or unpaid orders in 24 hours.')
+                               f'{CANCEL_LIMIT} cancelled or unpaid orders in 24 hours. Tap "Contact support to unlock" '
+                               f'on the P2P page if you need it sooner.')
         if ad.demo != (not live()):
             raise P2PError('This ad belongs to the other mode (demo / live).')
         asset = ad.asset

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>{{ err_title }} · PATREOAIX</title>
+<link rel="icon" href="/static/store/icons/favicon-32.png">
+<style>
+  :root { --bg: #0b0d12; --panel: #11151d; --line: #1e2533; --text: #e8ecf3; --mute: #8b93a7; --accent: #f5b301; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body { background: radial-gradient(1200px 600px at 50% -10%, rgba(245,179,1,.08), transparent 60%), var(--bg); color: var(--text);
+         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column;
+         min-height: 100vh; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  header { display: flex; align-items: center; gap: 10px; padding: 16px 20px; }
+  header a { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-weight: 800; letter-spacing: .06em; }
+  header img { width: 34px; height: 34px; border-radius: 9px; }
+  header b { color: var(--accent); }
+  main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px 16px 40px; }
+  .card { width: 100%; max-width: 520px; text-align: center; }
+  .code { font-size: clamp(72px, 22vw, 128px); font-weight: 900; line-height: 1; letter-spacing: -.04em;
+          background: linear-gradient(180deg, #ffd666, var(--accent) 55%, #b98500); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  h1 { font-size: 24px; margin: 14px 0 8px; }
+  p { color: var(--mute); font-size: 15px; line-height: 1.6; margin: 0 auto 22px; max-width: 420px; }
+  .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 18px; border-radius: 12px; font-weight: 800; font-size: 14px; text-decoration: none;
+         border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; }
+  .btn.pri { background: var(--accent); color: #0b0e14; border-color: var(--accent); }
+  .links { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 26px; }
+  .links a { padding: 12px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); color: var(--text); text-decoration: none; font-size: 13px; font-weight: 700; }
+  .links a:hover, .btn:hover { border-color: var(--accent); }
+  .links small { display: block; color: var(--mute); font-weight: 500; margin-top: 2px; }
+  @media (max-width: 560px) { .links { grid-template-columns: repeat(2, 1fr); } }
+  footer { text-align: center; color: var(--mute); font-size: 12px; padding: 18px; }
+  footer a { color: var(--mute); }
+</style>
+</head>
+<body>
+  <header><a href="/"><img src="/static/store/icons/icon-192.png" alt=""><span>PATREO<b>AIX</b></span></a></header>
+  <main>
+    <div class="card">
+      <div class="code">{{ err_code }}</div>
+      <h1>{{ err_title }}</h1>
+      <p>{{ err_text }}</p>
+      <div class="actions">
+        <a class="btn pri" href="/">Go to the home page</a>
+        <button class="btn" type="button" onclick="history.length > 1 ? history.back() : location.assign('/')">Go back</button>
+      </div>
+      <div class="links">
+        <a href="/dashboard/">Dashboard<small>Your account</small></a>
+        <a href="/terminal/">Terminal<small>Trade now</small></a>
+        <a href="/p2p/">P2P<small>Buy &amp; sell crypto</small></a>
+        <a href="/wallet/">Wallet<small>Deposit &amp; withdraw</small></a>
+      </div>
+    </div>
+  </main>
+  <footer>Need help? <a href="mailto:patreoaix@gmail.com">patreoaix@gmail.com</a> · <a href="/support/">Support</a></footer>
+</body>
+</html>

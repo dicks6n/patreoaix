@@ -37,6 +37,10 @@ def market(request):
     if request.method == 'POST':
         act = request.POST.get('action')
         try:
+            if act == 'unlock_request':
+                p2p.request_unlock(request.user)
+                messages.success(request, 'Request sent to support. You will get a notification as soon as buying is unlocked.')
+                return redirect(request.get_full_path())
             if act == 'express':
                 o = p2p.express(request.user, request.POST.get('side'), (request.POST.get('asset') or 'USDT').upper(),
                                 (request.POST.get('cur') or 'KES').upper(), request.POST.get('fiat'))
@@ -301,6 +305,13 @@ def proof(request, msg_id):
 @staff_member_required
 def admin_appeals(request):
     p2p.safe_expire()
+    if request.method == 'POST' and request.POST.get('action') == 'unlock':
+        from django.contrib.auth.models import User
+        u = User.objects.filter(pk=request.POST.get('user')).first()
+        if u:
+            p2p.unlock_buying(request.user, u)
+            messages.success(request, f'P2P buying unlocked for {u.username}. They were notified.')
+        return redirect(reverse('p2p_admin') + '#paused')
     appeals = list(P2POrder.objects.filter(status='APPEAL').select_related('buyer', 'seller', 'appeal_by').order_by('created_at'))
     recent = list(P2POrder.objects.exclude(resolution='').select_related('buyer', 'seller', 'resolved_by').order_by('-completed_at', '-cancelled_at')[:20])
     for o in appeals + recent:
@@ -310,7 +321,8 @@ def admin_appeals(request):
         'done_7d': P2POrder.objects.filter(status='COMPLETED', completed_at__gte=timezone.now() - timezone.timedelta(days=7)).count(),
         'ads': P2PAd.objects.filter(status='ACTIVE').count(),
     }
-    return render(request, 'store/p2p_admin.html', dict(_common(request), appeals=appeals, recent=recent, stats=stats, tab='admin'))
+    return render(request, 'store/p2p_admin.html', dict(_common(request), appeals=appeals, recent=recent, stats=stats, tab='admin',
+                                                       paused=p2p.paused_buyers()))
 
 
 @login_required
