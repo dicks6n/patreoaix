@@ -3840,8 +3840,54 @@ def execute_funded_gold_trades(user, funded_account, ai_toggle=None):
 
 @login_required
 def trade_history(request):
-    trades = Trade.objects.filter(user=request.user).exclude(status='OPEN').order_by('-date_opened')
-    return render(request, 'store/trades_history.html', {'trades': trades})
+    """Closed trades with filters (period, result, symbol), totals, pages of 50 and a CSV download."""
+    import csv
+    from datetime import timedelta
+    from django.core.paginator import Paginator
+    from django.db.models import Count, Max, Min, Q, Sum
+    from django.http import HttpResponse
+    qs = Trade.objects.filter(user=request.user).exclude(status='OPEN').select_related('asset').order_by('-date_opened')
+    period = request.GET.get('period', 'all')
+    since = {'today': timezone.localtime().replace(hour=0, minute=0, second=0, microsecond=0),
+             '7d': timezone.now() - timedelta(days=7), '30d': timezone.now() - timedelta(days=30),
+             '90d': timezone.now() - timedelta(days=90)}.get(period)
+    if since:
+        qs = qs.filter(date_opened__gte=since)
+    day = request.GET.get('day', '')
+    if day:
+        try:
+            qs = qs.filter(date_opened__date=datetime.strptime(day, '%Y-%m-%d').date())
+        except ValueError:
+            day = ''
+    result = request.GET.get('result', '')
+    if result == 'won':
+        qs = qs.filter(Q(status='WON') | Q(pnl__gt=0))
+    elif result == 'lost':
+        qs = qs.filter(Q(status='LOST') | Q(pnl__lt=0))
+    q = (request.GET.get('q') or '').strip().upper()
+    if q:
+        qs = qs.filter(asset__symbol__icontains=q)
+    if request.GET.get('format') == 'csv':
+        resp = HttpResponse(content_type='text/csv')
+        resp['Content-Disposition'] = 'attachment; filename="patreoaix-trades.csv"'
+        w = csv.writer(resp)
+        w.writerow(['Opened', 'Closed', 'Symbol', 'Side', 'Stake', 'Entry', 'Exit', 'Status', 'Profit/Loss'])
+        for t in qs[:5000]:
+            w.writerow([timezone.localtime(t.date_opened).strftime('%Y-%m-%d %H:%M'),
+                        timezone.localtime(t.date_closed).strftime('%Y-%m-%d %H:%M') if t.date_closed else '',
+                        t.asset.symbol if t.asset else '', t.direction, f'{t.stake:.2f}', t.entry_price or '', t.exit_price or '',
+                        t.status, f'{t.pnl:.2f}'])
+        return resp
+    agg = qs.aggregate(n=Count('id'), net=Sum('pnl'), best=Max('pnl'), worst=Min('pnl'), staked=Sum('stake'),
+                       won=Count('id', filter=Q(pnl__gt=0)), lost=Count('id', filter=Q(pnl__lt=0)))
+    decided = (agg['won'] or 0) + (agg['lost'] or 0)
+    page = Paginator(qs, 50).get_page(request.GET.get('page'))
+    keep = request.GET.copy(); keep.pop('page', None); keep.pop('format', None)
+    return render(request, 'store/trades_history.html', {
+        'trades': page, 'page': page, 'period': period, 'result': result, 'q': q, 'day': day, 'keep': keep.urlencode(),
+        'stats': {'n': agg['n'] or 0, 'net': agg['net'] or 0, 'best': agg['best'] or 0, 'worst': agg['worst'] or 0,
+                  'staked': agg['staked'] or 0, 'won': agg['won'] or 0, 'lost': agg['lost'] or 0,
+                  'win_rate': round((agg['won'] or 0) / decided * 100) if decided else None}})
 
 
 @login_required

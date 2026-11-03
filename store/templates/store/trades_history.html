@@ -1,316 +1,135 @@
 {% extends 'base_dashboard.html' %}
 
-{% block title %}Trade History - PATREOAIX{% endblock %}
+{% block title %}Trade History · PATREOAIX{% endblock %}
+{% block page_title %}Trade History{% endblock %}
+
+{% block extra_head %}
+<style>
+    .th-wrap { display: flex; flex-direction: column; gap: 16px; max-width: 1100px; }
+    .th-card { background: var(--px-panel); border: 1px solid var(--px-line); border-radius: 16px; padding: 18px; }
+    .th-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .th-h h1 { font-size: 20px; font-weight: 900; color: var(--px-text); }
+    .th-h p { font-size: 12px; color: var(--px-mute); margin-top: 2px; }
+    .th-btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 13px; border-radius: 10px; font-size: 12.5px; font-weight: 800;
+              background: var(--px-panel-2); color: var(--px-text); border: 1px solid var(--px-line); white-space: nowrap; }
+    .th-btn:hover { border-color: var(--px-accent); }
+    .th-btn.pri { background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); border-color: var(--px-accent); }
+    .th-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 16px; }
+    .th-stat { padding: 13px 14px; border-radius: 14px; background: var(--px-panel-2); display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+    .th-stat span { font-size: 10.5px; font-weight: 800; color: var(--px-mute); text-transform: uppercase; letter-spacing: .05em; }
+    .th-stat b { font-family: 'JetBrains Mono', monospace; font-size: 19px; color: var(--px-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .th-stat small { font-size: 11.5px; color: var(--px-mute); }
+    .th-up { color: var(--px-up) !important; } .th-dn { color: var(--px-down) !important; } .th-mute { color: var(--px-mute); }
+    .th-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+    .th-tab { padding: 7px 12px; border-radius: 999px; font-size: 12px; font-weight: 800; color: var(--px-dim); background: var(--px-panel-2); border: 1px solid var(--px-line); }
+    .th-tab.on { background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); border-color: var(--px-accent); }
+    .th-filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+    .th-search { display: flex; gap: 8px; flex-wrap: wrap; }
+    .th-in { background: var(--px-panel-2); border: 1px solid var(--px-line); color: var(--px-text); border-radius: 10px; padding: 8px 11px; font-size: 13px; min-width: 0; }
+    .th-in:focus { outline: none; border-color: var(--px-accent); }
+    .th-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .th-table th { text-align: left; font-size: 10.5px; color: var(--px-mute); text-transform: uppercase; letter-spacing: .05em; padding: 9px 8px; border-bottom: 1px solid var(--px-line); white-space: nowrap; }
+    .th-table td { padding: 11px 8px; border-bottom: 1px solid var(--px-line-soft, var(--px-line)); color: var(--px-text); vertical-align: middle; }
+    .th-table .num { font-family: 'JetBrains Mono', monospace; text-align: right; white-space: nowrap; }
+    .th-sym { font-weight: 800; }
+    .th-side { font-size: 10.5px; font-weight: 900; padding: 3px 8px; border-radius: 6px; letter-spacing: .03em; }
+    .th-side.buy { background: color-mix(in srgb, var(--px-up) 14%, transparent); color: var(--px-up); }
+    .th-side.sell { background: color-mix(in srgb, var(--px-down) 14%, transparent); color: var(--px-down); }
+    .th-tag { font-size: 10.5px; font-weight: 800; padding: 3px 8px; border-radius: 6px; background: var(--px-panel-2); color: var(--px-dim); white-space: nowrap; }
+    .th-tag.won { color: var(--px-up); } .th-tag.lost { color: var(--px-down); }
+    .th-empty { text-align: center; padding: 46px 12px; color: var(--px-mute); font-size: 13px; }
+    .th-empty i { font-size: 28px; color: var(--px-accent); display: block; margin-bottom: 10px; }
+    .th-pages { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 14px; font-size: 12.5px; color: var(--px-mute); }
+    /* phones: each trade as a card */
+    @media (max-width: 760px) {
+        .th-stats { grid-template-columns: repeat(2, 1fr); }
+        .th-stats .th-stat:first-child { grid-column: 1 / -1; }
+        .th-card { padding: 14px; }
+        .th-table thead { display: none; }
+        .th-table, .th-table tbody, .th-table tr, .th-table td { display: block; width: 100%; }
+        .th-table tr { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; padding: 12px 2px; border-bottom: 1px solid var(--px-line); }
+        .th-table td { border: 0; padding: 0; }
+        .th-table td.c-sym { grid-column: 1; } .th-table td.c-pnl { grid-column: 2; grid-row: 1; font-size: 15px; font-weight: 800; }
+        .th-table td.c-meta { grid-column: 1 / -1; font-size: 12px; color: var(--px-mute); }
+        .th-table td.c-stake, .th-table td.c-date, .th-table td.c-status, .th-table td.c-px { display: none; }
+    }
+    @media (min-width: 761px) { .th-table td.c-meta { display: none; } }
+</style>
+{% endblock %}
 
 {% block content %}
-<!-- LOADING SPINNER -->
-<div id="loading-spinner" class="fixed inset-0 z-[9999] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center transition-opacity duration-500">
-    <div class="relative flex items-center justify-center">
-        <div class="w-20 h-20 rounded-full border-4 border-amber-500/20 border-t-amber-500 animate-spin"></div>
-        <div class="absolute w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center animate-pulse">
-            <div class="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
-        </div>
-    </div>
-    <div class="mt-5 text-center space-y-1">
-        <p class="text-xs font-mono tracking-widest text-amber-300 uppercase animate-pulse">Loading Trade History</p>
-        <p class="text-[10px] font-mono text-slate-500">Fetching executed contracts...</p>
-    </div>
-</div>
-
-<style>
-    .spinner-hidden { opacity: 0; pointer-events: none; visibility: hidden; }
-
-    .crypto-card {
-        background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(69, 26, 3, 0.5) 100%);
-        border: 1px solid rgba(217, 119, 6, 0.25);
-        border-radius: 24px;
-        backdrop-filter: blur(10px);
-        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
-    }
-
-    .filter-bar {
-        background: rgba(15, 23, 42, 0.8);
-        border: 1px solid rgba(217, 119, 6, 0.25);
-        border-radius: 16px;
-        backdrop-filter: blur(8px);
-    }
-
-    .stat-card {
-        background: rgba(15, 23, 42, 0.8);
-        border: 1px solid rgba(217, 119, 6, 0.25);
-        border-radius: 16px;
-        padding: 14px 18px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .trade-row {
-        transition: background 0.2s ease;
-    }
-    .trade-row:hover {
-        background: rgba(69, 26, 3, 0.25);
-    }
-
-    .status-badge {
-        font-size: 9px;
-        font-weight: 800;
-        padding: 3px 10px;
-        border-radius: 9999px;
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-    }
-    .status-won {
-        background: rgba(16, 185, 129, 0.12);
-        color: #34d399;
-        border: 1px solid rgba(16, 185, 129, 0.25);
-    }
-    .status-lost {
-        background: rgba(244, 63, 94, 0.12);
-        color: #fb7185;
-        border: 1px solid rgba(244, 63, 94, 0.25);
-    }
-    .status-pending {
-        background: rgba(217, 119, 6, 0.12);
-        color: #fbbf24;
-        border: 1px solid rgba(217, 119, 6, 0.3);
-    }
-
-    .glow-green {
-        text-shadow: 0 0 12px rgba(52, 211, 153, 0.4);
-    }
-    .glow-red {
-        text-shadow: 0 0 12px rgba(251, 113, 133, 0.4);
-    }
-    .glow-amber {
-        text-shadow: 0 0 12px rgba(245, 158, 11, 0.5);
-    }
-
-    input[type="date"]::-webkit-calendar-picker-indicator {
-        filter: invert(0.7) sepia(1) saturate(5) hue-rotate(5deg);
-        cursor: pointer;
-    }
-
-    .empty-state {
-        padding: 60px 20px;
-        text-align: center;
-    }
-</style>
-
-<div class="space-y-6 pb-4">
-
-    <!-- ========================================== -->
-    <!-- HEADER -->
-    <!-- ========================================== -->
-    <div class="crypto-card p-5 sm:p-6 relative overflow-hidden">
-        <div class="absolute -top-20 -right-20 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
-        <div class="absolute -bottom-20 -left-20 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
-        <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
-            <div>
-                <div class="flex items-center gap-3">
-                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/30">
-                        <i class="fa-solid fa-chart-bar text-white text-lg"></i>
-                    </div>
-                    <div>
-                        <h1 class="text-xl sm:text-2xl font-black text-white tracking-tight">Trade History</h1>
-                        <p class="text-[11px] text-slate-400 mt-0.5">Review all your completed and pending trades</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Summary Stats -->
-            <div class="flex flex-wrap items-center gap-3 font-mono">
-                <div class="stat-card">
-                    <div class="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 text-xs">
-                        <i class="fa-solid fa-layer-group"></i>
-                    </div>
-                    <div>
-                        <p class="text-[9px] uppercase text-slate-500 font-bold tracking-wider">Total Trades</p>
-                        <p class="text-base font-black text-white" id="total-trades-count">{{ trades|length }}</p>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-xs">
-                        <i class="fa-solid fa-arrow-trend-up"></i>
-                    </div>
-                    <div>
-                        <p class="text-[9px] uppercase text-slate-500 font-bold tracking-wider">Net Progress</p>
-                        <p class="text-base font-black text-white" id="total-net-profit">0.00 USD</p>
-                    </div>
-                </div>
+<div class="th-wrap">
+    <div class="th-card">
+        <div class="th-h">
+            <div><h1><i class="fa-solid fa-clock-rotate-left" style="color:var(--px-accent)"></i> Trade History</h1>
+                <p>Every closed trade from the terminal, with your results.</p></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <a class="th-btn" href="?{{ keep }}{% if keep %}&{% endif %}format=csv"><i class="fa-solid fa-file-arrow-down"></i> Download CSV</a>
+                <a class="th-btn pri" href="{% url 'mt5_terminal' %}"><i class="fa-solid fa-chart-line"></i> Trade</a>
             </div>
         </div>
-    </div>
-
-    <!-- ========================================== -->
-    <!-- DATE FILTER BAR -->
-    <!-- ========================================== -->
-    <div class="filter-bar p-4 flex flex-col sm:flex-row items-center justify-between gap-4 font-mono">
-        <div class="flex items-center gap-3 w-full sm:w-auto flex-wrap">
-            <label for="trade-date-filter" class="text-[10px] uppercase tracking-wider text-slate-400 font-bold whitespace-nowrap">Filter by Date:</label>
-            <input type="date" id="trade-date-filter" class="bg-slate-950/80 border border-amber-800/40 text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-amber-500 focus:shadow-[0_0_20px_rgba(245,158,11,0.2)] font-mono transition-all">
-            <button id="clear-date-filter" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl transition cursor-pointer border border-amber-800/40 hover:border-amber-600/50">
-                Show All
-            </button>
-        </div>
-        <div class="text-[10px] text-amber-400 font-bold bg-amber-500/10 border border-amber-500/25 px-3 py-2 rounded-xl flex items-center gap-2">
-            <i class="fa-solid fa-circle-info text-[9px]"></i>
-            Showing profit/loss for selected date
+        <div class="th-stats">
+            <div class="th-stat"><span>Net profit / loss</span><b class="{% if stats.net > 0 %}th-up{% elif stats.net < 0 %}th-dn{% endif %}">{% if stats.net > 0 %}+{% elif stats.net < 0 %}-{% endif %}${% if stats.net < 0 %}{{ stats.net|floatformat:"2g"|slice:"1:" }}{% else %}{{ stats.net|floatformat:"2g" }}{% endif %}</b><small>{{ stats.n }} trade{{ stats.n|pluralize }}{% if period != 'all' or result or q or day %} in this view{% endif %}</small></div>
+            <div class="th-stat"><span>Win rate</span><b>{% if stats.win_rate is not None %}{{ stats.win_rate }}%{% else %}–{% endif %}</b><small>{{ stats.won }} won · {{ stats.lost }} lost</small></div>
+            <div class="th-stat"><span>Best trade</span><b class="{% if stats.best > 0 %}th-up{% endif %}">{% if stats.best > 0 %}+${{ stats.best|floatformat:"2g" }}{% else %}–{% endif %}</b></div>
+            <div class="th-stat"><span>Worst trade</span><b class="{% if stats.worst < 0 %}th-dn{% endif %}">{% if stats.worst < 0 %}-${{ stats.worst|floatformat:"2g"|slice:"1:" }}{% else %}–{% endif %}</b></div>
+            <div class="th-stat"><span>Total staked</span><b>${{ stats.staked|floatformat:"2g" }}</b></div>
         </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- TRADES TABLE -->
-    <!-- ========================================== -->
-    <div class="crypto-card p-5">
-        <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs">
-                <thead class="text-[10px] uppercase tracking-wider text-slate-500 border-b border-amber-800/30 font-semibold">
-                    <tr>
-                        <th class="py-4 px-4">Date</th>
-                        <th class="py-4 px-4">Symbol</th>
-                        <th class="py-4 px-4">Contract</th>
-                        <th class="py-4 px-4">Stake</th>
-                        <th class="py-4 px-4">Status</th>
-                        <th class="py-4 px-4 text-right">Profit/Loss</th>
-                    </tr>
-                </thead>
-                <tbody id="history-tbody" class="divide-y divide-amber-800/20 font-mono text-slate-200">
-                    {% for trade in trades %}
-                    <tr class="trade-row" data-date="{{ trade.date_opened|date:'Y-m-d' }}">
-                        <td class="py-4 px-4 text-slate-400">{{ trade.date_opened|date:"d M, H:i" }}</td>
-                        <td class="py-4 px-4 font-bold text-white">{{ trade.asset.symbol }}</td>
-                        <td class="py-4 px-4 uppercase text-slate-300">{{ trade.direction }}</td>
-                        <td class="py-4 px-4 text-slate-300">${{ trade.stake|floatformat:2 }}</td>
-                        <td class="py-4 px-4">
-                            <span class="status-badge
-                                {% if trade.status == 'WON' %}status-won
-                                {% elif trade.status == 'LOST' %}status-lost
-                                {% else %}status-pending{% endif %}">
-                                <span class="w-1.5 h-1.5 rounded-full
-                                    {% if trade.status == 'WON' %}bg-emerald-400
-                                    {% elif trade.status == 'LOST' %}bg-rose-400
-                                    {% else %}bg-amber-400 animate-pulse{% endif %}">
-                                </span>
-                                {{ trade.status }}
-                            </span>
-                        </td>
-                        <td class="py-4 px-4 text-right font-bold trade-profit
-                            {% if trade.pnl < 0 %}text-rose-400 glow-red
-                            {% elif trade.pnl > 0 %}text-emerald-400 glow-green
-                            {% else %}text-slate-400{% endif %}"
-                            data-value="{{ trade.pnl|default:0 }}">
-                            {% if trade.pnl > 0 %}
-                                +${{ trade.pnl|floatformat:2 }}
-                            {% elif trade.pnl < 0 %}
-                                -${{ trade.pnl|floatformat:2|slice:"1:" }}
-                            {% else %}
-                                $0.00
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="6" class="empty-state">
-                            <div class="flex flex-col items-center gap-3">
-                                <div class="w-16 h-16 rounded-2xl bg-slate-800/60 border border-amber-800/40 flex items-center justify-center text-slate-500">
-                                    <i class="fa-solid fa-inbox text-2xl"></i>
-                                </div>
-                                <p class="text-sm text-slate-400 font-sans">No trades found</p>
-                                <p class="text-[11px] text-slate-500 font-sans">Your executed contracts will appear here</p>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
+    <div class="th-card">
+        <form class="th-filters" method="get">
+            <div class="th-tabs">
+                <a class="th-tab {% if period == 'all' and not day %}on{% endif %}" href="?period=all{% if result %}&result={{ result }}{% endif %}{% if q %}&q={{ q }}{% endif %}">All</a>
+                <a class="th-tab {% if period == 'today' %}on{% endif %}" href="?period=today{% if result %}&result={{ result }}{% endif %}{% if q %}&q={{ q }}{% endif %}">Today</a>
+                <a class="th-tab {% if period == '7d' %}on{% endif %}" href="?period=7d{% if result %}&result={{ result }}{% endif %}{% if q %}&q={{ q }}{% endif %}">7 days</a>
+                <a class="th-tab {% if period == '30d' %}on{% endif %}" href="?period=30d{% if result %}&result={{ result }}{% endif %}{% if q %}&q={{ q }}{% endif %}">30 days</a>
+                <a class="th-tab {% if period == '90d' %}on{% endif %}" href="?period=90d{% if result %}&result={{ result }}{% endif %}{% if q %}&q={{ q }}{% endif %}">90 days</a>
+            </div>
+            <div class="th-search">
+                <input type="hidden" name="period" value="{{ period }}">
+                <select name="result" class="th-in" onchange="this.form.submit()">
+                    <option value="">All results</option>
+                    <option value="won" {% if result == 'won' %}selected{% endif %}>Winning trades</option>
+                    <option value="lost" {% if result == 'lost' %}selected{% endif %}>Losing trades</option>
+                </select>
+                <input type="date" name="day" value="{{ day }}" class="th-in" onchange="this.form.submit()" aria-label="Pick a day">
+                <input type="search" name="q" value="{{ q }}" class="th-in" placeholder="Symbol, e.g. XAUUSD" style="width:150px">
+                <button class="th-btn" type="submit"><i class="fa-solid fa-magnifying-glass"></i></button>
+                {% if result or q or day or period != 'all' %}<a class="th-btn" href="?">Clear</a>{% endif %}
+            </div>
+        </form>
+
+        <div style="overflow-x:auto;margin-top:12px">
+            <table class="th-table">
+                <thead><tr><th>Opened</th><th>Symbol</th><th class="num">Stake</th><th class="num">Entry → Exit</th><th>Result</th><th class="num">Profit / Loss</th></tr></thead>
+                <tbody>
+                {% for t in trades %}
+                <tr>
+                    <td class="c-date th-mute">{{ t.date_opened|date:"d M Y, H:i" }}</td>
+                    <td class="c-sym"><span class="th-sym">{{ t.asset.symbol|default:"—" }}</span> <span class="th-side {% if t.direction == 'SELL' %}sell{% else %}buy{% endif %}" style="margin-left:4px">{{ t.direction }}</span></td>
+                    <td class="c-stake num">${{ t.stake|floatformat:"2g" }}</td>
+                    <td class="c-px num th-mute">{% if t.entry_price %}{{ t.entry_price|floatformat:"-5" }}{% else %}–{% endif %} → {% if t.exit_price %}{{ t.exit_price|floatformat:"-5" }}{% else %}–{% endif %}</td>
+                    <td class="c-status"><span class="th-tag {% if t.pnl > 0 or t.status == 'WON' %}won{% elif t.pnl < 0 or t.status == 'LOST' %}lost{% endif %}">{% if t.pnl > 0 %}Won{% elif t.pnl < 0 %}Lost{% else %}{{ t.get_status_display }}{% endif %}</span></td>
+                    <td class="c-pnl num {% if t.pnl > 0 %}th-up{% elif t.pnl < 0 %}th-dn{% else %}th-mute{% endif %}">{% if t.pnl > 0 %}+${{ t.pnl|floatformat:"2g" }}{% elif t.pnl < 0 %}-${{ t.pnl|floatformat:"2g"|slice:"1:" }}{% else %}$0.00{% endif %}</td>
+                    <td class="c-meta">{{ t.date_opened|date:"d M, H:i" }} · stake ${{ t.stake|floatformat:2 }}{% if t.entry_price %} · {{ t.entry_price|floatformat:"-5" }} → {{ t.exit_price|floatformat:"-5"|default:"–" }}{% endif %}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="th-empty"><i class="fa-solid fa-inbox"></i>{% if result or q or day or period != 'all' %}No trades match these filters. <a href="?" style="color:var(--px-accent);font-weight:800">Show all</a>{% else %}No closed trades yet. <a href="{% url 'mt5_terminal' %}" style="color:var(--px-accent);font-weight:800">Open the terminal</a> to place your first one.{% endif %}</td></tr>
+                {% endfor %}
                 </tbody>
             </table>
         </div>
-    </div>
 
-    <!-- Trust badges -->
-    <div class="flex items-center justify-center gap-4 text-[10px] text-slate-500 font-mono flex-wrap">
-        <span class="flex items-center gap-1.5">
-            <i class="fa-solid fa-shield-halved text-emerald-400"></i>
-            256-bit Encrypted
-        </span>
-        <span class="w-1 h-1 rounded-full bg-slate-700"></span>
-        <span class="flex items-center gap-1.5">
-            <i class="fa-solid fa-lock text-amber-400"></i>
-            Secure Storage
-        </span>
-        <span class="w-1 h-1 rounded-full bg-slate-700"></span>
-        <span class="flex items-center gap-1.5">
-            <i class="fa-solid fa-user-shield text-amber-400"></i>
-            GDPR Compliant
-        </span>
+        {% if page.paginator.num_pages > 1 %}
+        <div class="th-pages">
+            <span>Page {{ page.number }} of {{ page.paginator.num_pages }} · {{ page.paginator.count }} trades</span>
+            <span style="display:flex;gap:8px">
+                {% if page.has_previous %}<a class="th-btn" href="?{{ keep }}{% if keep %}&{% endif %}page={{ page.previous_page_number }}"><i class="fa-solid fa-chevron-left"></i> Newer</a>{% endif %}
+                {% if page.has_next %}<a class="th-btn" href="?{{ keep }}{% if keep %}&{% endif %}page={{ page.next_page_number }}">Older <i class="fa-solid fa-chevron-right"></i></a>{% endif %}
+            </span>
+        </div>
+        {% endif %}
     </div>
-
 </div>
-
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        setTimeout(() => {
-            const spinner = document.getElementById('loading-spinner');
-            if (spinner) {
-                spinner.classList.add('spinner-hidden');
-                setTimeout(() => spinner.remove(), 500);
-            }
-        }, 400);
-
-        const dateFilterInput = document.getElementById("trade-date-filter");
-        const clearFilterBtn = document.getElementById("clear-date-filter");
-        const tradeRows = document.querySelectorAll(".trade-row");
-        const profitDisplay = document.getElementById("total-net-profit");
-        const countDisplay = document.getElementById("total-trades-count");
-
-        function filterAndCalculate() {
-            const selectedDate = dateFilterInput.value;
-            let total = 0;
-            let visibleCount = 0;
-
-            tradeRows.forEach(row => {
-                const rowDate = row.getAttribute("data-date");
-
-                if (!selectedDate || rowDate === selectedDate) {
-                    row.style.display = "";
-                    visibleCount++;
-
-                    const profitCell = row.querySelector(".trade-profit");
-                    if (profitCell) {
-                        const val = parseFloat(profitCell.getAttribute("data-value")) || 0;
-                        total += val;
-                    }
-                } else {
-                    row.style.display = "none";
-                }
-            });
-
-            countDisplay.textContent = visibleCount;
-
-            const sign = total >= 0 ? "+" : "-";
-            profitDisplay.textContent = `${sign}$${Math.abs(total).toFixed(2)} USD`;
-
-            if (total > 0) {
-                profitDisplay.className = "text-base font-black text-emerald-400 glow-green";
-            } else if (total < 0) {
-                profitDisplay.className = "text-base font-black text-rose-400 glow-red";
-            } else {
-                profitDisplay.className = "text-base font-black text-white";
-            }
-        }
-
-        dateFilterInput.addEventListener("change", filterAndCalculate);
-
-        clearFilterBtn.addEventListener("click", function() {
-            dateFilterInput.value = "";
-            filterAndCalculate();
-        });
-
-        filterAndCalculate();
-    });
-</script>
 {% endblock %}

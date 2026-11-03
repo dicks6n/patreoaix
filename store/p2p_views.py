@@ -1,5 +1,6 @@
 # store/p2p_views.py
 """Pages of the P2P marketplace (logic in store/p2p.py)."""
+import json
 import mimetypes
 
 from django.contrib import messages
@@ -110,7 +111,6 @@ def market(request):
         a.remaining_txt = p2p.fmt(a.asset, a.remaining)
         a.max_now = min(a.max_fiat, p2p._q(a.remaining * a.price))
         a.desk = a.user.is_staff
-        a.has_pay = a.side != 'SELL' or a.pay_methods.filter(is_active=True).exists()
         a.sample = p2p.is_sample(a.user)            # sample trader from p2p_seed: labelled, not tradable
     ctx = dict(_common(request), side=side, asset=asset, cur=cur, method=method, ads=ads, amount=request.GET.get('amount', ''),
                currency_groups=p2p.currency_groups(), methods=[] if every else p2p.methods_for(cur), every=every,
@@ -212,8 +212,8 @@ def order_page(request, ref):
                 p2p.ask_details(request.user, ref)
                 messages.success(request, 'Asked the seller for payment details. Their answer appears in the chat.')
             elif act == 'send_details':
-                p2p.send_details(request.user, ref)
-                messages.success(request, 'Your payment details were sent to the buyer.')
+                p2p.send_details(request.user, ref, request.POST)
+                messages.success(request, 'Your payment details are on this trade now. The buyer sees them right away.')
             elif act == 'message':
                 m = p2p.message(request.user, ref, request.POST.get('text', ''), request.FILES.get('image'))
                 if _ajax(request):
@@ -234,11 +234,27 @@ def order_page(request, ref):
     i_buy = o.buyer_id == me.id
     other = o.seller if i_buy else o.buyer
     left = max(0, int((o.expires_at - timezone.now()).total_seconds())) if o.status == 'PENDING' else 0
+    pay_form = []
+    if o.seller_id == me.id and o.status == 'PENDING':          # the seller's details form, pre-filled from saved methods
+        saved = {m.method: m for m in P2PPaymentMethod.objects.filter(user=me, is_active=True)}
+        current = (o.pay_to or [{}])[0]
+        for k in (o.ad.methods or []):
+            m, nm = saved.get(k), p2p.method_name(k)
+            now_on = current.get('method') == nm
+            pay_form.append({'key': k, 'name': nm, 'label': p2p.METHODS.get(k, ('', 'Number'))[1],
+                             'number': current.get('number') if now_on else (m.account_number if m else ''),
+                             'holder': current.get('name') if now_on else (m.account_name if m else me.get_full_name()),
+                             'bank': (current.get('bank') if now_on else (m.bank_name if m else '')) or '', 'on': now_on})
+        if pay_form and not any(f['on'] for f in pay_form):
+            pay_form[0]['on'] = True
+    import hashlib
+    pay_v = hashlib.md5(json.dumps(o.pay_to or [], sort_keys=True).encode()).hexdigest()[:10]
     can_appeal = o.status == 'PAID' and (not i_buy or (o.paid_at and timezone.now() >= o.paid_at + timezone.timedelta(minutes=10)))
     return render(request, 'store/p2p_order.html', dict(
         _common(request), o=o, i_buy=i_buy, i_sell=o.seller_id == me.id, other=other, left=left, tab='orders',
         other_stats=p2p.merchant_stats(other), amount_txt=p2p.fmt(o.asset, o.amount),
         receive_txt=p2p.fmt(o.asset, o.amount - o.fee), fee_txt=p2p.fmt(o.asset, o.fee), can_appeal=can_appeal,
+        pay_form=pay_form, pay_v=pay_v,
         my_feedback=o.feedback.filter(from_user=me).first(), staff_view=me.is_staff and me.id not in (o.buyer_id, o.seller_id)))
 
 
@@ -263,7 +279,9 @@ def order_poll(request, ref):
                      'image': reverse('p2p_proof', args=[m.id]) if m.image else None,
                      'pdf': bool(m.image and str(m.image.name).endswith('.pdf')),
                      'time': timezone.localtime(m.created_at).strftime('%H:%M')})
-    return JsonResponse({'success': True, 'status': o.status, 'status_label': o.get_status_display(), 'messages': rows,
+    import hashlib
+    pay_v = hashlib.md5(json.dumps(o.pay_to or [], sort_keys=True).encode()).hexdigest()[:10]
+    return JsonResponse({'success': True, 'status': o.status, 'status_label': o.get_status_display(), 'messages': rows, 'pay_v': pay_v,
                          'left': max(0, int((o.expires_at - timezone.now()).total_seconds())) if o.status == 'PENDING' else 0})
 
 

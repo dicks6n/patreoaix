@@ -499,8 +499,7 @@ def open_order(user, ad_id, fiat=None, coins=None, method_id=None):
         fee = _qa(asset, amount * fee_pct() / 100)
         if ad.side == 'SELL':                       # taker buys; escrow already locked by the ad (or, desk: taken now)
             buyer, seller, escrow_in_ad = user, ad.user, not ad.pool
-            pay_to = [{'method': method_name(p.method), 'name': p.account_name, 'number': p.account_number, 'bank': p.bank_name}
-                      for p in ad.pay_methods.filter(is_active=True)]
+            pay_to = []                             # the seller sends their payment details for this trade (send_details)
             if ad.pool:
                 try:
                     _move(ad.user, asset, -amount, ad.demo, 'P2P_ESCROW', f'P2P desk sale: {fmt(asset, amount)} {asset} locked in escrow')
@@ -525,10 +524,16 @@ def open_order(user, ad_id, fiat=None, coins=None, method_id=None):
             ref='P2P' + secrets.token_hex(4).upper(), ad=ad, buyer=buyer, seller=seller, asset=asset, amount=amount, fee=fee,
             price=price, fiat_amount=fiat_amt, currency=ad.currency, pay_to=pay_to, escrow_in_ad=escrow_in_ad,
             demo=ad.demo, expires_at=timezone.now() + timedelta(minutes=ad.time_limit))
-    _sys(o, f'Order created. {o.buyer.username} pays {o.fiat_amount:,} {o.currency} to {o.seller.username} within '
-            f'{ad.time_limit} minutes. {fmt(asset, o.amount)} {asset} is locked in escrow.')
+    if pay_to:
+        _sys(o, f'Order created. {o.buyer.username} pays {o.fiat_amount:,} {o.currency} to {o.seller.username} within '
+                f'{ad.time_limit} minutes. {fmt(asset, o.amount)} {asset} is locked in escrow.')
+    else:
+        _sys(o, f'Order created. {fmt(asset, o.amount)} {asset} is locked in escrow. Waiting for {o.seller.username} to send '
+                f'payment details; the {ad.time_limit}-minute payment time starts when they do.')
     other = ad.user
-    _notify(other, o, f'New P2P order {o.ref}: {fmt(asset, o.amount)} {asset}', f'{user.username} opened an order for {o.fiat_amount:,} {o.currency}.')
+    _notify(other, o, f'New P2P order {o.ref}: {fmt(asset, o.amount)} {asset}',
+            f'{user.username} opened an order for {o.fiat_amount:,} {o.currency}.' +
+            ('' if pay_to else ' Send your payment details now so they can pay.'), sticky=not pay_to)
     return o
 
 
@@ -546,6 +551,8 @@ def mark_paid(user, ref):
     o = _get(user, ref)
     if o.buyer_id != user.id:
         raise P2PError('Only the buyer can mark the order as paid.')
+    if not o.pay_to:
+        raise P2PError("The seller hasn't sent payment details yet. Ask them in the chat and wait for the details before paying.")
     now = timezone.now()
     if not P2POrder.objects.filter(pk=o.pk, status='PENDING', expires_at__gt=now).update(status='PAID', paid_at=now):
         o.refresh_from_db()
@@ -694,23 +701,44 @@ def ask_details(user, ref):
                               f'the phone number or account to pay, and the name on it.')
 
 
-def send_details(user, ref):
-    """Seller shares their saved payment details in the chat; if the order had none, they fill its "pay to" box too."""
+def send_details(user, ref, data=None):
+    """Seller attaches payment details to THIS trade: typed fresh (method, number, name, bank) or their saved method.
+    What they type also updates their saved method, so it is pre-filled next time. Shown in the order's payment box
+    until the trade ends; the next trade starts empty. Locked once the buyer has marked the order paid.
+    The buyer's payment time restarts from now."""
     from .models import P2POrder, P2PPaymentMethod
     o = _get(user, ref)
-    if o.seller_id != user.id or o.status not in ('PENDING', 'PAID'):
-        raise P2PError('Only the seller can send payment details on an open order.')
-    rows = list(o.pay_to or [])
-    if not rows:
-        methods = P2PPaymentMethod.objects.filter(user=user, is_active=True, method__in=o.ad.methods or [])
+    if o.seller_id != user.id or o.status != 'PENDING':
+        raise P2PError('Payment details can only be sent by the seller while the order waits for payment.')
+    data = data or {}
+    key = (data.get('method') or '').strip()
+    if key:
+        if key not in (o.ad.methods or []) or key not in METHODS:
+            raise P2PError('Choose one of the payment methods of this offer.')
+        name, number, bank = ((data.get(k) or '').strip() for k in ('account_name', 'account_number', 'bank_name'))
+        if len(name) < 3 or len(number) < 4:
+            raise P2PError('Enter the number or account and the name on it, exactly as registered.')
+        pm = P2PPaymentMethod.objects.filter(user=user, method=key, is_active=True).first()
+        if pm:
+            P2PPaymentMethod.objects.filter(pk=pm.pk).update(account_name=name[:100], account_number=number[:60], bank_name=bank[:80])
+        else:
+            check_can_sell(user, [key])
+            P2PPaymentMethod.objects.create(user=user, method=key, account_name=name[:100], account_number=number[:60], bank_name=bank[:80])
+        rows = [{'method': method_name(key), 'name': name[:100], 'number': number[:60], 'bank': bank[:80]}]
+    else:
         rows = [{'method': method_name(p.method), 'name': p.account_name, 'number': p.account_number, 'bank': p.bank_name}
-                for p in methods]
+                for p in P2PPaymentMethod.objects.filter(user=user, is_active=True, method__in=o.ad.methods or [])]
         if not rows:
-            raise P2PError('Add a payment method for this currency first (My ads & payment), then send it.')
-        P2POrder.objects.filter(pk=o.pk).update(pay_to=rows)
-    lines = [f"{r['method']}: {r['number']} ({r['name']}{', ' + r['bank'] if r.get('bank') else ''})" for r in rows]
-    return message(user, ref, 'My payment details:\n' + '\n'.join(lines) +
-                   f'\nSend exactly {o.fiat_amount:,} {o.currency} and use reference {o.ref}.')
+            raise P2PError('Enter your payment details for this trade.')
+    minutes, had = o.ad.time_limit or 15, bool(o.pay_to)
+    if not P2POrder.objects.filter(pk=o.pk, status='PENDING').update(pay_to=rows, expires_at=timezone.now() + timedelta(minutes=minutes)):
+        raise P2PError('The buyer has already marked this order paid: payment details can no longer change.')
+    o.refresh_from_db()
+    _sys(o, f'{user.username} {"updated the" if had else "sent"} payment details (see the payment box). '
+            f'Pay exactly {o.fiat_amount:,} {o.currency} within {minutes} minutes, then tap "I have paid".')
+    _notify(o.buyer, o, f'💳 Payment details received ({o.ref})', f'{user.username} sent where to pay {o.fiat_amount:,} {o.currency}. '
+            f'You have {minutes} minutes to pay.', sticky=True)
+    return o
 
 
 def message(user, ref, text='', image=None):
@@ -739,7 +767,8 @@ def expire_due():
     n = 0
     for o in P2POrder.objects.filter(status='PENDING', expires_at__lt=timezone.now()).select_related('buyer'):
         try:
-            cancel(o.buyer, o.ref, 'The payment time ran out', system=True)
+            cancel(o.buyer, o.ref, 'The payment time ran out' if o.pay_to else 'The seller did not send payment details',
+                   system=True)
             n += 1
         except Exception as e:
             logger.warning(f'P2P expire {o.ref}: {e}')

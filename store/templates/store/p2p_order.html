@@ -28,6 +28,7 @@
     .po-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
     .po-warn { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--px-down-soft); color: var(--px-text); font-size: 12.5px; line-height: 1.5; }
     .po-confirm { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; color: var(--px-text); margin-top: 10px; }
+    .po-detgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; } @media (max-width: 560px) { .po-detgrid { grid-template-columns: 1fr; } }
     .po-chat { display: flex; flex-direction: column; height: 560px; }
     .po-msgs { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px 2px 10px; }
     .po-m { max-width: 85%; padding: 8px 11px; border-radius: 12px; font-size: 13px; line-height: 1.45; background: var(--px-panel-2); color: var(--px-text); align-self: flex-start; word-wrap: break-word; }
@@ -79,12 +80,22 @@
                 <div class="row"><span>Name</span><b>{{ p.name }}</b></div>
                 {% if p.bank %}<div class="row"><span>Bank</span><b>{{ p.bank }}</b></div>{% endif %}
                 {% endfor %}
-                {% if not o.pay_to %}<div class="po-warn" style="margin:8px 0 4px">{% if i_buy %}<b>The seller hasn't added payment details to this offer.</b> Ask them in the chat for the phone number or account to pay, and the name on it. Don't pay anyone else.{% else %}<b>The buyer can't see where to pay you.</b> Send your payment details now.{% endif %}</div>{% endif %}
+                {% if not o.pay_to %}<div class="po-warn" style="margin:8px 0 4px">{% if staff_view %}No payment details sent yet.{% elif i_buy %}<b>Waiting for the seller's payment details.</b> They appear here as soon as the seller sends them, and your payment time starts then. Never pay a number sent any other way.{% else %}<b>Send your payment details for this trade</b> so the buyer can pay you. They show on this order only.{% endif %}</div>{% endif %}
                 <div class="row"><span>Reference</span><b>{{ o.ref }}<button type="button" class="po-copy" data-copy="{{ o.ref }}" aria-label="Copy"><i class="fa-regular fa-copy"></i></button></b></div>
-                {% if not staff_view %}{% if i_buy and o.status == 'PENDING' %}
+                {% if not staff_view %}{% if i_buy and o.status == 'PENDING' and not o.pay_to %}
                 <form method="post" style="margin-top:10px">{% csrf_token %}<input type="hidden" name="action" value="ask_details"><button class="pp-btn ghost sm" type="submit"><i class="fa-regular fa-comment-dots"></i> Ask the seller for payment details</button></form>
-                {% elif i_sell and o.status == 'PENDING' or i_sell and o.status == 'PAID' %}
-                <form method="post" style="margin-top:10px">{% csrf_token %}<input type="hidden" name="action" value="send_details"><button class="pp-btn {% if o.pay_to %}ghost{% endif %} sm" type="submit"><i class="fa-regular fa-paper-plane"></i> Send my payment details in the chat</button></form>
+                {% elif i_sell and o.status == 'PENDING' and pay_form %}
+                <form method="post" class="po-detform" style="margin-top:12px">{% csrf_token %}<input type="hidden" name="action" value="send_details">
+                    <div class="pp-sub" style="font-weight:800;margin-bottom:6px">{% if o.pay_to %}Update your payment details for this trade{% else %}Your payment details for this trade{% endif %}</div>
+                    <div class="po-detgrid">
+                        <div class="pp-field"><label>Method</label><select name="method">{% for f in pay_form %}<option value="{{ f.key }}" data-number="{{ f.number }}" data-holder="{{ f.holder }}" data-bank="{{ f.bank }}" data-label="{{ f.label }}" {% if f.on %}selected{% endif %}>{{ f.name }}</option>{% endfor %}</select></div>
+                        <div class="pp-field"><label data-numlabel>Phone / account number</label><input name="account_number" required maxlength="60" inputmode="tel" autocomplete="off"></div>
+                        <div class="pp-field"><label>Name on the account</label><input name="account_name" required maxlength="100"></div>
+                        <div class="pp-field"><label>Bank (if bank)</label><input name="bank_name" maxlength="80"></div>
+                    </div>
+                    <button class="pp-btn {% if o.pay_to %}ghost{% else %}sell{% endif %} sm" type="submit" style="margin-top:8px"><i class="fa-regular fa-paper-plane"></i> {% if o.pay_to %}Update details{% else %}Send details to the buyer{% endif %}</button>
+                    <p class="pp-sub" style="margin-top:6px">The buyer sees them instantly. You can change them until the buyer marks the order paid.</p>
+                </form>
                 {% endif %}{% endif %}
             </div>
             {% endif %}
@@ -94,7 +105,7 @@
             {% if i_buy and o.status == 'PENDING' %}
             <div class="po-warn">Pay from an account in <b>your own name</b>, then tap "I have paid". Don't write crypto words in the payment note.</div>
             <div class="po-actions">
-                <form method="post">{% csrf_token %}<input type="hidden" name="action" value="paid"><button class="pp-btn buy" type="submit" onclick="return confirm('Have you sent {{ o.fiat_amount|floatformat:2 }} {{ o.currency }}? Marking paid without paying can get your account banned.')"><i class="fa-solid fa-check"></i> I have paid</button></form>
+                <form method="post">{% csrf_token %}<input type="hidden" name="action" value="paid"><button class="pp-btn buy" type="submit" {% if not o.pay_to %}disabled title="Wait for the seller's payment details"{% endif %} onclick="return confirm('Have you sent {{ o.fiat_amount|floatformat:2 }} {{ o.currency }}? Marking paid without paying can get your account banned.')"><i class="fa-solid fa-check"></i> I have paid</button></form>
                 <form method="post">{% csrf_token %}<input type="hidden" name="action" value="cancel"><button class="pp-btn ghost" type="submit" onclick="return confirm('Cancel this order?')">Cancel order</button></form>
             </div>
             {% elif i_sell and o.status == 'PENDING' %}
@@ -170,6 +181,15 @@
 <script>
 (function () {
     var ref = '{{ o.ref }}', last = 0, status = '{{ o.status }}', box = document.getElementById('poMsgs');
+    var payV = '{{ pay_v }}';
+    var df = document.querySelector('.po-detform');
+    if (df) {                                                // pre-fill the seller's form from the chosen method
+        var sel = df.querySelector('select[name=method]');
+        var fill = function () { var o = sel.selectedOptions[0];
+            df.account_number.value = o.dataset.number || ''; df.account_name.value = o.dataset.holder || ''; df.bank_name.value = o.dataset.bank || '';
+            df.querySelector('[data-numlabel]').textContent = o.dataset.label || 'Phone / account number'; };
+        sel.addEventListener('change', fill); fill();
+    }
     var pollUrl = '{% url "p2p_order_poll" o.ref %}';
     function esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
     function add(m) {
@@ -188,6 +208,7 @@
             d.messages.forEach(function (m) { add(m); last = Math.max(last, m.id); });
             if (d.messages.length && (stick || last === d.messages[d.messages.length - 1].id)) box.scrollTop = box.scrollHeight;
             if (d.status !== status) location.reload();          // the other side paid / released / cancelled
+            if (d.pay_v && d.pay_v !== payV && !document.querySelector('.po-detform :focus')) location.reload();   // new payment details
         }).catch(function () {});
     }
     poll(); setInterval(function () { if (!document.hidden) poll(); }, 4000);
