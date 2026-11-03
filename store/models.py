@@ -1789,6 +1789,11 @@ def push_new_notification(sender, instance, created, **kwargs):
     meta = instance.metadata if isinstance(instance.metadata, dict) else {}
     if meta.get('out'):
         return                                         # the user's own chat message: nothing to pop up
+    try:                                               # money, verification, security and P2P payment steps by email
+        from .emails import email_for_notification
+        email_for_notification(instance)
+    except Exception as e:
+        logger.warning(f'notification email failed: {e}')
     if enabled() or fcm.enabled():
         from .notif_prefs import should_push, safe_link
         if should_push(instance):
@@ -1797,6 +1802,21 @@ def push_new_notification(sender, instance, created, **kwargs):
             if enabled():
                 safe_send(*args, **kw)
             fcm.safe_send(*args, category='p2p' if meta.get('p2p') else instance.category, **kw)   # Android app
+
+
+try:
+    from allauth.account.signals import password_reset as _allauth_password_reset
+
+    @receiver(_allauth_password_reset)
+    def alert_password_reset(sender, request=None, user=None, **kwargs):
+        """A password reset through the emailed link → security alert (email + push)."""
+        if user:
+            Notification.objects.create(user=user, category='SECURITY', priority='warning', title='Your password was reset',
+                                        message="Your PATREOAIX password was just reset with the emailed link. "
+                                                "If this wasn't you, reset it again now and contact support.",
+                                        action_url='/accounts/password/reset/', action_label='Reset password')
+except Exception:                                      # allauth missing: nothing to listen to
+    pass
 
 
 # ============================================================

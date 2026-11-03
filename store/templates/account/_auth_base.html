@@ -26,18 +26,27 @@
         <a href="{% url 'account_login' %}" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold transition border border-slate-700 text-xs">Sign in</a>
     </header>
     <main class="flex-1 flex items-center justify-center p-6">
-        <div class="w-full max-w-md bg-[#0d1322] border border-slate-800 rounded-2xl p-8 shadow-2xl relative z-10">
+        <div class="w-full max-w-md relative">
+        <div class="absolute -top-10 -left-10 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-10 -right-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="bg-[#0d1322] border border-slate-800 rounded-2xl p-8 shadow-2xl relative z-10">
             <div class="text-center mb-6">
                 <div class="w-14 h-14 mx-auto rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 text-2xl mb-3"><i class="fa-solid {% block icon %}fa-key{% endblock %}"></i></div>
                 <h2 class="text-2xl font-bold text-white tracking-wide">{% block heading %}{% endblock %}</h2>
                 <p class="text-xs text-slate-400 mt-1">{% block sub %}{% endblock %}</p>
             </div>
+            {% if messages %}{% for message in messages %}
+            <div class="mb-4 p-3.5 rounded-xl text-xs flex items-center gap-2.5 font-medium {% if message.tags == 'error' %}bg-rose-500/10 border border-rose-500/20 text-rose-400{% elif message.tags == 'success' %}px-okbox{% else %}bg-slate-800 border border-slate-700 text-slate-300{% endif %}">
+                <i class="fa-solid {% if message.tags == 'error' %}fa-circle-exclamation{% elif message.tags == 'success' %}fa-circle-check{% else %}fa-circle-info{% endif %} text-sm"></i><span>{{ message }}</span>
+            </div>{% endfor %}{% endif %}
             {% block card %}{% endblock %}
+        </div>
         </div>
     </main>
     <footer class="text-center text-[11px] text-slate-500 py-6 px-4">
         &copy; {% now "Y" %} PATREOAIX · <a href="{% url 'terms' %}" class="hover:underline">Terms</a> · <a href="{% url 'privacy' %}" class="hover:underline">Privacy</a> · <a href="{% url 'cookies' %}" class="hover:underline">Cookies</a>
     </footer>
+    {% include 'partials/pwa_js.html' %}
     {% include 'partials/cookie_consent.html' %}
     <script>
     document.querySelectorAll('input[type=password]').forEach(function (inp) {

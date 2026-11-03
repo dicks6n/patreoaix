@@ -369,13 +369,14 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'patreoaix@gmail.com')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')      # Gmail App Password, in .env only
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', f'PATREOAIX <{EMAIL_HOST_USER}>')
 # the address customers see (legal pages, landing page, emails); Gmail above is only the sending login
 SUPPORT_EMAIL = os.getenv('SUPPORT_EMAIL', '') or f'support@{SITE_DOMAIN}'
 ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', '')            # where new support tickets are emailed (default: EMAIL_HOST_USER)
 # Password reset (allauth): no "[example.com]" subject prefix, and no email to addresses without an account
 ACCOUNT_EMAIL_SUBJECT_PREFIX = ''
 ACCOUNT_EMAIL_UNKNOWN_ACCOUNTS = False
+ACCOUNT_ADAPTER = 'store.account_adapter.PatreoaixAccountAdapter'   # every allauth email in the branded template
 
 ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', EMAIL_HOST_USER)
 

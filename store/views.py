@@ -387,6 +387,16 @@ def signup_view(request):
             logger.exception(f"Signup failed for {username}: {e}")
             return fail("Could not create the account. Please try again.")
 
+        try:
+            from . import emails
+            emails.send(user, 'Welcome to PATREOAIX', 'Welcome to PATREOAIX',
+                        intro='Your account is ready. Here is how to get the most out of it:',
+                        rows=[('1. Verify your identity', 'unlocks withdrawals and P2P'), ('2. Fund your wallet', 'M-Pesa, crypto or P2P'),
+                              ('3. Try Pro free', '3 days of AI signals and bots'), ('4. Learn', '8 courses in the Academy')],
+                        button=('Open my dashboard', '/dashboard/'), tone='good')
+        except Exception as e:
+            logger.warning(f'welcome email for {username} failed: {e}')
+
         # ✅ Referral linking
         if ref_code:
             try:
@@ -1075,6 +1085,14 @@ def mpesa_callback(request):
                         transaction_type='SUBSCRIPTION' if is_sub else 'DEPOSIT',
                         details=f"M-Pesa Payment Success - Receipt: {receipt_number}"
                     )
+                    Notification.objects.create(
+                        user=payment_req.user, category='FUNDING', priority='success',
+                        title=f"Payment received ✅ ${payment_req.amount:.2f}",
+                        message=(f"Your M-Pesa payment of ${payment_req.amount:.2f} was received (receipt {receipt_number or 'pending'}). "
+                                 + (f"Your {payment_req.transaction_type.split('_')[1].upper()} plan is active now." if is_sub
+                                    else "It is in your wallet now.")),
+                        action_url='/subscription/' if is_sub else '/wallet/', action_label='View plan' if is_sub else 'View wallet',
+                        metadata={'receipt': receipt_number})
             else:
                 payment_pay.save()
                 if payment_req:
@@ -1363,6 +1381,13 @@ def request_withdrawal(request):
             logger.warning(f"Withdrawal SMS not sent for {request.user.username}: {sms_result.get('error')}")
     except Exception as e:
         logger.warning(f"Withdrawal SMS crashed: {e}")
+
+    Notification.objects.create(
+        user=request.user, category='FUNDING', priority='info',
+        title=f"Withdrawal requested: ${amount:.2f}",
+        message=f"We received your ${amount:.2f} {method} withdrawal to {destination}. Our team reviews it and you will be "
+                f"told as soon as it is sent. If you didn't ask for this, contact support right away.",
+        action_url='/wallet/', action_label='View wallet')
 
     # ── 6. Notify all admins in-app ────────────────────────
     for staff in User.objects.filter(is_staff=True, is_active=True):
@@ -4690,6 +4715,7 @@ def notification_settings(request):
             return redirect(reverse('notification_settings') + '#inbox')
         prefs = NP.get(request.user)
         prefs['push'] = request.POST.get('push') == 'on'
+        prefs['email'] = request.POST.get('email') == 'on'
         prefs['cats'] = {k: request.POST.get(f'cat_{k}') == 'on' for k, *_ in NP.CATEGORIES}
         def hhmm(v, d):
             v = (v or '').strip()
@@ -5992,13 +6018,11 @@ def request_email_otp_view(request):
         import secrets
         otp = str(secrets.randbelow(900000) + 100000)   # unpredictable, unlike random
         try:
-            send_mail(
-                subject='Your PATREOAIX Verification Code',
-                message=f'Your login verification code is: {otp}. This code expires in 5 minutes.',
-                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', None) or getattr(settings, 'EMAIL_HOST_USER', None),
-                recipient_list=[user.email],
-                fail_silently=False,
-            )
+            from . import emails
+            emails.send(user, f'{otp} is your PATREOAIX sign-in code', 'Your sign-in code', background=False, code=otp,
+                        intro='Use this code to sign in to PATREOAIX. It expires in 5 minutes.',
+                        note="Didn't try to sign in? Ignore this email and consider changing your password. "
+                             "We will never ask you for this code.")
         except Exception as e:
             logger.exception(f"OTP email to {email} failed: {e}")
             messages.error(request, "We couldn't send the email right now. Try again in a minute, or log in with your password.")
@@ -6532,15 +6556,19 @@ def ai_support_view(request):
             
             # Send email notification to admin
             try:
-                send_mail(
-                    subject=f"[PATREOAIX Support Ticket #{ticket.id}] {subject}",
-                    message=f"New support ticket submitted.\n\nCategory: {category}\nUser: {request.user}\n\nDescription:\n{description}",
-                    from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'webmaster@localhost'),
-                    recipient_list=[getattr(settings, 'ADMIN_EMAIL', '') or settings.EMAIL_HOST_USER or settings.SUPPORT_EMAIL],
-                    fail_silently=True,
-                )
-            except Exception:
-                pass
+                from . import emails
+                team = getattr(settings, 'ADMIN_EMAIL', '') or settings.EMAIL_HOST_USER or settings.SUPPORT_EMAIL
+                emails.send(team, f'[Ticket #{ticket.id}] {subject}', f'New support ticket #{ticket.id}',
+                            intro=description, rows=[('Category', category), ('From', str(request.user)),
+                                                     ('Email', getattr(request.user, 'email', '') or '—')],
+                            button=('Open the admin hub', '/admin/messages/'))
+                if request.user.is_authenticated:
+                    emails.send(request.user, f'We received your request (ticket #{ticket.id})', 'We got your message',
+                                intro='Thanks for writing to us. Our team answers in your Messages and by email, usually within a few hours.',
+                                rows=[('Ticket', f'#{ticket.id}'), ('Subject', subject), ('Category', category)],
+                                button=('View my tickets', '/support/'))
+            except Exception as e:
+                logger.warning(f'support ticket email failed: {e}')
 
             messages.success(request, 'Support ticket submitted successfully!')
             return redirect('ai_support')
@@ -7562,6 +7590,10 @@ def change_password_api(request):
         request.user.set_password(new_pwd)
         request.user.save()
         update_session_auth_hash(request, request.user)
+        Notification.objects.create(user=request.user, category='SECURITY', priority='warning',
+                                    title='Your password was changed',
+                                    message="Your PATREOAIX password was just changed. If this wasn't you, reset it now and contact support.",
+                                    action_url='/accounts/password/reset/', action_label='Reset password')
 
         # ✅ SMS: Password changed
         try:

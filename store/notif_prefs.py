@@ -20,7 +20,7 @@ CATEGORIES = [
     ('referral', 'Referrals & rewards', 'Friends who join and rewards you earn', 'fa-user-group'),
     ('news', 'News & announcements', 'Platform news and new features', 'fa-bullhorn'),
 ]
-DEFAULTS = {'push': True, 'cats': {k: True for k, *_ in CATEGORIES}, 'quiet': {'on': False, 'start': '22:00', 'end': '07:00'}}
+DEFAULTS = {'push': True, 'email': True, 'cats': {k: True for k, *_ in CATEGORIES}, 'quiet': {'on': False, 'start': '22:00', 'end': '07:00'}}
 
 
 def of_notification(n):
@@ -41,7 +41,7 @@ def get(user):
     from .models import UserProfile
     p = UserProfile.objects.filter(user=user).only('notif_prefs').first()
     raw = (p.notif_prefs if p and isinstance(p.notif_prefs, dict) else {}) or {}
-    prefs = {'push': raw.get('push', DEFAULTS['push']),
+    prefs = {'push': raw.get('push', DEFAULTS['push']), 'email': raw.get('email', DEFAULTS['email']),
              'cats': dict(DEFAULTS['cats'], **(raw.get('cats') or {})),
              'quiet': dict(DEFAULTS['quiet'], **(raw.get('quiet') or {}))}
     return prefs

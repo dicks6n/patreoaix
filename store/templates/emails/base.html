@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>{{ subject }}</title>
+</head>
+<body style="margin:0;padding:0;background:#EEF0F4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#111827;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">{{ intro|truncatechars:110 }}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#EEF0F4;">
+  <tr><td align="center" style="padding:24px 12px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
+
+      <!-- header -->
+      <tr><td style="background:#0B0D12;border-radius:16px 16px 0 0;padding:20px 24px;">
+        <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+          <td style="vertical-align:middle;"><img src="cid:logo" width="40" height="40" alt="PATREOAIX" style="display:block;border-radius:10px;"></td>
+          <td style="vertical-align:middle;padding-left:12px;font-size:20px;font-weight:800;letter-spacing:1px;color:#FFFFFF;">PATREO<span style="color:#F5B301;">AIX</span></td>
+        </tr></table>
+      </td></tr>
+      <tr><td style="background:{{ accent }};height:4px;line-height:4px;font-size:0;">&nbsp;</td></tr>
+
+      <!-- body -->
+      <tr><td style="background:#FFFFFF;padding:32px 28px 8px 28px;">
+        <h1 style="margin:0 0 16px 0;font-size:22px;line-height:1.3;font-weight:800;color:#0B0D12;">{{ title }}</h1>
+        {% if name %}<p style="margin:0 0 12px 0;font-size:15px;line-height:1.6;color:#374151;">Hello {{ name }},</p>{% endif %}
+        {% if intro %}<p style="margin:0 0 20px 0;font-size:15px;line-height:1.6;color:#374151;">{{ intro|linebreaksbr }}</p>{% endif %}
+
+        {% if code %}
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 20px 0;">
+          <tr><td align="center" style="background:#FFF8E1;border:1px dashed #F5B301;border-radius:12px;padding:18px;">
+            <div style="font-size:12px;font-weight:700;letter-spacing:2px;color:#92400E;text-transform:uppercase;">Your code</div>
+            <div style="font-family:'SFMono-Regular',Menlo,Consolas,monospace;font-size:34px;font-weight:800;letter-spacing:10px;color:#0B0D12;padding-top:6px;">{{ code }}</div>
+          </td></tr>
+        </table>
+        {% endif %}
+
+        {% if rows %}
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 22px 0;border:1px solid #E5E7EB;border-radius:12px;border-collapse:separate;">
+          {% for k, v in rows %}
+          <tr>
+            <td style="padding:11px 14px;font-size:13px;color:#6B7280;{% if not forloop.last %}border-bottom:1px solid #F1F2F4;{% endif %}">{{ k }}</td>
+            <td align="right" style="padding:11px 14px;font-size:14px;font-weight:700;color:#111827;{% if not forloop.last %}border-bottom:1px solid #F1F2F4;{% endif %}">{{ v }}</td>
+          </tr>
+          {% endfor %}
+        </table>
+        {% endif %}
+
+        {% if button %}
+        <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 24px 0;">
+          <tr><td style="background:#F5B301;border-radius:10px;">
+            <a href="{{ button.1 }}" style="display:inline-block;padding:13px 26px;font-size:15px;font-weight:800;color:#0B0D12;text-decoration:none;">{{ button.0 }}</a>
+          </td></tr>
+        </table>
+        <p style="margin:0 0 20px 0;font-size:12px;line-height:1.5;color:#9CA3AF;">Button not working? Copy this link:<br><a href="{{ button.1 }}" style="color:#6B7280;word-break:break-all;">{{ button.1 }}</a></p>
+        {% endif %}
+
+        {% if note %}<p style="margin:0 0 24px 0;padding:12px 14px;background:#F9FAFB;border-radius:10px;font-size:13px;line-height:1.5;color:#4B5563;">{{ note }}</p>{% endif %}
+      </td></tr>
+
+      <!-- footer -->
+      <tr><td style="background:#F9FAFB;border-top:1px solid #EEF0F4;border-radius:0 0 16px 16px;padding:18px 28px;">
+        <p style="margin:0 0 6px 0;font-size:12px;line-height:1.6;color:#6B7280;">Need help? Write to <a href="mailto:{{ support }}" style="color:#374151;font-weight:700;">{{ support }}</a> or open <a href="{{ site }}/support/" style="color:#374151;font-weight:700;">Support</a>.</p>
+        <p style="margin:0;font-size:11px;line-height:1.6;color:#9CA3AF;">PATREOAIX will never ask for your password or codes by email, phone or chat. · <a href="{{ site }}" style="color:#9CA3AF;">patreoaix.com</a></p>
+      </td></tr>
+
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>

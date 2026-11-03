@@ -1,0 +1,16 @@
+{% autoescape off %}{{ title }}
+{% if name %}
+Hello {{ name }},
+{% endif %}{% if intro %}
+{{ intro }}
+{% endif %}{% if code %}
+Your code: {{ code }}
+{% endif %}{% for k, v in rows %}{{ k }}: {{ v }}
+{% endfor %}{% if button %}
+{{ button.0 }}: {{ button.1 }}
+{% endif %}{% if note %}
+{{ note }}
+{% endif %}
+PATREOAIX · {{ site }}
+Help: {{ support }}
+{% endautoescape %}
