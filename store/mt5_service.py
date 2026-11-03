@@ -569,6 +569,14 @@ def _notify(user, title, message, priority='info'):
         pass
 
 
+def _px(p):
+    """1.08700000 → 1.087 (prices in notifications without trailing zeros)."""
+    try:
+        return format(Decimal(str(p)).normalize(), 'f')
+    except Exception:
+        return str(p)
+
+
 REASON_LABELS = {'CLIENT': 'Client', 'SL': 'Stop Loss', 'TP': 'Take Profit', 'SO': 'Stop Out',
                  'CLOSE_BY': 'Close By', 'EXPERT': 'Expert'}
 
@@ -751,11 +759,17 @@ def close_position(user, trade_id, volume=None, reason='CLIENT'):
         if quote is None:
             raise TradeError("No prices")
         account = _trading_account(user, lock=True, prop=trade.prop_id)
-        closed, net = _realize(trade, vol, close_price_for(trade.direction, quote), reason, account)
+        price = close_price_for(trade.direction, quote)
+        closed, net = _realize(trade, vol, price, reason, account)
         remaining = Decimal('0') if vol >= total else total - vol
-        return {'trade': trade, 'closed': closed, 'net': net, 'volume': vol,
-                'remaining': remaining, 'price': close_price_for(trade.direction, quote),
-                'balance': account.balance}
+        result = {'trade': trade, 'closed': closed, 'net': net, 'volume': vol,
+                  'remaining': remaining, 'price': price, 'balance': account.balance}
+    what = 'Position closed' if remaining == 0 else 'Position partly closed'
+    _notify(user, f"{what}: {trade.direction.lower()} {vol:.2f} {symbol}",
+            f"#{ticket_for(trade)} closed at {_px(price)} · {'+' if net >= 0 else '-'}{abs(net):.2f} USD"
+            + (f" · {remaining:.2f} lots still open" if remaining else ''),
+            'success' if net >= 0 else 'warning')
+    return result
 
 
 def close_by(user, trade_id, by_id):
@@ -784,7 +798,12 @@ def close_by(user, trade_id, by_id):
         sell_open = Decimal(str(sell.entry_price))
         _, net1 = _realize(buy, vol, sell_open, 'CLOSE_BY', account, charge_commission=False)
         _, net2 = _realize(sell, vol, sell_open, 'CLOSE_BY', account, charge_commission=False)
-        return {'volume': vol, 'net': net1 + net2, 'balance': account.balance}
+        result = {'volume': vol, 'net': net1 + net2, 'balance': account.balance}
+    net = net1 + net2
+    _notify(user, f"Close By: {vol:.2f} {sa}",
+            f"#{ticket_for(buy)} closed by #{ticket_for(sell)} at {_px(sell_open)} · {'+' if net >= 0 else '-'}{abs(net):.2f} USD",
+            'success' if net >= 0 else 'warning')
+    return result
 
 
 def modify_position(user, trade_id, sl='keep', tp='keep', trailing='keep'):
@@ -1047,8 +1066,8 @@ def _close_by_server(trade_id, price, reason):
         account = _trading_account(trade.user, lock=True, prop=trade.prop_id)
         closed, net = _realize(trade, trade.stake, price, reason, account)
     label = REASON_LABELS.get(reason, reason)
-    _notify(trade.user, f"{label}: {trade.direction.lower()} {closed.stake} {trade.asset.symbol}",
-            f"#{ticket_for(trade)} closed at {price} · {'+' if net >= 0 else '-'}{abs(net):.2f} USD",
+    _notify(trade.user, f"{label}: {trade.direction.lower()} {Decimal(str(closed.stake)):.2f} {trade.asset.symbol}",
+            f"#{ticket_for(trade)} closed at {_px(price)} · {'+' if net >= 0 else '-'}{abs(net):.2f} USD",
             'success' if net >= 0 else 'warning')
     return trade.id
 

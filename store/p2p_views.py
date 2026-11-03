@@ -249,12 +249,15 @@ def order_page(request, ref):
             pay_form[0]['on'] = True
     import hashlib
     pay_v = hashlib.md5(json.dumps(o.pay_to or [], sort_keys=True).encode()).hexdigest()[:10]
+    appeal_wait = 0                                        # buyer: minutes until the dispute button opens
+    if o.status == 'PAID' and i_buy and o.paid_at:
+        appeal_wait = max(0, int(((o.paid_at + timezone.timedelta(minutes=10)) - timezone.now()).total_seconds() // 60) + 1)
     can_appeal = o.status == 'PAID' and (not i_buy or (o.paid_at and timezone.now() >= o.paid_at + timezone.timedelta(minutes=10)))
     return render(request, 'store/p2p_order.html', dict(
         _common(request), o=o, i_buy=i_buy, i_sell=o.seller_id == me.id, other=other, left=left, tab='orders',
         other_stats=p2p.merchant_stats(other), amount_txt=p2p.fmt(o.asset, o.amount),
         receive_txt=p2p.fmt(o.asset, o.amount - o.fee), fee_txt=p2p.fmt(o.asset, o.fee), can_appeal=can_appeal,
-        pay_form=pay_form, pay_v=pay_v,
+        pay_form=pay_form, pay_v=pay_v, appeal_wait=appeal_wait,
         my_feedback=o.feedback.filter(from_user=me).first(), staff_view=me.is_staff and me.id not in (o.buyer_id, o.seller_id)))
 
 
