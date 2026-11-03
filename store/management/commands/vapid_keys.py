@@ -17,4 +17,4 @@ class Command(BaseCommand):
         self.stdout.write('Add these lines to .env (keep the private key secret), then reload the web app and restart run_background:\n')
         self.stdout.write(f'VAPID_PUBLIC_KEY={public}')
         self.stdout.write(f'VAPID_PRIVATE_KEY={private}')
-        self.stdout.write('VAPID_EMAIL=support@patreoaix.com')
+        self.stdout.write('VAPID_EMAIL=patreoaix@gmail.com')

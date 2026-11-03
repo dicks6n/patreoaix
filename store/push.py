@@ -51,7 +51,7 @@ def send(user, title, body='', url='/', tag=None, sticky=False):
     from .models import PushSubscription
     payload = json.dumps({'title': title[:120], 'body': (body or '')[:300], 'url': url or '/', 'tag': tag or '',
                           'sticky': bool(sticky)})
-    claims = {'sub': 'mailto:' + (getattr(settings, 'VAPID_EMAIL', '') or 'support@patreoaix.com')}
+    claims = {'sub': 'mailto:' + (getattr(settings, 'VAPID_EMAIL', '') or 'patreoaix@gmail.com')}
     ok = 0
     for sub in PushSubscription.objects.filter(user=user):
         try:
