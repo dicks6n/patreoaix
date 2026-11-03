@@ -350,20 +350,32 @@
                         <i class="fa-solid fa-wallet text-[9px] mr-1.5 text-rose-400"></i>
                         Withdrawal Method
                     </label>
-                    <select name="method" class="input-field cursor-pointer">
-                        {% if mpesa_enabled %}<option value="M-Pesa">M-Pesa</option>{% endif %}
-                        <option value="Crypto">USDT (TRC20)</option>
-                        <option value="Bank">Bank Transfer</option>
+                    <select name="method" class="input-field cursor-pointer" id="pxPayMethod">
+                        {% for m in payout_methods %}{% if m.key != 'M-Pesa' or mpesa_enabled %}<option value="{{ m.key }}">{{ m.label }}</option>{% endif %}{% endfor %}
                     </select>
                 </div>
 
-                <div>
-                    <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
-                        <i class="fa-solid fa-circle-info text-[9px] mr-1.5 text-rose-400"></i>
-                        Destination Details
-                    </label>
-                    <input type="text" name="wallet_address" required placeholder="Phone number / Wallet address / Bank account" class="input-field">
+                {% for m in payout_methods %}{% if m.key != 'M-Pesa' or mpesa_enabled %}
+                <div class="px-paybox" data-pm="{{ m.key }}" hidden>
+                    {% if m.dest %}
+                    <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-950/60 border border-emerald-500/30">
+                        <i class="fa-solid fa-circle-check text-emerald-400"></i>
+                        <div class="flex-1 min-w-0"><div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Withdraw to your saved account</div>
+                            <div class="text-sm font-bold text-white font-mono truncate">{{ m.dest }}</div></div>
+                        <button type="button" class="px-paychange text-[11px] font-bold text-indigo-300 hover:text-white px-2 py-1 rounded-lg border border-slate-700">Change</button>
+                    </div>
+                    <div class="px-paynew space-y-2 mt-2" hidden>
+                        <input type="text" name="wallet_address" inputmode="{{ m.mode }}" placeholder="New {{ m.what|lower }}: {{ m.ph }}" class="input-field" autocomplete="off" disabled>
+                        <input type="password" name="password" placeholder="Your account password (needed to change it)" class="input-field" autocomplete="current-password" disabled>
+                        <p class="text-[10px] text-slate-500">For your safety, changing a withdrawal account needs your password and we'll alert you by email.</p>
+                    </div>
+                    {% else %}
+                    <label class="block text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2"><i class="fa-solid fa-link text-[9px] mr-1.5 text-rose-400"></i> Bind your {{ m.what|lower }}</label>
+                    <input type="text" name="wallet_address" inputmode="{{ m.mode }}" required placeholder="{{ m.ph }}" class="input-field" autocomplete="off" disabled>
+                    <p class="text-[10px] text-slate-500 mt-1.5">Saved to your account, so next time you only enter the amount. You can change it any time.</p>
+                    {% endif %}
                 </div>
+                {% endif %}{% endfor %}
 
                 <button type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-sm transition shadow-lg shadow-rose-600/25 flex items-center justify-center gap-2">
                     <i class="fa-solid fa-paper-plane text-[10px]"></i>
@@ -1144,11 +1156,35 @@
         const bal = { EXCHANGE: parseFloat('{{ exchange_balance|default:0|stringformat:"s" }}') || 0, TRADING: parseFloat('{{ trading_balance|default:0|stringformat:"s" }}') || 0 };
         const fmt = v => '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const wForm = document.querySelector('form[action="{% url 'request_withdrawal' %}"]');
+        // saved withdrawal accounts: only the chosen method's fields are sent; "Change" opens the new-account fields
+        (function () {
+            const sel = document.getElementById('pxPayMethod');
+            if (!sel) return;
+            function show() {
+                document.querySelectorAll('.px-paybox').forEach(b => {
+                    const on = b.dataset.pm === sel.value;
+                    b.hidden = !on;
+                    const changing = !b.querySelector('.px-paynew') || !b.querySelector('.px-paynew').hidden;
+                    b.querySelectorAll('input').forEach(i => { i.disabled = !on || !changing; });
+                });
+            }
+            document.querySelectorAll('.px-paychange').forEach(btn => btn.addEventListener('click', () => {
+                const box = btn.closest('.px-paybox'), nw = box.querySelector('.px-paynew');
+                nw.hidden = !nw.hidden; btn.textContent = nw.hidden ? 'Change' : 'Keep saved';
+                nw.querySelectorAll('input').forEach(i => { i.disabled = nw.hidden; i.required = !nw.hidden; });
+                if (!nw.hidden) nw.querySelector('input').focus();
+            }));
+            sel.addEventListener('change', show); show();
+        })();
         wForm?.addEventListener('submit', e => {
             const v = parseFloat(wForm.amount.value);
             if (!(v > 0)) { e.preventDefault(); return showToast('Enter an amount.', 'warn'); }
             if (v > bal.EXCHANGE) { e.preventDefault(); return showToast(`You have ${fmt(bal.EXCHANGE)} in your Exchange account.`, 'warn'); }
-            if (!confirm(`Withdraw ${fmt(v)} via ${wForm.method.value} to ${wForm.wallet_address.value}?`)) e.preventDefault();
+            const box = wForm.querySelector(`.px-paybox[data-pm="${wForm.method.value}"]`);
+            const typed = box && box.querySelector('input[name=wallet_address]:not([disabled])');
+            const saved = box && box.querySelector('.font-mono');
+            const to = (typed && typed.value) || (saved && saved.textContent) || '';
+            if (!confirm(`Withdraw ${fmt(v)} via ${wForm.method.value} to ${to}?`)) e.preventDefault();
         });
         const tForm = document.querySelector('form[action="{% url 'transfer_between_accounts' %}"]');
         if (tForm) {
@@ -1241,4 +1277,5 @@
         }, 400);
     });
 </script>
+{% include 'partials/transfer_swap_js.html' %}
 {% endblock %}

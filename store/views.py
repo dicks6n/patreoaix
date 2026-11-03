@@ -584,6 +584,7 @@ def dashboard_view(request):
     site_settings = SiteSettings.load()
 
     return render(request, 'store/dashboard.html', {
+        'payout_crypto': __import__('store.payouts', fromlist=['bound']).bound(request.user, 'Crypto'),
         'notifications': notifications,
         'exchange_balance': exchange_acc.balance,
         'trading_balance': trading_acc.balance,
@@ -1333,9 +1334,21 @@ def request_withdrawal(request):
         or ''
     ).strip()
 
+    # saved withdrawal account: used when nothing was typed; the first destination is saved; a change needs the password
+    from . import payouts
+    if method in payouts.METHODS:
+        try:
+            if not destination:
+                destination = payouts.bound(request.user, method)
+            else:
+                destination = payouts.bind(request.user, method, destination, password=request.POST.get('password'))
+        except payouts.PayoutError as e:
+            messages.error(request, str(e))
+            return redirect(reverse('funding_deposit') + '?tab=withdrawal')
+
     if not destination:
-        messages.error(request, 'Please provide a withdrawal destination.')
-        return redirect('funding_deposit')
+        messages.error(request, 'Add where to send your money first (your withdrawal account).')
+        return redirect(reverse('funding_deposit') + '?tab=withdrawal')
 
     # ── 3. Balance check (accounting for pending withdrawals) ──
     from django.db.models import Sum
@@ -4841,6 +4854,7 @@ def funding_deposit(request):
         'usd_kes': _usd_kes_rate(),
         # M-Pesa is hidden on the page until MPESA_DEPOSITS_ENABLED = True in settings (the views still work)
         'mpesa_enabled': getattr(settings, 'MPESA_DEPOSITS_ENABLED', False),
+        'payout_methods': __import__('store.payouts', fromlist=['for_template']).for_template(request.user),
     }
     from . import bonus
     context['bonus_status'] = bonus.status(request.user)

@@ -120,6 +120,7 @@
                 {% endif %}
                 {% endif %}
                 <div class="calc" data-calc>Enter an amount.</div>
+                {% if side == 'buy' %}<p class="pp-sub" style="margin-top:6px"><i class="fa-solid fa-circle-info"></i> After you open the order you'll see the seller's payment details{% if not a.has_pay %}. This seller shares them in the order chat: tap "Ask the seller for payment details"{% endif %}. Pay only to the details on the order page.</p>{% endif %}
                 {% if a.terms %}<div class="pm-terms"><b>Advertiser's terms:</b> {{ a.terms }}</div>{% endif %}
                 <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
                     <button class="pp-btn {% if side == 'buy' %}buy{% else %}sell{% endif %}" type="submit" {% if not can_trade.0 %}disabled{% endif %}>{% if side == 'buy' %}Buy{% else %}Sell{% endif %} {{ asset }} · {{ a.time_limit }} min to pay</button>

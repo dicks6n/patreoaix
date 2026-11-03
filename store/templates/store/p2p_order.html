@@ -79,7 +79,13 @@
                 <div class="row"><span>Name</span><b>{{ p.name }}</b></div>
                 {% if p.bank %}<div class="row"><span>Bank</span><b>{{ p.bank }}</b></div>{% endif %}
                 {% endfor %}
+                {% if not o.pay_to %}<div class="po-warn" style="margin:8px 0 4px">{% if i_buy %}<b>The seller hasn't added payment details to this offer.</b> Ask them in the chat for the phone number or account to pay, and the name on it. Don't pay anyone else.{% else %}<b>The buyer can't see where to pay you.</b> Send your payment details now.{% endif %}</div>{% endif %}
                 <div class="row"><span>Reference</span><b>{{ o.ref }}<button type="button" class="po-copy" data-copy="{{ o.ref }}" aria-label="Copy"><i class="fa-regular fa-copy"></i></button></b></div>
+                {% if not staff_view %}{% if i_buy and o.status == 'PENDING' %}
+                <form method="post" style="margin-top:10px">{% csrf_token %}<input type="hidden" name="action" value="ask_details"><button class="pp-btn ghost sm" type="submit"><i class="fa-regular fa-comment-dots"></i> Ask the seller for payment details</button></form>
+                {% elif i_sell and o.status == 'PENDING' or i_sell and o.status == 'PAID' %}
+                <form method="post" style="margin-top:10px">{% csrf_token %}<input type="hidden" name="action" value="send_details"><button class="pp-btn {% if o.pay_to %}ghost{% endif %} sm" type="submit"><i class="fa-regular fa-paper-plane"></i> Send my payment details in the chat</button></form>
+                {% endif %}{% endif %}
             </div>
             {% endif %}
             {% if o.ad.terms %}<p class="pp-sub" style="margin-top:10px;white-space:pre-line"><b>Terms:</b> {{ o.ad.terms }}</p>{% endif %}

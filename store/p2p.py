@@ -685,6 +685,34 @@ def feedback(user, ref, positive, comment=''):
                                                                          'comment': (comment or '')[:200]})
 
 
+def ask_details(user, ref):
+    """Buyer asks the seller for payment details (phone number, account) in the order chat."""
+    o = _get(user, ref)
+    if o.buyer_id != user.id or o.status != 'PENDING':
+        raise P2PError('Only the buyer can ask, while the order waits for payment.')
+    return message(user, ref, f'Hi, please send me your payment details for this order ({o.fiat_amount:,} {o.currency}): '
+                              f'the phone number or account to pay, and the name on it.')
+
+
+def send_details(user, ref):
+    """Seller shares their saved payment details in the chat; if the order had none, they fill its "pay to" box too."""
+    from .models import P2POrder, P2PPaymentMethod
+    o = _get(user, ref)
+    if o.seller_id != user.id or o.status not in ('PENDING', 'PAID'):
+        raise P2PError('Only the seller can send payment details on an open order.')
+    rows = list(o.pay_to or [])
+    if not rows:
+        methods = P2PPaymentMethod.objects.filter(user=user, is_active=True, method__in=o.ad.methods or [])
+        rows = [{'method': method_name(p.method), 'name': p.account_name, 'number': p.account_number, 'bank': p.bank_name}
+                for p in methods]
+        if not rows:
+            raise P2PError('Add a payment method for this currency first (My ads & payment), then send it.')
+        P2POrder.objects.filter(pk=o.pk).update(pay_to=rows)
+    lines = [f"{r['method']}: {r['number']} ({r['name']}{', ' + r['bank'] if r.get('bank') else ''})" for r in rows]
+    return message(user, ref, 'My payment details:\n' + '\n'.join(lines) +
+                   f'\nSend exactly {o.fiat_amount:,} {o.currency} and use reference {o.ref}.')
+
+
 def message(user, ref, text='', image=None):
     from .models import P2PMessage
     o = _get(user, ref, lock=False, staff=user.is_staff)

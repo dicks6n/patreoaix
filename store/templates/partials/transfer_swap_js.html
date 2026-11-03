@@ -1,0 +1,35 @@
+<style>
+.px-swapgrid { align-items: end; }
+@media (min-width: 640px) { .px-swapgrid { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) !important; } }
+</style>
+<script>
+/* Transfer between accounts: picking one side sets the other side to the opposite account; ⇅ swaps them. */
+(function () {
+    document.querySelectorAll('form').forEach(function (f) {
+        var src = f.querySelector('select[name=source_type]'), dst = f.querySelector('select[name=target_type]');
+        if (!src || !dst || f.dataset.swap) return;
+        f.dataset.swap = '1';
+        function other(v) { var o = Array.prototype.find.call(dst.options, function (x) { return x.value !== v; }); return o ? o.value : v; }
+        function fix(changed) {
+            if (src.value !== dst.value) return;
+            if (changed === src) dst.value = other(src.value); else src.value = other(dst.value);
+        }
+        src.addEventListener('change', function () { fix(src); });
+        dst.addEventListener('change', function () { fix(dst); });
+        fix(src);
+        var btn = document.createElement('button');
+        btn.type = 'button'; btn.setAttribute('aria-label', 'Swap accounts'); btn.title = 'Swap';
+        btn.innerHTML = '<i class="fa-solid fa-arrow-right-arrow-left"></i>';
+        btn.style.cssText = 'display:flex;align-items:center;justify-content:center;width:36px;height:36px;margin:2px auto;border-radius:10px;border:1px solid rgba(148,163,184,.35);background:rgba(99,102,241,.12);color:#a5b4fc;cursor:pointer';
+        btn.addEventListener('click', function () {
+            var a = src.value; src.value = dst.value; dst.value = a;
+            src.dispatchEvent(new Event('input')); btn.animate && btn.animate([{ transform: 'rotate(0)' }, { transform: 'rotate(180deg)' }], { duration: 250 });
+        });
+        var srcBox = src.closest('div'), grid = srcBox && srcBox.parentElement;
+        if (grid && grid.contains(dst) && grid !== f) {
+            grid.insertBefore(btn, srcBox.nextSibling);
+            if (grid.className.indexOf('grid') > -1) grid.classList.add('px-swapgrid');
+        } else { src.insertAdjacentElement('afterend', btn); }
+    });
+})();
+</script>

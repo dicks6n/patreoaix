@@ -456,8 +456,9 @@
                 <input type="number" name="amount" min="0" step="0.01" placeholder="0.00" required class="px-input px-num">
             </div>
             <div>
-                <label class="block text-[12px] px-dim mb-1.5">Wallet address</label>
-                <input type="text" name="wallet_address" placeholder="USDT address" required class="px-input px-num" autocomplete="off">
+                <label class="block text-[12px] px-dim mb-1.5">{% if payout_crypto %}Your saved USDT (TRC20) address{% else %}USDT (TRC20) address · saved for next time{% endif %}</label>
+                <input type="text" name="wallet_address" placeholder="T…" required class="px-input px-num" autocomplete="off" value="{{ payout_crypto }}" {% if payout_crypto %}readonly{% endif %}>
+                {% if payout_crypto %}<p class="text-[11px] px-dim mt-1">To change it, use <a href="{% url 'funding_deposit' %}?tab=withdrawal" class="underline">Withdraw</a> in your wallet.</p>{% endif %}
             </div>
             <button type="submit" class="px-btn px-btn-primary w-full" style="height:44px">Submit withdrawal</button>
             {% if kyc_status != 'APPROVED' %}<p class="text-[11px] px-muted text-center">Withdrawals require completed KYC.</p>{% endif %}

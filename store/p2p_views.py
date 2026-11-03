@@ -110,6 +110,7 @@ def market(request):
         a.remaining_txt = p2p.fmt(a.asset, a.remaining)
         a.max_now = min(a.max_fiat, p2p._q(a.remaining * a.price))
         a.desk = a.user.is_staff
+        a.has_pay = a.side != 'SELL' or a.pay_methods.filter(is_active=True).exists()
         a.sample = p2p.is_sample(a.user)            # sample trader from p2p_seed: labelled, not tradable
     ctx = dict(_common(request), side=side, asset=asset, cur=cur, method=method, ads=ads, amount=request.GET.get('amount', ''),
                currency_groups=p2p.currency_groups(), methods=[] if every else p2p.methods_for(cur), every=every,
@@ -207,6 +208,12 @@ def order_page(request, ref):
             elif act == 'feedback':
                 p2p.feedback(request.user, ref, request.POST.get('positive') == '1', request.POST.get('comment', ''))
                 messages.success(request, 'Thanks for the feedback.')
+            elif act == 'ask_details':
+                p2p.ask_details(request.user, ref)
+                messages.success(request, 'Asked the seller for payment details. Their answer appears in the chat.')
+            elif act == 'send_details':
+                p2p.send_details(request.user, ref)
+                messages.success(request, 'Your payment details were sent to the buyer.')
             elif act == 'message':
                 m = p2p.message(request.user, ref, request.POST.get('text', ''), request.FILES.get('image'))
                 if _ajax(request):
