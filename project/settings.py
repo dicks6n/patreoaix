@@ -369,6 +369,11 @@ EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))                # 587 = STARTTLS
 EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False').lower() in ('1', 'true', 'yes') or EMAIL_PORT == 465
 EMAIL_USE_TLS = not EMAIL_USE_SSL and os.getenv('EMAIL_USE_TLS', 'True').lower() in ('1', 'true', 'yes')
 EMAIL_TIMEOUT = 20
+# Hosts that block mail ports (PythonAnywhere free): send over HTTPS with Brevo or SendGrid instead (store/mail_backend.py)
+BREVO_API_KEY = os.getenv('BREVO_API_KEY', '')
+SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY', '')
+if BREVO_API_KEY or SENDGRID_API_KEY:
+    EMAIL_BACKEND = 'store.mail_backend.HttpEmailBackend'
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'patreoaix@gmail.com')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '').replace(' ', '')   # Gmail App Password, in .env only
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', f'PATREOAIX <{EMAIL_HOST_USER}>')
