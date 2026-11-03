@@ -23,7 +23,7 @@
             <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold text-lg"><i class="fa-solid fa-brain"></i></div>
             <div><h1 class="font-bold text-lg leading-tight tracking-wide text-white">PATREOAIX</h1><p class="text-xs text-slate-400">AI Prediction Engine</p></div>
         </a>
-        <a href="{% url 'account_login' %}" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold transition border border-slate-700 text-xs">Sign in</a>
+        {% if user.is_authenticated %}<a href="{% url 'profile' %}" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold transition border border-slate-700 text-xs"><i class="fa-solid fa-arrow-left mr-1"></i> My profile</a>{% else %}<a href="{% url 'account_login' %}" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold transition border border-slate-700 text-xs">Sign in</a>{% endif %}
     </header>
     <main class="flex-1 flex items-center justify-center p-6">
         <div class="w-full max-w-md relative">

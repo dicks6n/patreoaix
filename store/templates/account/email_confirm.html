@@ -1,0 +1,15 @@
+{% extends 'account/_auth_base.html' %}
+{% block title %}Confirm your email{% endblock %}
+{% block icon %}{% if confirmation and can_confirm %}fa-envelope-circle-check{% else %}fa-link-slash{% endif %}{% endblock %}
+{% block heading %}{% if confirmation and can_confirm %}Confirm your email{% elif confirmation %}Already confirmed{% else %}Link expired{% endif %}{% endblock %}
+{% block sub %}{% if confirmation and can_confirm %}One tap and this email is verified.{% elif confirmation %}This email belongs to a different account.{% else %}This confirmation link was already used or is too old.{% endif %}{% endblock %}
+{% block card %}
+{% if confirmation and can_confirm %}
+<form method="post" action="{% url 'account_confirm_email' confirmation.key %}" class="space-y-4">{% csrf_token %}{{ redirect_field }}
+    <div class="p-3 rounded-xl border border-slate-800 bg-[#090d16] text-sm text-white text-center">{{ confirmation.email_address.email }}</div>
+    <button type="submit" class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm transition">Confirm email</button>
+</form>
+{% else %}
+<a href="{% url 'account_email' %}" class="block text-center w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm transition">Send a new link</a>
+{% endif %}
+{% endblock %}

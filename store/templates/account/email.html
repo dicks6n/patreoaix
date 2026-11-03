@@ -1,0 +1,36 @@
+{% extends 'account/_auth_base.html' %}
+{% block title %}Email addresses{% endblock %}
+{% block icon %}fa-envelope{% endblock %}
+{% block heading %}Your email{% endblock %}
+{% block sub %}Used to sign in, reset your password and receive receipts.{% endblock %}
+{% block card %}
+{% if emailaddress_radios %}
+<form method="post" action="{% url 'account_email' %}" class="space-y-3">{% csrf_token %}
+    {% for radio in emailaddress_radios %}{% with e=radio.emailaddress %}
+    <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-800 bg-[#090d16] cursor-pointer hover:border-slate-700">
+        <input type="radio" name="email" value="{{ e.email }}" {% if radio.checked %}checked{% endif %} class="accent-indigo-500">
+        <span class="flex-1 min-w-0"><span class="block text-sm text-white truncate">{{ e.email }}</span>
+            <span class="text-[11px]">{% if e.verified %}<span class="text-emerald-400 font-bold">Verified</span>{% else %}<span class="text-amber-400 font-bold">Not verified</span>{% endif %}{% if e.primary %} · <span class="text-slate-300 font-bold">Primary</span>{% endif %}</span></span>
+    </label>
+    {% endwith %}{% endfor %}
+    <div class="grid grid-cols-3 gap-2 pt-1">
+        <button type="submit" name="action_send" class="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition border border-slate-700">Resend link</button>
+        <button type="submit" name="action_primary" class="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition border border-slate-700">Make primary</button>
+        <button type="submit" name="action_remove" class="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition border border-slate-700 text-rose-300" onclick="return confirm('Remove this email from your account?')">Remove</button>
+    </div>
+</form>
+{% else %}
+<div class="px-err rounded-xl p-3 text-xs">Your account has no email yet. Add one below so you can reset your password and get receipts.</div>
+{% endif %}
+{% if can_add_email %}
+<form method="post" action="{% url 'account_email' %}" class="space-y-3 mt-6 pt-6 border-t border-slate-800">{% csrf_token %}
+    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5" for="id_email">Add another email</label>
+    <div class="relative">
+        <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500"><i class="fa-regular fa-envelope text-xs"></i></span>
+        <input type="email" name="email" id="id_email" required autocomplete="email" class="px-in" placeholder="you@example.com" value="{{ form.email.value|default:'' }}">
+    </div>
+    {% if form.email.errors %}<p class="text-[11px] text-rose-300">{{ form.email.errors|striptags }}</p>{% endif %}
+    <button type="submit" name="action_add" class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm transition">Add email</button>
+</form>
+{% endif %}
+{% endblock %}

@@ -139,7 +139,9 @@ NOWPAYMENTS_SANDBOX = os.getenv('NOWPAYMENTS_SANDBOX', 'False') == 'True'   # li
 # =============================================
 # Same code on the laptop and on the server: everything that differs comes from .env
 #   laptop: DEBUG=True (default)        server: DEBUG=False, SITE_DOMAIN=patreoaix.com
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
+# on PythonAnywhere (which sets PYTHONANYWHERE_DOMAIN) DEBUG is off unless .env says DEBUG=True: an error page must
+# never show the server's paths and settings to visitors
+DEBUG = os.getenv('DEBUG', 'False' if os.getenv('PYTHONANYWHERE_DOMAIN') else 'True').strip().lower() in ('true', '1', 'yes')
 SECRET_KEY = os.getenv('SECRET_KEY') or ('django-insecure-local-dev-only' if DEBUG else None)
 if not SECRET_KEY:
     raise RuntimeError('Set SECRET_KEY in .env on the server (python -c "import secrets; print(secrets.token_urlsafe(50))")')
