@@ -56,13 +56,16 @@ def market(request):
     asset = (request.GET.get('asset') or 'USDT').upper()
     asset = asset if asset in p2p.ASSETS else 'USDT'
     cur = (request.GET.get('cur') or request.COOKIES.get('p2p_cur') or 'KES').upper()
-    cur = cur if cur in p2p.CURRENCIES else 'KES'
+    cur = cur if cur in p2p.CURRENCIES or cur == 'ANY' else 'KES'
+    every = cur == 'ANY'                             # all currencies: every trader's offers, ranked by reputation
     method = request.GET.get('method') or ''
-    p2p_rates.refresh_pair(asset, cur)          # this pair only, cached rates: no waiting on the network
-    qs = P2PAd.objects.filter(status='ACTIVE', asset=asset, currency=cur, demo=False,
+    if not every:
+        p2p_rates.refresh_pair(asset, cur)      # this pair only, cached rates: no waiting on the network
+    qs = P2PAd.objects.filter(status='ACTIVE', asset=asset, demo=False, **({} if every else {'currency': cur}),
                               side='SELL' if side == 'buy' else 'BUY').exclude(user=request.user) \
         .exclude(user_id__in=p2p.blocked_ids(request.user)).select_related('user')
-    ads = [a for a in qs.order_by('price' if side == 'buy' else '-price')[:100] if not method or method in a.methods]
+    ads = [a for a in qs.order_by('-updated_at' if every else ('price' if side == 'buy' else '-price'))[:300 if every else 100]
+           if not method or method in a.methods]
     stock = {}
     for a in ads:                                    # hide desk sell offers the desk cannot fill even at the minimum
         if a.pool:
@@ -81,9 +84,18 @@ def market(request):
         want = float(str(request.GET.get('amount') or '').replace(',', '')) if request.GET.get('amount') else None
     except ValueError:
         want = None
-    if want:
+    if want and not every:                           # an amount only means something in one currency
         ads = [a for a in ads if float(a.min_fiat) <= want <= float(a.max_fiat) and want <= float(a.remaining * a.price)]
     stats = p2p.stats_map([a.user for a in ads])
+    if every:                                        # best traders first: completion, feedback, then 30-day trades
+        def score(a):
+            st = stats[a.user_id]
+            return (a.user.is_staff, (st['completion'] or 0) * .5 + (st['positive'] or 0) * .3 + min(st['trades_30d'], 100) * .2,
+                    st['trades'])
+        ads.sort(key=score, reverse=True)
+        ads = ads[:100]
+    for rank, a in enumerate(ads, 1):
+        a.rank = rank
     mine = list(P2PPaymentMethod.objects.filter(user=request.user, is_active=True))
     my_lvl = p2p.seller_level(request.user)
     for a in ads:
@@ -100,10 +112,11 @@ def market(request):
         a.desk = a.user.is_staff
         a.sample = p2p.is_sample(a.user)            # sample trader from p2p_seed: labelled, not tradable
     ctx = dict(_common(request), side=side, asset=asset, cur=cur, method=method, ads=ads, amount=request.GET.get('amount', ''),
-               currency_groups=p2p.currency_groups(), methods=p2p.methods_for(cur), cur_name=p2p.CURRENCIES[cur][0], cur_flag=p2p.CURRENCIES[cur][1],
+               currency_groups=p2p.currency_groups(), methods=[] if every else p2p.methods_for(cur), every=every,
+               cur_name='All currencies' if every else p2p.CURRENCIES[cur][0], cur_flag='🌍' if every else p2p.CURRENCIES[cur][1],
                my_methods=list(P2PPaymentMethod.objects.filter(user=request.user, is_active=True)),
                method_names=dict((k, v[0]) for k, v in p2p.METHODS.items()), tab='market',
-               market_now=p2p_rates.market_price_fast(asset, cur),
+               market_now=None if every else p2p_rates.market_price_fast(asset, cur),
                buy_pause=p2p.buy_pause(request.user) if side == 'buy' else None, now=timezone.now())
     resp = render(request, 'store/p2p_market.html', ctx)
     resp.set_cookie('p2p_cur', cur, max_age=365 * 86400, samesite='Lax')

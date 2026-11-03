@@ -25,6 +25,7 @@
     .pm-price small { font-size: 11px; color: var(--px-mute); font-family: inherit; font-weight: 700; }
     .pm-price .mg { display: block; font-size: 10.5px; font-weight: 800; color: var(--px-mute); font-family: inherit; margin-top: 2px; }
     .pm-desk { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 900; padding: 2px 7px; border-radius: 6px; background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); margin-left: 6px; vertical-align: middle; }
+    .pm-rank { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 22px; padding: 0 6px; border-radius: 6px; font-size: 11px; font-weight: 900; background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); margin-right: 6px; vertical-align: middle; }
     .pm-ad.desk { background: linear-gradient(90deg, color-mix(in srgb, var(--px-accent) 8%, transparent), transparent 60%); border-radius: 12px; }
     .pm-lim { font-size: 12px; color: var(--px-dim); line-height: 1.6; }
     .pm-lim b { color: var(--px-text); font-family: 'JetBrains Mono', monospace; font-weight: 600; }
@@ -56,7 +57,7 @@
     {% elif side == 'sell' and sell_level == 'pro' %}<div class="pp-msg"><i class="fa-solid fa-circle-info mr-1"></i> Pro sellers can't use high-risk methods (PayPal, Cash App, Venmo, Zelle, Skrill…). <a class="underline" href="{% url 'subscription_billing' %}">VIP</a> unlocks them.</div>{% endif %}
     {% if buy_pause and buy_pause > now %}<div class="pp-msg error">Buying is paused until {{ buy_pause|date:"d M H:i" }} because of 3 cancelled or unpaid orders in 24 hours. You can still sell.</div>{% endif %}
 
-    <form method="post" class="pp-card" style="border-color:var(--px-accent)">{% csrf_token %}
+    {% if not every %}<form method="post" class="pp-card" style="border-color:var(--px-accent)">{% csrf_token %}
         <input type="hidden" name="action" value="express"><input type="hidden" name="side" value="{{ side }}">
         <input type="hidden" name="asset" value="{{ asset }}"><input type="hidden" name="cur" value="{{ cur }}">
         <div class="pp-h" style="margin-bottom:8px"><h2><i class="fa-solid fa-bolt mr-1" style="color:var(--px-accent)"></i> Express {% if side == 'buy' %}buy{% else %}sell{% endif %}</h2><p>We pick the best price from a reliable trader for you</p></div>
@@ -64,7 +65,7 @@
             <div class="pp-field"><label>{% if side == 'buy' %}I want to spend{% else %}I want to receive{% endif %} ({{ cur }})</label><input name="fiat" inputmode="decimal" required placeholder="e.g. 5000"></div>
             <button class="pp-btn {% if side == 'buy' %}buy{% else %}sell{% endif %}" type="submit" {% if not can_trade.0 %}disabled{% endif %}>{% if side == 'buy' %}Buy{% else %}Sell{% endif %} {{ asset }} now</button>
         </div>
-    </form>
+    </form>{% endif %}
 
     <div class="pp-card">
         <div class="pp-h" style="margin-bottom:0">
@@ -77,29 +78,29 @@
         <form class="pm-filters" method="get">
             <input type="hidden" name="side" value="{{ side }}"><input type="hidden" name="asset" value="{{ asset }}">
             <div class="pp-field"><label>Currency</label>
-                <select name="cur" onchange="this.form.method.value='';this.form.submit()">{% for region, items in currency_groups %}<optgroup label="{{ region }}">{% for k, n, flag in items %}<option value="{{ k }}" {% if k == cur %}selected{% endif %}>{{ flag }} {{ k }} · {{ n }}</option>{% endfor %}</optgroup>{% endfor %}</select></div>
-            <div class="pp-field"><label>Payment</label>
+                <select name="cur" onchange="this.form.method.value='';this.form.submit()"><option value="ANY" {% if every %}selected{% endif %}>🌍 All currencies</option>{% for region, items in currency_groups %}<optgroup label="{{ region }}">{% for k, n, flag in items %}<option value="{{ k }}" {% if k == cur %}selected{% endif %}>{{ flag }} {{ k }} · {{ n }}</option>{% endfor %}</optgroup>{% endfor %}</select></div>
+            {% if not every %}<div class="pp-field"><label>Payment</label>
                 <select name="method" onchange="this.form.submit()"><option value="">All payment methods</option>{% for k, n, _ in methods %}<option value="{{ k }}" {% if k == method %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
-            <div class="pp-field"><label>Amount ({{ cur }})</label><input name="amount" inputmode="decimal" value="{{ amount }}" placeholder="Any amount"></div>
+            <div class="pp-field"><label>Amount ({{ cur }})</label><input name="amount" inputmode="decimal" value="{{ amount }}" placeholder="Any amount"></div>{% else %}<input type="hidden" name="method" value="">{% endif %}
             <button class="pp-btn ghost" type="submit"><i class="fa-solid fa-filter"></i> Filter</button>
             <a class="pp-btn" href="{% url 'p2p_ads' %}#new"><i class="fa-solid fa-plus"></i> Post an ad</a>
         </form>
     </div>
 
     <div class="pp-card">
-        <div class="pp-h"><h2>{% if side == 'buy' %}Buy {{ asset }} with {{ cur }}{% else %}Sell {{ asset }} for {{ cur }}{% endif %}</h2><p>{% if market_now %}Market {{ market_now|floatformat:"2g" }} {{ cur }} · {% endif %}{{ ads|length }} offer{{ ads|length|pluralize }} · {% if side == 'buy' %}cheapest first{% else %}best price first{% endif %}</p></div>
+        <div class="pp-h"><h2>{% if every %}{% if side == 'buy' %}Buy{% else %}Sell{% endif %} {{ asset }} · all currencies{% elif side == 'buy' %}Buy {{ asset }} with {{ cur }}{% else %}Sell {{ asset }} for {{ cur }}{% endif %}</h2><p>{% if every %}{{ ads|length }} offer{{ ads|length|pluralize }} · best-ranked traders first{% else %}{% if market_now %}Market {{ market_now|floatformat:"2g" }} {{ cur }} · {% endif %}{{ ads|length }} offer{{ ads|length|pluralize }} · {% if side == 'buy' %}cheapest first{% else %}best price first{% endif %}{% endif %}</p></div>
         {% for a in ads %}
         <div class="pm-ad{% if a.desk %} desk{% endif %}">
-            <div class="pm-who"><span class="pm-avatar">{{ a.user.username|first|upper }}</span><a href="{% url 'p2p_trader' a.user.username %}"><b>{% if a.desk %}PATREOAIX Desk{% else %}{{ a.user.username }}{% endif %}</b></a>{% if a.desk %}<span class="pm-desk">👑 Official</span>{% endif %}{% if a.sample %}<span class="pm-desk" style="background:#6b7280;color:#fff">Sample trader</span>{% endif %}
+            <div class="pm-who">{% if every %}<span class="pm-rank">#{{ a.rank }}</span>{% endif %}<span class="pm-avatar">{{ a.user.username|first|upper }}</span><a href="{% url 'p2p_trader' a.user.username %}"><b>{% if a.desk %}PATREOAIX Desk{% else %}{{ a.user.username }}{% endif %}</b></a>{% if a.desk %}<span class="pm-desk">👑 Official</span>{% endif %}{% if a.sample %}<span class="pm-desk" style="background:#6b7280;color:#fff">Sample trader</span>{% endif %}
                 <small>{{ a.st.trades_30d }} trades (30d){% if a.st.completion is not None %} · {{ a.st.completion }}% completion{% endif %}{% if a.st.positive is not None %} · 👍 {{ a.st.positive }}%{% endif %}{% if a.st.release_min %} · releases in ~{{ a.st.release_min }} min{% endif %}</small></div>
-            <div class="pm-price">{{ a.price|floatformat:"2g" }} <small>{{ cur }}/{{ asset }}</small>{% if a.price_type == 'margin' %}<span class="mg">{% if a.margin > 0 %}{{ a.margin|floatformat:"-2" }}% above market{% elif a.margin < 0 %}{{ a.margin|floatformat:"-2"|cut:"-" }}% below market{% else %}at market price{% endif %}</span>{% endif %}</div>
-            <div class="pm-lim">Available <b>{{ a.remaining_txt }} {{ asset }}</b><br>Limit <b>{{ a.min_fiat|floatformat:"0g" }} – {{ a.max_now|floatformat:"0g" }}</b> {{ cur }}</div>
+            <div class="pm-price">{{ a.price|floatformat:"2g" }} <small>{{ a.currency }}/{{ asset }}</small>{% if a.price_type == 'margin' %}<span class="mg">{% if a.margin > 0 %}{{ a.margin|floatformat:"-2" }}% above market{% elif a.margin < 0 %}{{ a.margin|floatformat:"-2"|cut:"-" }}% below market{% else %}at market price{% endif %}</span>{% endif %}</div>
+            <div class="pm-lim">Available <b>{{ a.remaining_txt }} {{ asset }}</b><br>Limit <b>{{ a.min_fiat|floatformat:"0g" }} – {{ a.max_now|floatformat:"0g" }}</b> {{ a.currency }}</div>
             <div class="pm-meth">{% for n in a.method_names %}<span class="pp-tag">{{ n }}</span>{% endfor %}<div class="pp-sub" style="margin-top:3px">Pay within {{ a.time_limit }} min</div></div>
             <button type="button" class="pp-btn {% if side == 'buy' %}buy{% else %}sell{% endif %}" data-open="{{ a.id }}">{% if side == 'buy' %}Buy{% else %}Sell{% endif %} {{ asset }}</button>
-            <form class="pm-take" id="take{{ a.id }}" method="post" data-price="{{ a.price }}" data-dec="{% if asset == 'BTC' %}8{% elif asset == 'ETH' %}6{% else %}2{% endif %}" data-fee="{{ fee_pct }}">
+            <form class="pm-take" id="take{{ a.id }}" method="post" data-price="{{ a.price }}" data-dec="{% if asset == 'BTC' %}8{% elif asset == 'ETH' %}6{% else %}2{% endif %}" data-fee="{{ fee_pct }}" data-cur="{{ a.currency }}">
                 {% csrf_token %}<input type="hidden" name="action" value="take"><input type="hidden" name="ad" value="{{ a.id }}">
                 <div class="row">
-                    <div class="pp-field"><label>I {% if side == 'buy' %}pay{% else %}receive{% endif %} ({{ cur }})</label><input name="fiat" inputmode="decimal" placeholder="{{ a.min_fiat|floatformat:'0' }} – {{ a.max_now|floatformat:'0' }}" data-fiat></div>
+                    <div class="pp-field"><label>I {% if side == 'buy' %}pay{% else %}receive{% endif %} ({{ a.currency }})</label><input name="fiat" inputmode="decimal" placeholder="{{ a.min_fiat|floatformat:'0' }} – {{ a.max_now|floatformat:'0' }}" data-fiat></div>
                     <div class="pp-field"><label>I {% if side == 'buy' %}receive{% else %}sell{% endif %} ({{ asset }})</label><input inputmode="decimal" placeholder="0" data-coins></div>
                 </div>
                 {% if side == 'sell' %}
@@ -127,7 +128,7 @@
             </form>
         </div>
         {% empty %}
-        <div class="pm-empty"><i class="fa-solid fa-store-slash" style="font-size:26px;display:block;margin-bottom:8px"></i>No offers for {{ asset }} in {{ cur }} yet.<br><a class="underline" href="{% url 'p2p_ads' %}#new">Post the first ad</a> and other traders will see it here.</div>
+        <div class="pm-empty"><i class="fa-solid fa-store-slash" style="font-size:26px;display:block;margin-bottom:8px"></i>No offers for {{ asset }} in {% if every %}any currency{% else %}{{ cur }}{% endif %} yet.<br><a class="underline" href="{% url 'p2p_ads' %}#new">Post the first ad</a> and other traders will see it here.</div>
         {% endfor %}
     </div>
 
@@ -156,7 +157,7 @@
     document.querySelectorAll('[data-close]').forEach(function (b) { b.addEventListener('click', function () { document.getElementById('take' + b.dataset.close).classList.remove('open'); }); });
     document.querySelectorAll('.pm-take').forEach(function (f) {
         var price = +f.dataset.price, dec = +f.dataset.dec, fee = +f.dataset.fee, fiat = f.querySelector('[data-fiat]'), coins = f.querySelector('[data-coins]'), calc = f.querySelector('[data-calc]');
-        var cur = '{{ cur }}', asset = '{{ asset }}', buying = '{{ side }}' === 'buy';
+        var cur = f.dataset.cur, asset = '{{ asset }}', buying = '{{ side }}' === 'buy';
         function show(c) {
             if (!(c > 0)) { calc.textContent = 'Enter an amount.'; return; }
             var got = c * (1 - fee / 100);
