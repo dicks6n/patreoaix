@@ -4162,6 +4162,7 @@ def market_overview(request): return render(request, 'store/market-overview.html
 def ai_market_summary(request): return render(request, 'store/ai-market-summary.html')
 
 
+@login_required
 def ai_risk_analyzer(request):
 
     form = CreateBotForm()
@@ -11494,3 +11495,24 @@ def hidden_admin_login(request):
     if request.user.is_staff:
         return redirect(nxt)
     raise Http404
+
+
+def social_login_guard(request, provider):
+    """/accounts/<google|apple>/login/ when that login is not set up: back to the login page with a message
+    (allauth would raise SocialApp.DoesNotExist, a 500)."""
+    from allauth.socialaccount.models import SocialApp
+    from allauth.socialaccount.providers.oauth2.views import OAuth2LoginView
+    name = provider.split('-')[0]
+    conf = getattr(settings, 'SOCIALACCOUNT_PROVIDERS', {}).get(name) or {}
+    configured = SocialApp.objects.filter(provider=name).exists() or bool(conf.get('APP') or conf.get('APPS'))
+    if not configured:
+        messages.info(request, f'{name.title()} sign-in is not available right now. Use your email or phone instead.')
+        return redirect('account_login')
+    if provider == 'google-token':
+        from allauth.socialaccount.providers.google.views import login_by_token
+        return login_by_token(request)
+    if provider == 'google':
+        from allauth.socialaccount.providers.google.views import oauth2_login
+        return oauth2_login(request)
+    from allauth.socialaccount.providers.apple.views import oauth2_login
+    return oauth2_login(request)

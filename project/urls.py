@@ -12,6 +12,10 @@ from rest_framework_simplejwt.views import (
 
 urlpatterns = [
     path('', include('store.urls')),
+    # Google / Apple sign-in that is not set up: back to login instead of a 500 (listed before allauth)
+    path('accounts/google/login/', views.social_login_guard, {'provider': 'google'}),
+    path('accounts/google/login/token/', views.social_login_guard, {'provider': 'google-token'}),
+    path('accounts/apple/login/', views.social_login_guard, {'provider': 'apple'}),
     path('accounts/', include('allauth.urls')),
     path('connect-broker/', views.connect_broker, name='connect_broker'), # <-- ADD THIS LINE
     path('deriv-callback/', views.deriv_callback, name='deriv_callback'),

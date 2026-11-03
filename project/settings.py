@@ -356,6 +356,8 @@ LOGGING = {
         },
     },
     'loggers': {
+        # page errors (500s) always reach the server's error log, also with DEBUG off
+        'django.request': {'handlers': ['console'], 'level': 'ERROR', 'propagate': False},
         'store': {
             'handlers': ['console', 'file'],  #
             'level': 'DEBUG' if DEBUG else 'INFO',  #
