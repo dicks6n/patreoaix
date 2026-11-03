@@ -98,6 +98,7 @@ def market(request):
         a.remaining_txt = p2p.fmt(a.asset, a.remaining)
         a.max_now = min(a.max_fiat, p2p._q(a.remaining * a.price))
         a.desk = a.user.is_staff
+        a.sample = p2p.is_sample(a.user)            # sample trader from p2p_seed: labelled, not tradable
     ctx = dict(_common(request), side=side, asset=asset, cur=cur, method=method, ads=ads, amount=request.GET.get('amount', ''),
                currency_groups=p2p.currency_groups(), methods=p2p.methods_for(cur), cur_name=p2p.CURRENCIES[cur][0], cur_flag=p2p.CURRENCIES[cur][1],
                my_methods=list(P2PPaymentMethod.objects.filter(user=request.user, is_active=True)),

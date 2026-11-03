@@ -469,7 +469,7 @@ def open_order(user, ad_id, fiat=None, coins=None, method_id=None):
         if ad.user_id == user.id:
             raise P2PError('You cannot trade with your own ad.')
         if is_sample(ad.user):                     # nobody can send money to a sample trader
-            raise P2PError('This trader is not taking orders right now. Pick another offer.')
+            raise P2PError('This is a sample trader shown to demonstrate the market. Sample traders cannot take orders.')
         if ad.user_id in blocked_ids(user):
             raise P2PError('You cannot trade with this user.')
         if ad.side == 'SELL' and not ad_owner_may_sell(ad):
