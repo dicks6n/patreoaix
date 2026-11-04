@@ -300,8 +300,8 @@ urlpatterns = [
     path('api/token/', TokenObtainPairView.as_view(serializer_class=CustomTokenObtainPairSerializer), name='token_obtain_pair'),
 
     path('bot/', views.bot_dashboard_view, name='bot'),
-    path('bot/control/', auto_trading_only(views.bot_control_view), name='bot_control'),
-    path('bot/create/', auto_trading_only(views.create_bot_view), name='create_bot'),
+    path('bot/control/', views.bot_control_view, name='bot_control'),            # switching on is Pro-only (in the view)
+    path('bot/create/', views.create_bot_view, name='create_bot'),
     path('bot-center/', RedirectView.as_view(url='/bot/'), name='bot_center'),
     path('webhooks/', views.webhook_automations, name='webhooks'),
     path('webhook-automations/', views.webhook_automations, name='webhook_automations'),

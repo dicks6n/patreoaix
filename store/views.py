@@ -4098,68 +4098,77 @@ def handle_incoming_webhook(request, source_name='Generic'):
 
 @login_required
 def bot_dashboard_view(request):
-    form = CreateBotForm()
-    logs = BotLog.objects.all()[:50]
-    
-    trading_acc, _ = Account.objects.get_or_create(user=request.user, account_type='TRADING')
-
-    context = {
-        'form': form,
-        'logs': logs,
-        'bot_status': 'running',
-        'account_balance': float(trading_acc.balance),
-        'unrealized_pnl': 15.50,
-        'pnl_pct': 1.55,
-        'current_pair': 'R_100',
+    """The trading bot (store/bot_engine.py): rules, on / off, what it sees now, what it did."""
+    from . import bot_engine as be
+    from .membership import can_auto_trade
+    from .models import BotEvent
+    from .mt5_service import get_metrics
+    bot = be.bot_for(request.user)
+    cfg = be.config(bot)
+    try:
+        metrics = get_metrics(request.user)
+    except Exception:
+        metrics = {'equity': Decimal('0'), 'balance': Decimal('0')}
+    events = BotEvent.objects.filter(user=request.user).select_related('signal')[:40]
+    ctx = {
+        'bot': bot, 'cfg': cfg, 'can_run': can_auto_trade(request.user), 'metrics': metrics,
+        'radar': be.radar(bot), 'events': events, 'stats': be.stats(request.user),
+        'open_trades': be.bot_trades(request.user).filter(status='OPEN').select_related('asset'),
+        'markets': be.MARKETS, 'styles': be.STYLES, 'sessions': be.SESSIONS, 'paused': (bot.state_json or {}).get('paused'),
+        'risk_usd': (Decimal(str(metrics.get('equity') or 0)) * Decimal(str(cfg['risk_pct'])) / 100).quantize(Decimal('0.01')),
+        'in_session': be.in_session(cfg),
     }
-    return render(request, 'store/bot.html', context)
+    if request.GET.get('part') == 'live':
+        return render(request, 'store/partials/bot_live.html', ctx)
+    return render(request, 'store/bot.html', ctx)
 
 
 @login_required
 def create_bot_view(request):
-    if request.method == 'POST':
-        form = CreateBotForm(request.POST)
-        if form.is_valid():
-            pass
     return redirect('bot')
 
 
 @login_required
 def bot_control_view(request):
-    if request.method == 'POST':
-        action = request.POST.get('action')
-        from .models import UserBot
-        bots = UserBot.objects.filter(user=request.user)
-        if action == 'start':
-            n = bots.update(is_running=True)
-            if n:
-                messages.success(request, "AI Trading Engine started successfully.")
-            else:
-                messages.warning(request, "You have no bots yet — create one first.")
-        elif action == 'stop':
-            bots.update(is_running=False)
-            messages.info(request, "AI Trading Engine received stop signal.")
-        elif action == 'emergency_stop':
-            # Stop the bots and really close every open position at market (was a message only)
-            from . import mt5_service
-            bots.update(is_running=False)
-            closed, failed = 0, 0
-            for t in Trade.objects.filter(user=request.user, status='OPEN', prop__isnull=True, direction__in=('BUY', 'SELL')):
-                try:
-                    mt5_service.close_position(request.user, t.id, reason='CLIENT')
-                    closed += 1
-                except Exception as e:
-                    logger.warning(f"Emergency close failed for trade {t.id}: {e}")
-                    failed += 1
-            if failed:
-                messages.error(request, f"EMERGENCY SELL: closed {closed} position(s), {failed} could not be closed (market closed or no price). Check the terminal.")
-            elif closed:
-                messages.warning(request, f"EMERGENCY SELL EXECUTED. {closed} position(s) closed, bots stopped.")
-            else:
-                messages.info(request, "No open positions to close. Bots stopped.")
-        else:
-            messages.error(request, f"Unknown action: {action}")
+    """POST action = save (settings) · on · off · emergency (bot off + close every bot trade)."""
+    from . import bot_engine as be
+    from .membership import can_auto_trade
+    if request.method != 'POST':
         return redirect('bot')
+    bot = be.bot_for(request.user)
+    action = request.POST.get('action')
+    if action == 'save':
+        bot.config_json = be.clean(request.POST)
+        bot.save(update_fields=['config_json', 'updated_at'])
+        messages.success(request, 'Bot rules saved.' + (' They apply to the next setup.' if bot.is_running else ''))
+    elif action == 'on':
+        if not can_auto_trade(request.user):
+            messages.error(request, 'The trading bot is part of the Pro plan. Upgrade to switch it on.')
+            return redirect('subscription_billing')
+        bot.is_running = True
+        bot.state_json = {k: v for k, v in (bot.state_json or {}).items() if k not in ('paused', 'paused_at')}
+        bot.save(update_fields=['is_running', 'state_json', 'updated_at'])
+        be.log(request.user, 'ON', 'Bot switched on. Watching the scanner for setups that match your rules.')
+        messages.success(request, 'Your bot is on. It will trade the next setup that matches your rules.')
+    elif action == 'off':
+        bot.is_running = False
+        bot.save(update_fields=['is_running', 'updated_at'])
+        be.log(request.user, 'OFF', 'Bot switched off. Open trades keep their stop loss and take profit.')
+        messages.info(request, 'Bot switched off. Its open trades keep their stop loss and take profit.')
+    elif action == 'emergency':
+        from . import mt5_service
+        bot.is_running = False
+        bot.save(update_fields=['is_running', 'updated_at'])
+        closed = failed = 0
+        for t in be.bot_trades(request.user).filter(status='OPEN'):
+            try:
+                mt5_service.close_position(request.user, t.id, reason='CLIENT')
+                closed += 1
+            except Exception as e:
+                logger.warning(f"Bot emergency close failed for trade {t.id}: {e}")
+                failed += 1
+        be.log(request.user, 'OFF', f'Emergency stop: bot off, {closed} bot trade(s) closed' + (f', {failed} could not be closed' if failed else '') + '.')
+        (messages.error if failed else messages.warning)(request, f'Emergency stop: bot off, {closed} trade(s) closed' + (f', {failed} could not be closed (market closed?). Check the terminal.' if failed else '.'))
     return redirect('bot')
 
 

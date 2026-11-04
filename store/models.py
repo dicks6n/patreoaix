@@ -2273,3 +2273,19 @@ class NewsEmailLog(models.Model):
 
     class Meta:
         unique_together = ('user', 'ref')
+
+
+class BotEvent(models.Model):
+    """What a customer's trading bot did (store/bot_engine.py): the activity feed on /bot/."""
+    KINDS = [('OPEN', 'Opened'), ('CLOSE', 'Closed'), ('SKIP', 'Skipped'), ('INFO', 'Info'), ('WARN', 'Warning'),
+             ('ERROR', 'Error'), ('ON', 'Switched on'), ('OFF', 'Switched off')]
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='bot_events')
+    kind = models.CharField(max_length=6, choices=KINDS, db_index=True)
+    message = models.CharField(max_length=300)
+    signal = models.ForeignKey('ScannerSignal', null=True, blank=True, on_delete=models.SET_NULL, related_name='bot_events')
+    trade = models.ForeignKey('Trade', null=True, blank=True, on_delete=models.SET_NULL, related_name='bot_events')
+    pnl = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-created_at']

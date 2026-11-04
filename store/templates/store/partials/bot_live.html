@@ -1,0 +1,47 @@
+<div class="bt-card">
+  <div class="bt-h2"><i class="fa-solid fa-satellite-dish" style="color:var(--px-accent)"></i> What your bot sees now</div>
+  <p class="bt-sub">Open AI setups in your markets and what the bot does with each · updates every 20 s</p>
+  <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+    {% for r in radar %}
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:var(--px-panel-2);border:1px solid {% if r.taken %}var(--px-up){% elif r.ok %}var(--px-accent){% else %}var(--px-line){% endif %}">
+      <span class="bt-num" style="font-weight:900;font-size:12px;padding:5px 8px;border-radius:8px;{% if r.sig.direction == 'BUY' %}background:var(--px-up-soft);color:var(--px-up){% else %}background:var(--px-down-soft);color:var(--px-down){% endif %}">{{ r.sig.direction }}</span>
+      <div style="min-width:0;flex:1"><b style="font-size:13px;color:var(--px-text)">{{ r.sig.symbol }}</b> <small style="color:var(--px-mute);font-size:11.5px">{{ r.sig.grade }} · {{ r.sig.style }} · {{ r.sig.created_at|timesince }} ago</small>
+        <div style="font-size:11.5px;color:{% if r.taken %}var(--px-up){% elif r.ok %}var(--px-accent){% else %}var(--px-mute){% endif %};margin-top:2px">
+          {% if r.taken %}✓ In this trade{% elif r.ok %}Would trade {{ r.vol }} lot · risk ${{ r.risk }}{% else %}{{ r.why }}{% endif %}</div></div>
+    </div>
+    {% empty %}
+    <div style="text-align:center;padding:22px 10px;color:var(--px-mute);font-size:13px"><div style="font-size:26px;margin-bottom:6px">📡</div>No open setups in your markets right now. The scanner checks every few minutes{% if bot.is_running %}; your bot is waiting{% endif %}.</div>
+    {% endfor %}
+  </div>
+</div>
+
+{% if open_trades %}
+<div class="bt-card" style="margin-top:16px">
+  <div class="bt-h2"><i class="fa-solid fa-chart-line" style="color:var(--px-accent)"></i> Bot trades open</div>
+  <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+    {% for t in open_trades %}
+    <a href="/terminal/" style="display:flex;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:12px;background:var(--px-panel-2);border:1px solid var(--px-line);font-size:12.5px;color:var(--px-text)">
+      <span><b class="{% if t.direction == 'BUY' %}pos{% else %}neg{% endif %}">{{ t.direction }}</b> {{ t.stake|floatformat:"-2" }} {{ t.asset.symbol }} <small style="color:var(--px-mute)">at {{ t.entry_price|floatformat:"-5" }}</small></span>
+      <span class="bt-num" style="color:var(--px-mute)">SL {{ t.stop_loss|floatformat:"-5" }} · TP {{ t.take_profit|floatformat:"-5" }}</span>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="bt-card" style="margin-top:16px">
+  <div class="bt-h2"><i class="fa-solid fa-list-check" style="color:var(--px-accent)"></i> Activity</div>
+  <p class="bt-sub">Everything your bot did, newest first</p>
+  <div style="display:flex;flex-direction:column;margin-top:8px">
+    {% for e in events %}
+    <div style="display:flex;gap:10px;padding:10px 2px;border-bottom:1px solid var(--px-line-soft, var(--px-line));font-size:12.5px">
+      <span style="flex:none;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:12px;
+        {% if e.kind == 'OPEN' %}background:var(--px-accent-soft);color:var(--px-accent){% elif e.kind == 'CLOSE' %}{% if e.pnl >= 0 %}background:var(--px-up-soft);color:var(--px-up){% else %}background:var(--px-down-soft);color:var(--px-down){% endif %}{% elif e.kind == 'ERROR' or e.kind == 'WARN' %}background:var(--px-down-soft);color:var(--px-down){% else %}background:var(--px-panel-2);color:var(--px-mute){% endif %}">
+        {% if e.kind == 'OPEN' %}<i class="fa-solid fa-bolt"></i>{% elif e.kind == 'CLOSE' %}<i class="fa-solid fa-flag-checkered"></i>{% elif e.kind == 'SKIP' %}<i class="fa-solid fa-forward"></i>{% elif e.kind == 'ON' %}<i class="fa-solid fa-power-off"></i>{% elif e.kind == 'OFF' %}<i class="fa-solid fa-pause"></i>{% else %}<i class="fa-solid fa-circle-info"></i>{% endif %}</span>
+      <div style="min-width:0;flex:1;color:var(--px-text);line-height:1.45">{{ e.message }}<div style="font-size:11px;color:var(--px-mute)">{{ e.created_at|timesince }} ago</div></div>
+    </div>
+    {% empty %}
+    <p style="font-size:13px;color:var(--px-mute);padding:14px 0">Nothing yet. Switch the bot on and its trades, skips and results appear here.</p>
+    {% endfor %}
+  </div>
+</div>

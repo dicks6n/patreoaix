@@ -124,6 +124,8 @@ def record_signals(results, style):
         created.append(sig)
         from . import copy_trading                     # copy onto customers' Deriv accounts first (AI Copy Trading)
         copy_trading.safe(copy_trading.on_new_signal, sig)
+        from . import bot_engine                       # customers' own trading bots (PATREOAIX account)
+        bot_engine.safe(bot_engine.on_new_signal, sig)
         from . import telegram_bot                     # post to the Telegram channel (never breaks the scan)
         telegram_bot.safe(telegram_bot.post_signal, sig, r)
         from . import poster, tiktok                    # 1080×1920 poster (media/posters/), posted to TikTok
@@ -140,6 +142,8 @@ def _close(sig, outcome, exit_price):
     sig.save(update_fields=['outcome', 'result_r', 'closed_at'])
     from . import copy_trading                           # close the customers' copies of it
     copy_trading.safe(copy_trading.on_signal_closed, sig)
+    from . import bot_engine
+    bot_engine.safe(bot_engine.on_signal_closed, sig)
 
 
 def update_outcomes(notify_users=True):
