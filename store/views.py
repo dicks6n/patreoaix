@@ -11636,3 +11636,14 @@ def goal_focus(user):
     }
     names = {g[0]: g[2] for g in GOALS}
     return {'goal': goal, 'goal_name': names.get(goal, ''), 'tiles': tiles.get(goal, []), 'plan': GOAL_PLAN.get(goal)}
+
+
+@login_required
+def api_news_scanner(request):
+    """Live board for the news scanner page (state, countdowns, BUY/SELL calls with pips)."""
+    from . import news_live
+    try:
+        return JsonResponse({'success': True, **news_live.board()})
+    except Exception as e:
+        logger.warning(f'news scanner: {e}')
+        return JsonResponse({'success': False, 'error': 'The calendar is not reachable right now.'}, status=503)

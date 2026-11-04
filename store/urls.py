@@ -54,6 +54,7 @@ urlpatterns = [
     path('api/copy-trading/sync/', views.api_copy_trading_sync, name='api_copy_trading_sync'),
     path('api/copy-trading/close/', views.api_copy_trading_close, name='api_copy_trading_close'),
     path('news-impact/', members_only(views.news_impact, feature='News impact'), name='news_impact'),
+    path('api/news-scanner/', members_only(views.api_news_scanner, feature='News scanner'), name='api_news_scanner'),
     path('subscribe/', views.subscribe_link, name='subscribe'),
     path('pricing/', views.subscribe_link),
     path('privacy/', views.privacy_view, name='privacy'),

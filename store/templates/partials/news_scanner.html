@@ -1,0 +1,351 @@
+<!-- News scanner: 3D moving candlestick chart, radar, countdown, live BUY/SELL calls (store/news_live.py, /api/news-scanner/) -->
+<style>
+  .ns-hero { position: relative; overflow: hidden; border-radius: 22px; min-height: 440px; border: 1px solid color-mix(in srgb, var(--px-accent) 30%, var(--px-line));
+             background: radial-gradient(900px 420px at 70% -10%, rgba(245,179,1,.10), transparent 60%), radial-gradient(700px 400px at 0% 110%, rgba(56,189,248,.10), transparent 60%), #05070c; isolation: isolate; }
+  .ns-3d { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; display: block; }
+  .ns-hero::after { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+                    background: linear-gradient(90deg, rgba(5,7,12,.92) 0%, rgba(5,7,12,.55) 45%, rgba(5,7,12,.15) 100%),
+                                repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0 1px, transparent 1px 3px); }
+  .ns-scanline { position: absolute; left: 0; right: 0; height: 120px; z-index: 1; pointer-events: none; top: -120px;
+                 background: linear-gradient(180deg, transparent, rgba(245,179,1,.10) 70%, rgba(245,179,1,.55) 99%, transparent);
+                 animation: nsScan 4.2s linear infinite; }
+  @keyframes nsScan { to { top: 100%; } }
+  .ns-in { position: relative; z-index: 2; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 24px; padding: 26px; min-height: 440px; align-items: center; }
+  @media (max-width: 900px) { .ns-in { grid-template-columns: 1fr; padding: 18px; } .ns-hero::after { background: linear-gradient(180deg, rgba(5,7,12,.75), rgba(5,7,12,.88)); } }
+  .ns-live { display: inline-flex; align-items: center; gap: 8px; font: 800 11px/1 'JetBrains Mono', monospace; letter-spacing: .14em; color: var(--px-accent); text-transform: uppercase;
+             padding: 7px 11px; border-radius: 999px; background: rgba(245,179,1,.10); border: 1px solid rgba(245,179,1,.35); }
+  .ns-dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 12px #ef4444; animation: nsBlink 1s steps(2) infinite; }
+  @keyframes nsBlink { 50% { opacity: .2; } }
+  .ns-title { font-size: clamp(26px, 4.2vw, 44px); font-weight: 900; color: #fff; line-height: 1.05; margin: 16px 0 8px; letter-spacing: -.02em;
+              text-shadow: 0 0 30px rgba(245,179,1,.25); }
+  .ns-sub { font-size: 13px; color: #9aa4b8; min-height: 18px; font-family: 'JetBrains Mono', monospace; }
+  .ns-sub .cur { display: inline-block; width: 8px; height: 14px; background: var(--px-accent); vertical-align: -2px; animation: nsBlink 1s steps(2) infinite; }
+  .ns-count { display: flex; gap: 10px; margin: 18px 0 14px; flex-wrap: wrap; }
+  .ns-cell { min-width: 70px; padding: 10px 12px 8px; border-radius: 14px; text-align: center; background: rgba(15,20,32,.75); border: 1px solid rgba(148,163,184,.18);
+             box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 10px 30px -12px rgba(245,179,1,.35); backdrop-filter: blur(6px); }
+  .ns-cell b { display: block; font: 900 clamp(26px, 4vw, 38px)/1 'JetBrains Mono', monospace; color: #fff; text-shadow: 0 0 18px rgba(245,179,1,.55); }
+  .ns-cell small { font-size: 10px; font-weight: 800; letter-spacing: .12em; color: #8892a6; text-transform: uppercase; }
+  .ns-cell.flash b { animation: nsTick .5s ease; }
+  @keyframes nsTick { from { color: var(--px-accent); transform: translateY(-3px) scale(1.06); } }
+  .ns-figs { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ns-fig { font-size: 12px; color: #9aa4b8; padding: 8px 11px; border-radius: 10px; background: rgba(15,20,32,.7); border: 1px solid rgba(148,163,184,.16); }
+  .ns-fig b { font-family: 'JetBrains Mono', monospace; color: #fff; margin-left: 4px; }
+  .ns-fig.act { border-color: var(--px-accent); } .ns-fig.act b { color: var(--px-accent); }
+  .ns-odds { margin-top: 16px; }
+  .ns-odds .lbl { display: flex; justify-content: space-between; font: 800 11px 'JetBrains Mono', monospace; color: #9aa4b8; margin-bottom: 6px; }
+  .ns-odds .bar { height: 10px; border-radius: 99px; overflow: hidden; display: flex; background: rgba(148,163,184,.15); }
+  .ns-odds .bar i { display: block; height: 100%; transition: width 1.2s cubic-bezier(.2,.8,.2,1); }
+  .ns-odds .b { background: linear-gradient(90deg, #10b981, #34d399); box-shadow: 0 0 14px #10b981; }
+  .ns-odds .m { background: linear-gradient(90deg, #f43f5e, #fb7185); box-shadow: 0 0 14px #f43f5e; }
+  .ns-result { display: none; margin-top: 16px; padding: 14px 16px; border-radius: 16px; font-weight: 900; font-size: 20px; color: #0b0e14; letter-spacing: .02em; }
+  .ns-result.on { display: block; animation: nsPop .6s cubic-bezier(.2,1.6,.4,1); }
+  .ns-result.beat { background: linear-gradient(90deg, #34d399, #10b981); } .ns-result.miss { background: linear-gradient(90deg, #fb7185, #f43f5e); } .ns-result.line { background: linear-gradient(90deg, #cbd5e1, #94a3b8); }
+  .ns-result small { display: block; font-size: 12px; font-weight: 700; opacity: .8; margin-top: 2px; }
+  @keyframes nsPop { from { transform: scale(.7); opacity: 0; } }
+  /* radar */
+  .ns-radar-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .ns-radar { position: relative; width: min(330px, 78vw); aspect-ratio: 1; border-radius: 50%;
+              background: radial-gradient(circle, rgba(16,185,129,.08) 0 1px, transparent 1px) 0 0 / 22px 22px, radial-gradient(circle at center, rgba(15,23,42,.6), rgba(2,6,23,.92));
+              border: 1px solid rgba(52,211,153,.35); box-shadow: 0 0 60px -10px rgba(16,185,129,.45), inset 0 0 60px rgba(16,185,129,.12); overflow: hidden; }
+  .ns-radar .ring { position: absolute; border-radius: 50%; border: 1px solid rgba(52,211,153,.22); inset: var(--i); }
+  .ns-radar .cross::before, .ns-radar .cross::after { content: ''; position: absolute; background: rgba(52,211,153,.18); }
+  .ns-radar .cross::before { left: 50%; top: 0; bottom: 0; width: 1px; } .ns-radar .cross::after { top: 50%; left: 0; right: 0; height: 1px; }
+  .ns-sweep { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, rgba(52,211,153,.55), rgba(52,211,153,.12) 22%, transparent 32%); animation: nsSpin 3.2s linear infinite; }
+  @keyframes nsSpin { to { transform: rotate(360deg); } }
+  .ns-blip { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 2px; transition: left 1.2s ease, top 1.2s ease; }
+  .ns-blip i { width: 11px; height: 11px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 0 var(--c); animation: nsPing 1.6s ease-out infinite; }
+  .ns-blip span { font: 800 10px 'JetBrains Mono', monospace; color: #e5e7eb; background: rgba(2,6,23,.75); padding: 1px 5px; border-radius: 5px; white-space: nowrap; }
+  @keyframes nsPing { 0% { box-shadow: 0 0 0 0 var(--c); } 100% { box-shadow: 0 0 0 16px transparent; } }
+  .ns-core { position: absolute; inset: 38%; border-radius: 50%; display: grid; place-items: center; text-align: center; background: rgba(2,6,23,.85); border: 1px solid rgba(52,211,153,.4); }
+  .ns-core b { font: 900 20px 'JetBrains Mono', monospace; color: #34d399; display: block; }
+  .ns-core small { font-size: 9px; font-weight: 800; letter-spacing: .1em; color: #8892a6; }
+  .ns-legend { font: 700 11px 'JetBrains Mono', monospace; color: #8892a6; text-align: center; }
+  /* market cards */
+  .ns-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; perspective: 1100px; }
+  .ns-card { position: relative; padding: 16px; border-radius: 18px; background: linear-gradient(160deg, rgba(20,26,40,.95), rgba(8,11,18,.95)); border: 1px solid var(--px-line);
+             transform-style: preserve-3d; transition: transform .25s ease, box-shadow .25s ease, border-color .3s; overflow: hidden; }
+  .ns-card::before { content: ''; position: absolute; inset: -2px; background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.07) 50%, transparent 70%);
+                     background-size: 250% 100%; animation: nsShine 3.4s linear infinite; pointer-events: none; }
+  @keyframes nsShine { from { background-position: 150% 0; } to { background-position: -100% 0; } }
+  .ns-card.buy { border-color: rgba(52,211,153,.5); box-shadow: 0 18px 40px -22px #10b981; } .ns-card.sell { border-color: rgba(251,113,133,.5); box-shadow: 0 18px 40px -22px #f43f5e; }
+  .ns-card .top { display: flex; justify-content: space-between; align-items: center; transform: translateZ(30px); }
+  .ns-card .sym { font: 900 17px 'JetBrains Mono', monospace; color: #fff; }
+  .ns-card .px { font: 600 11.5px 'JetBrains Mono', monospace; color: #8892a6; }
+  .ns-call { font: 900 13px 'JetBrains Mono', monospace; padding: 6px 12px; border-radius: 9px; letter-spacing: .06em; color: #0b0e14; }
+  .ns-call.BUY { background: #34d399; box-shadow: 0 0 22px rgba(52,211,153,.6); } .ns-call.SELL { background: #fb7185; box-shadow: 0 0 22px rgba(251,113,133,.6); }
+  .ns-call.WAIT { background: #94a3b8; } .ns-call.scan { background: rgba(245,179,1,.15); color: var(--px-accent); border: 1px solid rgba(245,179,1,.5); animation: nsBlink .8s steps(2) infinite; }
+  .ns-meter { display: flex; align-items: center; gap: 14px; margin: 14px 0 10px; transform: translateZ(20px); }
+  .ns-gauge { --v: 50; --c: #34d399; width: 74px; height: 74px; border-radius: 50%; display: grid; place-items: center; flex: none;
+              background: conic-gradient(var(--c) calc(var(--v) * 1%), rgba(148,163,184,.15) 0); transition: --v 1s; }
+  .ns-gauge b { width: 58px; height: 58px; border-radius: 50%; background: #0a0e17; display: grid; place-items: center; font: 900 17px 'JetBrains Mono', monospace; color: #fff; }
+  .ns-meter .info { font-size: 12px; color: #9aa4b8; line-height: 1.5; }
+  .ns-meter .info b { color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 18px; }
+  .ns-spark { width: 100%; height: 46px; display: block; transform: translateZ(10px); }
+  .ns-foot { display: flex; justify-content: space-between; font-size: 10.5px; color: #6b7487; margin-top: 6px; }
+  .ns-stamp { position: absolute; right: 12px; bottom: 12px; font: 900 11px 'JetBrains Mono', monospace; letter-spacing: .12em; color: var(--px-accent); border: 2px solid var(--px-accent);
+              padding: 3px 8px; border-radius: 6px; transform: rotate(-8deg); opacity: 0; }
+  .ns-card.locked .ns-foot { padding-right: 84px; }
+  .ns-card.locked .ns-stamp { opacity: 1; animation: nsStamp .5s cubic-bezier(.2,1.8,.4,1); }
+  @keyframes nsStamp { from { transform: rotate(-8deg) scale(2.4); opacity: 0; } }
+  /* timeline */
+  .ns-line { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x mandatory; }
+  .ns-ev { flex: 0 0 220px; scroll-snap-align: start; padding: 14px; border-radius: 16px; background: var(--px-panel-2); border: 1px solid var(--px-line); cursor: pointer; transition: transform .2s, border-color .2s; }
+  .ns-ev:hover, .ns-ev.on { transform: translateY(-4px); border-color: var(--px-accent); }
+  .ns-ev b { display: block; font-size: 13.5px; color: var(--px-text); } .ns-ev small { font: 700 11px 'JetBrains Mono', monospace; color: var(--px-accent); }
+  .ns-ev .st { font-size: 11px; color: var(--px-mute); margin-top: 6px; }
+  .ns-flash { position: fixed; inset: 0; z-index: 9000; display: grid; place-items: center; pointer-events: none; opacity: 0; }
+  .ns-flash.on { animation: nsFlash 2.4s ease forwards; }
+  .ns-flash div { font: 900 clamp(28px, 7vw, 72px) 'JetBrains Mono', monospace; color: #fff; letter-spacing: .08em; text-shadow: 0 0 40px var(--px-accent), 0 0 80px var(--px-accent); }
+  @keyframes nsFlash { 0% { opacity: 0; background: rgba(245,179,1,.0); } 10% { opacity: 1; background: rgba(245,179,1,.18); } 70% { opacity: 1; background: rgba(5,7,12,.0); } 100% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .ns-scanline, .ns-sweep, .ns-card::before, .ns-blip i { animation: none !important; } }
+</style>
+
+<section class="ns-hero" id="nsHero">
+  <canvas class="ns-3d" id="ns3d" aria-hidden="true"></canvas>
+  <div class="ns-scanline"></div>
+  <div class="ns-in">
+    <div>
+      <span class="ns-live"><span class="ns-dot"></span> AI news scanner · live</span>
+      <h1 class="ns-title" id="nsTitle">Scanning the calendar…</h1>
+      <div class="ns-sub"><span id="nsType"></span><span class="cur"></span></div>
+      <div class="ns-count" id="nsCount">
+        <div class="ns-cell"><b data-u="d">--</b><small>days</small></div>
+        <div class="ns-cell"><b data-u="h">--</b><small>hrs</small></div>
+        <div class="ns-cell"><b data-u="m">--</b><small>min</small></div>
+        <div class="ns-cell"><b data-u="s">--</b><small>sec</small></div>
+      </div>
+      <div class="ns-figs" id="nsFigs"></div>
+      <div class="ns-odds">
+        <div class="lbl"><span id="nsBeatL">BEAT --%</span><span>history of this release</span><span id="nsMissL">MISS --%</span></div>
+        <div class="bar"><i class="b" id="nsBeat" style="width:50%"></i><i class="m" id="nsMiss" style="width:50%"></i></div>
+      </div>
+      <div class="ns-result" id="nsResult"></div>
+    </div>
+    <div class="ns-radar-wrap">
+      <div class="ns-radar" id="nsRadar">
+        <div class="ring" style="--i:12%"></div><div class="ring" style="--i:24%"></div><div class="ring" style="--i:36%"></div><div class="cross"></div>
+        <div class="ns-sweep"></div>
+        <div class="ns-core"><div><b id="nsCore">--%</b><small id="nsCoreL">SCANNING</small></div></div>
+      </div>
+      <div class="ns-legend">▲ up the radar = more likely to rise · dot size = expected move</div>
+    </div>
+  </div>
+</section>
+
+<div class="ni-card">
+  <div class="ni-h"><h2 id="nsCardsH">Market calls</h2><p id="nsCardsP">Probabilities from every past release of this event · updates by itself</p></div>
+  <div class="ns-cards" id="nsCards"><p class="ni-mute" style="font-size:13px">Loading the scanner…</p></div>
+  <p class="ni-mute" style="font-size:11px;margin-top:12px">Calls are statistics from past releases (direction and average 1-hour move after a beat or a miss), not a promise. Pips: gold in $0.10 steps, JPY pairs 0.01, others 0.0001. Use a stop loss: the first minutes after big news can whip both ways.</p>
+</div>
+
+<div class="ni-card">
+  <div class="ni-h"><h2>Coming up</h2><p>Tap one to scan it</p></div>
+  <div class="ns-line" id="nsLine"></div>
+</div>
+
+<div class="ns-flash" id="nsFlash"><div id="nsFlashT">SIGNAL LOCKED</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
+<script>
+(function () {
+  var API = '{% url "api_news_scanner" %}', data = null, chosen = null, lastState = {}, prev = {}, timer = null, reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+
+  /* ── typewriter status line ── */
+  var typeTxt = '', typeI = 0;
+  function type(t) { if (t === typeTxt) return; typeTxt = t; typeI = 0; }
+  setInterval(function () { var el = $('nsType'); if (!el) return; if (typeI <= typeTxt.length) { el.textContent = typeTxt.slice(0, typeI); typeI += 1; } }, 28);
+
+  /* ── countdown ── */
+  var target = null;
+  function tick() {
+    if (!target) return;
+    var s = Math.max(0, Math.floor((target - Date.now()) / 1000));
+    var v = { d: Math.floor(s / 86400), h: Math.floor(s % 86400 / 3600), m: Math.floor(s % 3600 / 60), s: s % 60 };
+    document.querySelectorAll('#nsCount b').forEach(function (b) {
+      var n = String(v[b.dataset.u]).padStart(2, '0');
+      if (b.textContent !== n) { b.textContent = n; var c = b.parentNode; c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash'); }
+    });
+  }
+  setInterval(tick, 1000);
+
+  /* ── number scramble while scanning ── */
+  function scramble(el, final, ms) {
+    if (reduce) { el.textContent = final; return; }
+    var t0 = performance.now();
+    (function step(t) {
+      if (t - t0 < ms) { el.textContent = Math.floor(Math.random() * 99) + '%'; requestAnimationFrame(step); } else { el.textContent = final; }
+    })(t0);
+  }
+
+  function spark(up, seed) {
+    var pts = [], y = 23, r = seed;
+    for (var i = 0; i < 40; i++) { r = (r * 9301 + 49297) % 233280; y += (r / 233280 - .5) * 6 + (up ? -.35 : .35) * (i > 22 ? 1.8 : .2); y = Math.max(4, Math.min(42, y)); pts.push((i * 300 / 39).toFixed(1) + ',' + y.toFixed(1)); }
+    var c = up ? '#34d399' : '#fb7185';
+    return '<svg class="ns-spark" viewBox="0 0 300 46" preserveAspectRatio="none"><defs><linearGradient id="g' + seed + '" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="' + c + '" stop-opacity=".35"/><stop offset="1" stop-color="' + c + '" stop-opacity="0"/></linearGradient></defs>' +
+      '<polygon points="0,46 ' + pts.join(' ') + ' 300,46" fill="url(#g' + seed + ')"/><polyline points="' + pts.join(' ') + '" fill="none" stroke="' + c + '" stroke-width="2"/><line x1="220" x2="220" y1="0" y2="46" stroke="rgba(245,179,1,.6)" stroke-dasharray="3 3"/></svg>';
+  }
+
+  function render() {
+    if (!data) return;
+    var ev = (chosen && data.events.find(function (e) { return e.id === chosen; })) || data.focus;
+    if (!ev) { $('nsTitle').textContent = 'No big release in the next days'; type('Scanner idle. Next NFP / CPI / FOMC will appear here automatically.'); return; }
+    $('nsTitle').textContent = ev.label;
+    target = new Date(ev.when).getTime(); tick();
+    var st = ev.state;
+    type(st === 'released' ? '> Number is out. Signal locked on ' + ev.markets.length + ' markets.' :
+         st === 'awaiting' ? '> Release time reached. Waiting for the number… re-reading the feed every few seconds.' :
+         '> Scanning ' + (ev.history || 0) + ' past releases · modelling beat / miss reactions on ' + ev.markets.length + ' markets…');
+    $('nsFigs').innerHTML = [['Forecast', ev.forecast], ['Previous', ev.previous], ['Actual', ev.actual || (st === 'released' ? '—' : 'pending')]]
+      .map(function (f, i) { return '<span class="ns-fig' + (i === 2 && ev.actual ? ' act' : '') + '">' + f[0] + '<b>' + esc(f[1] || '—') + '</b></span>'; }).join('');
+    $('nsBeat').style.width = ev.p_beat + '%'; $('nsMiss').style.width = ev.p_miss + '%';
+    $('nsBeatL').textContent = 'BEAT ' + ev.p_beat + '%'; $('nsMissL').textContent = 'MISS ' + ev.p_miss + '%';
+    var res = $('nsResult');
+    if (st === 'released') {
+      res.className = 'ns-result on ' + (ev.result === 'BEAT' ? 'beat' : ev.result === 'MISS' ? 'miss' : 'line');
+      res.innerHTML = esc(ev.result) + (ev.good_for ? ' · ' + esc(ev.good_for) : '') +
+        '<small>Actual ' + esc(ev.actual) + ' vs forecast ' + esc(ev.forecast) + (ev.surprise_pct != null ? ' (' + (ev.surprise_pct > 0 ? '+' : '') + ev.surprise_pct + '%)' : '') + '</small>';
+    } else { res.className = 'ns-result'; }
+    // radar blips
+    var radar = $('nsRadar'); radar.querySelectorAll('.ns-blip').forEach(function (b) { b.remove(); });
+    var best = 0;
+    ev.markets.forEach(function (m, i) {
+      var up = m.call === 'BUY' ? m.prob : 100 - m.prob, ang = (i / ev.markets.length) * Math.PI * 2 + .6;
+      var rad = 27 + Math.abs(up - 50) * .35, x = 50 + Math.cos(ang) * rad, y = 50 + Math.sin(ang) * rad * .55 - (up - 50) * .35;
+      var b = document.createElement('div'); b.className = 'ns-blip';
+      b.style.cssText = 'left:' + x + '%;top:' + Math.max(8, Math.min(92, y)) + '%;--c:' + (m.call === 'BUY' ? '#34d399' : m.call === 'SELL' ? '#fb7185' : '#94a3b8');
+      var sz = Math.min(18, 8 + (m.pips || 0) / 40); b.innerHTML = '<i style="width:' + sz + 'px;height:' + sz + 'px"></i><span>' + esc(m.symbol) + ' ' + m.prob + '%</span>';
+      radar.appendChild(b); best = Math.max(best, m.prob);
+    });
+    $('nsCoreL').textContent = st === 'released' ? 'LOCKED' : st === 'awaiting' ? 'WAITING' : 'BEST ODDS';
+    var coreKey = ev.id + st + best;
+    if (prev.core !== coreKey) { prev.core = coreKey; scramble($('nsCore'), best + '%', st === 'released' ? 300 : 900); }
+    // cards
+    $('nsCardsH').textContent = st === 'released' ? 'Signals locked · ' + ev.label : 'Market calls before the number · ' + ev.label;
+    $('nsCardsP').textContent = st === 'released' ? 'Call from how each market moved after the same kind of surprise' : 'Chance each market rises, from the beat/miss odds and past reactions';
+    $('nsCards').innerHTML = ev.markets.map(function (m, i) {
+      var cls = m.call === 'BUY' ? 'buy' : m.call === 'SELL' ? 'sell' : '', live = st === 'released';
+      return '<div class="ns-card ' + cls + (live ? ' locked' : '') + '" data-tilt>' +
+        '<div class="top"><div><div class="sym">' + esc(m.symbol) + '</div><div class="px">' + (m.price ? Number(m.price).toLocaleString(undefined, { maximumFractionDigits: 5 }) : '—') + '</div></div>' +
+        '<span class="ns-call ' + (live ? m.call : 'scan') + '">' + (live ? m.call : (st === 'awaiting' ? 'WAITING' : 'LEAN ' + m.call)) + '</span></div>' +
+        '<div class="ns-meter"><div class="ns-gauge" style="--v:' + m.prob + ';--c:' + (m.call === 'SELL' ? '#fb7185' : '#34d399') + '"><b data-p="' + m.prob + '">' + m.prob + '%</b></div>' +
+        '<div class="info">' + (live ? 'Expected move' : 'Usual 1-h move') + '<br><b>' + (m.pips != null ? m.pips.toLocaleString() + ' pips' : '—') + '</b>' +
+        (m.note ? '<br><span style="font-size:11px">' + esc(m.note) + '</span>' : '') + '</div></div>' + spark(m.call !== 'SELL', i * 97 + 13) +
+        '<div class="ns-foot"><span>' + (m.history ? m.history + ' past releases' : 'textbook reaction') + (m.estimate ? ' · estimate' : '') + '</span><span>' + (live ? 'right ' + m.prob + '% of the time' : (m.p_up != null ? 'up ' + m.p_up + '%' : '')) + '</span></div>' +
+        '<span class="ns-stamp">LOCKED</span></div>';
+    }).join('');
+    document.querySelectorAll('.ns-gauge b').forEach(function (b, i) {         // scan animation only when a number changes
+      var k = ev.id + st + i + b.dataset.p;
+      if (prev['g' + i] !== k) { prev['g' + i] = k; scramble(b, b.dataset.p + '%', st === 'released' ? 400 : 1100); }
+    });
+    tilt();
+    // timeline
+    $('nsLine').innerHTML = data.events.filter(function (e) { return e.state !== 'released' || e.seconds > -6 * 3600; }).map(function (e) {
+      var d = new Date(e.when);
+      return '<div class="ns-ev' + (e.id === ev.id ? ' on' : '') + '" data-id="' + e.id + '"><small>' + d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + '</small>' +
+        '<b>' + esc(e.label) + '</b><div class="st">' + (e.state === 'released' ? '✅ ' + e.result + ' · actual ' + esc(e.actual) : e.state === 'awaiting' ? '⏳ waiting for the number' : 'Beat ' + e.p_beat + '% · forecast ' + esc(e.forecast || '—')) + '</div></div>';
+    }).join('') || '<p class="ni-mute" style="font-size:13px">No tracked releases in the next days.</p>';
+    document.querySelectorAll('.ns-ev').forEach(function (n) { n.onclick = function () { chosen = n.dataset.id; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }; });
+    // flash when a release turns into a locked signal
+    data.events.forEach(function (e) {
+      if (lastState[e.id] && lastState[e.id] !== 'released' && e.state === 'released') {
+        $('nsFlashT').textContent = e.label.split(' (')[0] + ': ' + e.result; var f = $('nsFlash'); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on');
+        if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
+      }
+      lastState[e.id] = e.state;
+    });
+  }
+
+  function tilt() {
+    if (reduce || !matchMedia('(hover: hover)').matches) return;
+    document.querySelectorAll('[data-tilt]').forEach(function (c) {
+      c.onmousemove = function (ev) { var r = c.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width - .5, y = (ev.clientY - r.top) / r.height - .5;
+        c.style.transform = 'rotateY(' + (x * 14) + 'deg) rotateX(' + (-y * 14) + 'deg) translateZ(6px)'; };
+      c.onmouseleave = function () { c.style.transform = ''; };
+    });
+  }
+
+  function load() {
+    fetch(API, { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) {
+      if (d.success) { data = d; render(); }
+      else { type('> ' + (d.error || 'Scanner unavailable')); }
+      clearTimeout(timer); timer = setTimeout(load, ((d && d.poll) || 30) * 1000);
+    }).catch(function () { clearTimeout(timer); timer = setTimeout(load, 15000); });
+  }
+  type('> Booting scanner…'); load();
+
+  /* ── 3D moving candlestick chart (three.js; a 2D fallback keeps it moving without WebGL) ── */
+  function start3d() {
+    var cv = $('ns3d'), hero = $('nsHero');
+    if (!window.THREE || reduce) return start2d();
+    var renderer;
+    try { renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true }); } catch (e) { return start2d(); }
+    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    var scene = new THREE.Scene(); scene.fog = new THREE.Fog(0x05070c, 18, 62);
+    var cam = new THREE.PerspectiveCamera(48, 2, .1, 200);
+    scene.add(new THREE.AmbientLight(0xffffff, .45));
+    var key = new THREE.PointLight(0xf5b301, 2.2, 80); key.position.set(10, 16, 10); scene.add(key);
+    var rim = new THREE.PointLight(0x38bdf8, 1.6, 80); rim.position.set(-14, 8, -10); scene.add(rim);
+    var grid = new THREE.GridHelper(120, 60, 0x1f6f5b, 0x12303a); grid.position.y = -.01; grid.material.transparent = true; grid.material.opacity = .45; scene.add(grid);
+    var group = new THREE.Group(); scene.add(group);
+    var N = 70, GAP = .72, candles = [], price = 6;
+    var upM = new THREE.MeshStandardMaterial({ color: 0x10b981, emissive: 0x0b6b4b, emissiveIntensity: .7, metalness: .3, roughness: .35 });
+    var dnM = new THREE.MeshStandardMaterial({ color: 0xf43f5e, emissive: 0x7a1428, emissiveIntensity: .7, metalness: .3, roughness: .35 });
+    var wickM = new THREE.MeshBasicMaterial({ color: 0x94a3b8 });
+    var box = new THREE.BoxGeometry(.42, 1, .42), wick = new THREE.BoxGeometry(.06, 1, .06);
+    function makeCandle(i) {
+      var o = price, c = Math.max(1, o + (Math.random() - .5) * 1.4 + (6 - o) * .06), hi = Math.max(o, c) + Math.random() * .7, lo = Math.max(.3, Math.min(o, c) - Math.random() * .7);
+      price = c;
+      var g = new THREE.Group(), body = new THREE.Mesh(box, c >= o ? upM : dnM), w = new THREE.Mesh(wick, wickM);
+      body.scale.y = Math.max(.08, Math.abs(c - o)); body.position.y = (o + c) / 2; w.scale.y = hi - lo; w.position.y = (hi + lo) / 2;
+      g.add(body); g.add(w); g.position.x = i * GAP; g.userData.body = body; group.add(g); return g;
+    }
+    for (var i = 0; i < N; i++) candles.push(makeCandle(i));
+    var scan = new THREE.Mesh(new THREE.PlaneGeometry(.18, 26), new THREE.MeshBasicMaterial({ color: 0xf5b301, transparent: true, opacity: .55, side: THREE.DoubleSide }));
+    scan.position.y = 8; scene.add(scan);
+    var pg = new THREE.BufferGeometry(), P = 500, pos = new Float32Array(P * 3);
+    for (var k = 0; k < P; k++) { pos[k * 3] = (Math.random() - .5) * 90; pos[k * 3 + 1] = Math.random() * 22; pos[k * 3 + 2] = (Math.random() - .5) * 50; }
+    pg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    var pts = new THREE.Points(pg, new THREE.PointsMaterial({ color: 0xf5d36b, size: .09, transparent: true, opacity: .8 })); scene.add(pts);
+    function size() { var w = hero.clientWidth, h = hero.clientHeight; renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+    size(); window.addEventListener('resize', size);
+    var t0 = performance.now(), shift = 0, visible = true;
+    new IntersectionObserver(function (es) { visible = es[0].isIntersecting; }).observe(hero);
+    (function loop(t) {
+      requestAnimationFrame(loop);
+      if (!visible || document.hidden) return;
+      var s = (t - t0) / 1000;
+      shift += .012; group.position.x = -shift * GAP * 1.4 - 8;
+      if (candles.length && candles[0].position.x + group.position.x < -30) {            // scroll: recycle the oldest candle at the front
+        var old = candles.shift(); group.remove(old); candles.push(makeCandle(candles[candles.length - 1].position.x / GAP + 1));
+      }
+      var last = candles[candles.length - 1]; var ly = last.userData.body.position.y;
+      cam.position.set(Math.sin(s * .12) * 9 + 4, 9 + Math.sin(s * .2) * 1.5, 22 + Math.cos(s * .12) * 4);
+      cam.lookAt(new THREE.Vector3(2, Math.min(10, ly) * .6 + 2, 0));
+      scan.position.x = ((s * 9) % 44) - 22;
+      candles.forEach(function (c) { var b = c.userData.body, near = Math.abs(c.position.x + group.position.x - scan.position.x) < 1.2; b.material.emissiveIntensity = .7; b.scale.x = b.scale.z = near ? 1.35 : 1; });
+      pts.rotation.y = s * .03; key.intensity = 2 + Math.sin(s * 2) * .4;
+      renderer.render(scene, cam);
+    })(t0);
+  }
+  function start2d() {
+    var cv = $('ns3d'), hero = $('nsHero'), ctx = cv.getContext('2d'), bars = [], p = 50;
+    function size() { cv.width = hero.clientWidth; cv.height = hero.clientHeight; }
+    size(); window.addEventListener('resize', size);
+    for (var i = 0; i < 90; i++) { var o = p; p += (Math.random() - .48) * 6; bars.push([o, p]); }
+    var off = 0;
+    (function loop() {
+      requestAnimationFrame(loop);
+      var w = cv.width, h = cv.height; ctx.clearRect(0, 0, w, h); off += reduce ? 0 : .6;
+      if (off > 14) { off = 0; bars.shift(); var o2 = bars[bars.length - 1][1]; bars.push([o2, o2 + (Math.random() - .48) * 6]); }
+      var mn = Math.min.apply(null, bars.map(function (b) { return Math.min(b[0], b[1]); })), mx = Math.max.apply(null, bars.map(function (b) { return Math.max(b[0], b[1]); }));
+      bars.forEach(function (b, j) {
+        var x = j * 14 - off + w * .3, y1 = h * .85 - (b[0] - mn) / (mx - mn + 1) * h * .6, y2 = h * .85 - (b[1] - mn) / (mx - mn + 1) * h * .6;
+        ctx.fillStyle = b[1] >= b[0] ? 'rgba(16,185,129,.55)' : 'rgba(244,63,94,.55)'; ctx.fillRect(x, Math.min(y1, y2), 8, Math.max(2, Math.abs(y2 - y1)));
+      });
+    })();
+  }
+  window.addEventListener('load', start3d);
+})();
+</script>

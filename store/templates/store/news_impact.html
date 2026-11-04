@@ -1,8 +1,8 @@
 {% extends 'base_dashboard.html' %}
 
 {% block message_toasts %}{% endblock %}
-{% block title %}News Impact · PATREOAIX{% endblock %}
-{% block page_title %}News Impact{% endblock %}
+{% block title %}News Scanner · NFP, CPI, FOMC · PATREOAIX{% endblock %}
+{% block page_title %}News Scanner{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -44,6 +44,8 @@
 {% block content %}
 <div class="ni-wrap">
     {% for m in messages %}<div class="ni-card" style="padding:12px;font-size:13px;font-weight:600">{{ m }}</div>{% endfor %}
+
+    {% include 'partials/news_scanner.html' %}
 
     <div class="ni-card">
         <div class="ni-h">
