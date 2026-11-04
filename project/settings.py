@@ -224,6 +224,7 @@ TEMPLATES = [
         'APP_DIRS': True,  #
         'OPTIONS': {
             'context_processors': [
+                'store.seo.context',   # search engines: verification codes, share image, logo
                 'django.template.context_processors.request',  #
                 'django.contrib.auth.context_processors.auth',  #
                 'django.contrib.messages.context_processors.messages',
@@ -395,6 +396,12 @@ ACCOUNT_EMAIL_UNKNOWN_ACCOUNTS = False
 ACCOUNT_ADAPTER = 'store.account_adapter.PatreoaixAccountAdapter'   # every allauth email in the branded template
 
 ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', EMAIL_HOST_USER)
+
+# Secret for /cron/<CRON_KEY>/ (a free scheduler calls it every 5 minutes to run the scanner + Telegram posts)
+CRON_KEY = os.getenv('CRON_KEY', '')
+# Search Console / Bing Webmaster verification codes (the content="…" value they give you), shown on the homepage
+GOOGLE_SITE_VERIFICATION = os.getenv('GOOGLE_SITE_VERIFICATION', '')
+BING_SITE_VERIFICATION = os.getenv('BING_SITE_VERIFICATION', '')
 
 # ── Telegram channel for AI signals (python manage.py telegram_test) ──
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')        # from @BotFather

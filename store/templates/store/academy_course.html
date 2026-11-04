@@ -3,7 +3,10 @@
 {% block message_toasts %}{% endblock %}
 {% block title %}{{ course.title }} · Academy · PATREOAIX{% endblock %}
 {% block page_title %}Academy{% endblock %}
-{% block extra_head %}{% include 'partials/academy_css.html' %}{% endblock %}
+{% block extra_head %}{% include 'partials/academy_css.html' %}
+<meta name="description" content="{{ course.title }}: {{ course.blurb|striptags|truncatechars:120 }} {{ course.topics|length }} free trading lessons with real chart examples.">
+<link rel="canonical" href="{{ seo_site }}{{ request.path }}"><meta property="og:title" content="{{ course.title }} · PATREOAIX Academy"><meta property="og:image" content="{{ seo_image }}">
+{% endblock %}
 
 {% block content %}
 <div class="ak-wrap">

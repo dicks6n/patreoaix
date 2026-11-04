@@ -3,7 +3,13 @@
 {% block message_toasts %}{% endblock %}
 {% block title %}{{ tp.title }} · {{ course.title }} · PATREOAIX Academy{% endblock %}
 {% block page_title %}Academy{% endblock %}
-{% block extra_head %}{% include 'partials/academy_css.html' %}{% endblock %}
+{% block extra_head %}{% include 'partials/academy_css.html' %}
+<meta name="description" content="{{ tp.summary.0|striptags|truncatechars:155 }}">
+<link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
+<meta property="og:title" content="{{ tp.title }} · PATREOAIX Academy"><meta property="og:description" content="{{ tp.summary.0|striptags|truncatechars:155 }}">
+<meta property="og:type" content="article"><meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}/static/store/social-card.png">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Article","headline":"{{ tp.title|escapejs }}","description":"{{ tp.summary.0|striptags|escapejs }}","author":{"@type":"Organization","name":"PATREOAIX"},"publisher":{"@type":"Organization","name":"PATREOAIX","logo":{"@type":"ImageObject","url":"{{ request.scheme }}://{{ request.get_host }}/static/store/icons/icon-512.png"}},"isAccessibleForFree":{% if teaser %}false{% else %}true{% endif %}}</script>
+{% endblock %}
 
 {% block content %}
 <div class="ak-wrap" style="max-width:780px">
@@ -39,7 +45,14 @@
     </div>
 
     <div class="ak-card ak-body">
-        {% for p in tp.body %}<p>{{ p|safe }}</p>{% endfor %}
+        {% for p in tp.body %}{% if not teaser or forloop.first %}<p>{{ p|safe }}</p>{% endif %}{% endfor %}
+        {% if teaser %}
+        <div style="margin-top:14px;padding:16px;border-radius:14px;border:1px dashed var(--px-accent);background:color-mix(in srgb, var(--px-accent) 7%, transparent)">
+            <b style="display:block;font-size:15px;color:var(--px-text)">🔓 Keep reading: {{ tp.body|length|add:"-1" }} more part{{ tp.body|length|add:"-1"|pluralize }} of this lesson</b>
+            <p style="font-size:13px;color:var(--px-mute);margin:6px 0 12px">{% if user.is_authenticated %}The first {{ free_topics }} topics of every course are free. The Academy plan opens every topic, the cheat sheets and unlimited chart AI.{% else %}Create a free account: the first {{ free_topics }} topics of every course are free, and the Academy plan opens all of them.{% endif %}</p>
+            {% if user.is_authenticated %}<a class="ak-btn" href="{% url 'subscription_billing' %}#academy">Get Academy · $12/mo</a>{% else %}<a class="ak-btn" href="{% url 'account_signup' %}?next={{ request.path|urlencode }}">Create a free account</a> <a class="ak-btn ghost" href="{% url 'account_login' %}?next={{ request.path|urlencode }}">Sign in</a>{% endif %}
+        </div>
+        {% endif %}
     </div>
 
     <div style="display:flex;gap:10px;flex-wrap:wrap">

@@ -204,7 +204,7 @@ def caption(sig, result=False):
             f"AI signals daily: {(getattr(settings, 'PUBLIC_HOST', '') or 'www.patreoaix.com')}\n"
             f"Subscribe for every signal: {(getattr(settings, 'PUBLIC_HOST', '') or 'www.patreoaix.com')}/subscribe\n"
             f"Not financial advice.\n"
-            f"#{tag} #forex #trading #tradingsignals #forexsignals #daytrading #ai #patreoaix")
+            f"#{tag} #forex #trading #tradingsignals #forexsignals #forexkenya #tradingkenya #xauusd #ai #patreoaix")
 
 
 def save_poster(sig, result=False, candles=None):

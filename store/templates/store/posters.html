@@ -51,8 +51,8 @@
       {% endif %}
     </div>
     {% if tiktok_account %}
-      <div class="pst-tt-text">New A / A+ signal posters (and their results) are posted to TikTok automatically by the background scanner.
-        Until TikTok approves your app they are posted as private (only you can see them).</div>
+      <div class="pst-tt-text">TikTok lets an app post publicly only after TikTok audits it; until then automatic posts are private (only you see them).
+        The quickest public route: on your phone tap <b>Share to TikTok</b> under a poster (the caption is copied), pick TikTok, paste, post.</div>
     {% else %}
       <ol class="pst-tt-text">
         <li>developers.tiktok.com → create an app → add <b>Login Kit</b> and <b>Content Posting API</b> (Direct Post on). Scopes: user.info.basic, video.publish.</li>
@@ -76,6 +76,9 @@
       <div class="pst-body">
         <div class="text-xs" style="color:var(--px-muted)">{{ p.date }} · {{ p.name }}</div>
         <div class="pst-cap">{{ p.caption }}</div>
+        <div class="pst-btns">
+          <button class="pst-share" type="button" data-img="{{ p.url }}" data-name="{{ p.name }}" data-text="{{ p.caption }}" style="flex:1.4;background:#000;color:#fff;font-weight:800;border:1px solid #25f4ee;box-shadow:2px 2px 0 #fe2c55"><i class="fa-brands fa-tiktok"></i> Share to TikTok</button>
+        </div>
         <div class="pst-btns">
           <a class="pst-dl" href="{{ p.url }}" download="{{ p.name }}">Download</a>
           <button class="pst-cp" type="button" data-caption="{{ p.caption }}">Copy caption</button>
@@ -101,8 +104,22 @@
 
 {% block extra_js %}
 <script>
+document.addEventListener('click', function (e) {     // Share to TikTok: copy the caption, then the phone's share sheet with the image
+  var s = e.target.closest('.pst-share');
+  if (!s) return;
+  var text = s.dataset.text, label = s.innerHTML;
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).catch(function () {});
+  fetch(s.dataset.img).then(function (r) { return r.blob(); }).then(function (blob) {
+    var file = new File([blob], s.dataset.name, { type: blob.type || 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      return navigator.share({ files: [file], text: text }).then(function () { s.innerHTML = 'Shared ✓'; });
+    }
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = s.dataset.name; a.click();   // computer: download it
+    s.innerHTML = 'Downloaded · caption copied ✓';
+  }).catch(function () {}).finally(function () { setTimeout(function () { s.innerHTML = label; }, 2500); });
+});
 document.addEventListener('click', function (e) {
-  var b = e.target.closest('.pst-cp');
+  var b = e.target.closest('.pst-cp[data-caption]');
   if (!b) return;
   var text = b.getAttribute('data-caption');
   var done = function () { var t = b.textContent; b.textContent = 'Copied ✓'; setTimeout(function () { b.textContent = t; }, 1500); };

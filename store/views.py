@@ -11338,7 +11338,6 @@ def journal_page(request):
 # ═══════════════════════════════════════════════════════════════
 # BEGINNER ACADEMY (store/academy.py)
 # ═══════════════════════════════════════════════════════════════
-@login_required
 def academy_page(request):
     from . import academy, academy_library, bonus
     done = academy.passed(request.user)
@@ -11395,7 +11394,6 @@ def _academy_pic(tp):
     return {'svg': svg, 'real': False} if svg else None
 
 
-@login_required
 def academy_course(request, course):
     from . import academy_library as lib
     c = lib.BY_COURSE.get(course)
@@ -11409,7 +11407,6 @@ def academy_course(request, course):
 ACADEMY_FREE_TOPICS = 2          # free accounts read the first topics of every course; the Academy plan opens the rest
 
 
-@login_required
 def academy_topic(request, course, topic):
     from . import academy_library as lib
     c = lib.BY_COURSE.get(course)
@@ -11417,20 +11414,18 @@ def academy_topic(request, course, topic):
     if not c or not tp:
         raise Http404
     i = c['topics'].index(tp)
-    from .membership import has_rank, ACADEMY_RANK, members_only_response
-    if i >= ACADEMY_FREE_TOPICS and not has_rank(request.user, ACADEMY_RANK):
-        return members_only_response(request, feature='The full Academy',
-                                     message=f'The first {ACADEMY_FREE_TOPICS} topics of every course are free. The Academy plan '
-                                             f'($12/month) opens all {len(lib.TOPICS)} topics, cheat sheets and unlimited chart AI.')
-    from .rewards import safe_award
-    safe_award(request.user, 'topic', f'{course}/{topic}')
+    from .membership import has_rank, ACADEMY_RANK
+    teaser = i >= ACADEMY_FREE_TOPICS and not has_rank(request.user, ACADEMY_RANK)   # preview + sign up / upgrade
+    if request.user.is_authenticated and not teaser:
+        from .rewards import safe_award
+        safe_award(request.user, 'topic', f'{course}/{topic}')
     return render(request, 'store/academy_topic.html', {
+        'teaser': teaser, 'free_topics': ACADEMY_FREE_TOPICS,
         'course': c, 'tp': tp, 'pic': _academy_pic(tp),
         'prev': c['topics'][i - 1] if i else None, 'next': c['topics'][i + 1] if i + 1 < len(c['topics']) else None,
     })
 
 
-@login_required
 def academy_cheatsheet(request):
     from . import academy_library as lib
     which = request.GET.get('show') if request.GET.get('show') in ('candles', 'patterns') else 'candles'
@@ -11647,3 +11642,28 @@ def api_news_scanner(request):
     except Exception as e:
         logger.warning(f'news scanner: {e}')
         return JsonResponse({'success': False, 'error': 'The calendar is not reachable right now.'}, status=503)
+
+
+# ═══════════════════════════════════════════════════════════════
+# AUTOMATIC JOBS WITHOUT AN ALWAYS-ON PROCESS
+# ═══════════════════════════════════════════════════════════════
+def cron_run(request, key):
+    """/cron/<CRON_KEY>/ — called every few minutes by a free scheduler (cron-job.org): starts one pass of the AI
+    scanner in its own process (signals → Telegram, scheduled Telegram posts and news alerts, P2P timers,
+    price alerts, news history). Returns at once so the website is never held up; a lock stops overlapping passes."""
+    import hmac, subprocess, sys
+    from pathlib import Path
+    from django.core.cache import cache
+    secret = getattr(settings, 'CRON_KEY', '') or ''
+    if not secret or not hmac.compare_digest(str(key), secret):
+        raise Http404
+    if not cache.add('cron:lock', timezone.now().isoformat(), 240):      # a pass is still running (max 4 min)
+        return JsonResponse({'ok': True, 'started': False, 'reason': 'previous pass still running',
+                             'last': cache.get('cron:last')})
+    py = Path(sys.prefix) / 'bin' / 'python'                             # the virtualenv's python (sys.executable is uwsgi)
+    base = Path(settings.BASE_DIR)
+    log = open(base / 'cron.log', 'a')
+    subprocess.Popen([str(py) if py.exists() else 'python3', str(base / 'manage.py'), 'signal_scanner', '--once'],
+                     cwd=str(base), stdout=log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, start_new_session=True)
+    cache.set('cron:last', timezone.now().isoformat(), 86400 * 7)
+    return JsonResponse({'ok': True, 'started': True})

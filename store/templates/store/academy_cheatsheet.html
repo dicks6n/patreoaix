@@ -3,7 +3,10 @@
 {% block message_toasts %}{% endblock %}
 {% block title %}{% if which == 'candles' %}Candlestick{% else %}Chart pattern{% endif %} cheat sheet · PATREOAIX Academy{% endblock %}
 {% block page_title %}Academy{% endblock %}
-{% block extra_head %}{% include 'partials/academy_css.html' %}{% endblock %}
+{% block extra_head %}{% include 'partials/academy_css.html' %}
+<meta name="description" content="{{ course.title }} cheat sheet: every pattern on one page with a picture, what it means and how to trade it.">
+<meta property="og:title" content="{{ course.title }} cheat sheet · PATREOAIX"><meta property="og:image" content="{{ seo_image }}">
+{% endblock %}
 
 {% block content %}
 <div class="ak-wrap" style="max-width:1200px">

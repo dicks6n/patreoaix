@@ -6,7 +6,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0b0e14">
     {% include 'partials/pwa_head.html' %}
-    <title>PATREOAIX - AI Prediction Engine & Trading Hub</title>
+    <title>PATREOAIX · AI Forex & Gold Signals, P2P USDT with M-Pesa, Trading Academy</title>
+    <meta name="description" content="Free AI trading signals for gold, forex and crypto, a live NFP/CPI news scanner, P2P USDT with M-Pesa and mobile money, an MT5-style terminal, funded trader challenges and a trading academy for beginners.">
+    <link rel="canonical" href="{{ seo_site }}/">
+    {% if seo_google %}<meta name="google-site-verification" content="{{ seo_google }}">{% endif %}
+    {% if seo_bing %}<meta name="msvalidate.01" content="{{ seo_bing }}">{% endif %}
+    <meta property="og:type" content="website"><meta property="og:site_name" content="PATREOAIX">
+    <meta property="og:title" content="PATREOAIX · AI trading signals, P2P USDT with M-Pesa, Trading Academy">
+    <meta property="og:description" content="AI signals for gold, forex and crypto, a live NFP/CPI news scanner, P2P USDT with M-Pesa, funded challenges and a trading academy.">
+    <meta property="og:url" content="{{ seo_site }}/"><meta property="og:image" content="{{ seo_image }}">
+    <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="{{ seo_image }}">
+    <meta name="twitter:title" content="PATREOAIX · AI trading signals & P2P USDT with M-Pesa">
+    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[
+      {"@type":"Organization","@id":"{{ seo_site }}/#org","name":"PATREOAIX","url":"{{ seo_site }}/","logo":{"@type":"ImageObject","url":"{{ seo_logo }}","width":512,"height":512},
+       "email":"{{ support_email|default:'patreoaix@gmail.com' }}"{% if seo_telegram %},"sameAs":["{{ seo_telegram }}"]{% endif %}},
+      {"@type":"WebSite","@id":"{{ seo_site }}/#site","name":"PATREOAIX","url":"{{ seo_site }}/","publisher":{"@id":"{{ seo_site }}/#org"}}
+    ]}</script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>

@@ -5,6 +5,8 @@
 {% block page_title %}Academy{% endblock %}
 
 {% block extra_head %}
+<meta name="description" content="Free trading academy: {{ topic_total }} lessons on candlesticks, chart patterns, risk management, forex, gold and crypto, with real chart examples and quizzes.">
+<link rel="canonical" href="{{ seo_site }}/academy/"><meta property="og:title" content="PATREOAIX Trading Academy"><meta property="og:image" content="{{ seo_image }}">
 {% include 'partials/academy_css.html' %}
 <style>
     .ac-wrap { display: flex; flex-direction: column; gap: 18px; max-width: 900px; }

@@ -10,7 +10,12 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 
+from store import seo
+
 urlpatterns = [
+    path('robots.txt', seo.robots_txt),
+    path('sitemap.xml', seo.sitemap_xml),
+    path('favicon.ico', seo.favicon),
     path('', include('store.urls')),
     # Google / Apple sign-in that is not set up: back to login instead of a 500 (listed before allauth)
     path('accounts/google/login/', views.social_login_guard, {'provider': 'google'}),
