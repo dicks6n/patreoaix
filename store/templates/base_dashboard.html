@@ -462,10 +462,10 @@
             .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
         }
 
-        :root { --px-dock-h: 58px; }
-        @media (max-height: 480px) and (orientation: landscape) { :root { --px-dock-h: 46px; } }
+        :root { --px-dock-h: 52px; --px-dock-gap: 12px; }
+        @media (max-height: 480px) and (orientation: landscape) { :root { --px-dock-h: 42px; --px-dock-gap: 8px; } }
         @media (max-width: 1023px) {
-            body { padding-bottom: calc(var(--px-dock-h) + 12px + env(safe-area-inset-bottom)); }
+            body { padding-bottom: calc(var(--px-dock-h) + 10px + var(--px-dock-gap) + 16px + env(safe-area-inset-bottom)); }
         }
 
         /* iPhone notch / Dynamic Island / home bar, Android cut-outs (viewport-fit=cover):
@@ -627,38 +627,45 @@
         /* ═══════════════════════════════════════════════════════════ */
         /* MOBILE BOTTOM BAR (FIXED)                                   */
         /* ═══════════════════════════════════════════════════════════ */
-        /* Docked to the bottom edge on every phone / tablet: the bar's own background runs under the home
-           indicator, five equal tabs, Trade highlighted in the middle (nothing sticks out above the bar). */
+        /* Floating glass pill (Instagram-style): lifted off the bottom edge and the home indicator, icons only,
+           a highlight bubble that springs to the tab you tap, and a slightly smaller pill while scrolling down. */
         .px-dock {
-            position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
-            background: color-mix(in srgb, var(--px-panel) 96%, transparent);
-            border-top: 1px solid var(--px-line);
-            -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
-            padding: 0 max(6px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(6px, env(safe-area-inset-left));
-            box-shadow: 0 -6px 24px rgba(0, 0, 0, .18);
+            position: fixed; z-index: 50;
+            left: max(14px, env(safe-area-inset-left)); right: max(14px, env(safe-area-inset-right));
+            bottom: calc(env(safe-area-inset-bottom) + var(--px-dock-gap));
+            max-width: 420px; margin: 0 auto; padding: 5px; border-radius: 999px;
+            background: color-mix(in srgb, var(--px-panel) 82%, transparent);
+            -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(22px) saturate(180%);
+            border: 1px solid color-mix(in srgb, var(--px-text) 12%, transparent);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, .38), 0 2px 6px rgba(0, 0, 0, .2), inset 0 1px 0 rgba(255, 255, 255, .07);
+            transform-origin: 50% 100%; transition: transform .35s cubic-bezier(.2, .9, .3, 1.2), opacity .25s ease;
         }
-        .px-dock-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); height: var(--px-dock-h); max-width: 640px; margin: 0 auto; }
+        html.light .px-dock { background: rgba(255, 255, 255, .86); border-color: rgba(16, 24, 40, .08); box-shadow: 0 12px 30px rgba(16, 24, 40, .14), 0 2px 6px rgba(16, 24, 40, .06); }
+        .px-dock.mini { transform: translateY(6px) scale(.9); opacity: .94; }
+        .px-dock-row { position: relative; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); height: var(--px-dock-h); }
+        .px-dock-bubble {
+            position: absolute; top: 0; bottom: 0; left: 0; width: 20%; border-radius: 999px; pointer-events: none;
+            background: color-mix(in srgb, var(--px-accent) 16%, transparent);
+            box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--px-accent) 28%, transparent);
+            transition: transform .45s cubic-bezier(.3, 1.35, .45, 1), opacity .2s ease; opacity: 0;
+        }
+        .px-dock-bubble.on { opacity: 1; }
         .px-tab {
-            position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-            min-width: 0; height: 100%; color: var(--px-mute); font-size: 10.5px; font-weight: 600; line-height: 1;
-            text-decoration: none; -webkit-tap-highlight-color: transparent; transition: color .15s ease;
+            position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; min-width: 0; height: 100%;
+            color: var(--px-mute); text-decoration: none; -webkit-tap-highlight-color: transparent; border-radius: 999px; transition: color .2s ease;
         }
-        .px-tab span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 2px; }
-        .px-tab i { font-size: 18px; line-height: 1; transition: transform .1s ease; }
-        .px-tab:active i { transform: scale(.88); }
-        .px-tab.active { color: var(--px-accent); font-weight: 800; }
-        .px-tab.active::before { content: ''; position: absolute; top: 0; left: 50%; width: 26px; height: 3px; margin-left: -13px; border-radius: 0 0 3px 3px; background: var(--px-accent); }
-        .px-tab-main .px-tab-ic { width: 46px; height: 30px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); box-shadow: 0 4px 14px rgba(240, 185, 11, .3); }
-        .px-tab-main .px-tab-ic i { font-size: 15px; }
-        .px-tab-main { color: var(--px-text); }
-        .px-tab-main.active::before { display: none; }
-        @media (max-height: 480px) and (orientation: landscape) {
-            .px-tab { flex-direction: row; gap: 7px; font-size: 11.5px; }
-            .px-tab i { font-size: 16px; }
-            .px-tab-main .px-tab-ic { height: 28px; width: 40px; }
-        }
-        @media (max-width: 360px) { .hdr-signin { display: none !important; } }
-        @media (max-width: 340px) { .px-tab { font-size: 9.5px; } .px-tab i { font-size: 16px; } .px-tab-main .px-tab-ic { width: 40px; } }
+        .px-tab i { font-size: 21px; line-height: 1; transition: transform .25s cubic-bezier(.3, 1.6, .5, 1); }
+        .px-tab:active i { transform: scale(.82); }
+        .px-tab.active { color: var(--px-accent); }
+        .px-tab.active i { transform: scale(1.06); }
+        .px-tab .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+        .px-tab-main .px-tab-ic { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); box-shadow: 0 6px 16px rgba(240, 185, 11, .35); transition: transform .25s cubic-bezier(.3, 1.6, .5, 1); }
+        .px-tab-main .px-tab-ic i { font-size: 17px; transform: none !important; }
+        .px-tab-main:active .px-tab-ic { transform: scale(.88); }
+        .px-tab .px-dot { position: absolute; bottom: 7px; left: 50%; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--px-accent); opacity: 0; transition: opacity .2s; }
+        @media (max-height: 480px) and (orientation: landscape) { .px-dock { max-width: 360px; } .px-tab i { font-size: 18px; } .px-tab-main .px-tab-ic { width: 36px; height: 36px; } }
+        @media (max-width: 340px) { .px-dock { left: 8px; right: 8px; } .px-tab i { font-size: 18px; } .px-tab-main .px-tab-ic { width: 38px; height: 38px; } }
+        @media (prefers-reduced-motion: reduce) { .px-dock, .px-dock-bubble, .px-tab i { transition: none; } }
 
         /* toast */
         .px-toast {
@@ -670,7 +677,7 @@
         }
         .px-toast::before { content: ''; width: 3px; align-self: stretch; border-radius: 3px; background: var(--tone, var(--px-accent)); }
         @media (max-width: 1023px) {
-            .px-toast { left: 16px; right: 16px; bottom: calc(var(--px-dock-h) + 14px + env(safe-area-inset-bottom)); }
+            .px-toast { left: 16px; right: 16px; bottom: calc(var(--px-dock-h) + 10px + var(--px-dock-gap) + 14px + env(safe-area-inset-bottom)); }
         }
 
         /* phones: the header has several buttons right of the bell, so a dropdown anchored to the bell ran off the
@@ -1125,22 +1132,49 @@
     {% with u=request.resolver_match.url_name|default:'' %}
     <nav class="px-dock lg:hidden" aria-label="Main">
         <div class="px-dock-row">
+            <span class="px-dock-bubble" id="px-dock-bubble" aria-hidden="true"></span>
         {% if user.is_authenticated %}
-            <a href="{% url 'dashboard' %}" class="px-tab {% if u == 'dashboard' %}active{% endif %}"><i class="fa-solid fa-house"></i><span>Home</span></a>
-            <a href="{% url 'market_overview' %}" class="px-tab {% if u == 'market_overview' %}active{% endif %}"><i class="fa-solid fa-chart-line"></i><span>Markets</span></a>
-            <a href="{% url 'trade' %}" class="px-tab px-tab-main {% if u == 'trade' %}active{% endif %}" aria-label="Trade"><span class="px-tab-ic"><i class="fa-solid fa-arrow-right-arrow-left"></i></span><span>Trade</span></a>
-            <a href="{% url 'p2p' %}" class="px-tab {% if u|slice:':3' == 'p2p' %}active{% endif %}"><i class="fa-solid fa-people-arrows"></i><span>P2P</span></a>
-            <a href="{% url 'wallet' %}" class="px-tab {% if u == 'wallet' or u == 'wallet_send' %}active{% endif %}"><i class="fa-solid fa-wallet"></i><span>Wallet</span></a>
+            <a href="{% url 'dashboard' %}" class="px-tab {% if u == 'dashboard' %}active{% endif %}"><i class="fa-solid fa-house"></i><span class="sr">Home</span><span class="px-dot"></span></a>
+            <a href="{% url 'market_overview' %}" class="px-tab {% if u == 'market_overview' %}active{% endif %}"><i class="fa-solid fa-chart-line"></i><span class="sr">Markets</span><span class="px-dot"></span></a>
+            <a href="{% url 'trade' %}" class="px-tab px-tab-main {% if u == 'trade' %}active{% endif %}" aria-label="Trade"><span class="px-tab-ic"><i class="fa-solid fa-arrow-right-arrow-left"></i></span><span class="sr">Trade</span></a>
+            <a href="{% url 'p2p' %}" class="px-tab {% if u|slice:':3' == 'p2p' %}active{% endif %}"><i class="fa-solid fa-people-arrows"></i><span class="sr">P2P</span><span class="px-dot"></span></a>
+            <a href="{% url 'wallet' %}" class="px-tab {% if u == 'wallet' or u == 'wallet_send' %}active{% endif %}"><i class="fa-solid fa-wallet"></i><span class="sr">Wallet</span><span class="px-dot"></span></a>
         {% else %}
-            <a href="/" class="px-tab"><i class="fa-solid fa-house"></i><span>Home</span></a>
-            <a href="{% url 'academy' %}" class="px-tab {% if u|slice:':7' == 'academy' and u != 'academy_practice' %}active{% endif %}"><i class="fa-solid fa-graduation-cap"></i><span>Academy</span></a>
-            <a href="{% url 'academy_practice' %}" class="px-tab px-tab-main {% if u == 'academy_practice' %}active{% endif %}"><span class="px-tab-ic"><i class="fa-solid fa-gamepad"></i></span><span>Practice</span></a>
-            <a href="{% url 'news_index' %}" class="px-tab {% if u|slice:':5' == 'news_' or u == 'economic_calendar' %}active{% endif %}"><i class="fa-solid fa-newspaper"></i><span>News</span></a>
-            <a href="{% url 'account_login' %}" class="px-tab"><i class="fa-solid fa-right-to-bracket"></i><span>Sign in</span></a>
+            <a href="/" class="px-tab"><i class="fa-solid fa-house"></i><span class="sr">Home</span><span class="px-dot"></span></a>
+            <a href="{% url 'academy' %}" class="px-tab {% if u|slice:':7' == 'academy' and u != 'academy_practice' %}active{% endif %}"><i class="fa-solid fa-graduation-cap"></i><span class="sr">Academy</span><span class="px-dot"></span></a>
+            <a href="{% url 'academy_practice' %}" class="px-tab px-tab-main {% if u == 'academy_practice' %}active{% endif %}"><span class="px-tab-ic"><i class="fa-solid fa-gamepad"></i></span><span class="sr">Practice</span></a>
+            <a href="{% url 'news_index' %}" class="px-tab {% if u|slice:':5' == 'news_' or u == 'economic_calendar' %}active{% endif %}"><i class="fa-solid fa-newspaper"></i><span class="sr">News</span><span class="px-dot"></span></a>
+            <a href="{% url 'account_login' %}" class="px-tab"><i class="fa-solid fa-right-to-bracket"></i><span class="sr">Sign in</span><span class="px-dot"></span></a>
         {% endif %}
         </div>
     </nav>
     {% endwith %}
+    <script>
+    (function () {
+        var dock = document.querySelector('.px-dock'); if (!dock) return;
+        var tabs = [].slice.call(dock.querySelectorAll('.px-tab')), bub = document.getElementById('px-dock-bubble');
+        function place(t, instant) {
+            var i = tabs.indexOf(t); if (!bub || i < 0 || t.classList.contains('px-tab-main')) { if (bub) bub.classList.remove('on'); return; }
+            if (instant) { bub.style.transition = 'none'; }
+            bub.style.transform = 'translateX(' + (i * 100) + '%)'; bub.classList.add('on');
+            if (instant) { bub.offsetWidth; bub.style.transition = ''; }
+        }
+        place(dock.querySelector('.px-tab.active'), true);
+        tabs.forEach(function (t) { t.addEventListener('click', function () {
+            tabs.forEach(function (x) { x.classList.toggle('active', x === t); }); place(t, false);
+        }); });
+        var last = window.scrollY, ticking = false;
+        window.addEventListener('scroll', function () {
+            if (ticking) return; ticking = true;
+            requestAnimationFrame(function () {
+                var y = window.scrollY, d = y - last;
+                if (Math.abs(d) > 6) { dock.classList.toggle('mini', d > 0 && y > 120); last = y; }
+                if (y < 40) dock.classList.remove('mini');
+                ticking = false;
+            });
+        }, { passive: true });
+    })();
+    </script>
 
     <script>
         // ══════════════════════════════════════════
