@@ -677,7 +677,7 @@
                 </div>
             </div>
 
-            <div id="chart-container-pane" class="flex-1 bg-slate-950 relative min-h-[250px]" style="touch-action:none">
+            <div id="chart-container-pane" class="flex-1 bg-slate-950 relative min-h-[250px]" style="touch-action:pan-y">
                 <div id="lightweight-chart-container"></div>
                 <div id="chart-legend" class="chart-legend"></div>
                 <div id="chart-hint" class="chart-hint hidden"></div>
@@ -4387,6 +4387,14 @@ function setupChartInteractions() {
         return bd <= (touch ? 14 : 6) ? best : null;
     };
     const hint = $t('chart-hint');
+    // Up/down swipes over the chart scroll the page (touch-action: pan-y); only while a S/L, T/P or order line
+    // is being dragged does the finger stay on the chart.
+    pane.addEventListener('touchstart', e => {
+        if (e.touches.length !== 1 || !lwChart) return;
+        const t = hit(yOf(e.touches[0]), true);
+        if (t || alertTool) e.preventDefault();
+    }, { passive: false, capture: true });
+    pane.addEventListener('touchmove', e => { if (dragging) e.preventDefault(); }, { passive: false, capture: true });
     pane.addEventListener('pointerdown', e => {
         if (!lwChart || e.button > 0) return;
         if (e.target.closest('.chart-overlay-badge, #chart-legend')) return;
