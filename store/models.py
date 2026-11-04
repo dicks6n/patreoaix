@@ -2263,3 +2263,13 @@ class PracticeTrade(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+
+class NewsEmailLog(models.Model):
+    """One NFP / CPI / FOMC email sent to one user (store/news_email.py): nobody gets the same one twice."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='news_emails')
+    ref = models.CharField(max_length=60, db_index=True)            # e.g. NFP202611061330:preview
+    sent_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        unique_together = ('user', 'ref')

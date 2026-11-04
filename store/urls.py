@@ -256,6 +256,7 @@ urlpatterns = [
     path('news/', public_pages.news_index, name='news_index'),
     path('news/<slug:event>/', public_pages.news_event, name='news_event'),
     path('news/<slug:event>/<str:day>/', public_pages.news_release, name='news_release'),
+    path('email/news-off/<str:token>/', views.news_email_off, name='news_email_off'),
     path('blog/', public_pages.blog_index, name='blog_index'),
     path('blog/feed.xml', public_pages.blog_feed, name='blog_feed'),
     path('blog/<slug:slug>/', public_pages.blog_post, name='blog_post'),

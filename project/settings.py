@@ -388,6 +388,9 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'patreoaix@gmail.com')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '').replace(' ', '')   # Gmail App Password, in .env only
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', f'PATREOAIX <{EMAIL_HOST_USER}>')
 # the address customers see (legal pages, landing page, emails); Gmail above is only the sending login
+NEWS_EMAIL_ENABLED = os.getenv('NEWS_EMAIL_ENABLED', 'True')       # NFP / CPI / FOMC emails to every user (store/news_email.py)
+NEWS_EMAIL_KEYS = os.getenv('NEWS_EMAIL_KEYS', 'NFP,CPI,FOMC')
+NEWS_EMAIL_DAILY_CAP = os.getenv('NEWS_EMAIL_DAILY_CAP', '450')    # Gmail allows ~500 a day from one account
 SUPPORT_EMAIL = os.getenv('SUPPORT_EMAIL', '') or 'patreoaix@gmail.com'   # support inbox: emails, landing page, legal pages
 ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', '')            # where new support tickets are emailed (default: EMAIL_HOST_USER)
 # Password reset (allauth): no "[example.com]" subject prefix, and no email to addresses without an account

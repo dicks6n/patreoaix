@@ -4818,6 +4818,7 @@ def notification_settings(request):
         prefs = NP.get(request.user)
         prefs['push'] = request.POST.get('push') == 'on'
         prefs['email'] = request.POST.get('email') == 'on'
+        prefs['news_email'] = request.POST.get('news_email') == 'on'
         prefs['cats'] = {k: request.POST.get(f'cat_{k}') == 'on' for k, *_ in NP.CATEGORIES}
         def hhmm(v, d):
             v = (v or '').strip()
@@ -11666,3 +11667,21 @@ def cron_run(request, key):
                      cwd=str(base), stdout=log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, start_new_session=True)
     cache.set('cron:last', timezone.now().isoformat(), 86400 * 7)
     return JsonResponse({'ok': True, 'started': True})
+
+
+def news_email_off(request, token):
+    """One-click stop for the NFP / CPI / FOMC emails (link in every one of them, no login needed)."""
+    from django.core import signing
+    from django.contrib.auth.models import User
+    from . import news_email, notif_prefs as NP
+    try:
+        uid = signing.loads(token, salt=news_email.SALT)
+        user = User.objects.get(pk=uid)
+    except (signing.BadSignature, User.DoesNotExist):
+        return render(request, 'store/news_email_off.html', {'ok': False}, status=400)
+    prof, _ = UserProfile.objects.get_or_create(user=user)
+    prefs = NP.get(user)
+    prefs['news_email'] = request.GET.get('on') == '1'
+    prof.notif_prefs = prefs
+    prof.save(update_fields=['notif_prefs'])
+    return render(request, 'store/news_email_off.html', {'ok': True, 'on': prefs['news_email'], 'token': token})

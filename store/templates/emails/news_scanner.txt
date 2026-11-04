@@ -1,0 +1,18 @@
+PATREOAIX · AI NEWS SCANNER
+
+{{ headline }}
+{% if released %}Number is out: {{ row.result }}{% if row.good_for %} · {{ row.good_for }}{% endif %}
+Actual {{ row.actual }} vs forecast {{ row.forecast }} (previous {{ row.previous|default:"—" }})
+{% else %}{{ when_utc }} · {{ when_eat }}
+Forecast {{ row.forecast|default:"—" }} · previous {{ row.previous|default:"—" }}
+History: beats the forecast {{ beat }}% of the time, misses {{ miss }}%
+{% endif %}
+{% if released %}Signals locked:{% else %}Market calls before the number:{% endif %}
+{% for m in markets %}- {{ m.symbol }}: {% if released %}{{ m.call }}{% else %}lean {{ m.call }}{% endif %} {{ m.prob }}% · {% if m.pips is not None %}{{ m.pips }} pips{% else %}—{% endif %}
+{% endfor %}
+Live 3D scanner: {{ scanner_url }}
+Every past {{ row.key }} result: {{ history_url }}
+
+Statistics from past releases, not a promise or financial advice. Trading carries risk.
+Questions: patreoaix@gmail.com
+Stop NFP / CPI / FOMC emails: {{ unsubscribe }}

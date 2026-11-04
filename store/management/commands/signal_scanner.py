@@ -79,6 +79,10 @@ class Command(BaseCommand):
         academy_examples.safe_daily()
         from store import news_history                     # release history + reactions (at most hourly)
         news_history.safe_tick()
+        from store import news_email                       # NFP / CPI / FOMC prediction + result emails (batches)
+        n = news_email.safe_tick()
+        if n:
+            self.stdout.write(f'   ✉ news emails sent: {n}')
         from store import public_pages                     # Sunday outlook / Saturday recap on /blog/
         for post in public_pages.safe_weekly():
             self.stdout.write(f'   📝 blog: {post.title}')

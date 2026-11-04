@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<meta name="supported-color-schemes" content="dark light">
+<title>{{ subject }}</title>
+</head>
+<body style="margin:0;padding:0;background:#05070C;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#E5E7EB;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">{% if released %}{{ row.label }}: {{ row.result }}. Actual {{ row.actual }} vs forecast {{ row.forecast }}. Signals locked on {{ markets|length }} markets.{% else %}{{ row.label }} at {{ when_utc }}. Beat odds {{ beat }}%. The scanner's lean on gold, EURUSD, USDJPY and Bitcoin.{% endif %}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#05070C" style="background:#05070C;">
+<tr><td align="center" style="padding:20px 10px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;">
+
+  <!-- brand -->
+  <tr><td style="padding:4px 6px 16px 6px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td style="vertical-align:middle;"><table role="presentation" cellpadding="0" cellspacing="0"><tr>
+        <td><img src="cid:logo" width="34" height="34" alt="" style="display:block;border-radius:9px;"></td>
+        <td style="padding-left:10px;font-size:17px;font-weight:800;letter-spacing:1px;color:#FFFFFF;">PATREO<span style="color:#F5B301;">AIX</span></td>
+      </tr></table></td>
+      <td align="right" style="vertical-align:middle;">
+        <span style="display:inline-block;font:800 10px/1 'SFMono-Regular',Menlo,Consolas,monospace;letter-spacing:2px;color:#F5B301;padding:7px 10px;border-radius:999px;border:1px solid #6B5310;background:#1A1505;">&#9679; AI NEWS SCANNER</span>
+      </td>
+    </tr></table>
+  </td></tr>
+
+  <!-- hero card -->
+  <tr><td bgcolor="#0A0E17" style="background:#0A0E17;border:1px solid #3A3214;border-radius:20px;overflow:hidden;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr><td style="padding:0;"><img src="cid:reactor" width="600" alt="Scanner: {% for m in markets %}{{ m.symbol }} {{ m.arrow }} {{ m.prob }}%{% if not forloop.last %}, {% endif %}{% endfor %}" style="display:block;width:100%;max-width:600px;height:auto;border-radius:20px 20px 0 0;"></td></tr>
+      <tr><td style="padding:22px 24px 6px 24px;">
+        {% if name %}<p style="margin:0 0 8px 0;font-size:14px;color:#9AA4B8;">Hello {{ name }},</p>{% endif %}
+        <h1 style="margin:0;font-size:28px;line-height:1.15;font-weight:900;color:#FFFFFF;letter-spacing:-.5px;">{{ headline }}</h1>
+        <p style="margin:8px 0 0 0;font:600 13px/1.5 'SFMono-Regular',Menlo,Consolas,monospace;color:#9AA4B8;">&gt; {% if released %}Number is out. Signal locked on {{ markets|length }} markets.{% else %}{{ when_utc }} · {{ when_eat }} · scanning {{ row.history }} past releases{% endif %}</p>
+      </td></tr>
+
+      <!-- figures -->
+      <tr><td style="padding:16px 24px 4px 24px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+          <td width="33%" style="padding-right:6px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td bgcolor="#111827" style="background:#111827;border:1px solid #1F2937;border-radius:12px;padding:10px 12px;">
+            <div style="font:800 10px/1 Arial,sans-serif;letter-spacing:1.5px;color:#6B7487;">FORECAST</div><div style="font:800 20px/1.3 'SFMono-Regular',Menlo,Consolas,monospace;color:#FFFFFF;padding-top:4px;">{{ row.forecast|default:"—" }}</div></td></tr></table></td>
+          <td width="33%" style="padding:0 3px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td bgcolor="#111827" style="background:#111827;border:1px solid #1F2937;border-radius:12px;padding:10px 12px;">
+            <div style="font:800 10px/1 Arial,sans-serif;letter-spacing:1.5px;color:#6B7487;">PREVIOUS</div><div style="font:800 20px/1.3 'SFMono-Regular',Menlo,Consolas,monospace;color:#FFFFFF;padding-top:4px;">{{ row.previous|default:"—" }}</div></td></tr></table></td>
+          <td width="33%" style="padding-left:6px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td bgcolor="#111827" style="background:#111827;border:1px solid {% if released %}#F5B301{% else %}#1F2937{% endif %};border-radius:12px;padding:10px 12px;">
+            <div style="font:800 10px/1 Arial,sans-serif;letter-spacing:1.5px;color:#6B7487;">ACTUAL</div><div style="font:800 20px/1.3 'SFMono-Regular',Menlo,Consolas,monospace;color:{% if released %}#F5B301{% else %}#6B7487{% endif %};padding-top:4px;">{{ row.actual|default:"pending" }}</div></td></tr></table></td>
+        </tr></table>
+      </td></tr>
+
+      {% if released %}
+      <!-- result banner -->
+      <tr><td style="padding:14px 24px 2px 24px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td bgcolor="{% if row.result == 'BEAT' %}#10B981{% elif row.result == 'MISS' %}#F43F5E{% else %}#94A3B8{% endif %}" style="background:{% if row.result == 'BEAT' %}#10B981{% elif row.result == 'MISS' %}#F43F5E{% else %}#94A3B8{% endif %};border-radius:14px;padding:14px 16px;">
+          <div style="font:900 22px/1.2 Arial,sans-serif;color:#0B0E14;">{{ row.result }}{% if row.good_for %} · {{ row.good_for }}{% endif %}</div>
+          <div style="font:700 12px/1.4 Arial,sans-serif;color:#0B0E14;opacity:.8;padding-top:2px;">Actual {{ row.actual }} vs forecast {{ row.forecast }}{% if row.surprise_pct is not None %} ({% if row.surprise_pct > 0 %}+{% endif %}{{ row.surprise_pct }}%){% endif %}</div>
+        </td></tr></table>
+      </td></tr>
+      {% else %}
+      <!-- beat / miss odds -->
+      <tr><td style="padding:16px 24px 2px 24px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr><td style="font:800 11px/1 'SFMono-Regular',Menlo,Consolas,monospace;color:#34D399;padding-bottom:7px;">BEAT {{ beat }}%</td><td align="center" style="font:600 10.5px/1 Arial,sans-serif;color:#6B7487;padding-bottom:7px;">history of this release</td><td align="right" style="font:800 11px/1 'SFMono-Regular',Menlo,Consolas,monospace;color:#FB7185;padding-bottom:7px;">MISS {{ miss }}%</td></tr>
+          <tr><td colspan="3"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-radius:99px;overflow:hidden;"><tr>
+            <td width="{{ beat }}%" bgcolor="#10B981" style="background:#10B981;height:10px;line-height:10px;font-size:0;border-radius:99px 0 0 99px;">&nbsp;</td>
+            <td width="{{ miss }}%" bgcolor="#F43F5E" style="background:#F43F5E;height:10px;line-height:10px;font-size:0;border-radius:0 99px 99px 0;">&nbsp;</td>
+          </tr></table></td></tr>
+        </table>
+      </td></tr>
+      {% endif %}
+
+      <!-- market calls -->
+      <tr><td style="padding:20px 24px 4px 24px;">
+        <div style="font:900 15px/1.3 Arial,sans-serif;color:#FFFFFF;">{% if released %}Signals locked{% else %}Market calls before the number{% endif %}</div>
+        <div style="font:500 12px/1.5 Arial,sans-serif;color:#6B7487;padding-top:2px;">{% if released %}From how each market moved after the same kind of surprise{% else %}Chance each market rises, from the beat / miss odds and past reactions{% endif %}</div>
+      </td></tr>
+      {% for m in markets %}
+      <tr><td style="padding:8px 24px 0 24px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td bgcolor="#0F1420" style="background:#0F1420;border:1px solid {{ m.color }};border-radius:14px;padding:13px 14px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="font:900 17px/1.2 'SFMono-Regular',Menlo,Consolas,monospace;color:#FFFFFF;">{{ m.symbol }}{% if m.price_txt %}<div style="font:600 11px/1.4 'SFMono-Regular',Menlo,Consolas,monospace;color:#6B7487;">{{ m.price_txt }}</div>{% endif %}</td>
+              <td align="center" style="font:900 26px/1 'SFMono-Regular',Menlo,Consolas,monospace;color:{{ m.color }};">{{ m.prob }}%</td>
+              <td align="right"><span style="display:inline-block;font:900 13px/1 'SFMono-Regular',Menlo,Consolas,monospace;letter-spacing:1px;padding:8px 12px;border-radius:9px;{% if released %}background:{{ m.color }};color:#0B0E14;{% else %}border:1px solid {{ m.color }};color:{{ m.color }};{% endif %}">{% if released %}{{ m.call }}{% else %}LEAN {{ m.call }}{% endif %}</span></td>
+            </tr>
+            <tr><td colspan="3" style="padding-top:10px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-radius:99px;overflow:hidden;"><tr>
+                <td width="{{ m.bar }}%" bgcolor="{{ m.color }}" style="background:{{ m.color }};height:6px;line-height:6px;font-size:0;">&nbsp;</td>
+                <td bgcolor="#1F2937" style="background:#1F2937;height:6px;line-height:6px;font-size:0;">&nbsp;</td>
+              </tr></table>
+            </td></tr>
+            <tr><td colspan="3" style="padding-top:8px;font:500 12px/1.5 Arial,sans-serif;color:#9AA4B8;">
+              {% if released %}Expected move{% else %}Usual 1-hour move{% endif %} <b style="color:#FFFFFF;font-family:'SFMono-Regular',Menlo,Consolas,monospace;">{% if m.pips is not None %}{{ m.pips }} pips{% else %}—{% endif %}</b>
+              · {% if m.history %}{{ m.history }} past releases{% else %}textbook reaction{% endif %}{% if m.note %}<br><span style="color:#D97706;">{{ m.note }}</span>{% endif %}
+            </td></tr>
+          </table>
+        </td></tr></table>
+      </td></tr>
+      {% endfor %}
+
+      <!-- buttons -->
+      <tr><td style="padding:22px 24px 8px 24px;">
+        <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+          <td bgcolor="#F5B301" style="background:#F5B301;border-radius:11px;"><a href="{{ scanner_url }}" style="display:inline-block;padding:14px 22px;font:800 15px/1 Arial,sans-serif;color:#0B0E14;text-decoration:none;">Open the live 3D scanner &rarr;</a></td>
+        </tr></table>
+        <p style="margin:12px 0 0 0;font:500 12.5px/1.5 Arial,sans-serif;color:#9AA4B8;">{% if released %}The calls are locked. The first minutes can whip both ways: wait for a clean 15-minute candle and always use a stop.{% else %}The scanner updates the second the number is out and locks BUY / SELL with the expected pips.{% endif %}
+          <a href="{{ history_url }}" style="color:#F5B301;font-weight:700;text-decoration:none;">Every past {{ row.key }} result &rarr;</a></p>
+      </td></tr>
+      <tr><td style="padding:14px 24px 22px 24px;">
+        <p style="margin:0;padding:11px 13px;border-radius:10px;background:#0F1420;font:500 11.5px/1.55 Arial,sans-serif;color:#6B7487;">Statistics from past releases (direction and average 1-hour move after a beat or a miss), not a promise or financial advice. Pips: gold $0.10 steps, JPY pairs 0.01, others 0.0001. Trading carries risk.</p>
+      </td></tr>
+    </table>
+  </td></tr>
+
+  <!-- footer -->
+  <tr><td style="padding:18px 8px 6px 8px;text-align:center;">
+    <p style="margin:0 0 6px 0;font:500 12px/1.6 Arial,sans-serif;color:#6B7487;">Questions? Write to <a href="mailto:patreoaix@gmail.com" style="color:#9AA4B8;font-weight:700;text-decoration:none;">patreoaix@gmail.com</a> · <a href="{{ site }}" style="color:#9AA4B8;text-decoration:none;">patreoaix.com</a></p>
+    <p style="margin:0;font:500 11px/1.6 Arial,sans-serif;color:#4B5263;">You get this because you have a PATREOAIX account. <a href="{{ unsubscribe }}" style="color:#6B7487;">Stop NFP / CPI / FOMC emails</a></p>
+  </td></tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>

@@ -3,6 +3,7 @@
 Notification preferences (saved on UserProfile.notif_prefs) and the rules that apply them.
 
   push            True/False      phone / desktop pop-ups (the browser permission is per device on top of this)
+  news_email      True/False      NFP / CPI / FOMC prediction emails (store/news_email.py)
   sms             UserProfile.sms_opt_in (phone needed)
   cats            which kinds pop up: trades, funding, p2p, signals, kyc, referral, news (security always does)
   quiet           {'on': bool, 'start': 'HH:MM', 'end': 'HH:MM'} no pop-ups at night (security and P2P orders still do)
@@ -20,7 +21,7 @@ CATEGORIES = [
     ('referral', 'Referrals & rewards', 'Friends who join and rewards you earn', 'fa-user-group'),
     ('news', 'News & announcements', 'Platform news and new features', 'fa-bullhorn'),
 ]
-DEFAULTS = {'push': True, 'email': True, 'cats': {k: True for k, *_ in CATEGORIES}, 'quiet': {'on': False, 'start': '22:00', 'end': '07:00'}}
+DEFAULTS = {'push': True, 'email': True, 'news_email': True, 'cats': {k: True for k, *_ in CATEGORIES}, 'quiet': {'on': False, 'start': '22:00', 'end': '07:00'}}
 
 
 def of_notification(n):
@@ -42,6 +43,7 @@ def get(user):
     p = UserProfile.objects.filter(user=user).only('notif_prefs').first()
     raw = (p.notif_prefs if p and isinstance(p.notif_prefs, dict) else {}) or {}
     prefs = {'push': raw.get('push', DEFAULTS['push']), 'email': raw.get('email', DEFAULTS['email']),
+             'news_email': raw.get('news_email', DEFAULTS['news_email']),
              'cats': dict(DEFAULTS['cats'], **(raw.get('cats') or {})),
              'quiet': dict(DEFAULTS['quiet'], **(raw.get('quiet') or {}))}
     return prefs

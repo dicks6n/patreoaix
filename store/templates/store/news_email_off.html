@@ -1,0 +1,27 @@
+{% extends 'base_dashboard.html' %}
+{% block message_toasts %}{% endblock %}
+{% block title %}Email settings · PATREOAIX{% endblock %}
+{% block page_title %}Email settings{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex">{% include 'partials/pub_css.html' %}{% endblock %}
+{% block content %}
+<div class="pb-wrap" style="max-width:560px">
+    <div class="pb-card" style="text-align:center;padding:28px 20px">
+        {% if not ok %}
+        <div style="font-size:40px">⚠️</div>
+        <h1 class="pb-h1">This link is not valid</h1>
+        <p class="pb-lead">Open Notification settings on your account to change which emails you get.</p>
+        <a class="pb-btn" style="margin-top:14px" href="/notifications/#settings">Notification settings</a>
+        {% elif on %}
+        <div style="font-size:40px">📬</div>
+        <h1 class="pb-h1">You're back on the list</h1>
+        <p class="pb-lead">You'll get the scanner's calls before every NFP, CPI and FOMC release, and the locked signals right after.</p>
+        {% else %}
+        <div style="font-size:40px">✅</div>
+        <h1 class="pb-h1">NFP, CPI &amp; FOMC emails stopped</h1>
+        <p class="pb-lead">You won't get prediction emails any more. Account emails (deposits, withdrawals, security) still come.</p>
+        <a class="pb-btn ghost" style="margin-top:14px" href="?on=1">Changed your mind? Turn them back on</a>
+        {% endif %}
+        <p class="pb-lead" style="margin-top:16px"><a href="/news-impact/" style="color:var(--px-accent);font-weight:800">Open the live scanner →</a></p>
+    </div>
+</div>
+{% endblock %}
