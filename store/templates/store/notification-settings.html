@@ -64,7 +64,7 @@
     .nt-dev .st { font-weight: 800; }
     .nt-time { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
     .nt-time input { padding: 9px 11px; border-radius: 10px; background: var(--px-panel-2); border: 1px solid var(--px-line); color: var(--px-text); font-size: 14px; }
-    .nt-save { position: sticky; bottom: calc(86px + env(safe-area-inset-bottom)); display: flex; justify-content: flex-end; z-index: 5; }
+    .nt-save { position: sticky; bottom: calc(var(--px-dock-h, 58px) + 10px + env(safe-area-inset-bottom)); display: flex; justify-content: flex-end; z-index: 5; }
     @media (min-width: 1024px) { .nt-save { bottom: 16px; } }
 </style>
 {% endblock %}
