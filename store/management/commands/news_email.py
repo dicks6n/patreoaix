@@ -3,8 +3,8 @@
     python manage.py news_email --test you@gmail.com        # send the current release's email to one address now
     python manage.py news_email --test you@gmail.com --stage result
     python manage.py news_email --html scanner.html         # save the email (+ reactor.png) to look at
-    python manage.py news_email --status                    # what would go out now, and to how many people
-    python manage.py news_email --send-now                  # send the next batch to everybody now (normally automatic)
+    python manage.py news_email --status                    # which release, and how many people would get it
+    python manage.py news_email --send-now                  # send it to every registered user now (normally automatic)
 """
 from pathlib import Path
 
@@ -40,21 +40,31 @@ class Command(BaseCommand):
         return r, stage or ('result' if r['state'] == 'released' else 'preview')
 
     def handle(self, *a, test=None, html=None, stage=None, status=False, send_now=False, **kw):
-        if status:
+        if status or send_now:
             row, st = ne.due()
             if not row:
-                self.stdout.write('Nothing due right now. Emails go out in the last %d hours before a release and %d hours after.'
-                                  % (ne.PREVIEW_HOURS, ne.RESULT_HOURS))
+                row, st = self.pick(stage)             # nothing in its automatic window: the next release
+                when = 'next release, sent early by hand'
             else:
-                left = len(ne.recipients(ne.ref_of(row, st), 100000))
-                self.stdout.write(f"Due: {row['label']} ({st}) · {left} people still to get it · sent today {ne.sent_today()} / cap {ne.daily_cap()}")
-            return
-        if send_now:
-            row, st = ne.due()
-            if not row:
-                raise CommandError('Nothing due right now (see --status).')
-            n = ne.send_batch(row, st, limit=100000)
-            self.stdout.write(self.style.SUCCESS(f'Sent {n} emails ({row["label"]}, {st}).'))
+                when = 'due now'
+            ref = ne.ref_of(row, st)
+            people = ne.recipients(ref, 100000)
+            room = max(0, ne.daily_cap() - ne.sent_today())
+            self.stdout.write(f"{row['label']} · {row['when'][:16].replace('T', ' ')} UTC · {st} email ({when})")
+            self.stdout.write(f"Still to get it: {len(people)} people · sent today {ne.sent_today()} / daily cap {ne.daily_cap()}"
+                              f" → this run can send {min(room, len(people))}")
+            if not send_now:
+                return
+            if not people:
+                self.stdout.write('Everybody already has this one.')
+                return
+            if not room:
+                raise CommandError('Daily cap reached (Gmail allows about 500 a day). The rest go out tomorrow, or raise NEWS_EMAIL_DAILY_CAP in .env.')
+            n = ne.send_batch(row, st, limit=room)
+            self.stdout.write(self.style.SUCCESS(f'Sent {n} emails.') if n else self.style.ERROR(
+                'Sent 0. Email is not working: run  python manage.py email_doctor  and fix what it says.'))
+            if n and n < min(room, len(people)):
+                self.stdout.write(f'Stopped after {n}: Gmail refused more for now. Run --send-now again later; nobody gets it twice.')
             return
         row, st = self.pick(stage)
         if html:

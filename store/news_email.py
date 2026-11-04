@@ -193,8 +193,11 @@ def context(row, stage, name=''):
         headline = f"{short}: {row.get('result', '')}"
     else:
         mins = max(1, round(row['seconds'] / 60))
-        left = f'{mins} min' if mins < 60 else (f'{mins // 60} h' + (f' {mins % 60:02d} min' if mins % 60 else ''))
-        subject = f"{row['key'].replace('_', ' ')} in {left}: the AI scanner's calls"
+        if mins >= 24 * 60:                      # sent early (by hand): name the day instead of a countdown
+            left = 'on ' + when.astimezone(dt_tz.utc).strftime('%A %H:%M GMT')
+        else:
+            left = 'in ' + (f'{mins} min' if mins < 60 else (f'{mins // 60} h' + (f' {mins % 60:02d} min' if mins % 60 else '')))
+        subject = f"{row['key'].replace('_', ' ')} {left}: the AI scanner's calls"
         headline = f"{short}: the scanner's calls"
     return {
         'subject': subject, 'headline': headline, 'row': row, 'stage': stage, 'released': released, 'markets': ms,
