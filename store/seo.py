@@ -52,6 +52,18 @@ def sitemap_xml(request):
     return HttpResponse(xml, content_type='application/xml')
 
 
+# Google Search Console "HTML file" verification (the file name Google gives you; not a secret).
+# More can be added in .env: GOOGLE_VERIFICATION_FILES=google123.html,google456.html
+GOOGLE_FILES = {'google8f904dddd731621c.html'}
+
+
+def google_file(request, name):
+    extra = {f.strip() for f in str(getattr(settings, 'GOOGLE_VERIFICATION_FILES', '') or '').split(',') if f.strip()}
+    if name not in GOOGLE_FILES | extra:
+        raise Http404
+    return HttpResponse(f'google-site-verification: {name}', content_type='text/html')
+
+
 @cache_control(max_age=604800, public=True)
 def favicon(request):
     f = STATIC / 'favicon.ico'

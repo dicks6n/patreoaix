@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, re_path, include
 from hide_admin import admin_site  # or similar
 from django.conf import settings
 from django.conf.urls.static import static
@@ -16,6 +16,7 @@ urlpatterns = [
     path('robots.txt', seo.robots_txt),
     path('sitemap.xml', seo.sitemap_xml),
     path('favicon.ico', seo.favicon),
+    re_path(r'^(?P<name>google[0-9a-f]+\.html)$', seo.google_file),        # Search Console HTML-file verification
     path('', include('store.urls')),
     # Google / Apple sign-in that is not set up: back to login instead of a 500 (listed before allauth)
     path('accounts/google/login/', views.social_login_guard, {'provider': 'google'}),

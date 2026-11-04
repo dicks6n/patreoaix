@@ -402,6 +402,7 @@ CRON_KEY = os.getenv('CRON_KEY', '')
 # Search Console / Bing Webmaster verification codes (the content="…" value they give you), shown on the homepage
 GOOGLE_SITE_VERIFICATION = os.getenv('GOOGLE_SITE_VERIFICATION', '')
 BING_SITE_VERIFICATION = os.getenv('BING_SITE_VERIFICATION', '')
+GOOGLE_VERIFICATION_FILES = os.getenv('GOOGLE_VERIFICATION_FILES', '')
 
 # ── Telegram channel for AI signals (python manage.py telegram_test) ──
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')        # from @BotFather
