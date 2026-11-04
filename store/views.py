@@ -2754,26 +2754,89 @@ def ai_analysis_api(request, asset_id):
 
 @login_required
 def ai_strategy_builder(request):
-    """AI Strategy Builder - Main page"""
-    # Fetch user's existing strategies (if you have a Strategy model)
-    user_strategies = []
+    """Strategy Lab (store/strategy_lab.py): rules, real backtest, optimizer, Monte Carlo, deploy to the bot."""
+    from . import strategy_lab as L
+    from .membership import can_auto_trade
+    from .models import TradingStrategy
+    mine = []
+    if request.user.is_authenticated:
+        for st in TradingStrategy.objects.filter(user=request.user).order_by('-updated_at')[:30]:
+            try:
+                spec = json.loads(st.blocks_json or '{}')
+            except ValueError:
+                continue
+            if isinstance(spec, dict) and 'buy' in spec:
+                mine.append({'id': st.id, 'name': st.name, 'deployed': st.is_deployed, 'spec': spec,
+                             'pf': st.total_return, 'trades': st.total_trades, 'win': st.win_rate})
+    return render(request, 'store/strategy_lab.html', {
+        'catalogue': L.catalogue(), 'mine': mine, 'can_deploy': request.user.is_authenticated and can_auto_trade(request.user)})
+
+
+def _lab_body(request):
     try:
-        from .models import TradingStrategy  # if this model exists
-        user_strategies = TradingStrategy.objects.filter(user=request.user).order_by('-updated_at')
-    except ImportError:
-        pass
-    
-    context = {
-        'user_strategies': user_strategies,
-        'templates': [
-            # no fixed "return" figures: run a backtest to see real results
-            {'id': 'scalper', 'name': 'Gold Scalper', 'blocks': 5},
-            {'id': 'trend', 'name': 'Trend Follower', 'blocks': 5},
-            {'id': 'reversal', 'name': 'Mean Reversion', 'blocks': 4},
-            {'id': 'breakout', 'name': 'Breakout Hunter', 'blocks': 4},
-        ],
-    }
-    return render(request, 'store/ai-strategy-builder.html', context)
+        return json.loads(request.body or '{}')
+    except ValueError:
+        return {}
+
+
+@login_required
+@require_POST
+def lab_api(request, action):
+    """POST JSON. run · markets · optimise · parse · save · deploy · delete"""
+    from . import strategy_lab as L
+    from .models import TradingStrategy
+    data = _lab_body(request)
+    spec = data.get('spec') or {}
+    try:
+        if action == 'run':
+            r = L.run(spec, data.get('symbol'))
+            if r.get('ok'):
+                r['monte_carlo'] = L.monte_carlo(r['stats']['r_list'], L.normalise(spec)['risk_pct'])
+            return JsonResponse(r, status=200 if r.get('ok') else 503)
+        if action == 'markets':
+            return JsonResponse({'ok': True, 'rows': L.run_markets(spec, [s for s in (data.get('symbols') or L.MARKETS[:8]) if s in L.MARKETS])})
+        if action == 'optimise':
+            r = L.optimise(spec, data.get('symbol'))
+            return JsonResponse(r, status=200 if r.get('ok') else 400)
+        if action == 'parse':
+            spec, understood = L.from_text(data.get('text', ''))
+            return JsonResponse({'ok': True, 'spec': spec, 'understood': understood, 'rules': len(spec['buy']['rules'])})
+        if action == 'save':
+            spec = L.normalise(spec)
+            st = TradingStrategy.objects.filter(user=request.user, pk=data.get('id')).first() if data.get('id') else None
+            st = st or TradingStrategy(user=request.user)
+            st.name, st.blocks_json = spec['name'], json.dumps(spec)
+            res = data.get('result') or {}
+            st.total_trades = int(res.get('trades') or 0)
+            st.win_rate = float(res.get('win_rate') or 0)
+            st.total_return = float(res.get('net_pct') or 0)
+            st.save()
+            return JsonResponse({'ok': True, 'id': st.id, 'message': f'Saved "{st.name}".'})
+        if action == 'deploy':
+            from .membership import can_auto_trade
+            from . import bot_engine as be
+            st = TradingStrategy.objects.filter(user=request.user, pk=data.get('id')).first()
+            if not st:
+                return JsonResponse({'ok': False, 'error': 'Save the strategy first.'}, status=400)
+            on = bool(data.get('on', True))
+            if on and not can_auto_trade(request.user):
+                return JsonResponse({'ok': False, 'error': 'Letting the bot trade your strategy is part of the Pro plan.', 'upgrade': '/subscription/'}, status=403)
+            st.is_deployed = on
+            st.save(update_fields=['is_deployed', 'updated_at'])
+            bot = be.bot_for(request.user)
+            be.log(request.user, 'INFO', f'Strategy "{st.name}" {"deployed: the bot now trades its signals" if on else "stopped"}.')
+            msg = (f'"{st.name}" is live. The bot trades its signals on the next closed candle, with your bot\'s risk and limits.'
+                   if on else f'"{st.name}" stopped.')
+            if on and not bot.is_running:
+                msg += ' Switch your bot on at /bot/ to start.'
+            return JsonResponse({'ok': True, 'message': msg, 'bot_on': bot.is_running})
+        if action == 'delete':
+            TradingStrategy.objects.filter(user=request.user, pk=data.get('id')).delete()
+            return JsonResponse({'ok': True})
+    except Exception as e:
+        logger.exception(f'lab {action}: {e}')
+        return JsonResponse({'ok': False, 'error': 'Something went wrong running that. Try again.'}, status=500)
+    return JsonResponse({'ok': False, 'error': 'Unknown action'}, status=404)
 
 
 

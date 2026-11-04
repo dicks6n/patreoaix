@@ -64,6 +64,9 @@ class Command(BaseCommand):
             self.stdout.write(f'   ✓ {s.symbol} {s.direction} {s.outcome} {s.result_r:+.2f}R')
         from store import bot_engine                       # bots: report closed trades, daily loss limit
         bot_engine.safe(bot_engine.tick)
+        n = bot_engine.safe(bot_engine.strategy_tick)       # customers' own deployed strategies (Strategy Lab)
+        if n:
+            self.stdout.write(f'   🧪 strategy trades opened: {n}')
         from store import price_alerts                     # "tell me when gold reaches 4,050"
         for w in price_alerts.safe_check():
             self.stdout.write(f'   🔔 price alert {w.user} {w.symbol} {w.condition} {w.price}')

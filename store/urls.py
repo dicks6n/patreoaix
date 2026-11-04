@@ -108,6 +108,7 @@ urlpatterns = [
 
 
     path('strategy-builder/', views.ai_strategy_builder, name='ai_strategy_builder'),
+    path('api/lab/<str:action>/', views.lab_api, name='lab_api'),
     path('api/strategy/save/', views.save_strategy_api, name='save_strategy_api'),
     path('api/strategy/load/', views.load_strategy_api, name='load_strategy_api'),
     path('api/strategy/list/', views.list_strategies_api, name='list_strategies_api'),

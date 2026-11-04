@@ -155,16 +155,19 @@ def size(user, sig, risk_pct):
     return vol, (per_lot * vol).quantize(Decimal('0.01')), ''
 
 
-def check(bot, sig, cfg=None):
-    """Would the bot take this setup? → (ok, reason). Reasons are shown to the customer."""
+def check(bot, sig, cfg=None, own=False):
+    """Would the bot take this setup? → (ok, reason). Reasons are shown to the customer.
+    own=True: a setup from the customer's own deployed strategy (Strategy Lab): its rules already chose the market."""
     from .membership import can_auto_trade
     cfg = cfg or config(bot)
     user = bot.user
-    if sig.symbol not in cfg['markets']:
+    if own:
+        pass
+    elif sig.symbol not in cfg['markets']:
         return False, f'{sig.symbol} is not in your markets.'
-    if sig.style not in cfg['styles']:
+    if not own and sig.style not in cfg['styles']:
         return False, f'{sig.style.capitalize()} setup; your bot trades {", ".join(cfg["styles"])}.'
-    if se.GRADE_RANK.get(sig.grade, 0) < se.GRADE_RANK.get(cfg['min_grade'], 3):
+    if not own and se.GRADE_RANK.get(sig.grade, 0) < se.GRADE_RANK.get(cfg['min_grade'], 3):
         return False, f'Grade {sig.grade}; your bot waits for {cfg["min_grade"]}.'
     if not can_auto_trade(user):
         return False, 'Switching the bot on needs the Pro plan.'
@@ -187,32 +190,79 @@ def check(bot, sig, cfg=None):
 # ═══════════════════════════════════════════════════════════════
 # ACTIONS (called by the scanner worker)
 # ═══════════════════════════════════════════════════════════════
-def take(bot, sig):
+def take(bot, sig, own=None):
+    """Open a trade for a scanner setup, or (own = strategy name) for a setup from the customer's own strategy."""
     from . import mt5_service as m
+    from .models import ScannerSignal
     from .notifications import notify
-    ok, why = check(bot, sig)
+    real = sig if isinstance(sig, ScannerSignal) else None
+    label = f'{own} strategy' if own else f'{sig.grade} {sig.style} setup'
+    ok, why = check(bot, sig, own=bool(own))
     if not ok:
-        if 'not in your markets' not in why and 'your bot trades' not in why and 'waits for' not in why:
-            log(bot.user, 'SKIP', f'Skipped {sig.direction} {sig.symbol} ({sig.grade}): {why}', signal=sig)
+        if own or ('not in your markets' not in why and 'your bot trades' not in why and 'waits for' not in why):
+            log(bot.user, 'SKIP', f'Skipped {sig.direction} {sig.symbol} ({label}): {why}', signal=real)
         return None
     vol, risk, note = size(bot.user, sig, config(bot)['risk_pct'])
     if not vol:
-        log(bot.user, 'SKIP', f'Skipped {sig.direction} {sig.symbol}: {note}', signal=sig)
+        log(bot.user, 'SKIP', f'Skipped {sig.direction} {sig.symbol}: {note}', signal=real)
         return None
     try:
         trade = m.open_position(bot.user, sig.symbol, sig.direction, vol, sl=sig.stop_loss, tp=sig.take_profit)
     except Exception as e:
-        log(bot.user, 'ERROR', f'Could not open {sig.direction} {sig.symbol}: {e}', signal=sig)
+        log(bot.user, 'ERROR', f'Could not open {sig.direction} {sig.symbol}: {e}', signal=real)
         return None
+    tp_txt = f'{sig.take_profit:g}' if sig.take_profit else 'none'
     log(bot.user, 'OPEN', f'Opened {sig.direction} {vol} {sig.symbol} at {trade.entry_price.normalize()} · stop {sig.stop_loss:g} · '
-                          f'target {sig.take_profit:g} · risking ${risk} ({sig.grade} {sig.style} setup)', signal=sig, trade=trade)
+                          f'target {tp_txt} · risking ${risk} ({label})', signal=real, trade=trade)
     try:
         notify(bot.user, title=f'🤖 Bot opened {sig.direction} {sig.symbol}',
-               message=f'{vol} lot at {trade.entry_price.normalize()}, stop {sig.stop_loss:g}, target {sig.take_profit:g}. Risk ${risk}.',
+               message=f'{vol} lot at {trade.entry_price.normalize()}, stop {sig.stop_loss:g}, target {tp_txt}. Risk ${risk}. ({label})',
                category='TRADE', priority='success', action_url='/bot/', action_label='Open bot')
     except Exception:
         pass
     return trade
+
+
+def strategy_tick():
+    """Deployed Strategy Lab strategies: read the last closed candle of each of their markets; trade new signals."""
+    from types import SimpleNamespace
+    from django.core.cache import cache
+    from .models import TradingStrategy, UserBot
+    from . import strategy_lab as L
+    import json
+    if not cache.add('bot:strategy_tick', 1, 55):
+        return 0
+    n = 0
+    for bot in UserBot.objects.filter(is_running=True, config_json__kind=KIND).select_related('user'):
+        state = dict(bot.state_json or {})
+        seen = dict(state.get('lab') or {})
+        for st in TradingStrategy.objects.filter(user=bot.user, is_deployed=True):
+            try:
+                spec = json.loads(st.blocks_json or '{}')
+            except ValueError:
+                continue
+            if not isinstance(spec, dict) or 'buy' not in spec:
+                continue
+            for sym in L.normalise(spec)['symbols']:
+                try:
+                    got = L.live_signal(spec, sym)
+                except Exception as e:
+                    logger.warning(f'lab live {st.id} {sym}: {e}')
+                    continue
+                if not got:
+                    continue
+                direction, entry, sl, tp, bar = got
+                key = f'{st.id}:{sym}'
+                if seen.get(key) == bar:
+                    continue
+                seen[key] = bar
+                sig = SimpleNamespace(symbol=sym, direction=direction, entry=entry, stop_loss=sl, take_profit=tp, grade='S', style='strategy')
+                if take(bot, sig, own=st.name):
+                    n += 1
+        if seen != (state.get('lab') or {}):
+            state['lab'] = seen
+            UserBot.objects.filter(pk=bot.pk).update(state_json=state)
+    return n
 
 
 def on_new_signal(sig):
