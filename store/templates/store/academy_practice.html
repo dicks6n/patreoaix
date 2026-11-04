@@ -1,0 +1,266 @@
+{% extends 'base_dashboard.html' %}
+{% block message_toasts %}{% endblock %}
+{% block title %}Free Trading Simulator: Practice Chart Reading · PATREOAIX Academy{% endblock %}
+{% block page_title %}Practice simulator{% endblock %}
+
+{% block extra_head %}
+<meta name="description" content="Free trading practice simulator: read a chart, choose BUY, SELL or skip and a risk:reward, then watch the next candles replay. Every trade is scored in R. Gold, forex, Bitcoin and indices.">
+<link rel="canonical" href="{{ seo_site }}/academy/practice/"><meta property="og:title" content="Free trading practice simulator · PATREOAIX"><meta property="og:image" content="{{ seo_image }}">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"PATREOAIX Practice simulator","applicationCategory":"EducationalApplication","operatingSystem":"Web","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"description":"Replay charts, decide BUY, SELL or skip, and score every decision in R."}</script>
+{% include 'partials/pub_css.html' %}
+<style>
+    .ps-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; max-width: 1180px; }
+    @media (max-width: 1023px) { .ps-grid { grid-template-columns: 1fr; } }
+    .ps-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+    .ps-sym { font-size: 16px; font-weight: 900; color: var(--px-text); }
+    .ps-badge { font-size: 10.5px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; padding: 4px 9px; border-radius: 999px; background: var(--px-panel-2); border: 1px solid var(--px-line); color: var(--px-dim); }
+    .ps-badge.real { color: var(--px-accent); border-color: var(--px-accent); }
+    .ps-chart { position: relative; width: 100%; height: 360px; border-radius: 12px; background: var(--px-panel-2); border: 1px solid var(--px-line); overflow: hidden; }
+    @media (max-width: 640px) { .ps-chart { height: 290px; } }
+    .ps-chart canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .ps-load { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--px-mute); font-weight: 700; }
+    .ps-q { font-size: 13px; color: var(--px-dim); margin: 12px 0 10px; font-weight: 600; }
+    .ps-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .ps-seg { display: inline-flex; padding: 3px; border-radius: 10px; background: var(--px-panel-2); border: 1px solid var(--px-line); gap: 2px; }
+    .ps-seg button { height: 34px; padding: 0 13px; border-radius: 8px; font-size: 12.5px; font-weight: 800; color: var(--px-dim); }
+    .ps-seg button.on { background: var(--px-panel); color: var(--px-text); box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+    .ps-acts { display: grid; grid-template-columns: 1fr 1fr 0.8fr; gap: 10px; margin-top: 12px; }
+    .ps-act { height: 52px; border-radius: 12px; font-size: 15px; font-weight: 900; letter-spacing: .03em; display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform .08s, filter .15s, opacity .15s; }
+    .ps-act:active { transform: scale(.97); }
+    .ps-act:disabled { opacity: .35; cursor: default; }
+    .ps-act.buy { background: var(--px-up); color: #04130b; }
+    .ps-act.sell { background: var(--px-down); color: #fff; }
+    .ps-act.skip { background: var(--px-panel-2); border: 1px solid var(--px-line); color: var(--px-text); }
+    @media (max-width: 640px) { .ps-act kbd, #ps-next kbd { display: none; } }
+    .ps-act kbd { font-size: 10px; opacity: .6; font-family: inherit; border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; }
+    .ps-res { display: none; margin-top: 14px; padding: 16px; border-radius: 14px; border: 1px solid var(--px-line); background: var(--px-panel-2); animation: psIn .35s ease; }
+    .ps-res.show { display: block; }
+    .ps-res.win { border-color: var(--px-up); } .ps-res.loss { border-color: var(--px-down); }
+    @keyframes psIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    .ps-big { font-size: 28px; font-weight: 900; font-family: 'JetBrains Mono', monospace; }
+    .ps-res h3 { font-size: 14px; font-weight: 900; color: var(--px-text); margin-top: 8px; }
+    .ps-res p { font-size: 13px; color: var(--px-dim); line-height: 1.55; margin-top: 4px; }
+    .ps-alt { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .ps-alt span { font-size: 12px; font-weight: 800; padding: 5px 10px; border-radius: 8px; background: var(--px-panel); border: 1px solid var(--px-line); }
+    .ps-pts { display: inline-block; margin-left: 8px; font-size: 12px; font-weight: 900; color: var(--px-accent); }
+    .ps-board .pb-stat b { font-size: 18px; }
+    .ps-board .pb-stats { grid-template-columns: 1fr 1fr; }
+    .ps-setup { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; padding: 7px 0; border-bottom: 1px solid var(--px-line); color: var(--px-dim); }
+    .ps-setup:last-child { border-bottom: 0; }
+    .ps-setup b { color: var(--px-text); font-weight: 800; }
+    .ps-hist { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 10px; }
+    .ps-hist i { width: 14px; height: 14px; border-radius: 4px; background: var(--px-panel-2); border: 1px solid var(--px-line); }
+    .ps-hist i.w { background: var(--px-up); border-color: var(--px-up); } .ps-hist i.l { background: var(--px-down); border-color: var(--px-down); }
+    .ps-hist i.s { background: var(--px-mute); border-color: var(--px-mute); opacity: .5; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pb-wrap" style="max-width:1180px">
+    <div class="pb-card">
+        <nav class="pb-crumb"><a href="{% url 'academy' %}">Academy</a><span>›</span><a href="/academy/c/practice/">Practice and backtesting</a><span>›</span><span>Simulator</span></nav>
+        <h1 class="pb-h1">Practice simulator</h1>
+        <p class="pb-lead">Read the chart, choose <b style="color:var(--px-up)">BUY</b>, <b style="color:var(--px-down)">SELL</b> or <b style="color:var(--px-text)">Skip</b> and a risk:reward, then watch the next candles replay. The stop goes beyond the recent swing; every trade is scored in R (1R = what you risked). {% if has_real %}Some charts are real market history with a candlestick pattern; the others are{% else %}Charts are{% endif %} simulated setups where, like in real markets, the textbook move happens only about two times in three.</p>
+    </div>
+
+    <div class="ps-grid">
+        <div class="pb-card">
+            <div class="ps-top">
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="ps-sym" id="ps-sym">—</span><span class="ps-badge" id="ps-src">Loading</span></div>
+                <span class="pb-crumb" id="ps-info"></span>
+            </div>
+            <div class="ps-chart"><canvas id="ps-canvas" role="img" aria-label="Practice chart"></canvas><div class="ps-load" id="ps-load">Loading a chart…</div></div>
+            <div class="ps-q">What do you do at the last candle?</div>
+            <div class="ps-row">
+                <span class="pb-crumb" style="font-weight:800">Risk : reward</span>
+                <div class="ps-seg" id="ps-rr"><button data-rr="1">1 : 1</button><button data-rr="2" class="on">1 : 2</button><button data-rr="3">1 : 3</button></div>
+            </div>
+            <div class="ps-acts">
+                <button class="ps-act buy" data-choice="BUY" disabled><i class="fa-solid fa-arrow-trend-up"></i> BUY <kbd>B</kbd></button>
+                <button class="ps-act sell" data-choice="SELL" disabled><i class="fa-solid fa-arrow-trend-down"></i> SELL <kbd>S</kbd></button>
+                <button class="ps-act skip" data-choice="SKIP" disabled>Skip <kbd>K</kbd></button>
+            </div>
+            <div class="ps-res" id="ps-res" aria-live="polite">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap">
+                    <div><span class="ps-big" id="ps-r">+0R</span> <span class="pb-crumb" id="ps-out" style="display:inline"></span><span class="ps-pts" id="ps-pts"></span></div>
+                    <button class="pb-btn" id="ps-next">Next chart <kbd style="font-size:10px;opacity:.6">N</kbd> <i class="fa-solid fa-arrow-right"></i></button>
+                </div>
+                <h3 id="ps-verdict"></h3>
+                <p><b style="color:var(--px-text)" id="ps-setup"></b> <span id="ps-why"></span></p>
+                <div class="ps-alt" id="ps-alt"></div>
+            </div>
+        </div>
+
+        <aside class="pb-card ps-board">
+            <h2 class="pb-h2">Your score</h2>
+            <div class="pb-stats" id="ps-stats"></div>
+            <div class="ps-hist" id="ps-hist" title="Last decisions: green won, red lost, grey skipped"></div>
+            <div id="ps-ready" class="pb-lead" style="margin-top:12px;font-size:12.5px"></div>
+            <h2 class="pb-h2" style="margin-top:16px">By setup</h2>
+            <div id="ps-setups"><p class="pb-lead" style="font-size:12.5px">Play a few charts to see which setups you read best.</p></div>
+            {% if not user.is_authenticated %}
+            <div style="margin-top:14px;padding:12px;border-radius:12px;background:var(--px-accent-soft);border:1px solid var(--px-accent)">
+                <p class="pb-lead" style="font-size:12.5px;color:var(--px-text)">Your score is kept only in this browser. <b>Create a free account</b> to save it and earn reward points for every practice trade.</p>
+                <a class="pb-btn" style="margin-top:10px" href="{% url 'account_signup' %}?next=/academy/practice/">Sign up free</a>
+            </div>
+            {% else %}
+            <p class="pb-lead" style="font-size:12px;margin-top:14px"><i class="fa-solid fa-gift" style="color:var(--px-accent)"></i> +3 points per practice trade (15 a day) and +5 for each textbook decision (10 a day). <a href="{% url 'rewards' %}" style="color:var(--px-accent);font-weight:800">Rewards</a></p>
+            {% endif %}
+        </aside>
+    </div>
+
+    <div class="pb-card">
+        <h2 class="pb-h2">The setups you will meet</h2>
+        <div class="pb-list">
+            {% for k, name, rule in setups %}<div class="pb-item"><div><b>{{ name }}</b><small>Textbook: {{ rule }}</small></div></div>{% endfor %}
+        </div>
+        <p class="pb-lead" style="margin-top:12px">Learn them first in the <a href="/academy/c/patterns/" style="color:var(--px-accent);font-weight:800">chart patterns</a> and <a href="/academy/c/strategies/" style="color:var(--px-accent);font-weight:800">strategies</a> courses.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var NEXT = "{% url 'academy_practice_next' %}", ANSWER = "{% url 'academy_practice_answer' %}";
+    var csrf = (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '{{ csrf_token }}';
+    var cv = document.getElementById('ps-canvas'), ctx = cv.getContext('2d'), load = document.getElementById('ps-load');
+    var acts = [].slice.call(document.querySelectorAll('.ps-act')), res = document.getElementById('ps-res');
+    var round = null, result = null, rr = 2, shown = 0, preview = null, busy = false, anim = null;
+    var hist = [];
+    function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim() || '#888'; }
+    function fmt(v) { return round ? Number(v).toFixed(round.decimals) : v; }
+    function fmtR(r) { return (r > 0 ? '+' : '') + Number(r).toFixed(r % 1 ? 2 : 0) + 'R'; }
+
+    function draw() {
+        var dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+        cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+        if (!round) return;
+        var before = round.candles, after = result ? result.after.slice(0, shown) : [], all = before.concat(after);
+        var total = before.length + round.after_n, padR = 64, padT = 14, padB = 22, cw = (W - padR - 8) / total;
+        var hi = -Infinity, lo = Infinity;
+        (result ? before.concat(result.after) : before).forEach(function (c) { hi = Math.max(hi, c[2]); lo = Math.min(lo, c[3]); });
+        var lines = [];
+        var side = result ? (result.choice !== 'SKIP' ? result.choice : null) : preview;
+        if (side) {
+            var e = result ? result.entry : round.entry, risk = result && result.sl != null ? Math.abs(result.entry - result.sl) : round.risk[side];
+            var d = side === 'BUY' ? 1 : -1, r = result ? result.rr : rr;
+            lines = [[e, css('--px-mute'), 'Entry'], [e - d * risk, css('--px-down'), 'Stop'], [e + d * risk * r, css('--px-up'), 'Target']];
+            lines.forEach(function (l) { hi = Math.max(hi, l[0]); lo = Math.min(lo, l[0]); });
+        }
+        var span = (hi - lo) || 1; hi += span * 0.06; lo -= span * 0.06; span = hi - lo;
+        var y = function (v) { return padT + (hi - v) / span * (H - padT - padB); };
+        // grid + price axis
+        ctx.font = '10px JetBrains Mono, monospace'; ctx.textAlign = 'left';
+        for (var g = 0; g <= 4; g++) {
+            var gv = lo + span * g / 4, gy = y(gv);
+            ctx.strokeStyle = css('--px-line'); ctx.globalAlpha = .5; ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W - padR, gy); ctx.stroke(); ctx.globalAlpha = 1;
+            ctx.fillStyle = css('--px-mute'); ctx.fillText(fmt(gv), W - padR + 6, gy + 3);
+        }
+        // pattern band (real charts) and the decision line
+        if (round.mark) { ctx.fillStyle = css('--px-accent'); ctx.globalAlpha = .1; ctx.fillRect(4 + round.mark[0] * cw, padT, (round.mark[1] - round.mark[0] + 1) * cw, H - padT - padB); ctx.globalAlpha = 1; }
+        var nowX = 4 + before.length * cw;
+        ctx.setLineDash([4, 4]); ctx.strokeStyle = css('--px-accent'); ctx.beginPath(); ctx.moveTo(nowX, padT); ctx.lineTo(nowX, H - padB); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = css('--px-accent'); ctx.font = '700 10px Inter, sans-serif'; ctx.fillText(result ? 'decision' : 'you are here', Math.min(nowX + 4, W - padR - 70), H - 7);
+        if (!result) { ctx.fillStyle = css('--px-mute'); ctx.globalAlpha = .07; ctx.fillRect(nowX, padT, W - padR - nowX, H - padT - padB); ctx.globalAlpha = 1; }
+        // stop / target lines
+        lines.forEach(function (l) {
+            var ly = y(l[0]); ctx.strokeStyle = l[1]; ctx.lineWidth = 1.2; ctx.setLineDash(l[2] === 'Entry' ? [2, 3] : [6, 4]);
+            ctx.beginPath(); ctx.moveTo(nowX - cw * 3, ly); ctx.lineTo(W - padR, ly); ctx.stroke(); ctx.setLineDash([]); ctx.lineWidth = 1;
+            ctx.fillStyle = l[1]; ctx.fillRect(W - padR, ly - 8, padR, 16); ctx.fillStyle = l[2] === 'Entry' ? css('--px-text') : '#fff';
+            ctx.font = '700 10px Inter, sans-serif'; ctx.fillText(l[2], W - padR + 6, ly + 3.5);
+        });
+        // candles
+        all.forEach(function (c, i) {
+            var x = 4 + i * cw + cw / 2, up = c[4] >= c[1], col = up ? css('--px-up') : css('--px-down');
+            if (i >= before.length) ctx.globalAlpha = Math.min(1, .45 + (i - before.length + 1) / Math.max(1, shown) * .55);
+            ctx.strokeStyle = col; ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(x, y(c[2])); ctx.lineTo(x, y(c[3])); ctx.stroke();
+            var bt = y(Math.max(c[1], c[4])), bh = Math.max(1, Math.abs(y(c[1]) - y(c[4])));
+            ctx.fillRect(x - Math.max(1, cw * .32), bt, Math.max(2, cw * .64), bh); ctx.globalAlpha = 1;
+        });
+        // where the trade ended
+        if (result && result.bar != null && shown > result.bar && result.outcome !== 'SKIP') {
+            var hx = 4 + (before.length + result.bar) * cw + cw / 2, hv = result.outcome === 'SL' ? result.sl : (result.outcome === 'TP' ? result.tp : result.after[result.bar][4]);
+            ctx.fillStyle = result.r > 0 ? css('--px-up') : css('--px-down'); ctx.beginPath(); ctx.arc(hx, y(hv), 6, 0, 7); ctx.fill();
+            ctx.strokeStyle = css('--px-panel'); ctx.lineWidth = 2; ctx.stroke(); ctx.lineWidth = 1;
+        }
+    }
+
+    function setActs(on) { acts.forEach(function (b) { b.disabled = !on; }); }
+    function next() {
+        if (busy) return; busy = true; clearInterval(anim); result = null; shown = 0; preview = null;
+        res.classList.remove('show', 'win', 'loss'); setActs(false); load.style.display = 'flex'; load.textContent = 'Loading a chart…';
+        fetch(NEXT, { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) {
+            busy = false; if (d.error) { load.textContent = d.error; return; }
+            round = d; load.style.display = 'none';
+            document.getElementById('ps-sym').textContent = d.symbol + ' · ' + d.timeframe;
+            var src = document.getElementById('ps-src'); src.textContent = d.source === 'real' ? 'Real chart' : 'Simulated'; src.className = 'ps-badge' + (d.source === 'real' ? ' real' : '');
+            document.getElementById('ps-info').textContent = d.source === 'real' ? (d.when ? 'Pattern of ' + d.when + ' (shaded)' : 'Pattern shaded') : d.candles.length + ' candles';
+            setActs(true); draw();
+        }).catch(function () { busy = false; load.textContent = 'No connection. Tap to retry.'; load.onclick = next; });
+    }
+    function choose(choice) {
+        if (!round || result || busy) return; busy = true; setActs(false);
+        var body = new URLSearchParams({ token: round.token, choice: choice, rr: rr });
+        fetch(ANSWER, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
+            .then(function (r) { return r.json(); }).then(function (d) {
+                busy = false; if (d.error) { alert(d.error); next(); return; }
+                result = d; shown = 0; preview = null;
+                anim = setInterval(function () { shown++; draw(); if (shown >= d.after.length) { clearInterval(anim); finish(d); } }, Math.max(45, 1300 / d.after.length));
+            }).catch(function () { busy = false; setActs(true); });
+    }
+    function finish(d) {
+        var R = document.getElementById('ps-r');
+        R.textContent = d.choice === 'SKIP' ? 'Skipped' : fmtR(d.r);
+        R.style.color = d.choice === 'SKIP' ? 'var(--px-text)' : (d.r > 0 ? 'var(--px-up)' : (d.r < 0 ? 'var(--px-down)' : 'var(--px-text)'));
+        document.getElementById('ps-out').textContent = { TP: 'Target hit', SL: 'Stop hit', END: 'Closed at the end of the replay', SKIP: '' }[d.outcome] || '';
+        document.getElementById('ps-pts').textContent = d.points ? '+' + d.points + ' points' : '';
+        document.getElementById('ps-verdict').textContent = (d.correct ? '✅ ' : '💡 ') + d.verdict;
+        document.getElementById('ps-setup').textContent = d.setup_name + ':';
+        document.getElementById('ps-why').textContent = d.why;
+        document.getElementById('ps-alt').innerHTML = ['BUY', 'SELL'].map(function (s) {
+            var v = d.sims[s]; return '<span style="color:' + (v.r > 0 ? 'var(--px-up)' : 'var(--px-down)') + '">' + s + ' would have been ' + fmtR(v.r) + '</span>';
+        }).join('') + '<span>Textbook: ' + d.textbook + '</span>';
+        res.classList.add('show'); res.classList.toggle('win', d.choice !== 'SKIP' && d.r > 0); res.classList.toggle('loss', d.choice !== 'SKIP' && d.r < 0);
+        hist.push(d.choice === 'SKIP' ? 's' : (d.r > 0 ? 'w' : 'l')); board(d.stats);
+        if (window.innerWidth < 1024) res.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    function board(s) {
+        document.getElementById('ps-stats').innerHTML = [['Decisions', s.played], ['Win rate', s.trades ? s.win_rate + '%' : '—'],
+            ['Total', s.trades ? fmtR(s.total_r) : '—'], ['Avg per trade', s.trades ? fmtR(s.avg_r) : '—'],
+            ['Textbook calls', s.played ? s.right + '%' : '—'], ['Streak / best', s.streak + ' / ' + s.best_streak]]
+            .map(function (x) { return '<div class="pb-stat"><small>' + x[0] + '</small><b class="pb-num">' + x[1] + '</b></div>'; }).join('');
+        document.getElementById('ps-hist').innerHTML = hist.slice(-30).map(function (h) { return '<i class="' + h + '"></i>'; }).join('');
+        document.getElementById('ps-ready').innerHTML = s.ready ? '🎓 <b style="color:var(--px-up)">30+ trades with a positive total.</b> You are ready to try the same rules with the smallest real size.'
+            : (s.trades ? 'Goal: 30 trades with a positive total R (' + s.trades + '/30).' : '');
+        if (s.setups && s.setups.length) document.getElementById('ps-setups').innerHTML = s.setups.map(function (x) {
+            return '<div class="ps-setup"><b>' + x.name + '</b><span class="pb-num">' + x.right + '% · ' + fmtR(x.r) + ' · ' + x.n + '</span></div>'; }).join('');
+    }
+
+    acts.forEach(function (b) {
+        b.addEventListener('click', function () { choose(b.dataset.choice); });
+        if (b.dataset.choice !== 'SKIP') {
+            b.addEventListener('mouseenter', function () { if (!result && round) { preview = b.dataset.choice; draw(); } });
+            b.addEventListener('mouseleave', function () { if (!result) { preview = null; draw(); } });
+        }
+    });
+    [].forEach.call(document.querySelectorAll('#ps-rr button'), function (b) {
+        b.addEventListener('click', function () {
+            if (result) return; rr = +b.dataset.rr; [].forEach.call(document.querySelectorAll('#ps-rr button'), function (x) { x.classList.toggle('on', x === b); }); draw();
+        });
+    });
+    document.getElementById('ps-next').addEventListener('click', next);
+    document.addEventListener('keydown', function (e) {
+        if (e.target.closest && e.target.closest('input,textarea,select')) return;
+        var k = e.key.toLowerCase();
+        if (k === 'b') choose('BUY'); else if (k === 's') choose('SELL'); else if (k === 'k') choose('SKIP');
+        else if (k === 'n' && result && !anim_running()) next();
+        else if (['1', '2', '3'].indexOf(k) >= 0) { var btn = document.querySelector('#ps-rr button[data-rr="' + k + '"]'); if (btn) btn.click(); }
+    });
+    function anim_running() { return result && shown < result.after.length; }
+    window.addEventListener('resize', draw);
+    board({{ stats_json|safe }});
+    next();
+})();
+</script>
+{% endblock %}

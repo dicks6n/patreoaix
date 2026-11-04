@@ -2244,3 +2244,22 @@ class BlogPost(models.Model):
 
     def get_absolute_url(self):
         return f'/blog/{self.slug}/'
+
+
+class PracticeTrade(models.Model):
+    """One decision in the Academy Practice simulator (store/practice.py), scored in R."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='practice_trades')
+    digest = models.CharField(max_length=40, unique=True)          # one answer per chart
+    source = models.CharField(max_length=4, default='sim')         # sim / real
+    setup = models.CharField(max_length=30)
+    symbol = models.CharField(max_length=12)
+    timeframe = models.CharField(max_length=5)
+    choice = models.CharField(max_length=4)                        # BUY / SELL / SKIP
+    rr = models.PositiveSmallIntegerField(default=2)
+    outcome = models.CharField(max_length=4)                       # TP / SL / END / SKIP
+    result_r = models.FloatField(default=0)
+    correct = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-created_at']

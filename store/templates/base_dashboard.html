@@ -810,8 +810,11 @@
             <div>
                 <p class="nav-section-label">Learn &amp; Analyse</p>
                 <div class="space-y-0.5">
-                    <a href="{% url 'academy' %}" class="nav-item {% if request.resolver_match.url_name|slice:':7' == 'academy' %}nav-active{% endif %}">
+                    <a href="{% url 'academy' %}" class="nav-item {% if request.resolver_match.url_name|slice:':7' == 'academy' and request.resolver_match.url_name != 'academy_practice' %}nav-active{% endif %}">
                         <i class="fa-solid fa-graduation-cap"></i><span>Academy &amp; Courses</span>
+                    </a>
+                    <a href="{% url 'academy_practice' %}" class="nav-item {% if request.resolver_match.url_name == 'academy_practice' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-gamepad"></i><span>Practice Simulator</span><span class="nav-pill">NEW</span>
                     </a>
                     <a href="{% url 'rewards' %}" class="nav-item {% if request.resolver_match.url_name == 'rewards' %}nav-active{% endif %}">
                         <i class="fa-solid fa-gift"></i><span>Rewards{% if my_level %} · {{ my_level.icon }} {{ my_level.name }}{% endif %}</span>{% if my_level.ready %}<span class="ml-auto text-[9px] font-black px-1.5 py-0.5 rounded" style="background:var(--px-accent);color:var(--px-accent-ink,#0b0e14)">{{ my_level.ready }}</span>{% endif %}

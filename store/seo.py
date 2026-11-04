@@ -30,7 +30,7 @@ def robots_txt(request):
 def _urls():
     from . import academy_library as lib
     from .views import LEGAL_DOCS
-    out = [('/', '1.0', 'daily'), ('/academy/', '0.9', 'weekly'), ('/academy/cheatsheet/', '0.8', 'monthly'),
+    out = [('/', '1.0', 'daily'), ('/academy/', '0.9', 'weekly'), ('/academy/cheatsheet/', '0.8', 'monthly'), ('/academy/practice/', '0.8', 'monthly'),
            ('/academy/cheatsheet/?show=patterns', '0.8', 'monthly'), ('/results/', '0.7', 'daily'),
            ('/platforms/download/', '0.7', 'monthly'), ('/legal/', '0.3', 'yearly')]
     for c in lib.COURSES:

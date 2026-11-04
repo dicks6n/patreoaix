@@ -35,6 +35,8 @@ EARN = {
     'academy_grad': (300, 'Graduate the beginner academy', 'once'),
     'topic': (5, 'Read an academy topic', 'per topic'),
     'chart_ai': (10, 'Get an AI read of a chart', 'per day'),
+    'practice': (3, 'Make a practice trade (up to 15 a day)', 'per trade'),
+    'practice_win': (5, 'A textbook practice decision', 'up to 10 a day'),
     'trade_day': (15, 'Trade on the terminal', 'per day'),
     'p2p_trade': (40, 'Complete a P2P trade', 'per trade'),
     'referral': (250, 'Invite a friend who becomes a customer', 'per friend'),
@@ -60,8 +62,9 @@ MISSIONS = {
     'trade3': ('Trade on 3 different days', ('trade_day',), 3, 60),
     'chart1': ('Get an AI read of one of your charts', ('chart_ai',), 1, 30),
     'p2p1': ('Complete a P2P trade', ('p2p_trade',), 1, 40),
+    'practice10': ('Make 10 practice trades in the simulator', ('practice',), 10, 50),
 }
-MISSIONS_FOR = {'learn': ('learn3', 'chart1', 'login4'), 'part': ('trade3', 'learn3', 'login4'),
+MISSIONS_FOR = {'learn': ('learn3', 'practice10', 'chart1', 'login4'), 'part': ('trade3', 'practice10', 'learn3', 'login4'),
                 'pro': ('trade3', 'p2p1', 'login4'), 'funded': ('trade3', 'learn3', 'login4')}
 DEFAULT_MISSIONS = ('login4', 'learn3', 'trade3')
 

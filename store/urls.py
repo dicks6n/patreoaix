@@ -6,7 +6,7 @@ from . import mt5_messages
 from . import pwa
 from .membership import members_only, auto_trading_only   # signals: Pro / VIP only · Starter trades manually
 from . import p2p_views, wallet_views
-from . import public_pages
+from . import public_pages, practice_views
 from store.views import cryptomus_verify , landing_page_view , connect_ctrader
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import CustomTokenObtainPairSerializer
@@ -37,6 +37,9 @@ urlpatterns = [
     path('academy/chart-ai/', views.chart_ai_page, name='chart_ai'),
     path('academy/c/<slug:course>/', views.academy_course, name='academy_course'),
     path('academy/c/<slug:course>/<slug:topic>/', views.academy_topic, name='academy_topic'),
+    path('academy/practice/', practice_views.practice_page, name='academy_practice'),
+    path('academy/practice/next/', practice_views.api_next, name='academy_practice_next'),
+    path('academy/practice/answer/', practice_views.api_answer, name='academy_practice_answer'),
     path('academy/<slug:key>/', views.academy_lesson, name='academy_lesson'),
     path('wallet/', wallet_views.wallet, name='wallet'),
     path('wallet/send/', wallet_views.send, name='wallet_send'),

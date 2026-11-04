@@ -14,6 +14,7 @@
         <a href="{% url 'academy' %}#library" class="ak-sub"><i class="fa-solid fa-arrow-left mr-1"></i> Library</a>
         <div class="ak-h" style="font-size:21px;margin-top:8px"><i class="fa-solid {{ course.icon }} mr-1" style="color:var(--px-accent)"></i> {{ course.title }}</div>
         <p class="ak-sub">{{ course.blurb }} · {{ course.topics|length }} topics · read in any order</p>
+        {% if course.key == 'practice' %}<a class="ak-btn" style="margin-top:12px" href="{% url 'academy_practice' %}"><i class="fa-solid fa-gamepad"></i> Open the Practice simulator</a>{% endif %}
         {% if course.key == 'candles' or course.key == 'patterns' %}<a class="ak-btn ghost" style="margin-top:12px" href="{% url 'academy_cheatsheet' %}{% if course.key == 'patterns' %}?show=patterns{% endif %}"><i class="fa-solid fa-table-cells"></i> All on one page (cheat sheet)</a>{% endif %}
     </div>
 
