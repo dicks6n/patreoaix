@@ -813,6 +813,9 @@
                     <a href="{% url 'academy' %}" class="nav-item {% if request.resolver_match.url_name|slice:':7' == 'academy' %}nav-active{% endif %}">
                         <i class="fa-solid fa-graduation-cap"></i><span>Academy &amp; Courses</span>
                     </a>
+                    <a href="{% url 'rewards' %}" class="nav-item {% if request.resolver_match.url_name == 'rewards' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-gift"></i><span>Rewards{% if my_level %} · {{ my_level.icon }} {{ my_level.name }}{% endif %}</span>{% if my_level.ready %}<span class="ml-auto text-[9px] font-black px-1.5 py-0.5 rounded" style="background:var(--px-accent);color:var(--px-accent-ink,#0b0e14)">{{ my_level.ready }}</span>{% endif %}
+                    </a>
                     <a href="{% url 'chart_ai' %}" class="nav-item {% if request.resolver_match.url_name == 'chart_ai' %}nav-active{% endif %}">
                         <i class="fa-solid fa-camera"></i><span>Read my chart (AI)</span><span class="nav-pill">NEW</span>
                     </a>
@@ -1010,6 +1013,7 @@
                 <div class="relative block" id="acct-wrapper">
                     <button onclick="document.getElementById('acct-menu').classList.toggle('hidden')" class="flex items-center gap-2 h-9 pl-1 pr-2 rounded-lg" style="border:1px solid var(--px-line)">
                         <span class="w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-bold overflow-hidden" style="background:var(--px-accent-soft);color:var(--px-accent)">{% if my_avatar %}<img src="{{ my_avatar }}" alt="" style="width:100%;height:100%;object-fit:cover">{% else %}{{ user.username|default:"U"|slice:":2"|upper }}{% endif %}</span>
+                        {% if my_level %}<span class="hidden sm:inline text-[13px] leading-none" title="Rewards level: {{ my_level.name }}">{{ my_level.icon }}</span>{% endif %}
                         <i class="fa-solid fa-chevron-down text-[9px]" style="color:var(--px-mute)"></i>
                     </button>
                     <div id="acct-menu" class="hidden px-pop absolute right-0 top-11 w-60 py-1.5 z-50">

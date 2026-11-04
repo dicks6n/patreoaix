@@ -28,6 +28,12 @@ class UserProfile(models.Model):
     notif_prefs = models.JSONField(default=dict, blank=True)    # notification preferences (store/notif_prefs.py)
     payout_accounts = models.JSONField(default=dict, blank=True)   # saved withdrawal accounts (store/payouts.py)
     p2p_unlocked_at = models.DateTimeField(null=True, blank=True)    # staff lifted a P2P buying pause: older cancels no longer count
+    goal = models.CharField(max_length=10, blank=True)               # start card: learn | part | pro | funded | skip
+    pass_tier = models.CharField(max_length=12, blank=True)          # reward pass: days of a plan won in Rewards
+    pass_until = models.DateTimeField(null=True, blank=True)
+    p2p_fee_off_pct = models.PositiveSmallIntegerField(default=0)    # reward: P2P fee discount …
+    p2p_fee_off_until = models.DateTimeField(null=True, blank=True)  # … until
+    challenge_off_pct = models.PositiveSmallIntegerField(default=0)  # reward: % off the next funded challenge (used once)
     is_active_subscription = models.BooleanField(default=False)
     trial_used = models.BooleanField(default=False)          # the free 3-day Pro trial (store/membership.py)
     is_kyc_verified = models.BooleanField(default=False)
@@ -2137,3 +2143,81 @@ class P2PBlock(models.Model):
 
     class Meta:
         unique_together = ['user', 'blocked']
+
+
+# ============================================================
+# REWARDS (store/rewards.py): points for useful actions → levels → rewards claimed once per level
+# ============================================================
+class RewardEvent(models.Model):
+    """Points earned once for one action (kind + ref unique per user, so nothing is counted twice)."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='reward_events')
+    kind = models.CharField(max_length=20, db_index=True)
+    ref = models.CharField(max_length=60, default='')
+    points = models.IntegerField()
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        unique_together = ['user', 'kind', 'ref']
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user} +{self.points} {self.kind} {self.ref}"
+
+
+class RewardClaim(models.Model):
+    """A level's rewards, claimed once. Cash is a trading bonus: withdrawable after `required_turnover` of trading."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='reward_claims')
+    level = models.PositiveSmallIntegerField()
+    detail = models.JSONField(default=list, blank=True)
+    cash = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    required_turnover = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    released_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['user', 'level']
+
+    def __str__(self):
+        return f"{self.user} level {self.level} ({self.cash})"
+
+
+# ── rewards: points for real activity (store/rewards.py) ──
+@receiver(post_save, sender=User)
+def reward_signup(sender, instance, created, **kwargs):
+    if created:
+        from .rewards import safe_award
+        safe_award(instance, 'signup')
+
+
+@receiver(post_save, sender=AcademyProgress)
+def reward_lesson(sender, instance, created, **kwargs):
+    if created:
+        from .rewards import safe_award
+        if instance.lesson == '_graduated':
+            safe_award(instance.user, 'academy_grad')
+        else:
+            safe_award(instance.user, 'lesson', instance.lesson)
+
+
+@receiver(post_save, sender=KYCProfile)
+def reward_kyc(sender, instance, **kwargs):
+    if str(instance.status).upper() == 'APPROVED':
+        from .rewards import safe_award
+        safe_award(instance.user, 'kyc')
+
+
+@receiver(post_save, sender=Transaction)
+def reward_deposit(sender, instance, created, **kwargs):
+    if created and instance.transaction_type == 'DEPOSIT' and getattr(instance, 'status', 'completed') == 'completed':
+        from django.utils import timezone as _tz
+        from .rewards import safe_award
+        safe_award(instance.user, 'first_deposit')
+        safe_award(instance.user, 'deposit', _tz.localdate().isoformat())
+
+
+@receiver(post_save, sender=Trade)
+def reward_trade_day(sender, instance, **kwargs):
+    if instance.status not in ('OPEN', 'PENDING', 'CANCELLED') and instance.date_closed:
+        from django.utils import timezone as _tz
+        from .rewards import safe_award
+        safe_award(instance.user, 'trade_day', _tz.localtime(instance.date_closed).date().isoformat())

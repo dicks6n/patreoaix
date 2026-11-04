@@ -63,7 +63,8 @@ def _eligible(cfg, sig):
         return False
     if cfg.symbols and sig.symbol not in cfg.symbols:
         return False
-    return cfg.user.is_active and is_member(cfg.user)
+    from .membership import can_auto_trade
+    return cfg.user.is_active and can_auto_trade(cfg.user)        # copy trading: Pro / VIP
 
 
 def _notify(user, title, message, ok=True):

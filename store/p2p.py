@@ -153,14 +153,14 @@ def seller_level(user):
     tier, active = tier_of(user)
     if not active:
         return 'none'
-    return {'VIP': 'vip', 'PRO': 'pro'}.get(tier, 'none')
+    return {'VIP': 'vip', 'PRO': 'pro', 'TRADER': 'pro'}.get(tier, 'none')     # Trader sells like Pro
 
 
 def check_can_sell(user, method_keys=()):
     """Raise P2PError when this user's plan does not allow selling with these methods."""
     level = seller_level(user)
     if level == 'none':
-        raise P2PError('Selling on P2P needs a Pro or VIP plan. Starter accounts can buy. Upgrade at /subscription/.')
+        raise P2PError('Selling on P2P needs a Trader, Pro or VIP plan. Free and Academy accounts can buy. Upgrade at /subscription/.')
     risky = sorted({method_name(k) for k in method_keys if k in HIGH_RISK})
     if risky and level != 'vip':
         raise P2PError(f'{", ".join(risky)} {"is a" if len(risky) == 1 else "are"} high-risk (reversible) payment '
@@ -577,6 +577,10 @@ def open_order(user, ad_id, fiat=None, coins=None, method_id=None):
         ad.refresh_from_db()
         if ad.side == 'SELL' and (ad.remaining <= 0 or ad.remaining * ad.price < ad.min_fiat):
             P2PAd.objects.filter(pk=ad.pk, status='ACTIVE').update(status='PAUSED')
+        from .rewards import p2p_fee_discount
+        off = p2p_fee_discount(buyer)                 # reward: % off the buyer's P2P fee
+        if off and fee:
+            fee = _qa(asset, fee * (100 - off) / 100)
         o = P2POrder.objects.create(
             ref='P2P' + secrets.token_hex(4).upper(), ad=ad, buyer=buyer, seller=seller, asset=asset, amount=amount, fee=fee,
             price=price, fiat_amount=fiat_amt, currency=ad.currency, pay_to=pay_to, escrow_in_ad=escrow_in_ad,
@@ -697,6 +701,9 @@ def release(user, ref, staff=False, note='', password=None):
     _notify(o.buyer, o, f'✅ {fmt(o.asset, o.amount - o.fee)} {o.asset} received ({o.ref})', f'The seller released your {o.asset}. Leave feedback for them.')
     if staff:
         _notify(o.seller, o, f'Appeal decided: {o.ref}', f'Support released the {o.asset} to the buyer.', ok=False)
+    from .rewards import safe_award
+    for u in (o.buyer, o.seller):
+        safe_award(u, 'p2p_trade', o.ref)
     return o
 
 

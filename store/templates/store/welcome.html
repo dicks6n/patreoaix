@@ -1,0 +1,61 @@
+{% extends 'base_dashboard.html' %}
+
+{% block title %}Welcome · PATREOAIX{% endblock %}
+{% block page_title %}Welcome{% endblock %}
+
+{% block extra_head %}
+<style>
+    .wc-wrap { max-width: 920px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; padding: 6px 0 24px; }
+    .wc-head { text-align: center; }
+    .wc-head .hi { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+                   color: var(--px-accent); background: color-mix(in srgb, var(--px-accent) 12%, transparent); padding: 5px 10px; border-radius: 999px; }
+    .wc-head h1 { font-size: clamp(24px, 4vw, 34px); font-weight: 900; color: var(--px-text); margin: 12px 0 6px; letter-spacing: -.02em; }
+    .wc-head p { color: var(--px-mute); font-size: 14px; }
+    .wc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    @media (max-width: 640px) { .wc-grid { grid-template-columns: 1fr; } }
+    .wc-card { position: relative; display: flex; gap: 14px; align-items: flex-start; text-align: left; width: 100%; cursor: pointer;
+               padding: 18px; border-radius: 18px; background: var(--px-panel); border: 1px solid var(--px-line); color: var(--px-text);
+               transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; overflow: hidden; }
+    .wc-card::after { content: ''; position: absolute; inset: -40% -40% auto auto; width: 180px; height: 180px; border-radius: 50%;
+                      background: radial-gradient(circle, color-mix(in srgb, var(--px-accent) 22%, transparent), transparent 70%);
+                      opacity: 0; transition: opacity .25s ease; pointer-events: none; }
+    .wc-card:hover, .wc-card:focus-visible { transform: translateY(-3px); border-color: var(--px-accent); box-shadow: 0 14px 34px -18px var(--px-accent); outline: none; }
+    .wc-card:hover::after, .wc-card.on::after { opacity: 1; }
+    .wc-card.on { border-color: var(--px-accent); }
+    .wc-ico { flex: none; width: 52px; height: 52px; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 26px;
+              background: var(--px-panel-2); border: 1px solid var(--px-line); }
+    .wc-card b { display: block; font-size: 16px; font-weight: 900; }
+    .wc-card .q { display: block; font-size: 13px; color: var(--px-dim, var(--px-text)); margin-top: 3px; }
+    .wc-card small { display: block; font-size: 12px; color: var(--px-mute); margin-top: 8px; line-height: 1.5; }
+    .wc-card .tick { position: absolute; top: 12px; right: 12px; font-size: 11px; font-weight: 900; padding: 3px 8px; border-radius: 999px;
+                     background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); }
+    .wc-foot { text-align: center; font-size: 12px; color: var(--px-mute); }
+    .wc-foot button { background: none; border: 0; color: var(--px-mute); text-decoration: underline; cursor: pointer; font-size: 12px; }
+    .wc-points { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--px-text);
+                 background: var(--px-panel-2); border: 1px solid var(--px-line); padding: 6px 10px; border-radius: 10px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wc-wrap">
+    <div class="wc-head">
+        <span class="hi">👋 Welcome{% if request.user.first_name %}, {{ request.user.first_name }}{% endif %}</span>
+        <h1>What brings you to PATREOAIX?</h1>
+        <p>Pick one and your dashboard puts what matters to you first. You keep access to everything and can change it any time.</p>
+    </div>
+    <form method="post" class="wc-grid">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
+        {% for key, icon, title, q, what in goals %}
+        <button class="wc-card {% if current == key %}on{% endif %}" type="submit" name="goal" value="{{ key }}">
+            <span class="wc-ico">{{ icon }}</span>
+            <span><b>{{ title }}</b><span class="q">{{ q }}</span><small>{{ what }}</small></span>
+            {% if current == key %}<span class="tick">Current</span>{% endif %}
+        </button>
+        {% endfor %}
+    </form>
+    <div class="wc-foot">
+        <span class="wc-points">🎁 Picking one earns your first 25 reward points</span>
+        <form method="post" style="margin-top:12px">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
+            <button type="submit" name="goal" value="skip">Skip for now</button></form>
+    </div>
+</div>
+{% endblock %}

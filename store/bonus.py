@@ -120,5 +120,12 @@ def status(user):
 
 
 def locked_amount(user):
+    """Bonus money not yet withdrawable: the first-deposit bonus plus reward cash (store/rewards.py)."""
     st = status(user)
-    return st['amount'] if st and st['locked'] else Decimal('0')
+    locked = st['amount'] if st and st['locked'] else Decimal('0')
+    try:
+        from .rewards import locked_cash
+        locked += locked_cash(user)
+    except Exception as e:
+        logger.warning(f'reward cash lock: {e}')
+    return locked

@@ -53,7 +53,7 @@
 <div class="pp-wrap">
     {% include 'partials/p2p_nav.html' %}
 
-    {% if side == 'sell' and sell_level == 'none' %}<div class="pp-msg" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:200px"><i class="fa-solid fa-lock mr-1"></i> Selling on P2P is for <b>Pro</b> and <b>VIP</b> members. Starter accounts can buy.</span><a class="pp-btn sm" href="{% url 'subscription_billing' %}">Upgrade</a></div>
+    {% if side == 'sell' and sell_level == 'none' %}<div class="pp-msg" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:200px"><i class="fa-solid fa-lock mr-1"></i> Selling on P2P is for <b>Trader</b>, <b>Pro</b> and <b>VIP</b> members. Free and Academy accounts can buy.</span><a class="pp-btn sm" href="{% url 'subscription_billing' %}">Upgrade</a></div>
     {% elif side == 'sell' and sell_level == 'pro' %}<div class="pp-msg"><i class="fa-solid fa-circle-info mr-1"></i> Pro sellers can't use high-risk methods (PayPal, Cash App, Venmo, Zelle, Skrill…). <a class="underline" href="{% url 'subscription_billing' %}">VIP</a> unlocks them.</div>{% endif %}
     {% if buy_pause and buy_pause > now %}<div class="pp-msg error" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px">Buying is paused until <b>{{ buy_pause|date:"d M H:i" }}</b> because of 3 cancelled or unpaid orders in 24 hours. You can still sell.</span>
         <form method="post">{% csrf_token %}<input type="hidden" name="action" value="unlock_request"><button class="pp-btn sm" type="submit"><i class="fa-solid fa-headset"></i> Contact support to unlock</button></form></div>{% endif %}

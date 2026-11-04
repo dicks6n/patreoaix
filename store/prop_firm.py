@@ -138,6 +138,11 @@ def buy(user, plan_type, size, qty=1):
     if not 1 <= qty <= MAX_PER_ORDER:
         raise PropError(f'You can buy 1 to {MAX_PER_ORDER} accounts per order.')
     q = quote(plan_type, size, qty)
+    from .models import UserProfile
+    prof = UserProfile.objects.filter(user=user).only('challenge_off_pct').first()
+    reward_off = int(prof.challenge_off_pct or 0) if prof else 0
+    if reward_off:                                   # reward: % off this order, used once
+        q = dict(q, total=(q['total'] * (100 - reward_off) / 100).quantize(D('0.01')))
     active = PropAccount.objects.filter(user=user, status='ACTIVE')
     if active.count() + qty > MAX_ACTIVE_ACCOUNTS:
         raise PropError(f'You can run up to {MAX_ACTIVE_ACCOUNTS} accounts at once (you have {active.count()}).')
@@ -157,6 +162,8 @@ def buy(user, plan_type, size, qty=1):
                                    details=f"{qty}× {RULES[plan_type]['name']} ${size:,} challenge · order {ref}"
                                            + (f" · {q['discount']}% bundle discount" if q['discount'] else ''))
         unit_paid = (q['total'] / qty).quantize(D('0.01'))
+        if reward_off:
+            UserProfile.objects.filter(user=user).update(challenge_off_pct=0)
         accounts = [_new_account(user, plan_type, size, '1', unit_paid, ref) for _ in range(qty)]
     logins = ', '.join(f'#{a.login}' for a in accounts)
     try:
@@ -269,6 +276,8 @@ def advance(prop):
         p.save(update_fields=['status', 'ended_at', 'updated_at'])
         new = _new_account(p.user, p.plan_type, p.size, nxt, D('0'), p.order_ref, previous=p)
     _close_everything(p, 'Phase passed')
+    from .rewards import safe_award
+    safe_award(p.user, 'challenge_pass', f'{p.login}:{p.phase}')
     if nxt == 'funded':
         _notify(p, f'🏆 You are funded! ${p.size:,} account #{new.login}',
                 f'Congratulations, you passed the {r["name"]} challenge. Your funded account #{new.login} is ready; '

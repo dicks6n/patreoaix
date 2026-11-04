@@ -120,6 +120,14 @@
         to { opacity: 1; transform: translateY(0) scale(1); }
     }
     .modal-panel { animation: modalIn 0.2s ease-out; }
+    .px-plans { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+    @media (max-width: 1280px) { .px-plans { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @media (max-width: 760px) { .px-plans { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 460px) { .px-plans { grid-template-columns: 1fr; } }
+    .px-plan { display: flex; flex-direction: column; padding: 14px; border-radius: 14px; background: rgba(2, 6, 23, .7); border: 1px solid rgba(51, 65, 85, .6); scroll-margin-top: 90px; }
+    .px-plan.is-popular { border-color: rgba(245, 179, 1, .55); box-shadow: 0 0 0 1px rgba(245, 179, 1, .25), 0 10px 30px -12px rgba(245, 179, 1, .35); }
+    .px-plan.is-current { border-color: rgba(52, 211, 153, .6); }
+    .px-pill { font-size: 9px; font-weight: 800; font-family: ui-monospace, monospace; padding: 2px 7px; border-radius: 6px; background: rgba(51, 65, 85, .6); color: #cbd5e1; }
 </style>
 
 <div class="space-y-4 pb-4">
@@ -268,144 +276,52 @@
                 {% endif %}
             </div>
 
-            <!-- ───────── AVAILABLE PLANS ───────── -->
+            <!-- ───────── AVAILABLE PLANS (5 levels, from views.PLANS) ───────── -->
             <div class="digits-card p-4 sm:p-5 space-y-4">
                 <div class="flex items-center justify-between">
                     <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
                         <i class="fa-solid fa-layer-group text-indigo-400 text-[10px]"></i>
-                        Available Plans
+                        Choose your plan
                     </h3>
-                    <span class="text-[9px] font-mono text-slate-500">3 TIERS</span>
+                    <span class="text-[9px] font-mono text-slate-500">{{ plans|length }} PLANS · CANCEL ANY TIME</span>
                 </div>
+                {% if my_pass %}<div class="text-[11px] text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-2"><i class="fa-solid fa-gift mr-1"></i> Reward pass: <b>{{ my_pass.name }}</b> until {{ my_pass.until|date:"d M Y" }}</div>{% endif %}
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-
-                    <!-- STARTER -->
-                    <div class="bg-slate-950/70 border border-slate-800/60 rounded-xl p-4 flex flex-col">
-                        <div class="flex items-center justify-between mb-3">
-                            <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Starter</span>
-                            <span class="text-[9px] font-bold font-mono px-2 py-0.5 rounded-md bg-slate-800/80 text-slate-400 border border-slate-700">FREE</span>
+                <div class="px-plans">
+                    {% for pl in plans %}
+                    <div id="{{ pl.key }}" class="px-plan {% if pl.key == current_key %}is-current{% endif %} {% if pl.popular %}is-popular{% endif %}">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[10px] font-black uppercase tracking-widest" style="color:{{ pl.color }}">{{ pl.name }}</span>
+                            {% if pl.key == current_key %}<span class="px-pill" style="background:{{ pl.color }}22;color:{{ pl.color }}">CURRENT</span>{% elif pl.popular %}<span class="px-pill" style="background:{{ pl.color }};color:#0b0e14">POPULAR</span>{% elif pl.tag %}<span class="px-pill">{{ pl.tag }}</span>{% endif %}
                         </div>
+                        <p class="text-[10px] text-slate-400 mb-2 leading-snug">{{ pl.for }}</p>
                         <div class="mb-3">
-                            <span class="text-2xl font-black text-white font-mono tracking-tight">$0</span>
-                            <span class="text-[10px] text-slate-500 font-mono">/forever</span>
+                            <span class="text-2xl font-black text-white font-mono tracking-tight">${{ pl.price|floatformat:"-2" }}</span>
+                            <span class="text-[10px] text-slate-500 font-mono">{% if pl.price %}/month{% else %}/forever{% endif %}</span>
                         </div>
                         <ul class="space-y-1.5 text-[10px] flex-1 mb-3">
-                            <li class="flex items-center gap-1.5 text-slate-300">
-                                <i class="fa-solid fa-check text-emerald-400 text-[9px]"></i> Signal analytics
-                            </li>
-                            <li class="flex items-center gap-1.5 text-slate-300">
-                                <i class="fa-solid fa-check text-emerald-400 text-[9px]"></i> Manual trading
-                            </li>
-                            <li class="flex items-center gap-1.5 text-slate-600">
-                                <i class="fa-solid fa-xmark text-slate-600 text-[9px]"></i> Automated bots
-                            </li>
+                            {% for f in pl.features %}<li class="flex items-start gap-1.5 text-slate-300"><i class="fa-solid fa-check text-emerald-400 text-[9px] mt-0.5"></i> {{ f }}</li>{% endfor %}
                         </ul>
-                        <button type="button" disabled
-                                class="w-full py-2 rounded-lg bg-slate-900 border border-slate-800 text-[10px] font-bold text-slate-500 cursor-default">
-                            {% if current_plan == 'starter' %}Current Plan{% else %}Basic{% endif %}
-                        </button>
-                    </div>
-
-                    <!-- PRO -->
-                    <div class="bg-slate-950/70 border border-slate-800/60 rounded-xl p-4 flex flex-col {% if current_plan == 'pro' %}tier-ring-pro{% endif %}">
-                        <div class="flex items-center justify-between mb-3">
-                            <span class="text-[10px] font-black uppercase tracking-widest text-indigo-300">Pro</span>
-                            <span class="text-[9px] font-bold font-mono px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
-                                {% if current_plan == 'pro' %}ACTIVE{% else %}POPULAR{% endif %}
-                            </span>
-                        </div>
-                        <div class="mb-3">
-                            <span class="text-2xl font-black text-white font-mono tracking-tight">$49</span>
-                            <span class="text-[10px] text-slate-500 font-mono">/month</span>
-                        </div>
-                        <ul class="space-y-1.5 text-[10px] flex-1 mb-3">
-                            <li class="flex items-center gap-1.5 text-slate-300">
-                                <i class="fa-solid fa-check text-emerald-400 text-[9px]"></i> AI trading bots
-                            </li>
-                            <li class="flex items-center gap-1.5 text-slate-300">
-                                <i class="fa-solid fa-check text-emerald-400 text-[9px]"></i> Priority execution
-                            </li>
-                            <li class="flex items-center gap-1.5 text-slate-300">
-                                <i class="fa-solid fa-check text-emerald-400 text-[9px]"></i> Funded account
-                            </li>
-                        </ul>
-
-                        {% if current_plan == 'pro' %}
-                        <button type="button" disabled
-                                class="w-full py-2 rounded-lg bg-indigo-600/40 border border-indigo-500/50 text-[10px] font-bold text-indigo-200 cursor-default">
-                            <i class="fa-solid fa-check text-[9px] mr-1"></i> Current Plan
-                        </button>
+                        {% if pl.key == current_key %}
+                        <button type="button" disabled class="w-full py-2 rounded-lg border text-[10px] font-bold cursor-default" style="border-color:{{ pl.color }}66;color:{{ pl.color }}"><i class="fa-solid fa-check text-[9px] mr-1"></i> Current plan</button>
+                        {% elif not pl.price %}
+                        <button type="button" disabled class="w-full py-2 rounded-lg bg-slate-900 border border-slate-800 text-[10px] font-bold text-slate-500 cursor-default">Free for everyone</button>
                         {% else %}
                         <form method="POST" action="{% url 'subscription_billing' %}" class="space-y-2">
                             {% csrf_token %}
-                            <input type="hidden" name="tier" value="pro">
-                            <select name="payment_method"
-                                    class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-[10px] font-bold text-slate-200 focus:outline-none focus:border-indigo-500 cursor-pointer">
+                            <input type="hidden" name="tier" value="{{ pl.key }}">
+                            <select name="payment_method" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-[10px] font-bold text-slate-200 focus:outline-none cursor-pointer">
                                 {% if mpesa_enabled %}<option value="mpesa">M-Pesa STK</option>{% endif %}
-                                <option value="balance">Balance (${{ account.balance|default:0|floatformat:2 }})</option>
+                                <option value="balance">Wallet balance</option>
                             </select>
-                            <input type="text" name="phone_number" placeholder="2547XXXXXXXX"
-                                   value="{{ request.user.userprofile.phone_number|default:'' }}"
-                                   class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-[10px] font-mono text-white focus:outline-none focus:border-indigo-500">
-                            <button type="submit"
-                                    class="btn-touch w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-[10px] font-black text-white shadow-lg shadow-indigo-500/25 transition">
-                                Upgrade $49
-                            </button>
+                            {% if mpesa_enabled %}<input type="text" name="phone_number" placeholder="2547XXXXXXXX" value="{{ request.user.userprofile.phone_number|default:'' }}" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-[10px] font-mono text-white focus:outline-none">{% endif %}
+                            <button type="submit" class="btn-touch w-full py-2 rounded-lg text-[10px] font-black transition" style="background:{{ pl.color }};color:#0b0e14">Get {{ pl.name }} · ${{ pl.price|floatformat:"-2" }}</button>
                         </form>
                         {% endif %}
                     </div>
-
-                    <!-- VIP -->
-                    <div class="bg-slate-950/70 border border-slate-800/60 rounded-xl p-4 flex flex-col {% if current_plan == 'vip' %}tier-ring-vip{% endif %}">
-                        <div class="flex items-center justify-between mb-3">
-                            <span class="text-[10px] font-black uppercase tracking-widest text-amber-300">VIP</span>
-                            <span class="text-[9px] font-bold font-mono px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                                {% if current_plan == 'vip' %}ACTIVE{% else %}ELITE{% endif %}
-                            </span>
-                        </div>
-                        <div class="mb-3">
-                            <span class="text-2xl font-black text-white font-mono tracking-tight">$199</span>
-                            <span class="text-[10px] text-slate-500 font-mono">/month</span>
-                        </div>
-                        <ul class="space-y-1.5 text-[10px] flex-1 mb-3">
-                            <li class="flex items-center gap-1.5 text-slate-300">
-                                <i class="fa-solid fa-check text-emerald-400 text-[9px]"></i> Multi-thread servers
-                            </li>
-                            <li class="flex items-center gap-1.5 text-slate-300">
-                                <i class="fa-solid fa-check text-emerald-400 text-[9px]"></i> Custom AI training
-                            </li>
-                            <li class="flex items-center gap-1.5 text-slate-300">
-                                <i class="fa-solid fa-check text-emerald-400 text-[9px]"></i> 24/7 VIP lounge
-                            </li>
-                        </ul>
-
-                        {% if current_plan == 'vip' %}
-                        <button type="button" disabled
-                                class="w-full py-2 rounded-lg bg-amber-600/40 border border-amber-500/50 text-[10px] font-bold text-amber-200 cursor-default">
-                            <i class="fa-solid fa-check text-[9px] mr-1"></i> Current Plan
-                        </button>
-                        {% else %}
-                        <form method="POST" action="{% url 'subscription_billing' %}" class="space-y-2">
-                            {% csrf_token %}
-                            <input type="hidden" name="tier" value="vip">
-                            <select name="payment_method"
-                                    class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-[10px] font-bold text-slate-200 focus:outline-none focus:border-amber-500 cursor-pointer">
-                                {% if mpesa_enabled %}<option value="mpesa">M-Pesa STK</option>{% endif %}
-                                <option value="balance">Balance (${{ account.balance|default:0|floatformat:2 }})</option>
-                            </select>
-                            <input type="text" name="phone_number" placeholder="2547XXXXXXXX"
-                                   value="{{ request.user.userprofile.phone_number|default:'' }}"
-                                   class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-[10px] font-mono text-white focus:outline-none focus:border-amber-500">
-                            <button type="submit"
-                                    class="btn-touch w-full py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-[10px] font-black text-white shadow-lg shadow-amber-500/25 transition">
-                                Upgrade $199
-                            </button>
-                        </form>
-                        {% endif %}
-                    </div>
-
+                    {% endfor %}
                 </div>
+                <p class="text-[10px] text-slate-500">Earn free days of any plan, cash trading bonuses and free funded challenges in <a href="{% url 'rewards' %}" class="text-amber-300 font-bold underline">Rewards</a>.</p>
             </div>
 
         </div>

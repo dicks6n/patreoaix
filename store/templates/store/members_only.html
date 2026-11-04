@@ -23,8 +23,8 @@
 
 <div class="mo-card">
     <div class="mo-lock"><i class="fa-solid fa-lock"></i></div>
-    <h1>{{ feature }} are for Pro &amp; VIP members</h1>
-    <p>Starter accounts trade manually on the terminal and the trade page. Upgrade to Pro or VIP to unlock {{ feature|lower }}.</p>
+    <h1>{{ feature }}: upgrade to unlock</h1>
+    <p>{{ message }}</p>
     <div class="mo-plan"><i class="fa-solid fa-id-badge"></i> Your plan: <b>{{ tier|title }}</b></div>
 
     <div class="mo-grid">
@@ -49,7 +49,7 @@
     </div>
 
     <div class="mo-actions">
-        <a href="{% url 'subscription_billing' %}" class="px-btn px-btn-primary justify-center"><i class="fa-solid fa-crown text-xs"></i> Upgrade to Pro or VIP</a>
+        <a href="{% url 'subscription_billing' %}" class="px-btn px-btn-primary justify-center"><i class="fa-solid fa-crown text-xs"></i> See plans</a>
         <a href="{% url 'trade' %}" class="px-btn justify-center" style="border:1px solid var(--px-line)"><i class="fa-solid fa-chart-column text-xs"></i> Trade manually</a>
     </div>
 </div>

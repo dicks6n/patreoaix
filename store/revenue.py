@@ -56,7 +56,7 @@ def build(days=30):
     from django.contrib.auth.models import User
     from .models import (Transaction, DepositBonus, UserProfile, Referral, AcademyProgress, CopyTradingSettings,
                          CopyTrade, PushSubscription, PriceWatch, PaymentRequest, PropAccount, PropPayout)
-    from .membership import MEMBER_TIERS, TRIAL_TIER
+    from .membership import PAID_TIERS, TRIAL_TIER
     now = timezone.now()
     a = now - timedelta(days=days)
     cur, prev = _money_block(a, now), _money_block(a - timedelta(days=days), a)
@@ -79,7 +79,7 @@ def build(days=30):
     for t, n in live.values_list('subscription_tier').annotate(n=Count('id')).order_by('-n'):
         tiers[str(t or 'free')] = n
     paid = [p for p in live.only('subscription_tier', 'last_renewal_amount') if str(p.subscription_tier).lower() != TRIAL_TIER
-            and any(m in str(p.subscription_tier).upper() for m in MEMBER_TIERS)]
+            and any(m in str(p.subscription_tier).upper() for m in PAID_TIERS)]
     trial_now = live.filter(subscription_tier=TRIAL_TIER).count()
     trial_users = UserProfile.objects.filter(trial_used=True).values_list('user_id', flat=True)
     converted = Transaction.objects.filter(user_id__in=trial_users, transaction_type='SUBSCRIPTION', status='completed').values('user_id').distinct().count()

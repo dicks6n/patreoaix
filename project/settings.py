@@ -210,6 +210,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',  #
     'django.contrib.auth.middleware.AuthenticationMiddleware',  #
     'allauth.account.middleware.AccountMiddleware',  #
+    'store.rewards.DailyVisitMiddleware',          # rewards: first visit of the day (points + streak)
     'django.contrib.messages.middleware.MessageMiddleware',  #
     'django.middleware.clickjacking.XFrameOptionsMiddleware',  #
 ]

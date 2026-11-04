@@ -307,7 +307,9 @@ urlpatterns = [
     path('api/broker/<int:account_id>/disconnect/', views.disconnect_broker, name='disconnect_broker'),
 
     # Rewards & Subscription
-    path('rewards/', views.survey_rewards_view, name='survey_rewards'),
+    path('rewards/', views.rewards_hub, name='rewards'),
+    path('rewards/surveys/', views.survey_rewards_view, name='survey_rewards'),
+    path('welcome/', views.welcome, name='welcome'),
     path('rewards/claim/<int:reward_id>/', views.claim_survey_reward, name='claim_survey_reward'),
     path('subscription/', views.subscription_billing, name='subscription_billing'),
     path('subscription/trial/', views.start_trial_view, name='start_trial'),

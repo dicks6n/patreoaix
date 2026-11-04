@@ -1,0 +1,156 @@
+{% extends 'base_dashboard.html' %}
+
+{% block message_toasts %}{% endblock %}
+{% block title %}Rewards · PATREOAIX{% endblock %}
+{% block page_title %}Rewards{% endblock %}
+
+{% block extra_head %}
+<style>
+    .rw-wrap { display: flex; flex-direction: column; gap: 16px; max-width: 1100px; }
+    .rw-card { background: var(--px-panel); border: 1px solid var(--px-line); border-radius: 18px; padding: 18px; }
+    .rw-h { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+    .rw-h h2 { font-size: 16px; font-weight: 900; color: var(--px-text); }
+    .rw-h p { font-size: 12px; color: var(--px-mute); }
+    .rw-msg { padding: 12px 14px; border-radius: 12px; font-size: 13px; font-weight: 600; background: var(--px-panel-2); border: 1px solid var(--px-line); color: var(--px-text); }
+    .rw-msg.error { border-color: var(--px-down); color: var(--px-down); } .rw-msg.success { border-color: var(--px-up); }
+    /* hero */
+    .rw-hero { display: grid; grid-template-columns: auto 1fr; gap: 22px; align-items: center; position: relative; overflow: hidden; }
+    .rw-hero::before { content: ''; position: absolute; width: 360px; height: 360px; right: -120px; top: -160px; border-radius: 50%;
+                       background: radial-gradient(circle, color-mix(in srgb, var(--px-accent) 20%, transparent), transparent 65%); pointer-events: none; }
+    .rw-ring { --p: 0; width: 132px; height: 132px; border-radius: 50%; position: relative; display: grid; place-items: center;
+               background: conic-gradient(var(--px-accent) calc(var(--p) * 1%), var(--px-panel-2) 0); }
+    .rw-ring::after { content: ''; position: absolute; inset: 9px; border-radius: 50%; background: var(--px-panel); }
+    .rw-ring div { position: relative; z-index: 1; text-align: center; }
+    .rw-ring .ic { font-size: 38px; line-height: 1; }
+    .rw-ring small { display: block; font-size: 11px; font-weight: 800; color: var(--px-mute); margin-top: 4px; text-transform: uppercase; letter-spacing: .05em; }
+    .rw-hero h1 { font-size: 24px; font-weight: 900; color: var(--px-text); }
+    .rw-hero .pts { font-family: 'JetBrains Mono', monospace; font-size: 30px; font-weight: 800; color: var(--px-accent); }
+    .rw-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .rw-chip { font-size: 12px; font-weight: 800; padding: 6px 10px; border-radius: 999px; background: var(--px-panel-2); border: 1px solid var(--px-line); color: var(--px-text); }
+    .rw-chip.hot { background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); border-color: var(--px-accent); animation: rwPulse 1.8s ease-in-out infinite; }
+    @keyframes rwPulse { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--px-accent) 20%, transparent); } }
+    @media (max-width: 560px) { .rw-hero { grid-template-columns: 1fr; justify-items: center; text-align: center; } .rw-chips { justify-content: center; } }
+    /* levels */
+    .rw-levels { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+    @media (max-width: 1100px) { .rw-levels { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); } }
+    .rw-lv { display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: 16px; background: var(--px-panel-2); border: 1px solid var(--px-line); }
+    .rw-lv.ready { border-color: var(--px-accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--px-accent) 30%, transparent); }
+    .rw-lv.claimed { opacity: .7; }
+    .rw-lv .top { display: flex; justify-content: space-between; align-items: center; }
+    .rw-lv .top b { font-size: 15px; font-weight: 900; color: var(--px-text); }
+    .rw-lv .top span { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--px-mute); }
+    .rw-lv ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 5px; flex: 1; }
+    .rw-lv li { font-size: 12px; color: var(--px-text); display: flex; gap: 6px; }
+    .rw-lv li i { color: var(--px-accent); margin-top: 3px; font-size: 10px; }
+    .rw-bar { height: 6px; border-radius: 99px; background: var(--px-panel); overflow: hidden; }
+    .rw-bar > span { display: block; height: 100%; background: var(--px-accent); border-radius: 99px; }
+    .rw-btn { width: 100%; padding: 9px; border-radius: 10px; font-size: 12.5px; font-weight: 900; border: 1px solid var(--px-line); background: var(--px-panel); color: var(--px-mute); cursor: default; }
+    .rw-btn.go { background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); border-color: var(--px-accent); cursor: pointer; }
+    .rw-note { font-size: 11px; color: var(--px-mute); }
+    /* grids */
+    .rw-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 900px) { .rw-two { grid-template-columns: 1fr; } }
+    .rw-mission { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; padding: 11px 0; border-bottom: 1px solid var(--px-line); }
+    .rw-mission:last-child { border-bottom: 0; }
+    .rw-mission b { font-size: 13px; color: var(--px-text); }
+    .rw-mission span { font-size: 12px; font-weight: 800; color: var(--px-accent); white-space: nowrap; }
+    .rw-mission .rw-bar { grid-column: 1 / -1; }
+    .rw-mission small { grid-column: 1 / -1; font-size: 11px; color: var(--px-mute); }
+    .rw-badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+    .rw-badge { text-align: center; padding: 12px 6px; border-radius: 14px; background: var(--px-panel-2); border: 1px solid var(--px-line); }
+    .rw-badge .e { font-size: 26px; display: block; }
+    .rw-badge small { display: block; font-size: 11px; font-weight: 700; color: var(--px-text); margin-top: 4px; }
+    .rw-badge.off { opacity: .35; filter: grayscale(1); }
+    .rw-earn { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+    .rw-earn div { display: flex; justify-content: space-between; gap: 8px; padding: 10px 12px; border-radius: 12px; background: var(--px-panel-2); font-size: 12.5px; color: var(--px-text); }
+    .rw-earn b { font-family: 'JetBrains Mono', monospace; color: var(--px-accent); white-space: nowrap; }
+    .rw-earn small { display: block; color: var(--px-mute); font-size: 11px; }
+    .rw-recent div { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--px-line); font-size: 12.5px; color: var(--px-text); }
+    .rw-recent b { color: var(--px-up); font-family: 'JetBrains Mono', monospace; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="rw-wrap">
+    {% for m in messages %}<div class="rw-msg {{ m.tags }}">{{ m }}</div>{% endfor %}
+
+    <div class="rw-card rw-hero">
+        <div class="rw-ring" style="--p: {{ rw.pct }}"><div><span class="ic">{{ rw.icon }}</span><small>{{ rw.name }}</small></div></div>
+        <div style="position:relative">
+            <h1>Your rewards</h1>
+            <div class="pts">{{ rw.points|floatformat:"0g" }} <span style="font-size:14px;color:var(--px-mute)">points</span></div>
+            <p style="font-size:13px;color:var(--px-mute);margin-top:4px">{% if rw.next %}<b style="color:var(--px-text)">{{ rw.to_next|floatformat:"0g" }}</b> points to {{ rw.next_icon }} {{ rw.next }}{% else %}You reached the top level. Legend. 👑{% endif %}</p>
+            <div class="rw-chips">
+                {% if rw.ready %}<span class="rw-chip hot">🎁 {{ rw.ready }} reward{{ rw.ready|pluralize }} ready to claim</span>{% endif %}
+                <span class="rw-chip">🔥 {{ rw.streak }}-day streak</span>
+                {% if not rw.kyc %}<a class="rw-chip" href="{% url 'kyc_submit' %}">🛡️ Verify to unlock cash & challenges</a>{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="rw-card">
+        <div class="rw-h"><h2>Levels &amp; rewards</h2><p>Each level's rewards are yours once you reach it. Cash is a trading bonus: withdrawable after you trade it.</p></div>
+        <div class="rw-levels">
+            {% for l in rw.levels %}
+            <div class="rw-lv {{ l.state }}">
+                <div class="top"><b>{{ l.icon }} {{ l.name }}</b><span>{{ l.need|floatformat:"0g" }} pts</span></div>
+                <ul>{% for r in l.rewards %}<li><i class="fa-solid fa-gift"></i>{{ r }}</li>{% endfor %}</ul>
+                {% if l.state == 'locked' %}<div class="rw-bar"><span style="width:{{ l.pct }}%"></span></div>{% endif %}
+                {% if l.state == 'ready' %}
+                <form method="post">{% csrf_token %}<input type="hidden" name="action" value="claim"><input type="hidden" name="level" value="{{ l.n }}">
+                    <button class="rw-btn go" type="submit">Claim rewards</button></form>
+                {% if l.kyc %}<span class="rw-note">Verify your identity first: cash and challenges need it.</span>{% endif %}
+                {% elif l.state == 'claimed' %}<button class="rw-btn" disabled>✓ Claimed</button>
+                {% else %}<button class="rw-btn" disabled>🔒 {{ l.pct }}% there</button>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="rw-two">
+        <div class="rw-card">
+            <div class="rw-h"><h2>🎯 This week's missions</h2><p>New every Monday</p></div>
+            {% for m in rw.missions %}
+            <div class="rw-mission">
+                <b>{% if m.done %}✅ {% endif %}{{ m.title }}</b><span>+{{ m.points }}</span>
+                <div class="rw-bar"><span style="width:{{ m.pct }}%"></span></div>
+                <small>{{ m.progress }} / {{ m.target }}{% if m.done %} · bonus earned{% endif %}</small>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="rw-card">
+            <div class="rw-h"><h2>🏅 Badges</h2><p>{{ rw.badges|length }} to collect</p></div>
+            <div class="rw-badges">{% for b in rw.badges %}<div class="rw-badge {% if not b.got %}off{% endif %}" title="{{ b.name }}"><span class="e">{{ b.icon }}</span><small>{{ b.name }}</small></div>{% endfor %}</div>
+        </div>
+    </div>
+
+    {% if rw.cash %}
+    <div class="rw-card">
+        <div class="rw-h"><h2>💵 Reward cash</h2><p>In your wallet now. Trade it to make it withdrawable.</p></div>
+        {% for c in rw.cash %}
+        <div class="rw-mission"><b>{{ c.level }} reward · ${{ c.cash }}</b><span>{% if c.released %}Withdrawable ✓{% else %}${{ c.done|floatformat:0 }} / ${{ c.required|floatformat:0 }} traded{% endif %}</span>
+            <div class="rw-bar"><span style="width:{{ c.pct }}%"></span></div></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="rw-card">
+        <div class="rw-h"><h2>How to earn points</h2><p>Every action counts once, so just use PATREOAIX as you normally would</p></div>
+        <div class="rw-earn">{% for e in rw.earn %}<div><span>{{ e.label }}<small>{{ e.often }}</small></span><b>+{{ e.points }}</b></div>{% endfor %}</div>
+    </div>
+
+    <div class="rw-two">
+        <div class="rw-card rw-recent">
+            <div class="rw-h"><h2>Latest points</h2></div>
+            {% for e in rw.recent %}<div><span>{{ e.label }} · <span style="color:var(--px-mute)">{{ e.created_at|timesince }} ago</span></span><b>+{{ e.points }}</b></div>
+            {% empty %}<p style="font-size:13px;color:var(--px-mute)">Nothing yet. Visit daily, learn and trade to start earning.</p>{% endfor %}
+        </div>
+        <div class="rw-card">
+            <div class="rw-h"><h2>Invite friends</h2></div>
+            <p style="font-size:13px;color:var(--px-mute)">Each friend who joins and becomes a customer gives you <b style="color:var(--px-accent)">+250 points</b> and days of Pro.</p>
+            <a class="rw-btn go" style="display:block;text-align:center;margin-top:12px;text-decoration:none" href="{% url 'referral_dashboard' %}">Get my invite link</a>
+            {% if surveys %}<a class="rw-btn" style="display:block;text-align:center;margin-top:8px;text-decoration:none;cursor:pointer" href="{% url 'survey_rewards' %}">{{ surveys|length }} survey reward{{ surveys|length|pluralize }} waiting</a>{% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

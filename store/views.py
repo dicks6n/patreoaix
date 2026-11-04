@@ -87,7 +87,31 @@ try:
 except ImportError:
     from backports.zoneinfo import ZoneInfo
 
+# what each plan opens (pricing page); prices come from TIER_CONFIG
+PLANS = [
+    {'key': 'starter', 'name': 'Free', 'color': '#94a3b8', 'for': 'Look around and learn the basics.',
+     'features': ['First lessons of every course', 'Manual trading in the terminal', 'Buy crypto on P2P', '3 AI chart reads a day']},
+    {'key': 'academy', 'name': 'Academy', 'color': '#38bdf8', 'tag': 'STUDENTS', 'for': 'For students and anyone who wants to learn first.',
+     'features': ['Every course and topic', 'Cheat sheets', 'Unlimited AI chart reads', 'Certificates when you finish']},
+    {'key': 'trader', 'name': 'Trader', 'color': '#34d399', 'popular': True, 'for': 'For working people trading part-time.',
+     'features': ['Everything in Academy', 'All AI signals & market scanner', 'Price & signal alerts', 'Sell on P2P']},
+    {'key': 'pro', 'name': 'Pro', 'color': '#818cf8', 'tag': 'PROS', 'for': 'For professional and full-time traders.',
+     'features': ['Everything in Trader', 'Bots & AI auto-trader', 'Copy trading', '$500 funded account']},
+    {'key': 'vip', 'name': 'VIP', 'color': '#f5b301', 'tag': 'ELITE', 'for': 'Everything, with the biggest funded account.',
+     'features': ['Everything in Pro', '$2,500 funded account', 'All P2P payment methods', 'Priority support']},
+]
+
 TIER_CONFIG = {
+    'academy': {                      # every course and topic, unlimited chart AI; no signals or bots
+        'price': Decimal('12.00'),
+        'funded_amount': Decimal('0'),
+        'kes_multiplier': 130
+    },
+    'trader': {                       # Academy + AI signals, price alerts, P2P selling
+        'price': Decimal('29.00'),
+        'funded_amount': Decimal('0'),
+        'kes_multiplier': 130
+    },
     'pro': {
         'price': Decimal('49.00'),
         'funded_amount': Decimal('500.00'),
@@ -445,7 +469,8 @@ def signup_view(request):
         messages.success(request, f"Account created successfully! Welcome to PATREOAIX, {auth_user.username}."
                          + (f" Your free {trial_days}-day Pro {'invite gift' if invited else 'trial'} has started: every AI signal is unlocked." if trial else '')
                          + (" 🎁 Deposit now and get a 100% bonus on your first deposit." if _bonus_on() else ''))
-        return redirect(request.session.pop('after_signup', None) or "dashboard")
+        after = request.session.pop('after_signup', None)
+        return redirect(reverse('welcome') + (f'?next={after}' if after else ''))     # the four start cards first
 
     return render(request, "account/signup.html", {'ref_code': ref_code or ''})
 
@@ -583,7 +608,10 @@ def dashboard_view(request):
 
     site_settings = SiteSettings.load()
 
+    focus = goal_focus(request.user)
+    focus['plan_rank'] = {'academy': 1, 'trader': 2, 'pro': 3}.get(focus['plan'] or '', 0)
     return render(request, 'store/dashboard.html', {
+        'focus': focus,
         'payout_crypto': __import__('store.payouts', fromlist=['bound']).bound(request.user, 'Crypto'),
         'notifications': notifications,
         'exchange_balance': exchange_acc.balance,
@@ -821,8 +849,8 @@ def profile(request):
     trades = Trade.objects.filter(user=u)
     won, lost = trades.filter(status='WON').count(), trades.filter(status='LOST').count()
     tier, active = membership.tier_of(u)
-    member = active and any(t in tier for t in membership.MEMBER_TIERS)
-    plan = ('Pro trial' if 'TRIAL' in tier else tier.title()) if member else 'Starter'
+    member = membership.rank(u) > 0
+    plan = ('Pro trial' if 'TRIAL' in tier and active else membership.plan_name(u)) if member else 'Free'
     ref, _ = ReferralProfile.objects.get_or_create(user=u)
     email_ok = EmailAddress.objects.filter(user=u, email__iexact=u.email, verified=True).exists()
     kyc_status = (kyc_record.status if kyc_record else 'NOT_SUBMITTED') or 'NOT_SUBMITTED'
@@ -979,11 +1007,12 @@ def subscription_billing(request):
                     user_profile.last_renewal_amount = amount_usd
                     user_profile.save()
 
-                    funded_account, _ = FundedAccount.objects.get_or_create(user=request.user)
-                    funded_account.initial_balance = funded_capital
-                    funded_account.balance = funded_capital
-                    funded_account.is_funded = True
-                    funded_account.save()
+                    if funded_capital > 0:          # Academy / Trader come without a funded account
+                        funded_account, _ = FundedAccount.objects.get_or_create(user=request.user)
+                        funded_account.initial_balance = funded_capital
+                        funded_account.balance = funded_capital
+                        funded_account.is_funded = True
+                        funded_account.save()
 
                     Transaction.objects.create(
                         user=request.user,
@@ -1010,7 +1039,17 @@ def subscription_billing(request):
 
         return redirect('subscription_billing')
 
+    from . import membership
+    cur_rank = membership.sub_rank(request.user)
+    current_key = {0: 'starter', 1: 'academy', 2: 'trader', 3: 'pro', 4: 'vip'}[cur_rank]
+    if 'TRIAL' in str(user_profile.subscription_tier).upper():
+        current_key = 'trial'
+    pass_info = None
+    if membership.pass_rank(request.user):
+        pass_info = {'name': membership.PLAN_NAMES[membership.pass_rank(request.user)], 'until': user_profile.pass_until}
     context = {
+        'plans': [dict(pl, price=TIER_CONFIG[pl['key']]['price'] if pl['key'] in TIER_CONFIG else 0) for pl in PLANS],
+        'current_key': current_key, 'my_pass': pass_info,
         'user_profile': user_profile,
         'current_plan': user_profile.subscription_tier,
         'account': account,
@@ -1070,7 +1109,7 @@ def mpesa_callback(request):
                         credit_referrer_on_subscription(payment_req.user, payment_req.amount, tier_name.upper())
 
                         # Fund the account based on tier configuration ($500 or $2500)
-                        if tier_name in TIER_CONFIG:
+                        if tier_name in TIER_CONFIG and TIER_CONFIG[tier_name]['funded_amount'] > 0:
                             funded_capital = TIER_CONFIG[tier_name]['funded_amount']
                             funded_account, _ = FundedAccount.objects.get_or_create(user=payment_req.user)
                             funded_account.initial_balance = funded_capital
@@ -1512,10 +1551,12 @@ def payment_status_view(request, payment_id):
     return render(request, 'store/payment_status.html', context)
 
 
-@login_required
+@staff_member_required
+@require_POST
 def switch_tier(request, tier):
+    """Staff only: set the signed-in staff account's own plan (testing). Customers pay on the subscription page."""
     tier_lower = tier.lower()
-    valid_tiers = ['starter', 'pro', 'vip']
+    valid_tiers = ['starter', 'academy', 'trader', 'pro', 'vip']
     
     if tier_lower in valid_tiers:
         profile, _ = UserProfile.objects.get_or_create(user=request.user)
@@ -3640,7 +3681,8 @@ def execute_funded_ai_gold(request):
         if action == 'status':
             from . import ai_gold
             from .membership import is_member
-            can_auto = is_member(request.user)                 # Starter: manual only → auto-trader stays off
+            from .membership import can_auto_trade
+            can_auto = can_auto_trade(request.user)            # Pro / VIP only → auto-trader stays off otherwise
             if not can_auto and ai_toggle.is_active:
                 ai_toggle.is_active = False
                 ai_toggle.save(update_fields=['is_active'])
@@ -3685,8 +3727,8 @@ def execute_funded_ai_gold(request):
             }, status=400)
 
         # Automated trading is for Pro / VIP; Starter trades manually (store/membership.py)
-        from .membership import is_member, AUTO_TRADING_MSG
-        if not is_member(request.user):
+        from .membership import can_auto_trade, AUTO_TRADING_MSG
+        if not can_auto_trade(request.user):
             if ai_toggle.is_active:
                 ai_toggle.is_active = False
                 ai_toggle.save(update_fields=['is_active'])
@@ -3939,7 +3981,8 @@ def digits_trading(request):
         'ai_gold_active': ai_toggle.is_active,
     }
     from .membership import is_member
-    context['can_auto_trade'] = is_member(request.user)     # Pro / VIP; Starter trades manually
+    from .membership import can_auto_trade
+    context['can_auto_trade'] = can_auto_trade(request.user)     # Pro / VIP
     return render(request, 'store/digits_trading.html', context)
 
 
@@ -11066,10 +11109,10 @@ COPY_STYLES = [('scalping', 'Scalping'), ('intraday', 'Intraday'), ('swing', 'Sw
 @login_required
 def copy_trading_page(request):
     from . import copy_trading as ct, deriv_demo as dd
-    from .membership import is_member
+    from .membership import can_auto_trade
     from .models import CopyTrade
     cfg = ct.settings_for(request.user)
-    member = is_member(request.user)
+    member = can_auto_trade(request.user)              # copy trading: Pro / VIP
     demo, real = dd.demo_account(request.user), dd.real_account(request.user)
     real_ok = dd.real_allowed() and bool(real and real.real_enabled_at)
     if request.method == 'POST':
@@ -11358,7 +11401,12 @@ def academy_course(request, course):
     c = lib.BY_COURSE.get(course)
     if not c:
         raise Http404
-    return render(request, 'store/academy_course.html', {'course': c, 'courses': lib.COURSES})
+    from .membership import has_rank, ACADEMY_RANK
+    return render(request, 'store/academy_course.html', {'course': c, 'courses': lib.COURSES, 'free_topics': ACADEMY_FREE_TOPICS,
+                                                         'full_access': has_rank(request.user, ACADEMY_RANK)})
+
+
+ACADEMY_FREE_TOPICS = 2          # free accounts read the first topics of every course; the Academy plan opens the rest
 
 
 @login_required
@@ -11369,6 +11417,13 @@ def academy_topic(request, course, topic):
     if not c or not tp:
         raise Http404
     i = c['topics'].index(tp)
+    from .membership import has_rank, ACADEMY_RANK, members_only_response
+    if i >= ACADEMY_FREE_TOPICS and not has_rank(request.user, ACADEMY_RANK):
+        return members_only_response(request, feature='The full Academy',
+                                     message=f'The first {ACADEMY_FREE_TOPICS} topics of every course are free. The Academy plan '
+                                             f'($12/month) opens all {len(lib.TOPICS)} topics, cheat sheets and unlimited chart AI.')
+    from .rewards import safe_award
+    safe_award(request.user, 'topic', f'{course}/{topic}')
     return render(request, 'store/academy_topic.html', {
         'course': c, 'tp': tp, 'pic': _academy_pic(tp),
         'prev': c['topics'][i - 1] if i else None, 'next': c['topics'][i + 1] if i + 1 < len(c['topics']) else None,
@@ -11516,3 +11571,68 @@ def social_login_guard(request, provider):
         return oauth2_login(request)
     from allauth.socialaccount.providers.apple.views import oauth2_login
     return oauth2_login(request)
+
+
+# ═══════════════════════════════════════════════════════════════
+# REWARDS HUB + START CARDS (store/rewards.py)
+# ═══════════════════════════════════════════════════════════════
+@login_required
+def rewards_hub(request):
+    from . import rewards as rw
+    if request.method == 'POST' and request.POST.get('action') == 'claim':
+        try:
+            c = rw.claim(request.user, request.POST.get('level'))
+            messages.success(request, 'Claimed: ' + ', '.join(c.detail) + '.')
+        except rw.RewardError as e:
+            messages.error(request, str(e))
+        return redirect('rewards')
+    data = rw.summary(request.user)
+    surveys = SurveyReward.objects.filter(user=request.user, is_claimed=False)
+    return render(request, 'store/rewards_hub.html', {'rw': data, 'surveys': surveys,
+                                                       'levels_all': rw.LEVELS, 'reward_label': rw.reward_label})
+
+
+GOALS = [
+    ('learn', '🎓', 'Student', 'I want to learn trading from the start', 'Academy courses, lessons and the AI chart coach first.'),
+    ('part', '💼', 'Working & trading part-time', 'I have a job and trade on the side', 'AI signals, alerts and quick trades that fit your day.'),
+    ('pro', '📈', 'Professional trader', 'I trade seriously or full-time', 'Terminal, signals, bots and copy trading front and centre.'),
+    ('funded', '🏆', 'Funded trader', "I want to trade the firm's capital", 'Funded challenges, rules and your progress first.'),
+]
+GOAL_PLAN = {'learn': 'academy', 'part': 'trader', 'pro': 'pro', 'funded': 'pro'}
+
+
+@login_required
+def welcome(request):
+    """'What brings you here?' — four start cards after sign-up (changeable any time from the profile)."""
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    nxt = request.GET.get('next') or request.POST.get('next') or ''
+    if not nxt.startswith('/') or nxt.startswith('//'):
+        nxt = ''
+    if request.method == 'POST':
+        goal = request.POST.get('goal', '')
+        if goal in dict((g[0], g) for g in GOALS) or goal == 'skip':
+            UserProfile.objects.filter(pk=profile.pk).update(goal=goal)
+            if goal != 'skip':
+                from .rewards import safe_award
+                safe_award(request.user, 'goal')
+                messages.success(request, 'Done! Your dashboard now puts what matters to you first. You earned 25 reward points.')
+        return redirect(nxt or 'dashboard')
+    return render(request, 'store/welcome.html', {'goals': GOALS, 'current': profile.goal, 'next': nxt})
+
+
+def goal_focus(user):
+    """Shortcuts for the dashboard's 'For you' strip, by start card."""
+    from .models import UserProfile
+    goal = UserProfile.objects.filter(user=user).values_list('goal', flat=True).first() or ''
+    tiles = {
+        'learn': [('🎓', 'Continue the Academy', '/academy/'), ('📷', 'Read my chart (AI)', '/academy/chart-ai/'),
+                  ('🧾', 'Cheat sheets', '/academy/cheatsheet/'), ('🎁', 'Rewards', '/rewards/')],
+        'part': [('⚡', 'Today\'s AI signals', '/market-overview/'), ('🔔', 'Price alerts', '/price-alerts/'),
+                 ('📈', 'Open the terminal', '/terminal/'), ('🎁', 'Rewards', '/rewards/')],
+        'pro': [('📈', 'Terminal', '/terminal/'), ('🤖', 'Bots & auto-trading', '/bot-center/'),
+                ('🔁', 'Copy trading', '/copy-trading/'), ('🧮', 'Risk analyzer', '/risk-analyzer/')],
+        'funded': [('🏆', 'Funded challenges', '/funded/'), ('📏', 'Challenge rules', '/funded/#rules'),
+                   ('📈', 'Trade your challenge', '/terminal/'), ('🎁', 'Win a free challenge', '/rewards/')],
+    }
+    names = {g[0]: g[2] for g in GOALS}
+    return {'goal': goal, 'goal_name': names.get(goal, ''), 'tiles': tiles.get(goal, []), 'plan': GOAL_PLAN.get(goal)}

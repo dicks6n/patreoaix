@@ -35,10 +35,11 @@ def membership(request):
     if not request.user.is_authenticated:
         return {'is_member': False, 'member_tier': ''}
     try:
-        from .membership import tier_of, MEMBER_TIERS, trial_days_left, trial_available
+        from .membership import tier_of, trial_days_left, trial_available, rank, PLAN_NAMES
         tier, active = tier_of(request.user)
-        member = active and any(t in tier for t in MEMBER_TIERS)
-        days = trial_days_left(request.user) if member and 'TRIAL' in tier else None
+        r = rank(request.user)
+        member = r > 0
+        days = trial_days_left(request.user) if active and 'TRIAL' in tier else None
         avatar = ''
         try:
             from .models import UserProfile
@@ -46,7 +47,19 @@ def membership(request):
             avatar = p.avatar.url if p and p.avatar else ''
         except Exception:
             pass
-        return {'is_member': member, 'member_tier': (f'TRIAL · {days}d' if days is not None else tier) if member else '',
+        my_level = None
+        try:
+            from .rewards import LEVELS, level_index, points
+            from .models import RewardClaim
+            pts = points(request.user)
+            li = level_index(pts)
+            ready = sum(1 for n, (_, _, need, rew) in enumerate(LEVELS) if rew and pts >= need) - \
+                RewardClaim.objects.filter(user=request.user).count()
+            my_level = {'name': LEVELS[li][0], 'icon': LEVELS[li][1], 'points': pts, 'ready': max(0, ready)}
+        except Exception:
+            pass
+        return {'is_member': member, 'member_rank': r, 'my_level': my_level,
+                'member_tier': (f'TRIAL · {days}d' if days is not None else PLAN_NAMES.get(r, '').upper()) if member else '',
                 'on_trial': days is not None, 'trial_available': not member and trial_available(request.user), 'my_avatar': avatar}
     except Exception:
         return {'is_member': False, 'member_tier': ''}

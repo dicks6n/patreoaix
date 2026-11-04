@@ -46,6 +46,8 @@ def on_friend_activated(friend, reason):
         return None
     ref.pro_days_given, ref.pro_days_at = True, timezone.now()
     ref.save(update_fields=['pro_days_given', 'pro_days_at'])
+    from .rewards import safe_award
+    safe_award(ref.referrer, 'referral', f'friend:{friend.id}')
     grant_pro_days(ref.referrer, days(), f'🎁 +{days()} days of Pro: {friend.username} joined',
                    f'Your friend {friend.username} {reason}. {days()} days of Pro were added to your account. Invite more friends to keep it going.')
     return ref

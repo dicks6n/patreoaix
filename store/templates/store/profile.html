@@ -262,6 +262,10 @@
     <section class="pf-pane pf-grid" data-pane="plan">
         <div class="pf-col">
             <div class="pf-card">
+                <div class="pf-row"><span class="ic"><i class="fa-solid fa-compass"></i></span><div class="tx"><b>Your focus</b><small>Student, part-time, professional or funded: decides what your dashboard shows first</small></div><a class="pf-btn ghost sm" href="{% url 'welcome' %}?next=/profile/%23plan">Change</a></div>
+                <div class="pf-row"><span class="ic"><i class="fa-solid fa-gift"></i></span><div class="tx"><b>Rewards{% if my_level %} · {{ my_level.icon }} {{ my_level.name }}{% endif %}</b><small>{% if my_level %}{{ my_level.points }} points{% if my_level.ready %} · {{ my_level.ready }} reward{{ my_level.ready|pluralize }} ready{% endif %}{% else %}Points, levels, cash bonuses and free challenges{% endif %}</small></div><a class="pf-btn ghost sm" href="{% url 'rewards' %}">Open</a></div>
+            </div>
+            <div class="pf-card">
                 <div class="pf-h"><h2><i class="fa-solid fa-receipt"></i> Recent payments</h2><a class="pf-sub" href="/wallet/" style="color:var(--px-accent);font-weight:700">Wallet history →</a></div>
                 <div style="overflow-x:auto">
                 <table class="pf-table">

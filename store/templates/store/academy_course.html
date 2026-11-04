@@ -20,9 +20,10 @@
             <span class="n">{{ tp.n }}</span>
             <span style="min-width:0"><b>{{ tp.title }}</b><small>{{ tp.summary.0 }}</small>
                 {% if tp.signal %}<span class="ak-sig {% if 'Bullish' in tp.signal %}bull{% elif 'Bearish' in tp.signal %}bear{% endif %}" style="margin-top:5px">{{ tp.signal }}</span>{% endif %}</span>
-            <i class="fa-solid fa-chevron-right go"></i>
+            {% if not full_access and forloop.counter > free_topics %}<i class="fa-solid fa-lock go" title="Academy plan"></i>{% else %}<i class="fa-solid fa-chevron-right go"></i>{% endif %}
         </a>
         {% endfor %}
+        {% if not full_access %}<div class="ak-row" style="justify-content:space-between;flex-wrap:wrap;gap:8px;border-style:dashed"><span><b>🔓 The first {{ free_topics }} topics are free</b><small>The Academy plan opens every topic of every course, cheat sheets and unlimited chart AI.</small></span><a class="ak-btn" href="{% url 'subscription_billing' %}#academy">Get Academy · $12/mo</a></div>{% endif %}
     </div>
 
     <div class="ak-card" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">

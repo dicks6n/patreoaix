@@ -44,7 +44,8 @@ def daily_limit(user):
     if user.is_staff:
         return None
     from .membership import is_member
-    return int(_cfg('CHART_AI_MEMBER_DAILY', 30) if is_member(user) else _cfg('CHART_AI_FREE_DAILY', 3))
+    from .membership import has_rank, ACADEMY_RANK
+    return int(_cfg('CHART_AI_MEMBER_DAILY', 30) if has_rank(user, ACADEMY_RANK) else _cfg('CHART_AI_FREE_DAILY', 3))
 
 
 def _count_key(user):
@@ -228,7 +229,7 @@ def analyze(user, upload, note=''):
         raise ChartAIError('Chart reading is not switched on yet (the site needs its GEMINI_API_KEY).')
     left = left_today(user)
     if left is not None and left <= 0:
-        raise ChartAIError('You have used today\'s chart readings. Pro and VIP members get '
+        raise ChartAIError('You have used today\'s chart readings. Academy, Trader, Pro and VIP members get '
                            f'{_cfg("CHART_AI_MEMBER_DAILY", 30)} a day: upgrade at /subscription/.')
     jpeg = clean_image(upload)
     try:
@@ -245,4 +246,7 @@ def analyze(user, upload, note=''):
         return r
     r['symbol_norm'] = normalize_symbol(r.get('symbol'))
     r['live'] = live_view(r['symbol_norm']) if r['symbol_norm'] else None
+    from .rewards import safe_award
+    from django.utils import timezone as _tz
+    safe_award(user, 'chart_ai', _tz.localdate().isoformat())
     return r
