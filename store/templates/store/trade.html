@@ -435,6 +435,20 @@
     .chart-legend { position: absolute; top: 8px; left: 10px; right: 70px; z-index: 5; display: flex; flex-wrap: wrap; gap: 4px 10px; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #94a3b8; pointer-events: none; text-shadow: 0 0 4px #0a0e17; }
     .chart-hint { position: absolute; top: 34px; left: 50%; transform: translateX(-50%); z-index: 6; padding: 5px 10px; border-radius: 8px; font-size: 11px; font-weight: 600; font-family: 'JetBrains Mono', monospace; background: rgba(15,23,42,.92); color: #f8fafc; border: 1px solid rgba(245,158,11,.45); pointer-events: none; white-space: nowrap; }
     #panel-chart.chart-full { position: fixed; inset: 0; z-index: 90; height: auto !important; border-radius: 0 !important; display: flex !important; }
+    /* Phones / tablets: BUY / SELL always on screen while the chart is open, floating above the bottom nav,
+       so trading never depends on scrolling past the chart. Full-screen chart: bar at the bottom, above the home bar. */
+    @media (max-width: 1023px) {
+        #trade-bar { position: fixed; z-index: 45; left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right));
+                     bottom: calc(env(safe-area-inset-bottom) + var(--px-dock-gap, 12px) + var(--px-dock-h, 52px) + 10px + 10px);
+                     max-width: 520px; margin: 0 auto; padding: 8px; border-radius: 20px; border: 1px solid var(--px-line, #1e293b) !important;
+                     background: color-mix(in srgb, var(--px-panel, #0f172a) 86%, transparent) !important;
+                     -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: 0 14px 34px rgba(0,0,0,.4); }
+        #trade-bar .execution-btn { padding-top: 10px; padding-bottom: 10px; border-radius: 14px; }
+        #panel-chart:not(.hidden) ~ #panel-ticket, #workspace-grid { padding-bottom: 86px; }
+        #panel-chart.chart-full #chart-container-pane { min-height: 0 !important; }
+        #panel-chart.chart-full #trade-bar { position: relative; left: auto; right: auto; bottom: auto; max-width: none; margin: 0; border-radius: 0;
+                     border-width: 1px 0 0 0 !important; box-shadow: none; padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+    }
     .tk-lbl { display: block; font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px; }
     .tk-in { background: var(--px-panel-2, #020617); border: 1px solid var(--px-line, #1e293b); border-radius: 9px; padding: 9px 10px; font-size: 12px; font-family: 'JetBrains Mono', monospace; color: var(--px-text, #fff); outline: none; min-width: 0; }
     .tk-in:focus { border-color: var(--px-accent, #f59e0b); }
@@ -688,8 +702,8 @@
                 </div>
             </div>
 
-            <!-- ✅ ALWAYS-VISIBLE BUY/SELL BAR (mobile + desktop) -->
-            <div class="shrink-0 border-t border-slate-800/60 bg-slate-950/60 p-3">
+            <!-- ✅ ALWAYS-VISIBLE BUY/SELL BAR (desktop: under the chart · phones: floats above the bottom nav) -->
+            <div id="trade-bar" class="shrink-0 border-t border-slate-800/60 bg-slate-950/60 p-3">
                 <div class="grid grid-cols-2 gap-3">
                     <button id="buy-btn" onclick="placeOrder('BUY')"
                             class="execution-btn btn-touch bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold py-4 rounded-2xl text-xs sm:text-sm transition shadow-lg shadow-emerald-600/30 flex flex-col items-center justify-center gap-0.5">
