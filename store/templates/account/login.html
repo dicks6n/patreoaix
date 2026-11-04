@@ -4,7 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Login - PATREOAIX</title>
+    <title>Log in · PATREOAIX</title>
+    <meta name="description" content="Log in to PATREOAIX: AI trading signals for gold, forex and crypto, the MT5-style terminal, P2P USDT with M-Pesa, funded challenges and the trading academy.">
     <!-- Tailwind CSS & FontAwesome -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -244,7 +245,7 @@
             });
             wrap.appendChild(b);
             const caps = document.createElement('p');
-            caps.className = 'px-note hidden'; caps.style.color = 'var(--px-accent)';
+            caps.className = 'px-note hidden'; caps.setAttribute('data-nosnippet', ''); caps.style.color = 'var(--px-accent)';
             caps.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Caps Lock is on';
             wrap.after(caps);
             const check = e => { if (e.getModifierState) caps.classList.toggle('hidden', !e.getModifierState('CapsLock')); };
