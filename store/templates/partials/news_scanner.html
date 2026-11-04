@@ -11,7 +11,7 @@
                  animation: nsScan 4.2s linear infinite; }
   @keyframes nsScan { to { top: 100%; } }
   .ns-in { position: relative; z-index: 2; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 24px; padding: 26px; min-height: 440px; align-items: center; }
-  @media (max-width: 900px) { .ns-in { grid-template-columns: 1fr; padding: 18px; } .ns-hero::after { background: linear-gradient(180deg, rgba(5,7,12,.75), rgba(5,7,12,.88)); } }
+  @media (max-width: 900px) { .ns-in { grid-template-columns: 1fr; padding: 18px; } }
   .ns-live { display: inline-flex; align-items: center; gap: 8px; font: 800 11px/1 'JetBrains Mono', monospace; letter-spacing: .14em; color: var(--px-accent); text-transform: uppercase;
              padding: 7px 11px; border-radius: 999px; background: rgba(245,179,1,.10); border: 1px solid rgba(245,179,1,.35); }
   .ns-dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 12px #ef4444; animation: nsBlink 1s steps(2) infinite; }
@@ -97,12 +97,80 @@
   .ns-flash.on { animation: nsFlash 2.4s ease forwards; }
   .ns-flash div { font: 900 clamp(28px, 7vw, 72px) 'JetBrains Mono', monospace; color: #fff; letter-spacing: .08em; text-shadow: 0 0 40px var(--px-accent), 0 0 80px var(--px-accent); }
   @keyframes nsFlash { 0% { opacity: 0; background: rgba(245,179,1,.0); } 10% { opacity: 1; background: rgba(245,179,1,.18); } 70% { opacity: 1; background: rgba(5,7,12,.0); } 100% { opacity: 0; } }
+
+  /* ── 3D reactor stage ── */
+  .ns-stage { position: relative; min-height: 400px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+  .ns-hero.has3d .ns-radar { display: none; }
+  .ns-hero.has3d .ns-legend { position: absolute; left: 0; right: 0; bottom: 6px; font-size: 10.5px; opacity: .75; text-shadow: 0 0 6px #000; }
+  @media (max-width: 900px) { .ns-hero.has3d .ns-legend { bottom: 2px; font-size: 9.5px; padding: 0 12px; } }
+  .ns-tags { position: absolute; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; }
+  .ns-tag { position: absolute; left: 0; top: 0; transform: translate(-50%, -140%); white-space: nowrap; font: 800 11px/1 'JetBrains Mono', monospace; color: #fff;
+            padding: 5px 8px; border-radius: 8px; background: rgba(2,6,23,.72); border: 1px solid var(--c); box-shadow: 0 0 16px -2px var(--c); backdrop-filter: blur(4px); will-change: transform; }
+  .ns-tag em { font-style: normal; color: var(--c); margin-left: 5px; }
+  .ns-coretag { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); text-align: center; pointer-events: none; will-change: transform; }
+  .ns-coretag b { display: block; font: 900 clamp(26px, 4vw, 34px)/1 'JetBrains Mono', monospace; color: #fff; text-shadow: 0 0 18px #f5b301, 0 0 40px #f5b301; }
+  .ns-coretag small { font: 800 10px 'JetBrains Mono', monospace; letter-spacing: .16em; color: #fde68a; text-shadow: 0 0 10px #000; }
+  .ns-title { text-shadow: 0 1px 0 #c9cfdb, 0 2px 0 #a3abbb, 0 3px 0 #7d879b, 0 4px 0 #5b6477, 0 5px 0 #3d4556, 0 12px 24px rgba(0,0,0,.65), 0 0 40px rgba(245,179,1,.25); }
+  .ns-in > div:first-child { transform-style: preserve-3d; transition: transform .25s ease-out; }
+  /* flip-clock countdown */
+  .ns-count { perspective: 400px; }
+  .ns-cell.flash b { animation: nsFlip .55s cubic-bezier(.3,1.4,.5,1); }
+  @keyframes nsFlip { 0% { transform: rotateX(-95deg); opacity: .2; color: var(--px-accent); } 60% { opacity: 1; } 100% { transform: rotateX(0); } }
+  .ns-hero.hot { border-color: rgba(244,63,94,.7); box-shadow: 0 0 60px -12px rgba(244,63,94,.55); }
+  .ns-hero.hot .ns-scanline { animation-duration: 1.4s; background: linear-gradient(180deg, transparent, rgba(244,63,94,.12) 70%, rgba(244,63,94,.7) 99%, transparent); }
+  .ns-hero.hot .ns-cell b { color: #fecaca; text-shadow: 0 0 18px #f43f5e; }
+  .ns-hero.shake { animation: nsShake .6s cubic-bezier(.36,.07,.19,.97); }
+  @keyframes nsShake { 10%, 90% { transform: translate3d(-2px,0,0); } 20%, 80% { transform: translate3d(4px,-2px,0); } 30%, 50%, 70% { transform: translate3d(-7px,3px,0); } 40%, 60% { transform: translate3d(7px,-3px,0); } }
+  /* cards fly in in 3D */
+  .ns-card.enter { animation: nsCardIn .8s cubic-bezier(.2,1.2,.3,1) both; animation-delay: var(--d, 0s); }
+  @keyframes nsCardIn { from { opacity: 0; transform: rotateX(-75deg) translateY(40px) translateZ(-120px); } }
+  .ns-card.locked.enter { animation-name: nsCardFlip; }
+  @keyframes nsCardFlip { 0% { opacity: 0; transform: rotateY(-180deg) scale(.8); } 60% { opacity: 1; } 100% { transform: rotateY(0) scale(1); } }
+  @media (max-width: 900px) {
+    .ns-stage { order: -1; min-height: 290px; margin: -18px -18px 0; }
+    .ns-hero::after { background: linear-gradient(180deg, rgba(5,7,12,0) 0, rgba(5,7,12,.1) 250px, rgba(5,7,12,.82) 330px, rgba(5,7,12,.92) 100%),
+                                  repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0 1px, transparent 1px 3px) !important; }
+  }
+
+  /* ── light mode ── */
+  html.light .ns-hero { background: radial-gradient(900px 420px at 70% -10%, rgba(245,179,1,.16), transparent 60%), radial-gradient(700px 400px at 0% 110%, rgba(56,189,248,.14), transparent 60%), #f6f7fb;
+                        border-color: color-mix(in srgb, var(--px-accent) 40%, var(--px-line)); box-shadow: 0 20px 50px -30px rgba(15,23,42,.35); }
+  html.light .ns-hero::after { background: linear-gradient(90deg, rgba(246,247,251,.94) 0%, rgba(246,247,251,.6) 45%, rgba(246,247,251,.05) 100%),
+                                           repeating-linear-gradient(0deg, rgba(15,23,42,.025) 0 1px, transparent 1px 3px); }
+  html.light .ns-title { color: #0b1220; text-shadow: 0 1px 0 #e3e6ed, 0 2px 0 #d3d8e2, 0 3px 0 #c2c8d5, 0 4px 0 #b1b8c7, 0 5px 0 #a0a8b9, 0 12px 22px rgba(15,23,42,.22); }
+  html.light .ns-sub, html.light .ns-odds .lbl, html.light .ns-legend { color: #5b6477; }
+  html.light .ns-hero.has3d .ns-legend { text-shadow: 0 0 4px #fff, 0 0 10px #fff; opacity: .9; }
+  html.light .ns-cell { background: rgba(255,255,255,.85); border-color: rgba(15,23,42,.1); box-shadow: 0 10px 26px -14px rgba(217,119,6,.45), inset 0 1px 0 #fff; }
+  html.light .ns-cell b { color: #0b1220; text-shadow: 0 0 14px rgba(245,179,1,.35); }
+  html.light .ns-cell small { color: #6b7487; }
+  html.light .ns-fig { background: rgba(255,255,255,.85); border-color: rgba(15,23,42,.1); color: #5b6477; }
+  html.light .ns-fig b { color: #0b1220; } html.light .ns-fig.act b { color: #b45309; }
+  html.light .ns-live { color: #b45309; background: rgba(245,179,1,.14); border-color: rgba(217,119,6,.4); }
+  html.light .ns-tag { background: rgba(255,255,255,.9); color: #0b1220; box-shadow: 0 6px 16px -6px var(--c); }
+  html.light .ns-coretag b { color: #0b1220; text-shadow: 0 0 2px #fff, 0 0 16px rgba(255,255,255,.9), 0 0 30px rgba(245,179,1,.6); }
+  html.light .ns-coretag small { color: #92400e; text-shadow: 0 0 6px #fff; }
+  html.light .ns-hero.hot { box-shadow: 0 0 50px -16px rgba(244,63,94,.6); }
+  html.light .ns-hero.hot .ns-cell b { color: #be123c; text-shadow: 0 0 12px rgba(244,63,94,.35); }
+  html.light .ns-card { background: linear-gradient(160deg, #ffffff, #f3f5f9); }
+  html.light .ns-card::before { background-image: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.8) 50%, transparent 70%); }
+  html.light .ns-card .sym, html.light .ns-meter .info b { color: #0b1220; }
+  html.light .ns-card .px, html.light .ns-meter .info { color: #5b6477; }
+  html.light .ns-gauge b { background: #fff; color: #0b1220; }
+  html.light .ns-card.buy { box-shadow: 0 18px 36px -24px #10b981; } html.light .ns-card.sell { box-shadow: 0 18px 36px -24px #f43f5e; }
+  html.light .ns-call.scan { color: #b45309; }
+  html.light .ns-radar { background: radial-gradient(circle, rgba(16,185,129,.12) 0 1px, transparent 1px) 0 0 / 22px 22px, radial-gradient(circle at center, #ffffff, #eef2f7); }
+  html.light .ns-core { background: rgba(255,255,255,.92); } html.light .ns-blip span { background: rgba(255,255,255,.9); color: #0b1220; }
+  @media (max-width: 900px) {
+    html.light .ns-hero::after { background: linear-gradient(180deg, rgba(246,247,251,0) 0, rgba(246,247,251,.1) 250px, rgba(246,247,251,.86) 330px, rgba(246,247,251,.95) 100%) !important; }
+  }
+  @media (prefers-reduced-motion: reduce) { .ns-cell.flash b, .ns-card.enter, .ns-hero.shake { animation: none !important; } }
   @media (prefers-reduced-motion: reduce) { .ns-scanline, .ns-sweep, .ns-card::before, .ns-blip i { animation: none !important; } }
 </style>
 
 <section class="ns-hero" id="nsHero">
   <canvas class="ns-3d" id="ns3d" aria-hidden="true"></canvas>
   <div class="ns-scanline"></div>
+  <div class="ns-tags" id="nsTags"><div class="ns-coretag" id="nsCoreTag"><b id="nsCore3">--%</b><small id="nsCore3L">SCANNING</small></div></div>
   <div class="ns-in">
     <div>
       <span class="ns-live"><span class="ns-dot"></span> AI news scanner · live</span>
@@ -121,13 +189,13 @@
       </div>
       <div class="ns-result" id="nsResult"></div>
     </div>
-    <div class="ns-radar-wrap">
+    <div class="ns-radar-wrap ns-stage" id="nsStage">
       <div class="ns-radar" id="nsRadar">
         <div class="ring" style="--i:12%"></div><div class="ring" style="--i:24%"></div><div class="ring" style="--i:36%"></div><div class="cross"></div>
         <div class="ns-sweep"></div>
         <div class="ns-core"><div><b id="nsCore">--%</b><small id="nsCoreL">SCANNING</small></div></div>
       </div>
-      <div class="ns-legend">▲ up the radar = more likely to rise · dot size = expected move</div>
+      <div class="ns-legend" id="nsLegend">▲ up the radar = more likely to rise · dot size = expected move</div>
     </div>
   </div>
 </section>
@@ -220,13 +288,15 @@
     });
     $('nsCoreL').textContent = st === 'released' ? 'LOCKED' : st === 'awaiting' ? 'WAITING' : 'BEST ODDS';
     var coreKey = ev.id + st + best;
-    if (prev.core !== coreKey) { prev.core = coreKey; scramble($('nsCore'), best + '%', st === 'released' ? 300 : 900); }
+    if (prev.core !== coreKey) { prev.core = coreKey; scramble($('nsCore'), best + '%', st === 'released' ? 300 : 900); if (R3) setTimeout(function () { scramble($('nsCore3'), best + '%', st === 'released' ? 300 : 900); }, 0); }
+    if (R3) R3.set(ev, best);
     // cards
     $('nsCardsH').textContent = st === 'released' ? 'Signals locked · ' + ev.label : 'Market calls before the number · ' + ev.label;
     $('nsCardsP').textContent = st === 'released' ? 'Call from how each market moved after the same kind of surprise' : 'Chance each market rises, from the beat/miss odds and past reactions';
+    var cardsKey = ev.id + st + ev.markets.map(function (m) { return m.call + m.prob; }).join(), enter = prev.cards !== cardsKey; prev.cards = cardsKey;
     $('nsCards').innerHTML = ev.markets.map(function (m, i) {
       var cls = m.call === 'BUY' ? 'buy' : m.call === 'SELL' ? 'sell' : '', live = st === 'released';
-      return '<div class="ns-card ' + cls + (live ? ' locked' : '') + '" data-tilt>' +
+      return '<div class="ns-card ' + cls + (live ? ' locked' : '') + (enter ? ' enter' : '') + '" style="--d:' + (i * .12) + 's" data-tilt>' +
         '<div class="top"><div><div class="sym">' + esc(m.symbol) + '</div><div class="px">' + (m.price ? Number(m.price).toLocaleString(undefined, { maximumFractionDigits: 5 }) : '—') + '</div></div>' +
         '<span class="ns-call ' + (live ? m.call : 'scan') + '">' + (live ? m.call : (st === 'awaiting' ? 'WAITING' : 'LEAN ' + m.call)) + '</span></div>' +
         '<div class="ns-meter"><div class="ns-gauge" style="--v:' + m.prob + ';--c:' + (m.call === 'SELL' ? '#fb7185' : '#34d399') + '"><b data-p="' + m.prob + '">' + m.prob + '%</b></div>' +
@@ -251,6 +321,7 @@
     data.events.forEach(function (e) {
       if (lastState[e.id] && lastState[e.id] !== 'released' && e.state === 'released') {
         $('nsFlashT').textContent = e.label.split(' (')[0] + ': ' + e.result; var f = $('nsFlash'); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on');
+        if (R3) R3.burst(e.result);
         if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
       }
       lastState[e.id] = e.state;
@@ -268,67 +339,240 @@
 
   function load() {
     fetch(API, { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) {
-      if (d.success) { data = d; render(); }
+      if (d.success) { data = d; render(); firstBurst(); }
       else { type('> ' + (d.error || 'Scanner unavailable')); }
       clearTimeout(timer); timer = setTimeout(load, ((d && d.poll) || 30) * 1000);
     }).catch(function () { clearTimeout(timer); timer = setTimeout(load, 15000); });
   }
   type('> Booting scanner…'); load();
 
-  /* ── 3D moving candlestick chart (three.js; a 2D fallback keeps it moving without WebGL) ── */
+  /* ── 3D probability reactor (three.js): glowing core, orbit rings, radar sweep, one satellite per market
+        (higher orbit = more likely to rise), data particles streaming in, a candle river below, shockwaves and an
+        explosion when the number is out. Camera follows the pointer / phone tilt. 2D radar fallback without WebGL. ── */
+  var R3 = null;
   function start3d() {
-    var cv = $('ns3d'), hero = $('nsHero');
-    if (!window.THREE || reduce) return start2d();
+    var cv = $('ns3d'), hero = $('nsHero'), stage = $('nsStage'), tagsEl = $('nsTags');
+    if (!window.THREE || reduce) { hideCoreTag(); return start2d(); }
     var renderer;
-    try { renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true }); } catch (e) { return start2d(); }
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-    var scene = new THREE.Scene(); scene.fog = new THREE.Fog(0x05070c, 18, 62);
-    var cam = new THREE.PerspectiveCamera(48, 2, .1, 200);
-    scene.add(new THREE.AmbientLight(0xffffff, .45));
-    var key = new THREE.PointLight(0xf5b301, 2.2, 80); key.position.set(10, 16, 10); scene.add(key);
+    try { renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true }); } catch (e) { hideCoreTag(); return start2d(); }
+    hero.classList.add('has3d');
+    $('nsLegend').textContent = 'Higher orbit = more likely to rise · green BUY · red SELL · drag or tilt to look around';
+    var mobile = matchMedia('(max-width: 900px)').matches;
+    renderer.setPixelRatio(Math.min(mobile ? 1.5 : 2, window.devicePixelRatio || 1));
+    var scene = new THREE.Scene(); scene.fog = new THREE.FogExp2(0x05070c, .028);
+    var cam = new THREE.PerspectiveCamera(mobile ? 58 : 46, 2, .1, 300);
+    scene.add(new THREE.AmbientLight(0xffffff, .35));
+    var key = new THREE.PointLight(0xf5b301, 3, 60); scene.add(key);
     var rim = new THREE.PointLight(0x38bdf8, 1.6, 80); rim.position.set(-14, 8, -10); scene.add(rim);
-    var grid = new THREE.GridHelper(120, 60, 0x1f6f5b, 0x12303a); grid.position.y = -.01; grid.material.transparent = true; grid.material.opacity = .45; scene.add(grid);
-    var group = new THREE.Group(); scene.add(group);
-    var N = 70, GAP = .72, candles = [], price = 6;
-    var upM = new THREE.MeshStandardMaterial({ color: 0x10b981, emissive: 0x0b6b4b, emissiveIntensity: .7, metalness: .3, roughness: .35 });
-    var dnM = new THREE.MeshStandardMaterial({ color: 0xf43f5e, emissive: 0x7a1428, emissiveIntensity: .7, metalness: .3, roughness: .35 });
-    var wickM = new THREE.MeshBasicMaterial({ color: 0x94a3b8 });
-    var box = new THREE.BoxGeometry(.42, 1, .42), wick = new THREE.BoxGeometry(.06, 1, .06);
-    function makeCandle(i) {
-      var o = price, c = Math.max(1, o + (Math.random() - .5) * 1.4 + (6 - o) * .06), hi = Math.max(o, c) + Math.random() * .7, lo = Math.max(.3, Math.min(o, c) - Math.random() * .7);
-      price = c;
-      var g = new THREE.Group(), body = new THREE.Mesh(box, c >= o ? upM : dnM), w = new THREE.Mesh(wick, wickM);
-      body.scale.y = Math.max(.08, Math.abs(c - o)); body.position.y = (o + c) / 2; w.scale.y = hi - lo; w.position.y = (hi + lo) / 2;
-      g.add(body); g.add(w); g.position.x = i * GAP; g.userData.body = body; group.add(g); return g;
+    var ADD = THREE.AdditiveBlending;
+
+    function glowTex(inner, outer) {
+      var c = document.createElement('canvas'); c.width = c.height = 128; var g = c.getContext('2d');
+      var gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, inner); gr.addColorStop(.25, outer); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c);
     }
-    for (var i = 0; i < N; i++) candles.push(makeCandle(i));
-    var scan = new THREE.Mesh(new THREE.PlaneGeometry(.18, 26), new THREE.MeshBasicMaterial({ color: 0xf5b301, transparent: true, opacity: .55, side: THREE.DoubleSide }));
-    scan.position.y = 8; scene.add(scan);
-    var pg = new THREE.BufferGeometry(), P = 500, pos = new Float32Array(P * 3);
-    for (var k = 0; k < P; k++) { pos[k * 3] = (Math.random() - .5) * 90; pos[k * 3 + 1] = Math.random() * 22; pos[k * 3 + 2] = (Math.random() - .5) * 50; }
-    pg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    var pts = new THREE.Points(pg, new THREE.PointsMaterial({ color: 0xf5d36b, size: .09, transparent: true, opacity: .8 })); scene.add(pts);
-    function size() { var w = hero.clientWidth, h = hero.clientHeight; renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
-    size(); window.addEventListener('resize', size);
-    var t0 = performance.now(), shift = 0, visible = true;
-    new IntersectionObserver(function (es) { visible = es[0].isIntersecting; }).observe(hero);
-    (function loop(t) {
+    var GLOW = glowTex('rgba(255,255,255,1)', 'rgba(255,255,255,.35)');
+    var glows = [];
+    function sprite(color, size, op) { var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color: color, blending: ADD, transparent: true, opacity: op || 1, depthWrite: false })); sp.scale.set(size, size, 1); sp.userData.op = op || 1; glows.push(sp.material); return sp; }
+
+    // core
+    var core = new THREE.Group(); scene.add(core);
+    var coreCol = new THREE.Color(0xf5b301);
+    var inner = new THREE.Mesh(new THREE.SphereGeometry(1.15, 48, 48), new THREE.MeshStandardMaterial({ color: 0x1a1205, emissive: coreCol.clone(), emissiveIntensity: 1.1, roughness: .25, metalness: .7 }));
+    var shell = new THREE.Mesh(new THREE.IcosahedronGeometry(1.9, 1), new THREE.MeshBasicMaterial({ color: 0xf5b301, wireframe: true, transparent: true, opacity: .55 }));
+    var shell2 = new THREE.Mesh(new THREE.IcosahedronGeometry(2.5, 0), new THREE.MeshBasicMaterial({ color: 0x38bdf8, wireframe: true, transparent: true, opacity: .22 }));
+    var halo = sprite(0xf5b301, 9, .85);
+    core.add(inner, shell, shell2, halo);
+    var rings = [[3.3, 0xf5b301, .55], [4.4, 0x34d399, .3], [5.6, 0x38bdf8, .25]].map(function (r, i) {
+      var m = new THREE.Mesh(new THREE.TorusGeometry(r[0], .022, 8, 160), new THREE.MeshBasicMaterial({ color: r[1], transparent: true, opacity: r[2], blending: ADD }));
+      m.rotation.x = Math.PI / 2 + (i - 1) * .32; m.rotation.y = i * .5; scene.add(m); return m;
+    });
+    // radar sweep: a glowing sector turning around the core
+    var sweep = new THREE.Mesh(new THREE.CircleGeometry(9, 48, 0, .7), new THREE.MeshBasicMaterial({ color: 0x34d399, transparent: true, opacity: .16, side: THREE.DoubleSide, blending: ADD, depthWrite: false }));
+    sweep.rotation.x = -Math.PI / 2; scene.add(sweep);
+    var disc = new THREE.Mesh(new THREE.RingGeometry(2.6, 9, 64, 1), new THREE.MeshBasicMaterial({ color: 0x0ea5e9, transparent: true, opacity: .05, side: THREE.DoubleSide, depthWrite: false }));
+    disc.rotation.x = -Math.PI / 2; scene.add(disc);
+    var grid = new THREE.PolarGridHelper(9, 12, 6, 64, 0x1f6f5b, 0x12303a); grid.material.transparent = true; grid.material.opacity = .4; scene.add(grid);
+
+    // data particles streaming into the core
+    var NP = mobile ? 260 : 460, pPos = new Float32Array(NP * 3), pVel = new Float32Array(NP);
+    function spawn(k) { var th = Math.random() * 6.283, ph = Math.acos(Math.random() * 2 - 1), r = 12 + Math.random() * 10;
+      pPos[k * 3] = r * Math.sin(ph) * Math.cos(th); pPos[k * 3 + 1] = r * Math.cos(ph) * .6; pPos[k * 3 + 2] = r * Math.sin(ph) * Math.sin(th); pVel[k] = .6 + Math.random() * 1.4; }
+    for (var k = 0; k < NP; k++) spawn(k);
+    var pGeo = new THREE.BufferGeometry(); pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+    var pMat = new THREE.PointsMaterial({ color: 0xfde68a, size: .12, transparent: true, opacity: .9, blending: ADD, depthWrite: false });
+    scene.add(new THREE.Points(pGeo, pMat));
+
+    // candle river below the reactor
+    var river = new THREE.Group(); river.position.set(0, -6.5, -6); river.rotation.y = -.35; scene.add(river);
+    var N = 60, GAP = .72, candles = [], price = 3;
+    var upM = new THREE.MeshStandardMaterial({ color: 0x10b981, emissive: 0x0b6b4b, emissiveIntensity: .8, metalness: .3, roughness: .35 });
+    var dnM = new THREE.MeshStandardMaterial({ color: 0xf43f5e, emissive: 0x7a1428, emissiveIntensity: .8, metalness: .3, roughness: .35 });
+    var wickM = new THREE.MeshBasicMaterial({ color: 0x94a3b8 }), box = new THREE.BoxGeometry(.42, 1, .42), wick = new THREE.BoxGeometry(.06, 1, .06);
+    function makeCandle(i) {
+      var o = price, c = Math.max(.6, o + (Math.random() - .5) * 1.2 + (3 - o) * .08), hi = Math.max(o, c) + Math.random() * .6, lo = Math.max(.1, Math.min(o, c) - Math.random() * .6);
+      price = c; var g = new THREE.Group(), b = new THREE.Mesh(box, c >= o ? upM : dnM), w = new THREE.Mesh(wick, wickM);
+      b.scale.y = Math.max(.08, Math.abs(c - o)); b.position.y = (o + c) / 2; w.scale.y = hi - lo; w.position.y = (hi + lo) / 2;
+      g.add(b, w); g.position.x = i * GAP; river.add(g); return g;
+    }
+    for (var i = 0; i < N; i++) candles.push(makeCandle(i - N / 2));
+
+    // satellites (markets)
+    var sats = [];
+    function makeSat() {
+      var m = new THREE.Mesh(new THREE.SphereGeometry(.32, 24, 24), new THREE.MeshStandardMaterial({ color: 0x94a3b8, emissive: 0x94a3b8, emissiveIntensity: .9 }));
+      var gl = sprite(0x94a3b8, 2.4, .9); m.add(gl);
+      var TL = 46, tp = new Float32Array(TL * 3), tg = new THREE.BufferGeometry(); tg.setAttribute('position', new THREE.BufferAttribute(tp, 3));
+      var trail = new THREE.Line(tg, new THREE.LineBasicMaterial({ color: 0x94a3b8, transparent: true, opacity: .55, blending: ADD })); scene.add(trail);
+      var tag = document.createElement('div'); tag.className = 'ns-tag'; tagsEl.appendChild(tag);
+      if (light) { gl.material.blending = THREE.NormalBlending; gl.material.opacity = .45; trail.material.blending = THREE.NormalBlending; }
+      scene.add(m); return { m: m, gl: gl, trail: trail, tp: tp, TL: TL, tag: tag, ang: Math.random() * 6.28, y: 0, ty: 0, size: 1, filled: false };
+    }
+
+    // shockwaves + burst
+    var waves = [];
+    function wave(color) {
+      var w = new THREE.Mesh(new THREE.RingGeometry(.9, 1.05, 96), new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: .9, side: THREE.DoubleSide, blending: light ? THREE.NormalBlending : ADD, depthWrite: false }));
+      w.rotation.x = -Math.PI / 2 + (Math.random() - .5) * .3; scene.add(w); waves.push(w);
+    }
+    var NB = mobile ? 380 : 700, bPos = new Float32Array(NB * 3), bVel = new Float32Array(NB * 3);
+    var bGeo = new THREE.BufferGeometry(); bGeo.setAttribute('position', new THREE.BufferAttribute(bPos, 3));
+    var bMat = new THREE.PointsMaterial({ color: 0x34d399, size: .2, transparent: true, opacity: 0, blending: ADD, depthWrite: false });
+    scene.add(new THREE.Points(bGeo, bMat));
+    var shake = 0, heat = 0, heatT = 0, lastWave = 0, flashT = 0;
+    function burst(color) {
+      bMat.color.set(color); bMat.opacity = 1;
+      for (var k = 0; k < NB; k++) { var th = Math.random() * 6.283, ph = Math.acos(Math.random() * 2 - 1), v = 6 + Math.random() * 14;
+        bPos[k * 3] = bPos[k * 3 + 1] = bPos[k * 3 + 2] = 0; bVel[k * 3] = v * Math.sin(ph) * Math.cos(th); bVel[k * 3 + 1] = v * Math.cos(ph); bVel[k * 3 + 2] = v * Math.sin(ph) * Math.sin(th); }
+      for (var j = 0; j < 3; j++) setTimeout(function () { wave(color); }, j * 160);
+      shake = 1; flashT = 1; hero.classList.remove('shake'); void hero.offsetWidth; hero.classList.add('shake');
+    }
+
+    // dark / light theme: additive glow vanishes on a light background, so light mode uses normal blending and deeper colours
+    var light = false, waveMats = [];
+    function applyTheme() {
+      light = document.documentElement.classList.contains('light');
+      var bl = light ? THREE.NormalBlending : ADD;
+      scene.fog.color.set(light ? 0xf6f7fb : 0x05070c);
+      glows.forEach(function (m) { m.blending = bl; m.opacity = light ? .45 : 1; m.needsUpdate = true; });
+      halo.material.opacity = light ? .35 : .85;
+      [sweep.material, pMat, bMat].concat(rings.map(function (r) { return r.material; }), sats.map(function (x) { return x.trail.material; }))
+        .forEach(function (m) { m.blending = bl; m.needsUpdate = true; });
+      pMat.color.set(light ? 0xb45309 : 0xfde68a); pMat.size = light ? .1 : .12;
+      sweep.material.color.set(light ? 0x059669 : 0x34d399); sweep.material.opacity = light ? .12 : .16;
+      shell2.material.color.set(light ? 0x0284c7 : 0x38bdf8); shell2.material.opacity = light ? .35 : .22;
+      rings[0].material.color.set(light ? 0xd97706 : 0xf5b301); rings[1].material.color.set(light ? 0x059669 : 0x34d399); rings[2].material.color.set(light ? 0x0284c7 : 0x38bdf8);
+      rings.forEach(function (r) { r.material.opacity = light ? .5 : (r === rings[0] ? .55 : .3); });
+      grid.material.opacity = light ? .55 : .4; disc.material.color.set(light ? 0x94a3b8 : 0x0ea5e9);
+      wickM.color.set(light ? 0x64748b : 0x94a3b8);
+      key.intensity = light ? 1.6 : 2.6; scene.children.forEach(function (c) { if (c.isAmbientLight) c.intensity = light ? .9 : .35; });
+      coreDarken = light;
+    }
+    var coreDarken = false;
+    applyTheme();
+    window.addEventListener('themeChanged', function () { setTimeout(applyTheme, 0); });
+    new MutationObserver(function () { if (document.documentElement.classList.contains('light') !== light) applyTheme(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+    // pointer / tilt parallax
+    var px = 0, py = 0, tx = 0, ty = 0, drag = null, yaw = 0;
+    hero.addEventListener('pointermove', function (e) { var r = hero.getBoundingClientRect(); tx = ((e.clientX - r.left) / r.width - .5) * 2; ty = ((e.clientY - r.top) / r.height - .5) * 2;
+      if (drag != null) { yaw = drag.yaw + (e.clientX - drag.x) * .008; } });
+    hero.addEventListener('pointerdown', function (e) { if (e.pointerType === 'mouse') drag = { x: e.clientX, yaw: yaw }; });
+    window.addEventListener('pointerup', function () { drag = null; });
+    window.addEventListener('deviceorientation', function (e) { if (e.gamma == null) return; tx = Math.max(-1, Math.min(1, e.gamma / 30)); ty = Math.max(-1, Math.min(1, (e.beta - 45) / 40)); });
+    var textCol = hero.querySelector('.ns-in > div');
+
+    function size() {
+      var w = hero.clientWidth, h = hero.clientHeight; renderer.setSize(w, h, false); cam.aspect = w / h;
+      var hr = hero.getBoundingClientRect(), sr = stage.getBoundingClientRect();
+      var cx = sr.left - hr.left + sr.width / 2, cy = sr.top - hr.top + sr.height / 2 - (mobile ? 10 : 0);
+      cam.setViewOffset(w, h, w / 2 - cx, h / 2 - cy, w, h); cam.updateProjectionMatrix();
+    }
+    size(); window.addEventListener('resize', size); setTimeout(size, 600);
+    var visible = true; new IntersectionObserver(function (es) { visible = es[0].isIntersecting; }).observe(hero);
+    var v3 = new THREE.Vector3(), last = performance.now(), T = 0, coreTag = $('nsCoreTag');
+
+    function place(el, vec, dy) {
+      v3.copy(vec); v3.project(cam);
+      if (v3.z > 1) { el.style.opacity = 0; return; }
+      var W = cv.clientWidth, x = (v3.x * .5 + .5) * W, y = (-v3.y * .5 + .5) * cv.clientHeight + (dy || 0);
+      if (el !== coreTag) { var hw = (el.offsetWidth || 90) / 2 + 6; x = Math.max(hw, Math.min(W - hw, x)); y = Math.max((el.offsetHeight || 22) * 1.5 + 4, y); }
+      el.style.opacity = 1; el.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px) translate(-50%, ' + (el === coreTag ? '-50%' : '-150%') + ')';
+    }
+
+    (function loop(now) {
       requestAnimationFrame(loop);
+      var dt = Math.min(.05, (now - last) / 1000); last = now;
       if (!visible || document.hidden) return;
-      var s = (t - t0) / 1000;
-      shift += .012; group.position.x = -shift * GAP * 1.4 - 8;
-      if (candles.length && candles[0].position.x + group.position.x < -30) {            // scroll: recycle the oldest candle at the front
-        var old = candles.shift(); group.remove(old); candles.push(makeCandle(candles[candles.length - 1].position.x / GAP + 1));
+      T += dt; heat += (heatT - heat) * dt * 2;
+      var spd = 1 + heat * 2.2;
+      // core
+      var pulse = 1 + Math.sin(T * (3 + heat * 7)) * (.04 + heat * .05) + flashT * .5;
+      inner.scale.setScalar(pulse); shell.rotation.y += dt * .4 * spd; shell.rotation.x += dt * .15 * spd; shell2.rotation.y -= dt * .25 * spd; shell2.rotation.z += dt * .1;
+      halo.scale.setScalar(8 + Math.sin(T * 2.4) * .8 + heat * 3 + flashT * 14); halo.material.color.copy(coreCol); inner.material.emissive.copy(coreCol); shell.material.color.copy(coreCol);
+      inner.material.emissiveIntensity = 1 + heat * .8 + flashT * 2; flashT = Math.max(0, flashT - dt * .9);
+      rings.forEach(function (r, i) { r.rotation.z += dt * (.2 + i * .12) * spd * (i % 2 ? -1 : 1); });
+      sweep.rotation.z -= dt * 1.6 * spd; key.intensity = (light ? 1.6 : 2.6) + Math.sin(T * 3) * .5 + heat;
+      // particles in
+      for (var k = 0; k < NP; k++) {
+        var x = pPos[k * 3], y = pPos[k * 3 + 1], z = pPos[k * 3 + 2], d = Math.sqrt(x * x + y * y + z * z);
+        if (d < 1.4) { spawn(k); continue; }
+        var f = pVel[k] * spd * dt * (1 + 6 / d) / d; pPos[k * 3] -= x * f; pPos[k * 3 + 1] -= y * f; pPos[k * 3 + 2] -= z * f;
+        var sw = dt * .5 / Math.max(1, d * .3); pPos[k * 3] += -z * sw; pPos[k * 3 + 2] += x * sw;    // swirl
       }
-      var last = candles[candles.length - 1]; var ly = last.userData.body.position.y;
-      cam.position.set(Math.sin(s * .12) * 9 + 4, 9 + Math.sin(s * .2) * 1.5, 22 + Math.cos(s * .12) * 4);
-      cam.lookAt(new THREE.Vector3(2, Math.min(10, ly) * .6 + 2, 0));
-      scan.position.x = ((s * 9) % 44) - 22;
-      candles.forEach(function (c) { var b = c.userData.body, near = Math.abs(c.position.x + group.position.x - scan.position.x) < 1.2; b.material.emissiveIntensity = .7; b.scale.x = b.scale.z = near ? 1.35 : 1; });
-      pts.rotation.y = s * .03; key.intensity = 2 + Math.sin(s * 2) * .4;
+      pGeo.attributes.position.needsUpdate = true;
+      // satellites
+      sats.forEach(function (s, i) {
+        s.ang += dt * (.45 + heat * .9) / (1 + i * .18); s.y += (s.ty - s.y) * dt * 2.5;
+        var r = 3.3 + i * 1.05, bob = Math.sin(T * 1.7 + i) * .15;
+        s.m.position.set(Math.cos(s.ang) * r, s.y + bob, Math.sin(s.ang) * r); s.m.scale.setScalar(s.size * (1 + Math.sin(T * 4 + i) * .06));
+        var tp = s.tp; if (!s.filled) { for (var q = 0; q < s.TL; q++) { tp[q * 3] = s.m.position.x; tp[q * 3 + 1] = s.m.position.y; tp[q * 3 + 2] = s.m.position.z; } s.filled = true; }
+        tp.copyWithin(3, 0, (s.TL - 1) * 3); tp[0] = s.m.position.x; tp[1] = s.m.position.y; tp[2] = s.m.position.z; s.trail.geometry.attributes.position.needsUpdate = true;
+        place(s.tag, s.m.position);
+      });
+      // shockwaves
+      if (heatT >= 1 && T - lastWave > (heatT > 1.2 ? .9 : 2.2)) { lastWave = T; wave(heatT > 1.2 ? 0xf43f5e : 0xf5b301); }
+      if (heatT < 1 && T - lastWave > 3.2) { lastWave = T; wave(0x34d399); }
+      for (var w = waves.length - 1; w >= 0; w--) { var wv = waves[w]; wv.scale.multiplyScalar(1 + dt * 2.2); wv.material.opacity -= dt * .45; if (wv.material.opacity <= 0) { scene.remove(wv); wv.geometry.dispose(); waves.splice(w, 1); } }
+      // burst
+      if (bMat.opacity > 0) { for (var b = 0; b < NB * 3; b++) { bPos[b] += bVel[b] * dt; bVel[b] *= .975; } bGeo.attributes.position.needsUpdate = true; bMat.opacity = Math.max(0, bMat.opacity - dt * .35); }
+      // candle river scrolls
+      river.children.forEach(function (c) { c.position.x -= dt * 1.4 * spd; });
+      if (candles[0].position.x < -N * GAP / 2 - 2) { var old = candles.shift(); river.remove(old); candles.push(makeCandle(candles[candles.length - 1].position.x / GAP + 1)); }
+      // camera
+      px += (tx - px) * dt * 2.5; py += (ty - py) * dt * 2.5; shake = Math.max(0, shake - dt * 1.4);
+      var a = T * .07 + yaw + px * .5, rad = mobile ? 15.5 : 12.5;
+      cam.position.set(Math.sin(a) * rad + (Math.random() - .5) * shake * .8, 5.2 - py * 2.5 + (Math.random() - .5) * shake * .8, Math.cos(a) * rad);
+      cam.lookAt(0, -.2, 0);
+      place(coreTag, new THREE.Vector3(0, 0, 0));
+      if (textCol && !mobile) textCol.style.transform = 'rotateY(' + (px * 4).toFixed(2) + 'deg) rotateX(' + (-py * 3).toFixed(2) + 'deg)';
       renderer.render(scene, cam);
-    })(t0);
+    })(last);
+
+    return {
+      set: function (ev, best) {
+        var st = ev.state, ms = ev.markets || [];
+        while (sats.length < ms.length) sats.push(makeSat());
+        while (sats.length > ms.length) { var s0 = sats.pop(); scene.remove(s0.m); scene.remove(s0.trail); s0.tag.remove(); }
+        ms.forEach(function (m, i) {
+          var s = sats[i], up = m.call === 'BUY' ? m.prob : m.call === 'SELL' ? 100 - m.prob : 50;
+          var c = m.call === 'BUY' ? 0x34d399 : m.call === 'SELL' ? 0xfb7185 : 0x94a3b8;
+          s.m.material.color.set(c); s.m.material.emissive.set(c); s.gl.material.color.set(c); s.trail.material.color.set(c);
+          s.ty = (up - 50) / 50 * 3.2; s.size = .8 + Math.min(1, (m.pips || 0) / 400) * .7;
+          var css = m.call === 'BUY' ? '#34d399' : m.call === 'SELL' ? '#fb7185' : '#94a3b8';
+          s.tag.style.setProperty('--c', css);
+          s.tag.innerHTML = esc(m.symbol) + '<em>' + (st === 'released' ? m.call : (m.call === 'WAIT' ? 'WAIT' : (m.call === 'BUY' ? '▲' : '▼'))) + ' ' + m.prob + '%</em>';
+        });
+        var secs = ev.seconds;
+        heatT = st === 'awaiting' ? 1.5 : (st === 'upcoming' && secs <= 600 ? 1 : (st === 'released' ? .2 : 0));
+        hero.classList.toggle('hot', heatT >= 1);
+        coreCol.set(st === 'released' ? (ev.result === 'BEAT' ? 0x34d399 : ev.result === 'MISS' ? 0xf43f5e : 0xcbd5e1) : (heatT > 1.2 ? 0xf43f5e : 0xf5b301));
+        $('nsCore3').textContent = best + '%'; $('nsCore3L').textContent = st === 'released' ? (ev.result || 'LOCKED') : st === 'awaiting' ? 'WAITING' : 'BEST ODDS';
+      },
+      burst: function (result) { burst(result === 'BEAT' ? 0x34d399 : result === 'MISS' ? 0xf43f5e : 0xf5b301); }
+    };
   }
+  function hideCoreTag() { var t = $('nsCoreTag'); if (t) t.style.display = 'none'; }
   function start2d() {
     var cv = $('ns3d'), hero = $('nsHero'), ctx = cv.getContext('2d'), bars = [], p = 50;
     function size() { cv.width = hero.clientWidth; cv.height = hero.clientHeight; }
@@ -346,6 +590,16 @@
       });
     })();
   }
-  window.addEventListener('load', start3d);
+  var booted = false;
+  function boot3d() {
+    R3 = start3d() || null; if (!R3) return;
+    if (data) { render(); firstBurst(); }
+    $('nsStage').addEventListener('click', function () { var ev = data && ((chosen && data.events.find(function (e) { return e.id === chosen; })) || data.focus); R3.burst(ev && ev.result); });
+  }
+  function firstBurst() {   // opened within 10 minutes of a release: play the explosion once
+    if (booted || !R3 || !data || !data.focus) return; booted = true;
+    var f = data.focus; if (f.state === 'released' && f.seconds > -600) setTimeout(function () { R3.burst(f.result); }, 700);
+  }
+  if (document.readyState === 'complete') boot3d(); else window.addEventListener('load', boot3d);
 })();
 </script>
