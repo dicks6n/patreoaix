@@ -8,6 +8,7 @@ Turned on in settings when one of these is in .env; otherwise the normal SMTP ba
 Every email the site builds (store/emails.py, allauth, Django) goes through here unchanged. The inline logo
 (cid:logo) is swapped for the logo's public address, because these APIs do not keep inline images reliably.
 """
+import smtplib
 import base64
 import logging
 import threading
@@ -113,3 +114,40 @@ class HttpEmailBackend(BaseEmailBackend):
                           headers={'Authorization': f'Bearer {self.sendgrid}'})
         if r.status_code >= 300:
             raise RuntimeError(f'SendGrid {r.status_code}: {r.text[:300]}')
+
+
+from django.core.mail.backends.smtp import EmailBackend as _SMTPBackend
+
+
+class GmailSMTPBackend(_SMTPBackend):
+    """Django's SMTP backend, but logging in with one method only. smtplib's login() retries with a second
+    method after a refusal; Gmail has already hung up by then, so a wrong app password showed up as
+    "Connection unexpectedly closed" instead of Gmail's real answer (535 Username and Password not accepted)."""
+
+    def open(self):
+        if self.connection:
+            return False
+        user, password = self.username, self.password
+        self.username = self.password = ''                 # the parent connects + STARTTLS without logging in
+        try:
+            opened = super().open()
+        finally:
+            self.username, self.password = user, password
+        if not self.connection or not user:
+            return opened
+        try:
+            self.connection.ehlo_or_helo_if_needed()
+            self.connection.user, self.connection.password = user, password
+            code, resp = self.connection.auth('PLAIN', self.connection.auth_plain, initial_response_ok=True)
+            if code not in (235, 503):
+                raise smtplib.SMTPAuthenticationError(code, resp)
+        except Exception:
+            try:
+                self.connection.close()
+            except Exception:
+                pass
+            self.connection = None
+            if not self.fail_silently:
+                raise
+            return False
+        return opened

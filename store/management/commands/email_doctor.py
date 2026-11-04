@@ -77,15 +77,26 @@ class Command(BaseCommand):
                 self.send_test(send)
             return
         if all(r == 'auth' for r in results.values()):
-            self.say(BAD, 'Gmail is reachable but rejected the login. Make a NEW App Password for ' + user + ':\n'
+            self.say(BAD, 'Gmail is reachable but says the app password is wrong for ' + user + '.\n'
+                          '   (App passwords stop working when the Google account password is changed, or if it was made on another Google account.)\n'
+                          '   Make a NEW App Password, logged in as ' + user + ':\n'
                           '   myaccount.google.com → Security → 2-Step Verification (must be ON) → App passwords → create "PATREOAIX"\n'
                           '   copy the 16 letters into .env as EMAIL_HOST_PASSWORD, then reload the web app.')
+        elif 'busy' in results.values():
+            self.say(BAD, 'Gmail says too many login attempts from this server. Wait 1 to 2 hours without trying, then run this again.\n'
+                          '   Also open the patreoaix@gmail.com inbox: if there is a "Sign-in attempt blocked" / "Critical security alert"\n'
+                          '   email, open it and confirm it was you.')
+        elif 'cut' in results.values():
+            self.say(BAD, 'Gmail talks to this server but hangs up at login. Usually Google is blocking sign-ins from this server:\n'
+                          '   open patreoaix@gmail.com → any "Critical security alert / sign-in blocked" email → "Yes, it was me",\n'
+                          '   and check myaccount.google.com → Security → Recent security activity. Then make a NEW app password\n'
+                          '   (myaccount.google.com/apppasswords), put it in .env, reload, and run this again.')
         elif all(r in ('closed', 'timeout', 'refused') for r in results.values()):
             self.say(BAD, 'This server cannot hold a connection to Gmail at all (it is cut before Gmail even says hello),\n'
                           '   so no password can work. The network of this server blocks email.\n'
                           '   On PythonAnywhere: make sure the account that RUNS the site is on a paid plan (Account page),\n'
-                          '   then reload the web app and run this again. If it is paid and still blocked, send this output to\n'
-                          '   support@pythonanywhere.com and ask them to allow outgoing SMTP to smtp.gmail.com.')
+                          '   then reload the web app and run this again. If it is paid and still blocked, ask PythonAnywhere\n'
+                          '   (Help button on their site) to allow outgoing email to smtp.gmail.com.')
         else:
             self.say(BAD, 'Mixed results above: use the port marked ✅ if any, otherwise follow the hint on each line.')
 
@@ -114,16 +125,24 @@ class Command(BaseCommand):
             if port == 587:
                 s.starttls(context=ssl.create_default_context()); s.ehlo()
                 self.say(GOOD, f'{label}: encryption on')
-            s.login(user, pw)
-            self.say(GOOD, f'{label}: LOGIN OK')
-            s.quit()
-            return 'ok'
+            # One login method only. smtplib's login() retries with a second method after a refusal, Gmail has
+            # already hung up by then, and the real answer (535 wrong password) turns into "connection closed".
+            s.user, s.password = user, pw
+            code, resp = s.auth('PLAIN', s.auth_plain, initial_response_ok=True)
+            reply = (resp or b'').decode(errors='ignore').replace('\n', ' ')[:160]
+            if code in (235, 503):
+                self.say(GOOD, f'{label}: LOGIN OK')
+                s.quit()
+                return 'ok'
+            self.say(BAD, f'{label}: Gmail said {code}: {reply}')
+            return 'auth' if code == 535 else ('busy' if code == 454 else 'other')
         except smtplib.SMTPAuthenticationError as e:
-            self.say(BAD, f'{label}: Gmail refused the user / app password ({e.smtp_code}).')
-            return 'auth'
+            reply = (e.smtp_error or b'').decode(errors='ignore').replace('\n', ' ')[:160]
+            self.say(BAD, f'{label}: Gmail said {e.smtp_code}: {reply}')
+            return 'auth' if e.smtp_code == 535 else ('busy' if e.smtp_code == 454 else 'other')
         except smtplib.SMTPServerDisconnected:
-            self.say(BAD, f'{label}: Gmail answered, then the line was cut (during encryption or login).')
-            return 'closed'
+            self.say(BAD, f'{label}: Gmail answered, then hung up at the login step without a reason.')
+            return 'cut'
         except Exception as e:
             self.say(BAD, f'{label}: {type(e).__name__}: {e}')
             return 'other'

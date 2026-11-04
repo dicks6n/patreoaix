@@ -369,7 +369,7 @@ LOGGING = {
 }
 
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_BACKEND = 'store.mail_backend.GmailSMTPBackend'          # Django SMTP, real Gmail error messages
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))                # 587 = STARTTLS, 465 = SSL
 EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False').lower() in ('1', 'true', 'yes') or EMAIL_PORT == 465
