@@ -1,0 +1,45 @@
+{% extends 'base_dashboard.html' %}
+{% block message_toasts %}{% endblock %}
+{% block title %}NFP, CPI & FOMC Results and Market Reactions · PATREOAIX{% endblock %}
+{% block page_title %}News results{% endblock %}
+{% block extra_head %}
+<meta name="description" content="Every NFP, CPI, FOMC, PPI, GDP and central-bank release: actual vs forecast, beat or miss, and how far gold, EUR/USD, USD/JPY and Bitcoin moved in 15 minutes, 1 hour and 4 hours, in pips.">
+<link rel="canonical" href="{{ seo_site }}/news/"><meta property="og:title" content="Economic news results and market reactions"><meta property="og:image" content="{{ seo_image }}">
+<script type="application/ld+json">{{ ld }}</script>
+{% include 'partials/pub_css.html' %}
+{% endblock %}
+{% block content %}
+<div class="pb-wrap">
+    <div class="pb-card">
+        <h1 class="pb-h1" style="margin-top:0">Economic news results and how the markets moved</h1>
+        <p class="pb-lead">Each big release with its actual number, the forecast, and the move in gold, forex and Bitcoin in the first 15 minutes, hour and 4 hours. The pages update by themselves after every release.</p>
+        <div class="pb-tags" style="margin-top:14px">
+            {% for h in hubs %}<a class="pb-tag" href="{% url 'news_event' h.slug %}">{{ h.label }}</a>{% endfor %}
+            <a class="pb-tag" href="{% url 'economic_calendar' %}"><i class="fa-regular fa-calendar"></i> Calendar</a>
+        </div>
+    </div>
+
+    <div class="pb-card">
+        <h2 class="pb-h2">Latest releases</h2>
+        {% if releases %}
+        <div class="pb-list">
+            {% for r in releases %}
+            <a class="pb-item" href="{{ r.url }}">
+                <div style="min-width:0">
+                    <b>{{ r.label }}</b>
+                    <small>{{ r.date|date:"D d M Y" }} · {{ r.currency }} · actual <span class="pb-num">{{ r.actual }}</span> vs <span class="pb-num">{{ r.forecast }}</span></small>
+                </div>
+                <div class="pb-go">
+                    <span class="pb-res {% if r.sign > 0 %}beat{% elif r.sign < 0 %}miss{% else %}line{% endif %}">{{ r.result }}</span>
+                    {% with m=r.rows.0 %}{% if m and m.pips1h is not None %}<div class="pb-num {% if m.h1 > 0 %}pb-up{% else %}pb-down{% endif %}" style="font-size:12px;font-weight:800;margin-top:4px">{{ m.name }} {% if m.pips1h > 0 %}+{% endif %}{{ m.pips1h }} pips</div>{% endif %}{% endwith %}
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="pb-lead">The first results appear here after the next big release. Meanwhile, the <a href="{% url 'economic_calendar' %}" style="color:var(--px-accent);font-weight:700">economic calendar</a> shows what is coming this week.</p>
+        {% endif %}
+    </div>
+    {% include 'partials/pub_cta.html' %}
+</div>
+{% endblock %}

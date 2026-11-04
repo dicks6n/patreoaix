@@ -2221,3 +2221,26 @@ def reward_trade_day(sender, instance, **kwargs):
         from django.utils import timezone as _tz
         from .rewards import safe_award
         safe_award(instance.user, 'trade_day', _tz.localtime(instance.date_closed).date().isoformat())
+
+
+class BlogPost(models.Model):
+    """Public articles on /blog/: the automatic weekly outlook, plus anything written in the admin."""
+    KINDS = [('outlook', 'Weekly outlook'), ('recap', 'Weekly recap'), ('article', 'Article')]
+    slug = models.SlugField(max_length=120, unique=True)
+    title = models.CharField(max_length=160)
+    summary = models.CharField(max_length=300, help_text='One or two sentences; also the Google description.')
+    body = models.TextField(help_text='HTML. Paragraphs, <h2>, lists and links.')
+    kind = models.CharField(max_length=12, choices=KINDS, default='article', db_index=True)
+    published_at = models.DateTimeField(default=timezone.now, db_index=True)
+    is_published = models.BooleanField(default=True)
+    auto = models.BooleanField(default=False, help_text='Written by the site (weekly outlook).')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-published_at']
+
+    def __str__(self):
+        return self.title
+
+    def get_absolute_url(self):
+        return f'/blog/{self.slug}/'

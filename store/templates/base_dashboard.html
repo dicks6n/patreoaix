@@ -837,6 +837,12 @@
                     <a href="{% url 'economic_calendar' %}" class="nav-item {% if request.resolver_match.url_name == 'economic_calendar' %}nav-active{% endif %}">
                         <i class="fa-solid fa-calendar-days"></i><span>Economic Calendar</span>
                     </a>
+                    <a href="{% url 'news_index' %}" class="nav-item {% if request.resolver_match.url_name|slice:':5' == 'news_' and request.resolver_match.url_name != 'news_impact' and request.resolver_match.url_name != 'news_sentiment' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-square-poll-vertical"></i><span>Release Results</span>
+                    </a>
+                    <a href="{% url 'blog_index' %}" class="nav-item {% if request.resolver_match.url_name|slice:':4' == 'blog' %}nav-active{% endif %}">
+                        <i class="fa-solid fa-pen-nib"></i><span>Blog &amp; Weekly Outlook</span>
+                    </a>
                 </div>
             </div>
             <div>
@@ -1009,6 +1015,7 @@
                     </div>
                 </div>
 
+                {% if user.is_authenticated %}
                 <!-- Account -->
                 <div class="relative block" id="acct-wrapper">
                     <button onclick="document.getElementById('acct-menu').classList.toggle('hidden')" class="flex items-center gap-2 h-9 pl-1 pr-2 rounded-lg" style="border:1px solid var(--px-line)">
@@ -1041,6 +1048,10 @@
                 <a href="{% url 'digits_trading' %}" class="px-btn px-btn-primary hdr-trade">
                     <i class="fa-solid fa-bolt text-xs"></i><span class="hidden sm:inline">Trade</span>
                 </a>
+                {% else %}
+                <a href="{% url 'account_login' %}" class="px-btn hidden sm:inline-flex" style="border:1px solid var(--px-line);color:var(--px-text)">Sign in</a>
+                <a href="{% url 'account_signup' %}" class="px-btn px-btn-primary" style="white-space:nowrap;padding-left:12px;padding-right:12px">Sign up</a>
+                {% endif %}
             </div>
         </header>
 
@@ -1052,7 +1063,7 @@
         </div>
 
         <main id="px-main" class="p-4 sm:p-5 lg:p-6 flex-1 w-full max-w-[1600px] mx-auto">
-            {% if kyc_status and kyc_status != 'APPROVED' %}
+            {% if user.is_authenticated and kyc_status and kyc_status != 'APPROVED' %}
             <div id="kyc-banner"
                  class="kyc-banner mb-5 {% if kyc_status == 'PENDING' %}kyc-pending{% elif kyc_status == 'REJECTED' %}kyc-rejected{% else %}kyc-required{% endif %} p-4 flex items-center gap-4"
                  onclick="goToKyc()" role="button" tabindex="0">
@@ -1102,6 +1113,8 @@
                     </div>
                     <div class="flex items-center gap-x-4 gap-y-1 flex-wrap">
                         <a href="{% url 'public_results' %}" class="hover:underline">Results</a>
+                        <a href="{% url 'news_index' %}" class="hover:underline">News results</a>
+                        <a href="{% url 'blog_index' %}" class="hover:underline">Blog</a>
                         <a href="{% url 'terms' %}" class="hover:underline">Terms</a>
                         <a href="{% url 'privacy' %}" class="hover:underline">Privacy</a>
                         <a href="{% url 'cookies' %}" class="hover:underline">Cookies</a>

@@ -1,0 +1,38 @@
+{% extends 'base_dashboard.html' %}
+{% block message_toasts %}{% endblock %}
+{% block title %}Trading Blog: Weekly Forex & Gold Outlook · PATREOAIX{% endblock %}
+{% block page_title %}Blog{% endblock %}
+{% block extra_head %}
+<meta name="description" content="The week ahead for forex, gold and crypto traders: every high-impact release by day, what NFP, CPI and FOMC usually do to the market, and a weekly recap of results and AI signals.">
+<link rel="canonical" href="{{ seo_site }}/blog/"><meta property="og:title" content="PATREOAIX trading blog"><meta property="og:image" content="{{ seo_image }}">
+<link rel="alternate" type="application/rss+xml" title="PATREOAIX blog" href="/blog/feed.xml">
+{% include 'partials/pub_css.html' %}
+{% endblock %}
+{% block content %}
+<div class="pb-wrap">
+    <div class="pb-card">
+        <h1 class="pb-h1" style="margin-top:0">Trading blog</h1>
+        <p class="pb-lead">A weekly outlook every Sunday with the releases that move gold, forex and crypto, and a recap every Saturday with what happened and how the AI signals did.</p>
+        <div class="pb-tags" style="margin-top:14px">
+            <a class="pb-tag {% if not kind %}on{% endif %}" href="{% url 'blog_index' %}">All</a>
+            {% for k, name in kinds %}<a class="pb-tag {% if kind == k %}on{% endif %}" href="?kind={{ k }}">{{ name }}</a>{% endfor %}
+        </div>
+    </div>
+    <div class="pb-card">
+        {% if posts %}
+        <div class="pb-list">
+            {% for p in posts %}
+            <a class="pb-item" href="{{ p.get_absolute_url }}" style="align-items:flex-start">
+                <div style="min-width:0">
+                    <small style="font-weight:800;color:var(--px-accent);text-transform:uppercase;letter-spacing:.04em;font-size:11px">{{ p.get_kind_display }} · {{ p.published_at|date:"d M Y" }}</small>
+                    <b style="margin-top:3px">{{ p.title }}</b>
+                    <small style="display:block;margin-top:3px;line-height:1.5">{{ p.summary }}</small>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}<p class="pb-lead">The first weekly outlook is written automatically on Sunday.</p>{% endif %}
+    </div>
+    {% include 'partials/pub_cta.html' %}
+</div>
+{% endblock %}

@@ -1,0 +1,8 @@
+<div class="pb-card pb-cta">
+    <div>
+        <div class="pb-h2" style="margin:0">Get the call the second the number is out</div>
+        <p class="pb-lead" style="margin-top:4px">The live news scanner shows the odds before each release, then BUY or SELL with the expected pips for gold, EUR/USD, USD/JPY and Bitcoin.</p>
+    </div>
+    {% if user.is_authenticated %}<a class="pb-btn" href="/news-impact/"><i class="fa-solid fa-satellite-dish"></i> Open the scanner</a>
+    {% else %}<a class="pb-btn" href="{% url 'account_signup' %}"><i class="fa-solid fa-user-plus"></i> Create a free account</a>{% endif %}
+</div>

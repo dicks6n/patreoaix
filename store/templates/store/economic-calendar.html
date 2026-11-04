@@ -1,10 +1,12 @@
 {% extends 'base_dashboard.html' %}
 {% load static %}
 
-{% block title %}Economic Calendar · PATREOAIX{% endblock %}
+{% block title %}Economic Calendar This Week: NFP, CPI, FOMC Times · PATREOAIX{% endblock %}
 {% block page_title %}Economic Calendar{% endblock %}
 
 {% block extra_head %}
+<meta name="description" content="Free economic calendar for forex, gold and crypto traders: this week's NFP, CPI, FOMC, ECB and other high-impact releases with forecast, previous and actual, in your own time zone.">
+<link rel="canonical" href="{{ seo_site }}/calendar/"><meta property="og:title" content="Economic calendar this week · PATREOAIX"><meta property="og:image" content="{{ seo_image }}">
 <style>
     .px-card { background: var(--px-panel); border: 1px solid var(--px-line); border-radius: 12px; box-shadow: var(--px-shadow); }
     .px-num { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }

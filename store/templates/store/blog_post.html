@@ -1,0 +1,30 @@
+{% extends 'base_dashboard.html' %}
+{% block message_toasts %}{% endblock %}
+{% block title %}{{ post.title }} · PATREOAIX{% endblock %}
+{% block page_title %}Blog{% endblock %}
+{% block extra_head %}
+<meta name="description" content="{{ post.summary|truncatechars:158 }}">
+<link rel="canonical" href="{{ seo_site }}{{ post.get_absolute_url }}"><meta property="og:type" content="article"><meta property="og:title" content="{{ post.title }}"><meta property="og:description" content="{{ post.summary }}"><meta property="og:image" content="{{ seo_image }}">
+<meta property="article:published_time" content="{{ post.published_at.isoformat }}">
+<script type="application/ld+json">{{ ld }}</script>
+{% include 'partials/pub_css.html' %}
+{% endblock %}
+{% block content %}
+<div class="pb-wrap" style="max-width:780px">
+    <article class="pb-card">
+        <nav class="pb-crumb"><a href="{% url 'blog_index' %}">Blog</a><span>›</span><span>{{ post.get_kind_display }}</span></nav>
+        <h1 class="pb-h1">{{ post.title }}</h1>
+        <p class="pb-crumb" style="font-weight:600"><time datetime="{{ post.published_at.isoformat }}">{{ post.published_at|date:"l d F Y" }}</time> · PATREOAIX</p>
+        <p class="pb-lead" style="margin:12px 0 4px;font-size:14.5px;color:var(--px-text)">{{ post.summary }}</p>
+        <div class="pb-prose" style="margin-top:10px">{{ post.body|safe }}</div>
+        <p class="pb-lead" style="font-size:11.5px;margin-top:18px">Education, not financial advice. Trading carries risk; past moves do not promise future ones.</p>
+    </article>
+    {% include 'partials/pub_cta.html' %}
+    {% if more %}
+    <div class="pb-card">
+        <h2 class="pb-h2">More from the blog</h2>
+        <div class="pb-list">{% for p in more %}<a class="pb-item" href="{{ p.get_absolute_url }}"><div style="min-width:0"><b>{{ p.title }}</b><small>{{ p.published_at|date:"d M Y" }}</small></div></a>{% endfor %}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

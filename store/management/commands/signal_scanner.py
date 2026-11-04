@@ -79,6 +79,9 @@ class Command(BaseCommand):
         academy_examples.safe_daily()
         from store import news_history                     # release history + reactions (at most hourly)
         news_history.safe_tick()
+        from store import public_pages                     # Sunday outlook / Saturday recap on /blog/
+        for post in public_pages.safe_weekly():
+            self.stdout.write(f'   📝 blog: {post.title}')
         from store import telegram_schedule                # morning brief, pulse, news alerts, daily / weekly results
         for name in telegram_schedule.safe_run(*latest):
             self.stdout.write(f'   ✈ Telegram {name} posted')

@@ -4579,9 +4579,8 @@ def pattern_detection_view(request):
 
 
 
-@login_required
 def economic_calendar(request):
-    """Economic Calendar - real-time events from TradingView."""
+    """Economic Calendar - real-time events from TradingView. Public (/calendar/): people search for it."""
     
     # ✅ Use Django's timezone-aware now()
     now = timezone.now()

@@ -39,15 +39,24 @@ def _urls():
             out.append((f"/academy/c/{c['key']}/{t['key']}/", '0.7', 'monthly'))
     for slug, _ in LEGAL_DOCS:
         out.append((f'/legal/{slug}/', '0.3', 'yearly'))
-    return out
+    return [(u, p, f, None) for u, p, f in out] + _dynamic()
+
+
+def _dynamic():
+    """News release pages and blog posts (store/public_pages.py); a database problem never breaks the sitemap."""
+    try:
+        from .public_pages import sitemap_urls
+        return sitemap_urls()
+    except Exception:
+        return []
 
 
 @cache_control(max_age=3600, public=True)
 def sitemap_xml(request):
     from xml.sax.saxutils import escape
     base = site()
-    rows = ''.join(f'<url><loc>{escape(base + u)}</loc><changefreq>{f}</changefreq><priority>{p}</priority></url>'
-                   for u, p, f in _urls())
+    rows = ''.join(f'<url><loc>{escape(base + u)}</loc>' + (f'<lastmod>{m:%Y-%m-%d}</lastmod>' if m else '')
+                   + f'<changefreq>{f}</changefreq><priority>{p}</priority></url>' for u, p, f, m in _urls())
     xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{rows}</urlset>'
     return HttpResponse(xml, content_type='application/xml')
 

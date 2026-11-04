@@ -6,6 +6,7 @@ from . import mt5_messages
 from . import pwa
 from .membership import members_only, auto_trading_only   # signals: Pro / VIP only · Starter trades manually
 from . import p2p_views, wallet_views
+from . import public_pages
 from store.views import cryptomus_verify , landing_page_view , connect_ctrader
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import CustomTokenObtainPairSerializer
@@ -247,7 +248,14 @@ urlpatterns = [
     path('trend-scanner/', RedirectView.as_view(url='/market-overview/'), name='trend_scanner'),
     path('pattern-detection/', views.pattern_detection_view, name='pattern_detection'),
     path('volatility-index/', RedirectView.as_view(url='/market-overview/'), name='volatility_index'),
-    path('economic-calendar/', views.economic_calendar, name='economic_calendar'),
+    path('calendar/', views.economic_calendar, name='economic_calendar'),          # public (Google)
+    path('economic-calendar/', RedirectView.as_view(url='/calendar/', permanent=True, query_string=True)),
+    path('news/', public_pages.news_index, name='news_index'),
+    path('news/<slug:event>/', public_pages.news_event, name='news_event'),
+    path('news/<slug:event>/<str:day>/', public_pages.news_release, name='news_release'),
+    path('blog/', public_pages.blog_index, name='blog_index'),
+    path('blog/feed.xml', public_pages.blog_feed, name='blog_feed'),
+    path('blog/<slug:slug>/', public_pages.blog_post, name='blog_post'),
     path('news-sentiment/', views.news_sentiment, name='news_sentiment'),
     path('correlation-matrix/', RedirectView.as_view(url='/market-overview/'), name='correlation_matrix'),
     path('forex-analytics/', RedirectView.as_view(url='/market-overview/'), name='forex_analytics'),

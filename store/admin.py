@@ -239,3 +239,14 @@ class P2PAdAdmin(admin.ModelAdmin):
 
 admin.site.register(P2PPaymentMethod)
 admin.site.register(P2PBalance)
+
+
+from .models import BlogPost
+
+
+@admin.register(BlogPost)
+class BlogPostAdmin(admin.ModelAdmin):
+    list_display = ('title', 'kind', 'published_at', 'is_published', 'auto')
+    list_filter = ('kind', 'is_published', 'auto')
+    search_fields = ('title', 'summary', 'body')
+    prepopulated_fields = {'slug': ('title',)}

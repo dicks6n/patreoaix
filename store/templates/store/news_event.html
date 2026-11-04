@@ -1,0 +1,70 @@
+{% extends 'base_dashboard.html' %}
+{% block message_toasts %}{% endblock %}
+{% block title %}{{ label }} Results History & Gold/Forex Reaction · PATREOAIX{% endblock %}
+{% block page_title %}{{ label }}{% endblock %}
+{% block extra_head %}
+<meta name="description" content="{{ label }}: every past result vs forecast, how often it beats ({{ stats.p_beat }}%), and the usual move in {% for m in stats.markets %}{{ m.name }}{% if not forloop.last %}, {% endif %}{% empty %}gold and forex{% endfor %} in pips. {{ about|truncatechars:110 }}">
+<link rel="canonical" href="{{ seo_site }}/news/{{ slug }}/"><meta property="og:title" content="{{ label }}: results history and market reaction"><meta property="og:image" content="{{ seo_image }}">
+<script type="application/ld+json">{{ ld }}</script>
+{% include 'partials/pub_css.html' %}
+{% endblock %}
+{% block content %}
+<div class="pb-wrap">
+    <div class="pb-card">
+        <nav class="pb-crumb"><a href="{% url 'news_index' %}">News</a><span>›</span><span>{{ label }}</span></nav>
+        <h1 class="pb-h1">{{ label }}: results and how the market reacts</h1>
+        {% if about %}<p class="pb-lead">{{ about }}</p>{% endif %}
+        {% if next %}<p class="pb-lead" style="margin-top:10px"><i class="fa-regular fa-clock" style="color:var(--px-accent)"></i> <b style="color:var(--px-text)">Next release:</b> <span class="js-local" data-ts="{{ next.date.isoformat }}">{{ next.date|date:"l d M Y, H:i" }} GMT</span>{% if next.forecast %} · forecast <span class="pb-num">{{ next.forecast }}</span>{% endif %}{% if next.previous %} · previous <span class="pb-num">{{ next.previous }}</span>{% endif %}</p>{% endif %}
+        <div class="pb-stats" style="margin-top:14px">
+            <div class="pb-stat"><small>Beats forecast</small><b class="pb-num">{% if stats.n >= 4 %}{{ stats.p_beat }}%{% else %}—{% endif %}</b></div>
+            <div class="pb-stat"><small>Beat / miss</small><b class="pb-num"><span class="pb-up">{{ beats }}</span> / <span class="pb-down">{{ misses }}</span></b></div>
+            <div class="pb-stat"><small>Releases stored</small><b class="pb-num">{{ releases|length }}</b></div>
+        </div>
+    </div>
+
+    {% if stats.markets %}
+    <div class="pb-card">
+        <h2 class="pb-h2">Usual move in the first hour</h2>
+        <div class="pb-scroll"><table class="pb-table">
+            <thead><tr><th>Market</th><th class="r">Typical move</th><th class="r">After a beat</th><th class="r">After a miss</th><th class="r">Releases</th></tr></thead>
+            <tbody>
+            {% for m in stats.markets %}
+            <tr>
+                <td><b>{{ m.name }}</b></td>
+                <td class="r pb-num">{{ m.abs_h1|floatformat:2 }}%{% if m.pips_h1 %} · {{ m.pips_h1 }} pips{% endif %}</td>
+                <td class="r pb-num">{% if m.beat %}<span class="{% if m.beat.avg > 0 %}pb-up{% else %}pb-down{% endif %}">{% if m.beat.avg > 0 %}+{% endif %}{{ m.beat.avg|floatformat:2 }}%{% if m.beat.pips is not None %} ({% if m.beat.pips > 0 %}+{% endif %}{{ m.beat.pips }}){% endif %}</span>{% else %}—{% endif %}</td>
+                <td class="r pb-num">{% if m.miss %}<span class="{% if m.miss.avg > 0 %}pb-up{% else %}pb-down{% endif %}">{% if m.miss.avg > 0 %}+{% endif %}{{ m.miss.avg|floatformat:2 }}%{% if m.miss.pips is not None %} ({% if m.miss.pips > 0 %}+{% endif %}{{ m.miss.pips }}){% endif %}</span>{% else %}—{% endif %}</td>
+                <td class="r pb-num">{{ m.n }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table></div>
+        <p class="pb-lead" style="margin-top:10px;font-size:12px">Average change from the last price before the release to one hour after, with pips in brackets. Past reactions, not a promise.</p>
+    </div>
+    {% endif %}
+
+    <div class="pb-card">
+        <h2 class="pb-h2">Every release</h2>
+        {% if releases %}
+        <div class="pb-scroll"><table class="pb-table">
+            <thead><tr><th>Date</th><th class="r">Actual</th><th class="r">Forecast</th><th class="r">Previous</th><th>Result</th>{% with first=releases.0 %}{% for m in first.rows|slice:":2" %}<th class="r">{{ m.name }} 1h</th>{% endfor %}{% endwith %}</tr></thead>
+            <tbody>
+            {% for r in releases %}
+            <tr>
+                <td><a href="{{ r.url }}" style="color:var(--px-accent);font-weight:800">{{ r.date|date:"d M Y" }}</a></td>
+                <td class="r pb-num"><b>{{ r.actual }}</b></td>
+                <td class="r pb-num">{{ r.forecast }}</td>
+                <td class="r pb-num">{{ r.previous }}</td>
+                <td><span class="pb-res {% if r.sign > 0 %}beat{% elif r.sign < 0 %}miss{% else %}line{% endif %}">{{ r.result }}</span></td>
+                {% for m in r.rows|slice:":2" %}<td class="r pb-num {% if m.h1 > 0 %}pb-up{% elif m.h1 < 0 %}pb-down{% endif %}">{% if m.pips1h is not None %}{% if m.pips1h > 0 %}+{% endif %}{{ m.pips1h }} pips{% else %}—{% endif %}</td>{% endfor %}
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table></div>
+        {% else %}<p class="pb-lead">No stored releases yet: the first one appears here automatically.</p>{% endif %}
+    </div>
+    {% include 'partials/pub_cta.html' %}
+    <div class="pb-tags"><a class="pb-tag" href="{% url 'news_index' %}"><i class="fa-solid fa-arrow-left"></i> All releases</a><a class="pb-tag" href="{% url 'economic_calendar' %}"><i class="fa-regular fa-calendar"></i> Economic calendar</a><a class="pb-tag" href="/academy/c/fundamentals/"><i class="fa-solid fa-graduation-cap"></i> Learn fundamentals</a></div>
+</div>
+{% endblock %}
+{% block extra_js %}<script>document.querySelectorAll('.js-local').forEach(function(el){try{var d=new Date(el.dataset.ts);el.textContent=d.toLocaleString(undefined,{weekday:'long',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+' (your time)';}catch(e){}});</script>{% endblock %}

@@ -253,7 +253,7 @@ def week_ahead():
             lines.append(f"\n<b>{w:%A %d %b}</b>")
         lines.append(f"{w:%H:%M} {FLAG.get(e.get('currency'), '')}{e.get('currency', '')} {tg._esc(e.get('event', ''))}")
     lines.append('\n⏰ Reminders come here before each one, and the result the moment it is out.')
-    lines.append(_link('/economic-calendar/', 'Full economic calendar'))
+    lines.append(_link('/calendar/', 'Full economic calendar'))
     _send('\n'.join(lines))
     return True
 
