@@ -114,7 +114,7 @@ _SPECS = {
     'GBPJPY': ('British Pound vs Japanese Yen',  'forex', 3, 100000, 'GBP', 'JPY', 500, 28,  9.0, -25.0, 0),
     'EURCHF': ('Euro vs Swiss Franc',            'forex', 5, 100000, 'EUR', 'CHF', 500, 20, -2.5, -4.5, 0),
     'GBPCHF': ('British Pound vs Swiss Franc',   'forex', 5, 100000, 'GBP', 'CHF', 500, 30,  1.5, -10.0, 0),
-    'XAUUSD': ('Gold vs US Dollar',              'metal', 2, 100,    'XAU', 'USD', 100, 25, -45.0, 20.0, 0),
+    'XAUUSD': ('Gold vs US Dollar',              'metal', 2, 100,    'XAU', 'USD', 500, 15, -45.0, 20.0, 0),   # 1:500 + 15-pt ($0.15 / 0.01 lot) spread: 0.01 lot needs ≈ $8 margin, so a $15 account can trade gold
     'XAGUSD': ('Silver vs US Dollar',            'metal', 3, 5000,   'XAG', 'USD', 100, 30, -6.0,  2.0, 0),
     'USOIL':  ('WTI Crude Oil',                  'energy', 2, 1000,  'USD', 'USD', 100, 4,  -5.0, -3.0, 0),
     'UKOIL':  ('Brent Crude Oil',                'energy', 2, 1000,  'USD', 'USD', 100, 4,  -5.0, -3.0, 0),
