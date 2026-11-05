@@ -552,6 +552,34 @@
         .nav-item:hover i { color: var(--px-dim); }
         .nav-item.nav-active { color: var(--px-text) !important; background: var(--px-accent-soft); font-weight: 600; }
         .nav-item.nav-active i { color: var(--px-accent); }
+        /* sidebar: collapsible groups of related pages */
+        .nav-find { position: relative; margin: 2px 0 8px; }
+        .nav-find i { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--px-mute); }
+        .nav-find input { width: 100%; height: 34px; padding: 0 10px 0 30px; border-radius: 9px; font-size: 12.5px; background: var(--px-panel-2); border: 1px solid var(--px-line); color: var(--px-text); }
+        .nav-find input:focus { outline: none; border-color: var(--px-accent); }
+        .nav-top { margin-bottom: 4px; }
+        .nav-grp-btn { width: 100%; display: flex; align-items: center; gap: 11px; padding: 9px 12px; border-radius: 9px; font-size: 13px; font-weight: 700;
+                       color: var(--px-text); background: transparent; transition: background-color .12s ease; text-align: left; }
+        .nav-grp-btn:hover { background: var(--px-hover); }
+        .nav-grp-btn > i:first-child { width: 16px; text-align: center; font-size: 13px; color: var(--px-mute); transition: color .15s; }
+        .nav-grp-btn span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .nav-grp-n { font-size: 10px; font-weight: 800; color: var(--px-mute); background: var(--px-panel-2); border: 1px solid var(--px-line); border-radius: 6px; padding: 1px 6px; }
+        .nav-grp-new { width: 7px; height: 7px; border-radius: 50%; background: var(--px-accent); box-shadow: 0 0 8px var(--px-accent); }
+        .nav-grp.open .nav-grp-new { display: none; }
+        .nav-grp-chev { font-size: 10px; color: var(--px-mute); transition: transform .25s ease; }
+        .nav-grp.open .nav-grp-chev { transform: rotate(180deg); }
+        .nav-grp.open > .nav-grp-btn > i:first-child, .nav-grp.has-active > .nav-grp-btn > i:first-child { color: var(--px-accent); }
+        .nav-grp.has-active:not(.open) > .nav-grp-btn { background: var(--px-accent-soft); }
+        .nav-grp-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .28s ease; }
+        .nav-grp.open > .nav-grp-body { grid-template-rows: 1fr; }
+        .nav-grp-in { overflow: hidden; min-height: 0; padding-left: 14px; margin-left: 19px; border-left: 1px solid var(--px-line); }
+        .nav-grp.open .nav-grp-in { padding-top: 2px; padding-bottom: 6px; }
+        .nav-grp-in .nav-item { padding: 7px 10px; font-size: 12.5px; }
+        .nav-grp-in .nav-item.nav-active::before { left: -15px; }
+        .nav-grp.hide, #sideNav .nav-item.hide { display: none; }
+        body.nav-open .px-dock { opacity: 0; pointer-events: none; transform: translateY(20px); }
+        @media (prefers-reduced-motion: reduce) { .nav-grp-body, .nav-grp-chev { transition: none; } }
+
         .nav-item.nav-active::before {
             content: ''; position: absolute; left: -12px; top: 8px; bottom: 8px; width: 3px;
             border-radius: 0 3px 3px 0; background: var(--px-accent);
@@ -722,7 +750,7 @@
             </button>
         </div>
 
-        <nav class="flex-1 overflow-y-auto no-scrollbar px-3 py-4 space-y-5">
+        <nav class="flex-1 overflow-y-auto no-scrollbar px-3 py-4 space-y-1.5" id="sideNav">
             {% if trial_available %}
             <form method="post" action="{% url 'start_trial' %}">{% csrf_token %}
                 <button type="submit" class="sub-cta w-full text-left">
@@ -744,178 +772,108 @@
                 <i class="fa-solid fa-chevron-right sub-cta-go"></i>
             </a>
             {% endif %}
-            <div>
-                <p class="nav-section-label">Home</p>
-                <div class="space-y-0.5">
-                    <a href="/" class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-table-columns"></i><span>Dashboard</span>
-                    </a>
-                </div>
+            <div class="nav-find"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="navFind" placeholder="Find a page…" autocomplete="off" aria-label="Find a page"></div>
+            <a href="/" class="nav-item nav-top{% if request.resolver_match.url_name == 'dashboard' %} nav-active{% endif %}"><i class="fa-solid fa-table-columns"></i><span>Dashboard</span></a>
+            <div class="nav-grp" data-grp="wallet">
+                <button type="button" class="nav-grp-btn" aria-expanded="false"><i class="fa-solid fa-wallet"></i><span>Wallet &amp; P2P</span><em class="nav-grp-new" title="Something new inside"></em><b class="nav-grp-n">4</b><i class="fa-solid fa-chevron-down nav-grp-chev"></i></button>
+                <div class="nav-grp-body"><div class="nav-grp-in">
+                        <a href="{% url 'wallet' %}" class="nav-item{% if request.resolver_match.url_name == 'wallet' %} nav-active{% endif %}"><i class="fa-solid fa-wallet"></i><span>My Wallet</span></a>
+                        <a href="{% url 'funding_deposit' %}" class="nav-item{% if request.resolver_match.url_name == 'funding_deposit' %} nav-active{% endif %}"><i class="fa-solid fa-arrow-down"></i><span>Deposit &amp; Withdraw</span></a>
+                        <a href="{% url 'wallet_send' %}" class="nav-item{% if request.resolver_match.url_name == 'wallet_send' %} nav-active{% endif %}"><i class="fa-solid fa-paper-plane"></i><span>Send to a User</span></a>
+                        <a href="{% url 'p2p' %}" class="nav-item{% if request.resolver_match.url_name|slice:':3' == 'p2p' %} nav-active{% endif %}"><i class="fa-solid fa-people-arrows"></i><span>P2P Trading</span><span class="nav-pill">NEW</span></a>
+                </div></div>
             </div>
-            <div>
-                <p class="nav-section-label">Wallet</p>
-                <div class="space-y-0.5">
-                    <a href="{% url 'wallet' %}" class="nav-item {% if request.resolver_match.url_name == 'wallet' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-wallet"></i><span>My Wallet</span>
-                    </a>
-                    <a href="{% url 'funding_deposit' %}" class="nav-item {% if request.resolver_match.url_name == 'funding_deposit' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-arrow-down"></i><span>Deposit &amp; Withdraw</span>
-                    </a>
-                    <a href="{% url 'wallet_send' %}" class="nav-item {% if request.resolver_match.url_name == 'wallet_send' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-paper-plane"></i><span>Send to a User</span>
-                    </a>
-                    <a href="{% url 'p2p' %}" class="nav-item {% if request.resolver_match.url_name == 'p2p' or request.resolver_match.url_name|slice:':3' == 'p2p' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-people-arrows"></i><span>P2P Trading</span><span class="nav-pill">NEW</span>
-                    </a>
-                </div>
+            <div class="nav-grp" data-grp="trade">
+                <button type="button" class="nav-grp-btn" aria-expanded="false"><i class="fa-solid fa-chart-column"></i><span>Trading</span><b class="nav-grp-n">5</b><i class="fa-solid fa-chevron-down nav-grp-chev"></i></button>
+                <div class="nav-grp-body"><div class="nav-grp-in">
+                        <a href="{% url 'trade' %}" class="nav-item{% if request.resolver_match.url_name == 'trade' %} nav-active{% endif %}"><i class="fa-solid fa-chart-column"></i><span>Live Trading</span></a>
+                        <a href="{% url 'mt5_terminal' %}" class="nav-item{% if request.resolver_match.url_name == 'mt5_terminal' %} nav-active{% endif %}"><i class="fa-solid fa-mobile-screen"></i><span>MT5 Terminal</span></a>
+                        <a href="{% url 'market_overview' %}" class="nav-item{% if request.resolver_match.url_name == 'market_overview' %} nav-active{% endif %}"><i class="fa-solid fa-earth-americas"></i><span>AI Signals &amp; Market Overview</span></a>
+                        <a href="{% url 'digits_trading' %}" class="nav-item{% if request.resolver_match.url_name == 'digits_trading' %} nav-active{% endif %}"><i class="fa-solid fa-bolt"></i><span>AI Signal Generator</span></a>
+                        <a href="{% url 'price_alerts' %}" class="nav-item{% if request.resolver_match.url_name == 'price_alerts' %} nav-active{% endif %}"><i class="fa-solid fa-bell"></i><span>Price Alerts</span></a>
+                </div></div>
             </div>
-            <div>
-                <p class="nav-section-label">Trade</p>
-                <div class="space-y-0.5">
-                    <a href="{% url 'market_overview' %}" class="nav-item {% if request.resolver_match.url_name == 'market_overview' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-earth-americas"></i><span>AI Signals &amp; Market Overview</span>
-                    </a>
-                    <a href="{% url 'mt5_terminal' %}" class="nav-item {% if request.resolver_match.url_name == 'mt5_terminal' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-mobile-screen"></i><span>MT5 Terminal</span>
-                    </a>
-                    <a href="{% url 'trade' %}" class="nav-item {% if request.resolver_match.url_name == 'trade' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-chart-column"></i><span>Live Trading</span>
-                    </a>
-                    <a href="{% url 'digits_trading' %}" class="nav-item {% if request.resolver_match.url_name == 'digits_trading' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-bolt"></i><span>AI Signal Generator</span>
-                    </a>
-                    <a href="{% url 'copy_trading' %}" class="nav-item {% if request.resolver_match.url_name == 'copy_trading' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-robot"></i><span>AI Copy Trading</span>
-                    </a>
-                    <a href="{% url 'price_alerts' %}" class="nav-item {% if request.resolver_match.url_name == 'price_alerts' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-bell"></i><span>Price Alerts</span>
-                    </a>
-                </div>
+            <div class="nav-grp" data-grp="auto">
+                <button type="button" class="nav-grp-btn" aria-expanded="false"><i class="fa-solid fa-robot"></i><span>Automation</span><em class="nav-grp-new" title="Something new inside"></em><b class="nav-grp-n">4</b><i class="fa-solid fa-chevron-down nav-grp-chev"></i></button>
+                <div class="nav-grp-body"><div class="nav-grp-in">
+                        <a href="{% url 'bot' %}" class="nav-item{% if request.resolver_match.url_name == 'bot' %} nav-active{% endif %}"><i class="fa-solid fa-robot"></i><span>AI Trading Bot</span></a>
+                        <a href="{% url 'ai_strategy_builder' %}" class="nav-item{% if request.resolver_match.url_name == 'ai_strategy_builder' %} nav-active{% endif %}"><i class="fa-solid fa-flask"></i><span>Strategy Lab</span><span class="nav-pill">NEW</span></a>
+                        <a href="{% url 'copy_trading' %}" class="nav-item{% if request.resolver_match.url_name == 'copy_trading' %} nav-active{% endif %}"><i class="fa-solid fa-clone"></i><span>AI Copy Trading</span></a>
+                        <a href="{% url 'webhooks' %}" class="nav-item{% if request.resolver_match.url_name == 'webhooks' %} nav-active{% endif %}"><i class="fa-solid fa-code"></i><span>Webhooks</span></a>
+                </div></div>
             </div>
-            <div>
-                <p class="nav-section-label">Funded</p>
-                <div class="space-y-0.5">
-                    <a href="{% url 'funded' %}" class="nav-item {% if request.resolver_match.url_name == 'funded' or request.resolver_match.url_name == 'funded_legacy' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-trophy"></i><span>Funded Challenges</span>
-                    </a>
-                </div>
+            <div class="nav-grp" data-grp="news">
+                <button type="button" class="nav-grp-btn" aria-expanded="false"><i class="fa-solid fa-newspaper"></i><span>News &amp; Markets</span><b class="nav-grp-n">5</b><i class="fa-solid fa-chevron-down nav-grp-chev"></i></button>
+                <div class="nav-grp-body"><div class="nav-grp-in">
+                        <a href="{% url 'news_impact' %}" class="nav-item{% if request.resolver_match.url_name == 'news_impact' %} nav-active{% endif %}"><i class="fa-solid fa-landmark"></i><span>NFP · CPI · FOMC Scanner</span></a>
+                        <a href="{% url 'economic_calendar' %}" class="nav-item{% if request.resolver_match.url_name == 'economic_calendar' %} nav-active{% endif %}"><i class="fa-solid fa-calendar-days"></i><span>Economic Calendar</span></a>
+                        <a href="{% url 'news_index' %}" class="nav-item{% if request.resolver_match.url_name|slice:':5' == 'news_' and request.resolver_match.url_name != 'news_impact' and request.resolver_match.url_name != 'news_sentiment' %} nav-active{% endif %}"><i class="fa-solid fa-square-poll-vertical"></i><span>Release Results</span></a>
+                        <a href="{% url 'news_sentiment' %}" class="nav-item{% if request.resolver_match.url_name == 'news_sentiment' %} nav-active{% endif %}"><i class="fa-solid fa-face-smile"></i><span>News &amp; Sentiment</span></a>
+                        <a href="{% url 'blog_index' %}" class="nav-item{% if request.resolver_match.url_name|slice:':4' == 'blog' %} nav-active{% endif %}"><i class="fa-solid fa-pen-nib"></i><span>Blog &amp; Weekly Outlook</span></a>
+                </div></div>
             </div>
-            <div>
-                <p class="nav-section-label">Learn &amp; Analyse</p>
-                <div class="space-y-0.5">
-                    <a href="{% url 'academy' %}" class="nav-item {% if request.resolver_match.url_name|slice:':7' == 'academy' and request.resolver_match.url_name != 'academy_practice' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-graduation-cap"></i><span>Academy &amp; Courses</span>
-                    </a>
-                    <a href="{% url 'academy_practice' %}" class="nav-item {% if request.resolver_match.url_name == 'academy_practice' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-gamepad"></i><span>Practice Simulator</span><span class="nav-pill">NEW</span>
-                    </a>
-                    <a href="{% url 'rewards' %}" class="nav-item {% if request.resolver_match.url_name == 'rewards' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-gift"></i><span>Rewards{% if my_level %} · {{ my_level.icon }} {{ my_level.name }}{% endif %}</span>{% if my_level.ready %}<span class="ml-auto text-[9px] font-black px-1.5 py-0.5 rounded" style="background:var(--px-accent);color:var(--px-accent-ink,#0b0e14)">{{ my_level.ready }}</span>{% endif %}
-                    </a>
-                    <a href="{% url 'chart_ai' %}" class="nav-item {% if request.resolver_match.url_name == 'chart_ai' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-camera"></i><span>Read my chart (AI)</span><span class="nav-pill">NEW</span>
-                    </a>
-                    <a href="{% url 'ai_prediction_models' %}" class="nav-item {% if request.resolver_match.url_name == 'ai_prediction_models' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-brain"></i><span>Prediction Models</span>
-                    </a>
-                    <a href="{% url 'ai_risk_analyzer' %}" class="nav-item {% if request.resolver_match.url_name == 'ai_risk_analyzer' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-shield-halved"></i><span>Risk Analyzer</span>
-                    </a>
-                    <a href="{% url 'ai_strategy_builder' %}" class="nav-item {% if request.resolver_match.url_name == 'ai_strategy_builder' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-diagram-project"></i><span>Strategy Builder</span>
-                    </a>
-                    <a href="{% url 'news_sentiment' %}" class="nav-item {% if request.resolver_match.url_name == 'news_sentiment' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-newspaper"></i><span>News &amp; Sentiment</span>
-                    </a>
-                    <a href="{% url 'news_impact' %}" class="nav-item {% if request.resolver_match.url_name == 'news_impact' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-landmark"></i><span>News Impact (NFP · CPI · FOMC)</span>
-                    </a>
-                    <a href="{% url 'economic_calendar' %}" class="nav-item {% if request.resolver_match.url_name == 'economic_calendar' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-calendar-days"></i><span>Economic Calendar</span>
-                    </a>
-                    <a href="{% url 'news_index' %}" class="nav-item {% if request.resolver_match.url_name|slice:':5' == 'news_' and request.resolver_match.url_name != 'news_impact' and request.resolver_match.url_name != 'news_sentiment' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-square-poll-vertical"></i><span>Release Results</span>
-                    </a>
-                    <a href="{% url 'blog_index' %}" class="nav-item {% if request.resolver_match.url_name|slice:':4' == 'blog' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-pen-nib"></i><span>Blog &amp; Weekly Outlook</span>
-                    </a>
-                </div>
+            <div class="nav-grp" data-grp="ai">
+                <button type="button" class="nav-grp-btn" aria-expanded="false"><i class="fa-solid fa-brain"></i><span>AI Tools</span><em class="nav-grp-new" title="Something new inside"></em><b class="nav-grp-n">3</b><i class="fa-solid fa-chevron-down nav-grp-chev"></i></button>
+                <div class="nav-grp-body"><div class="nav-grp-in">
+                        <a href="{% url 'chart_ai' %}" class="nav-item{% if request.resolver_match.url_name == 'chart_ai' %} nav-active{% endif %}"><i class="fa-solid fa-camera"></i><span>Read my chart (AI)</span><span class="nav-pill">NEW</span></a>
+                        <a href="{% url 'ai_prediction_models' %}" class="nav-item{% if request.resolver_match.url_name == 'ai_prediction_models' %} nav-active{% endif %}"><i class="fa-solid fa-brain"></i><span>Prediction Models</span></a>
+                        <a href="{% url 'ai_risk_analyzer' %}" class="nav-item{% if request.resolver_match.url_name == 'ai_risk_analyzer' %} nav-active{% endif %}"><i class="fa-solid fa-shield-halved"></i><span>Risk Analyzer</span></a>
+                </div></div>
             </div>
-            <div>
-                <p class="nav-section-label">Portfolio</p>
-                <div class="space-y-0.5">
-                    <a href="{% url 'portfolio' %}" class="nav-item {% if request.resolver_match.url_name == 'portfolio' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-briefcase"></i><span>My Portfolio</span>
-                    </a>
-                    <a href="{% url 'trade_history' %}" class="nav-item {% if request.resolver_match.url_name == 'trade_history' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-clock-rotate-left"></i><span>Trade History</span>
-                    </a>
-                    <a href="{% url 'ai_trade_journal' %}" class="nav-item {% if request.resolver_match.url_name == 'ai_trade_journal' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-book-open"></i><span>Trade Journal</span>
-                    </a>
-                    <a href="{% url 'risk_metrics' %}" class="nav-item {% if request.resolver_match.url_name == 'risk_metrics' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-scale-balanced"></i><span>Risk Metrics</span>
-                    </a>
-                </div>
+            <div class="nav-grp" data-grp="learn">
+                <button type="button" class="nav-grp-btn" aria-expanded="false"><i class="fa-solid fa-graduation-cap"></i><span>Learn</span><em class="nav-grp-new" title="Something new inside"></em><b class="nav-grp-n">2</b><i class="fa-solid fa-chevron-down nav-grp-chev"></i></button>
+                <div class="nav-grp-body"><div class="nav-grp-in">
+                        <a href="{% url 'academy' %}" class="nav-item{% if request.resolver_match.url_name|slice:':7' == 'academy' and request.resolver_match.url_name != 'academy_practice' and request.resolver_match.url_name != 'chart_ai' %} nav-active{% endif %}"><i class="fa-solid fa-graduation-cap"></i><span>Academy &amp; Courses</span></a>
+                        <a href="{% url 'academy_practice' %}" class="nav-item{% if request.resolver_match.url_name == 'academy_practice' %} nav-active{% endif %}"><i class="fa-solid fa-gamepad"></i><span>Practice Simulator</span><span class="nav-pill">NEW</span></a>
+                </div></div>
             </div>
-            <div>
-                <p class="nav-section-label">Automation</p>
-                <div class="space-y-0.5">
-                    <a href="{% url 'bot' %}" class="nav-item {% if request.resolver_match.url_name == 'bot' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-robot"></i><span>Bot Center</span>
-                    </a>
-                    <a href="{% url 'webhooks' %}" class="nav-item {% if request.resolver_match.url_name == 'webhooks' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-code"></i><span>Webhooks</span>
-                    </a>
-                </div>
+            <div class="nav-grp" data-grp="funded">
+                <button type="button" class="nav-grp-btn" aria-expanded="false"><i class="fa-solid fa-trophy"></i><span>Funded</span><b class="nav-grp-n">1</b><i class="fa-solid fa-chevron-down nav-grp-chev"></i></button>
+                <div class="nav-grp-body"><div class="nav-grp-in">
+                        <a href="{% url 'funded' %}" class="nav-item{% if request.resolver_match.url_name == 'funded' or request.resolver_match.url_name == 'funded_legacy' %} nav-active{% endif %}"><i class="fa-solid fa-trophy"></i><span>Funded Challenges</span></a>
+                </div></div>
             </div>
-            <div>
-                <p class="nav-section-label">Account</p>
-                <div class="space-y-0.5">
-                    <a href="{% url 'profile' %}" class="nav-item {% if request.resolver_match.url_name == 'profile' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-user-shield"></i><span>Profile &amp; Security</span>
-                    </a>
-                    <a href="{% url 'platforms_download' %}" class="nav-item {% if request.resolver_match.url_name == 'platforms_download' %}nav-active{% endif %}">
-                        <i class="fa-brands fa-android"></i><span>Get the app</span><span class="nav-pill">NEW</span>
-                    </a>
-                    <a href="{% url 'kyc_status' %}" class="nav-item {% if request.resolver_match.url_name == 'kyc_status' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-id-card"></i><span>Verification (KYC)</span>
-                    </a>
-                    <a href="{% url 'subscription_billing' %}" class="nav-item {% if request.resolver_match.url_name == 'subscription_billing' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-crown"></i><span>Subscription</span><span class="nav-pill">{% if is_member %}{{ member_tier }}{% else %}PRO{% endif %}</span>
-                    </a>
-                    <a href="{% url 'referral_dashboard' %}" class="nav-item {% if request.resolver_match.url_name == 'referral_dashboard' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-user-group"></i><span>Referrals</span>
-                    </a>
-                    <a href="{% url 'ai_support' %}" class="nav-item {% if request.resolver_match.url_name == 'ai_support' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-circle-question"></i><span>Help Center</span>
-                    </a>
-                    <button onclick="toggleTheme()" type="button" class="w-full nav-item">
-                        <i id="sidebar-theme-icon" class="fa-regular fa-moon"></i><span>Theme</span>
-                        <span id="sidebar-theme-label" class="ml-auto text-[10px] font-mono uppercase" style="color:var(--px-mute)">Dark</span>
-                    </button>
-                </div>
+            <div class="nav-grp" data-grp="portfolio">
+                <button type="button" class="nav-grp-btn" aria-expanded="false"><i class="fa-solid fa-briefcase"></i><span>Portfolio</span><b class="nav-grp-n">4</b><i class="fa-solid fa-chevron-down nav-grp-chev"></i></button>
+                <div class="nav-grp-body"><div class="nav-grp-in">
+                        <a href="{% url 'portfolio' %}" class="nav-item{% if request.resolver_match.url_name == 'portfolio' %} nav-active{% endif %}"><i class="fa-solid fa-briefcase"></i><span>My Portfolio</span></a>
+                        <a href="{% url 'trade_history' %}" class="nav-item{% if request.resolver_match.url_name == 'trade_history' %} nav-active{% endif %}"><i class="fa-solid fa-clock-rotate-left"></i><span>Trade History</span></a>
+                        <a href="{% url 'ai_trade_journal' %}" class="nav-item{% if request.resolver_match.url_name == 'ai_trade_journal' %} nav-active{% endif %}"><i class="fa-solid fa-book-open"></i><span>Trade Journal</span></a>
+                        <a href="{% url 'risk_metrics' %}" class="nav-item{% if request.resolver_match.url_name == 'risk_metrics' %} nav-active{% endif %}"><i class="fa-solid fa-scale-balanced"></i><span>Risk Metrics</span></a>
+                </div></div>
+            </div>
+            <div class="nav-grp" data-grp="rewards">
+                <button type="button" class="nav-grp-btn" aria-expanded="false"><i class="fa-solid fa-gift"></i><span>Rewards</span><b class="nav-grp-n">2</b><i class="fa-solid fa-chevron-down nav-grp-chev"></i></button>
+                <div class="nav-grp-body"><div class="nav-grp-in">
+                        <a href="{% url 'rewards' %}" class="nav-item{% if request.resolver_match.url_name == 'rewards' %} nav-active{% endif %}"><i class="fa-solid fa-gift"></i><span>Rewards{% if my_level %} · {{ my_level.icon }} {{ my_level.name }}{% endif %}</span>{% if my_level.ready %}<span class="nav-pill" style="background:var(--px-accent);color:var(--px-accent-ink,#0b0e14)">{{ my_level.ready }}</span>{% endif %}</a>
+                        <a href="{% url 'referral_dashboard' %}" class="nav-item{% if request.resolver_match.url_name == 'referral_dashboard' %} nav-active{% endif %}"><i class="fa-solid fa-user-group"></i><span>Referrals</span></a>
+                </div></div>
+            </div>
+            <div class="nav-grp" data-grp="account">
+                <button type="button" class="nav-grp-btn" aria-expanded="false"><i class="fa-solid fa-user-shield"></i><span>Account</span><b class="nav-grp-n">6</b><i class="fa-solid fa-chevron-down nav-grp-chev"></i></button>
+                <div class="nav-grp-body"><div class="nav-grp-in">
+                        <a href="{% url 'profile' %}" class="nav-item{% if request.resolver_match.url_name == 'profile' %} nav-active{% endif %}"><i class="fa-solid fa-user-shield"></i><span>Profile &amp; Security</span></a>
+                        <a href="{% url 'kyc_status' %}" class="nav-item{% if request.resolver_match.url_name == 'kyc_status' %} nav-active{% endif %}"><i class="fa-solid fa-id-card"></i><span>Verification (KYC)</span></a>
+                        <a href="{% url 'subscription_billing' %}" class="nav-item{% if request.resolver_match.url_name == 'subscription_billing' %} nav-active{% endif %}"><i class="fa-solid fa-crown"></i><span>Subscription</span><span class="nav-pill">{% if is_member %}{{ member_tier }}{% else %}PRO{% endif %}</span></a>
+                        <a href="{% url 'notification_settings' %}" class="nav-item{% if request.resolver_match.url_name == 'notification_settings' %} nav-active{% endif %}"><i class="fa-solid fa-bell"></i><span>Notifications</span></a>
+                        <a href="{% url 'platforms_download' %}" class="nav-item{% if request.resolver_match.url_name == 'platforms_download' %} nav-active{% endif %}"><i class="fa-solid fa-mobile"></i><span>Get the app</span></a>
+                        <a href="{% url 'ai_support' %}" class="nav-item{% if request.resolver_match.url_name == 'ai_support' %} nav-active{% endif %}"><i class="fa-solid fa-circle-question"></i><span>Help Center</span></a>
+                        <button onclick="toggleTheme()" type="button" class="w-full nav-item">
+                            <i id="sidebar-theme-icon" class="fa-regular fa-moon"></i><span>Theme</span>
+                            <span id="sidebar-theme-label" class="ml-auto text-[10px] font-mono uppercase" style="color:var(--px-mute)">Dark</span>
+                        </button>
+                </div></div>
             </div>
             {% if request.user.is_staff %}
-            <div>
-                <p class="nav-section-label">Admin</p>
-                <div class="space-y-0.5">
-                    <a href="{% url 'admin_revenue' %}" class="nav-item {% if request.resolver_match.url_name == 'admin_revenue' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-chart-pie"></i><span>Revenue</span>
-                    </a>
-                    <a href="{% url 'p2p_admin' %}" class="nav-item {% if request.resolver_match.url_name == 'p2p_admin' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-scale-balanced"></i><span>P2P Appeals</span>
-                    </a>
-                    <a href="{% url 'admin_kyc_queue' %}" class="nav-item {% if request.resolver_match.url_name == 'admin_kyc_queue' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-id-badge"></i><span>KYC Queue</span>
-                    </a>
-                    <a href="{% url 'signal_posters' %}" class="nav-item {% if request.resolver_match.url_name == 'signal_posters' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-image"></i><span>Signal Posters</span>
-                    </a>
-                    <a href="{% url 'admin_dashboard_hub' %}" class="nav-item {% if request.resolver_match.url_name == 'admin_dashboard_hub' %}nav-active{% endif %}">
-                        <i class="fa-solid fa-gauge"></i><span>Admin Hub</span>
-                    </a>
-                </div>
+            <div class="nav-grp" data-grp="admin">
+                <button type="button" class="nav-grp-btn" aria-expanded="false"><i class="fa-solid fa-gauge"></i><span>Admin</span><b class="nav-grp-n">5</b><i class="fa-solid fa-chevron-down nav-grp-chev"></i></button>
+                <div class="nav-grp-body"><div class="nav-grp-in">
+                        <a href="{% url 'admin_revenue' %}" class="nav-item{% if request.resolver_match.url_name == 'admin_revenue' %} nav-active{% endif %}"><i class="fa-solid fa-chart-pie"></i><span>Revenue</span></a>
+                        <a href="{% url 'p2p_admin' %}" class="nav-item{% if request.resolver_match.url_name == 'p2p_admin' %} nav-active{% endif %}"><i class="fa-solid fa-scale-balanced"></i><span>P2P Appeals</span></a>
+                        <a href="{% url 'admin_kyc_queue' %}" class="nav-item{% if request.resolver_match.url_name == 'admin_kyc_queue' %} nav-active{% endif %}"><i class="fa-solid fa-id-badge"></i><span>KYC Queue</span></a>
+                        <a href="{% url 'signal_posters' %}" class="nav-item{% if request.resolver_match.url_name == 'signal_posters' %} nav-active{% endif %}"><i class="fa-solid fa-image"></i><span>Signal Posters</span></a>
+                        <a href="{% url 'admin_dashboard_hub' %}" class="nav-item{% if request.resolver_match.url_name == 'admin_dashboard_hub' %} nav-active{% endif %}"><i class="fa-solid fa-gauge"></i><span>Admin Hub</span></a>
+                </div></div>
             </div>
             {% endif %}
         </nav>
@@ -1128,6 +1086,38 @@
         </footer>
     </div>
 
+
+    <script>
+    (function () {                       // sidebar groups: open the one with this page, remember the rest, search
+        var nav = document.getElementById('sideNav'); if (!nav) return;
+        var KEY = 'px-nav-open', saved = {};
+        try { saved = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) {}
+        var groups = [].slice.call(nav.querySelectorAll('.nav-grp'));
+        function set(g, on, keep) { g.classList.toggle('open', on); g.querySelector('.nav-grp-btn').setAttribute('aria-expanded', on ? 'true' : 'false');
+            if (!keep) { saved[g.dataset.grp] = on; try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) {} } }
+        groups.forEach(function (g) {
+            var active = !!g.querySelector('.nav-item.nav-active');
+            g.classList.toggle('has-active', active);
+            set(g, active || saved[g.dataset.grp] === true, true);
+            g.querySelector('.nav-grp-btn').addEventListener('click', function () { set(g, !g.classList.contains('open')); });
+        });
+        var act = nav.querySelector('.nav-item.nav-active');
+        if (act) setTimeout(function () { act.scrollIntoView({ block: 'nearest' }); }, 320);
+        var find = document.getElementById('navFind');
+        if (find) find.addEventListener('input', function () {
+            var q = find.value.trim().toLowerCase();
+            groups.forEach(function (g) {
+                var title = g.querySelector('.nav-grp-btn span').textContent.toLowerCase(), any = false;
+                g.querySelectorAll('.nav-grp-in .nav-item').forEach(function (a) {
+                    var hit = !q || title.indexOf(q) >= 0 || a.textContent.toLowerCase().indexOf(q) >= 0;
+                    a.classList.toggle('hide', !hit); any = any || hit;
+                });
+                g.classList.toggle('hide', !!q && !any);
+                if (q) g.classList.toggle('open', any); else set(g, g.classList.contains('has-active') || saved[g.dataset.grp] === true, true);
+            });
+        });
+    })();
+    </script>
     <!-- ══════════════════ MOBILE BOTTOM BAR ══════════════════ -->
     {% with u=request.resolver_match.url_name|default:'' %}
     <nav class="px-dock lg:hidden" aria-label="Main">
@@ -1212,6 +1202,7 @@
             if (window.innerWidth < 1024) {
                 sidebar.classList.toggle('open');
                 sidebar.style.transform = sidebar.classList.contains('open') ? 'translateX(0)' : 'translateX(-100%)';
+                document.body.classList.toggle('nav-open', sidebar.classList.contains('open'));   // hide the floating bar under the menu
             }
             backdrop.classList.toggle('hidden');
         }
