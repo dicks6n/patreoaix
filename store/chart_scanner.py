@@ -559,6 +559,7 @@ def candles_for(symbol, tf):
             logger.warning(f'AI scan candles {symbol} 1d→1w: {e}')
             daily, source = [], None
         daily = sorted((c for c in daily or [] if c.get('time')), key=lambda c: c['time'])
+        daily = attach_volume(symbol, '1d', daily)
         data = {'candles': _weekly(daily), 'source': source}
         cache.set(key, data, CANDLE_TTL['1w'] if data['candles'] else 60)
     if data is None:
@@ -569,9 +570,51 @@ def candles_for(symbol, tf):
             logger.warning(f'AI scan candles {symbol} {tf}: {e}')
             candles, source = [], None
         candles = sorted((c for c in candles or [] if c.get('time')), key=lambda c: c['time'])
+        candles = attach_volume(symbol, tf, candles)
         data = {'candles': candles, 'source': source}
         cache.set(key, data, CANDLE_TTL.get(tf, 300) if candles else 30)
     return data
+
+
+# Volume for markets whose main feed has none (Deriv forex / gold candles carry no volume). Gold: PAXG, a token
+# backed by physical gold, traded on Kraken and Coinbase with real volume. Major forex pairs: Kraken's own spot
+# FX books. Matched candle by candle on the same UTC time bucket; the candles then say where it came from.
+VOLUME_FROM = {'XAUUSD': [('kraken', 'Kraken PAXG (gold token)'), ('coinbase', 'Coinbase PAXG (gold token)')]}
+for _fx in ('EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'USDCAD', 'USDCHF', 'EURGBP', 'EURJPY'):
+    VOLUME_FROM[_fx] = [('kraken', f'Kraken {_fx} spot')]
+TF_SEC = {'5m': 300, '15m': 900, '30m': 1800, '1h': 3600, '4h': 14400, '1d': 86400}
+
+
+def _has_volume(candles, last=30):
+    tail = candles[-last:]
+    return bool(tail) and sum(1 for c in tail if (c.get('volume') or 0) > 0) >= len(tail) * 0.7
+
+
+def attach_volume(symbol, tf, candles):
+    """Fill in volume from another exchange when the candles have none. Returns the candles (copies when changed)."""
+    if not candles or _has_volume(candles) or symbol not in VOLUME_FROM or tf not in TF_SEC:
+        return candles
+    from . import price_feed as pf
+    sec = TF_SEC[tf]
+    for src, label in VOLUME_FROM[symbol]:
+        vkey = f'aiscan:v:{symbol}:{tf}:{src}'
+        rows = cache.get(vkey)
+        if rows is None:
+            try:
+                fetch = pf.fetch_kraken_candles if src == 'kraken' else pf.fetch_coinbase_candles
+                rows = [(int(r['time']) // sec, float(r.get('volume') or 0)) for r in fetch(symbol, tf, 720) or []]
+            except Exception as e:
+                logger.info(f'volume {symbol} {tf} from {src}: {e}')
+                rows = []
+            cache.set(vkey, rows, CANDLE_TTL.get(tf, 300) if rows else 120)
+        if not rows:
+            continue
+        vol = dict(rows)
+        tail = candles[-30:]
+        if sum(1 for c in tail if vol.get(int(c['time']) // sec, 0) > 0) < len(tail) * 0.7:
+            continue                                           # the two feeds don't line up well enough
+        return [dict(c, volume=vol.get(int(c['time']) // sec, 0.0), vsrc=label) for c in candles]
+    return candles
 
 
 def _r(symbol, v):

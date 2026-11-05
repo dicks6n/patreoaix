@@ -124,7 +124,7 @@ def scan_volume(main, candles):
     s, i = main['series'], main['last']
     vol = [float(c.get('volume') or 0) for c in candles]
     if len(vol) != s.n or i < 25 or sum(1 for v in vol[i - 20:i + 1] if v > 0) < 15:
-        return _sv('volume', 'Volume', None, 'No volume data from this feed')
+        return scan_activity(main)
     avg = sum(vol[i - 20:i]) / 20 or 1
     rel = vol[i] / avg
     body = 1 if s.c[i] > s.o[i] else -1 if s.c[i] < s.o[i] else 0
@@ -138,7 +138,29 @@ def scan_volume(main, candles):
     vote = 0.6 * spike + 0.4 * obv_dir
     txt = f'Last candle volume {rel:.1f}× its 20-bar average' + (f" on a {'green' if body > 0 else 'red'} candle" if rel >= 1.3 and body else '')
     txt += f"; OBV {'rising' if obv_dir > 0.15 else 'falling' if obv_dir < -0.15 else 'flat'}"
+    src = candles[i].get('vsrc') if i < len(candles) else None
+    if src:
+        txt += f' (volume from {src})'
     return _sv('volume', 'Volume', vote, txt)
+
+
+def scan_activity(main):
+    """No exchange publishes volume for this market (silver, oil, crosses): read participation from candle size
+    instead. A candle much bigger than usual, closing strongly, is the footprint big volume leaves."""
+    s, i = main['series'], main['last']
+    if i < 25:
+        return _sv('volume', 'Volume', None, 'Not enough candles yet')
+    tr = [max(s.h[j], s.c[j - 1]) - min(s.l[j], s.c[j - 1]) for j in range(i - 20, i + 1)]
+    avg = sum(tr[:-1]) / 20 or 1e-12
+    rel = tr[-1] / avg
+    body = s.c[i] - s.o[i]
+    rng = (s.h[i] - s.l[i]) or 1e-12
+    strong = abs(body) / rng >= 0.6
+    d = 1 if body > 0 else -1 if body < 0 else 0
+    vote = d * _clamp(rel - 1) * 0.6 if rel >= 1.3 and strong else 0
+    txt = (f"No exchange volume for this market; activity read from candle size: last candle {rel:.1f}× its 20-bar average range"
+           + (f", closing strongly {'up' if d > 0 else 'down'}" if rel >= 1.3 and strong and d else ''))
+    return _sv('volume', 'Volume', vote * 0.7, txt)
 
 
 def scan_mtf(lower, main, higher):
