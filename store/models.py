@@ -26,6 +26,7 @@ class UserProfile(models.Model):
     subscription_tier = models.CharField(max_length=50, default='free')
     avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)    # profile photo (square JPEG, profile page)
     notif_prefs = models.JSONField(default=dict, blank=True)    # notification preferences (store/notif_prefs.py)
+    leverage = models.PositiveIntegerField(default=500)          # account leverage the customer chose (mt5_service.effective_leverage)
     payout_accounts = models.JSONField(default=dict, blank=True)   # saved withdrawal accounts (store/payouts.py)
     p2p_unlocked_at = models.DateTimeField(null=True, blank=True)    # staff lifted a P2P buying pause: older cancels no longer count
     goal = models.CharField(max_length=10, blank=True)               # start card: learn | part | pro | funded | skip

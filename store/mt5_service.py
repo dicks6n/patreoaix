@@ -99,83 +99,84 @@ class SymbolSpec:
         }
 
 
-# symbol: (description, kind, digits, contract size, base, quote, leverage, spread pts, swap long, swap short, stops level)
+# symbol: (description, kind, digits, contract size, base, quote, MAX leverage, spread pts, swap long, swap short, stops level)
+# The leverage column is the most this market allows; each customer's own choice (UserProfile.leverage) is capped by it.
 # Spreads and swaps are broker settings — tune them here (or per symbol in settings.MT5_SYMBOL_OVERRIDES).
 _SPECS = {
-    'EURUSD': ('Euro vs US Dollar',              'forex', 5, 100000, 'EUR', 'USD', 500, 12, -7.2,  1.9, 0),
-    'GBPUSD': ('British Pound vs US Dollar',     'forex', 5, 100000, 'GBP', 'USD', 500, 15, -4.6, -0.8, 0),
-    'USDJPY': ('US Dollar vs Japanese Yen',      'forex', 3, 100000, 'USD', 'JPY', 500, 14, 12.5, -25.0, 0),
-    'AUDUSD': ('Australian Dollar vs US Dollar', 'forex', 5, 100000, 'AUD', 'USD', 500, 14, -4.0, -0.5, 0),
-    'USDCAD': ('US Dollar vs Canadian Dollar',   'forex', 5, 100000, 'USD', 'CAD', 500, 18,  1.2, -6.5, 0),
-    'NZDUSD': ('New Zealand Dollar vs US Dollar','forex', 5, 100000, 'NZD', 'USD', 500, 18, -3.5, -1.0, 0),
-    'USDCHF': ('US Dollar vs Swiss Franc',       'forex', 5, 100000, 'USD', 'CHF', 500, 16,  4.5, -11.0, 0),
-    'EURGBP': ('Euro vs British Pound',          'forex', 5, 100000, 'EUR', 'GBP', 500, 15, -5.5,  0.8, 0),
-    'EURJPY': ('Euro vs Japanese Yen',           'forex', 3, 100000, 'EUR', 'JPY', 500, 20,  5.0, -18.0, 0),
-    'GBPJPY': ('British Pound vs Japanese Yen',  'forex', 3, 100000, 'GBP', 'JPY', 500, 28,  9.0, -25.0, 0),
-    'EURCHF': ('Euro vs Swiss Franc',            'forex', 5, 100000, 'EUR', 'CHF', 500, 20, -2.5, -4.5, 0),
-    'GBPCHF': ('British Pound vs Swiss Franc',   'forex', 5, 100000, 'GBP', 'CHF', 500, 30,  1.5, -10.0, 0),
-    'XAUUSD': ('Gold vs US Dollar',              'metal', 2, 100,    'XAU', 'USD', 500, 15, -45.0, 20.0, 0),   # 1:500 + 15-pt ($0.15 / 0.01 lot) spread: 0.01 lot needs ≈ $8 margin, so a $15 account can trade gold
-    'XAGUSD': ('Silver vs US Dollar',            'metal', 3, 5000,   'XAG', 'USD', 100, 30, -6.0,  2.0, 0),
-    'USOIL':  ('WTI Crude Oil',                  'energy', 2, 1000,  'USD', 'USD', 100, 4,  -5.0, -3.0, 0),
-    'UKOIL':  ('Brent Crude Oil',                'energy', 2, 1000,  'USD', 'USD', 100, 4,  -5.0, -3.0, 0),
-    'BTCUSD': ('Bitcoin vs US Dollar',           'crypto', 2, 1, 'BTC', 'USD', 20, 2500, -2500, -1500, 0),
-    'ETHUSD': ('Ethereum vs US Dollar',          'crypto', 2, 1, 'ETH', 'USD', 20, 200,  -150,  -100, 0),
-    'SOLUSD': ('Solana vs US Dollar',            'crypto', 2, 1, 'SOL', 'USD', 20, 10,   -8,    -5, 0),
-    'BNBUSD': ('BNB vs US Dollar',               'crypto', 2, 1, 'BNB', 'USD', 20, 60,   -40,   -25, 0),
-    'XRPUSD': ('XRP vs US Dollar',               'crypto', 4, 1, 'XRP', 'USD', 20, 10,   -4,    -2, 0),
-    'ADAUSD': ('Cardano vs US Dollar',           'crypto', 4, 1, 'ADA', 'USD', 20, 10,   -2,    -1, 0),
-    'DOGEUSD': ('Dogecoin vs US Dollar',         'crypto', 5, 1, 'DOGE', 'USD', 20, 20,  -4,    -2, 0),
-    'DOTUSD': ('Polkadot vs US Dollar',          'crypto', 3, 1, 'DOT', 'USD', 20, 10,   -4,    -2, 0),
-    'LINKUSD': ('Chainlink vs US Dollar',        'crypto', 3, 1, 'LINK', 'USD', 20, 15,  -6,    -3, 0),
+    'EURUSD': ('Euro vs US Dollar',              'forex', 5, 100000, 'EUR', 'USD', 2000, 12, -7.2,  1.9, 0),
+    'GBPUSD': ('British Pound vs US Dollar',     'forex', 5, 100000, 'GBP', 'USD', 2000, 15, -4.6, -0.8, 0),
+    'USDJPY': ('US Dollar vs Japanese Yen',      'forex', 3, 100000, 'USD', 'JPY', 2000, 14, 12.5, -25.0, 0),
+    'AUDUSD': ('Australian Dollar vs US Dollar', 'forex', 5, 100000, 'AUD', 'USD', 2000, 14, -4.0, -0.5, 0),
+    'USDCAD': ('US Dollar vs Canadian Dollar',   'forex', 5, 100000, 'USD', 'CAD', 2000, 18,  1.2, -6.5, 0),
+    'NZDUSD': ('New Zealand Dollar vs US Dollar','forex', 5, 100000, 'NZD', 'USD', 2000, 18, -3.5, -1.0, 0),
+    'USDCHF': ('US Dollar vs Swiss Franc',       'forex', 5, 100000, 'USD', 'CHF', 2000, 16,  4.5, -11.0, 0),
+    'EURGBP': ('Euro vs British Pound',          'forex', 5, 100000, 'EUR', 'GBP', 2000, 15, -5.5,  0.8, 0),
+    'EURJPY': ('Euro vs Japanese Yen',           'forex', 3, 100000, 'EUR', 'JPY', 2000, 20,  5.0, -18.0, 0),
+    'GBPJPY': ('British Pound vs Japanese Yen',  'forex', 3, 100000, 'GBP', 'JPY', 2000, 28,  9.0, -25.0, 0),
+    'EURCHF': ('Euro vs Swiss Franc',            'forex', 5, 100000, 'EUR', 'CHF', 2000, 20, -2.5, -4.5, 0),
+    'GBPCHF': ('British Pound vs Swiss Franc',   'forex', 5, 100000, 'GBP', 'CHF', 2000, 30,  1.5, -10.0, 0),
+    'XAUUSD': ('Gold vs US Dollar',              'metal', 2, 100,    'XAU', 'USD', 2000, 15, -45.0, 20.0, 0),   # 15-pt spread ($0.15 / 0.01 lot); up to 1:2000 (customer's choice)
+    'XAGUSD': ('Silver vs US Dollar',            'metal', 3, 5000,   'XAG', 'USD', 1000, 30, -6.0,  2.0, 0),
+    'USOIL':  ('WTI Crude Oil',                  'energy', 2, 1000,  'USD', 'USD', 200, 4,  -5.0, -3.0, 0),
+    'UKOIL':  ('Brent Crude Oil',                'energy', 2, 1000,  'USD', 'USD', 200, 4,  -5.0, -3.0, 0),
+    'BTCUSD': ('Bitcoin vs US Dollar',           'crypto', 2, 1, 'BTC', 'USD', 200, 2500, -2500, -1500, 0),
+    'ETHUSD': ('Ethereum vs US Dollar',          'crypto', 2, 1, 'ETH', 'USD', 200, 200,  -150,  -100, 0),
+    'SOLUSD': ('Solana vs US Dollar',            'crypto', 2, 1, 'SOL', 'USD', 200, 10,   -8,    -5, 0),
+    'BNBUSD': ('BNB vs US Dollar',               'crypto', 2, 1, 'BNB', 'USD', 200, 60,   -40,   -25, 0),
+    'XRPUSD': ('XRP vs US Dollar',               'crypto', 4, 1, 'XRP', 'USD', 200, 10,   -4,    -2, 0),
+    'ADAUSD': ('Cardano vs US Dollar',           'crypto', 4, 1, 'ADA', 'USD', 200, 10,   -2,    -1, 0),
+    'DOGEUSD': ('Dogecoin vs US Dollar',         'crypto', 5, 1, 'DOGE', 'USD', 200, 20,  -4,    -2, 0),
+    'DOTUSD': ('Polkadot vs US Dollar',          'crypto', 3, 1, 'DOT', 'USD', 200, 10,   -4,    -2, 0),
+    'LINKUSD': ('Chainlink vs US Dollar',        'crypto', 3, 1, 'LINK', 'USD', 200, 15,  -6,    -3, 0),
     # more forex crosses
-    'EURAUD': ('Euro vs Australian Dollar',      'forex', 5, 100000, 'EUR', 'AUD', 500, 25, -8.0,  2.0, 0),
-    'EURCAD': ('Euro vs Canadian Dollar',        'forex', 5, 100000, 'EUR', 'CAD', 500, 25, -7.0,  1.5, 0),
-    'EURNZD': ('Euro vs New Zealand Dollar',     'forex', 5, 100000, 'EUR', 'NZD', 500, 35, -10.0, 2.5, 0),
-    'GBPAUD': ('British Pound vs Australian Dollar', 'forex', 5, 100000, 'GBP', 'AUD', 500, 30, -6.0, -1.0, 0),
-    'GBPCAD': ('British Pound vs Canadian Dollar', 'forex', 5, 100000, 'GBP', 'CAD', 500, 30, -4.5, -2.0, 0),
-    'GBPNZD': ('British Pound vs New Zealand Dollar', 'forex', 5, 100000, 'GBP', 'NZD', 500, 40, -8.0, 0.5, 0),
-    'AUDCAD': ('Australian Dollar vs Canadian Dollar', 'forex', 5, 100000, 'AUD', 'CAD', 500, 22, -1.5, -3.0, 0),
-    'AUDNZD': ('Australian Dollar vs New Zealand Dollar', 'forex', 5, 100000, 'AUD', 'NZD', 500, 25, -3.0, -1.0, 0),
-    'AUDCHF': ('Australian Dollar vs Swiss Franc', 'forex', 5, 100000, 'AUD', 'CHF', 500, 22, 1.0, -5.0, 0),
-    'NZDCAD': ('New Zealand Dollar vs Canadian Dollar', 'forex', 5, 100000, 'NZD', 'CAD', 500, 28, -1.5, -3.0, 0),
-    'NZDCHF': ('New Zealand Dollar vs Swiss Franc', 'forex', 5, 100000, 'NZD', 'CHF', 500, 28, 0.5, -4.5, 0),
-    'CADCHF': ('Canadian Dollar vs Swiss Franc',  'forex', 5, 100000, 'CAD', 'CHF', 500, 25, 1.0, -5.0, 0),
-    'AUDJPY': ('Australian Dollar vs Japanese Yen', 'forex', 3, 100000, 'AUD', 'JPY', 500, 22, 6.0, -15.0, 0),
-    'CADJPY': ('Canadian Dollar vs Japanese Yen', 'forex', 3, 100000, 'CAD', 'JPY', 500, 25, 6.0, -15.0, 0),
-    'CHFJPY': ('Swiss Franc vs Japanese Yen',     'forex', 3, 100000, 'CHF', 'JPY', 500, 30, 2.0, -12.0, 0),
-    'NZDJPY': ('New Zealand Dollar vs Japanese Yen', 'forex', 3, 100000, 'NZD', 'JPY', 500, 25, 5.0, -14.0, 0),
+    'EURAUD': ('Euro vs Australian Dollar',      'forex', 5, 100000, 'EUR', 'AUD', 2000, 25, -8.0,  2.0, 0),
+    'EURCAD': ('Euro vs Canadian Dollar',        'forex', 5, 100000, 'EUR', 'CAD', 2000, 25, -7.0,  1.5, 0),
+    'EURNZD': ('Euro vs New Zealand Dollar',     'forex', 5, 100000, 'EUR', 'NZD', 2000, 35, -10.0, 2.5, 0),
+    'GBPAUD': ('British Pound vs Australian Dollar', 'forex', 5, 100000, 'GBP', 'AUD', 2000, 30, -6.0, -1.0, 0),
+    'GBPCAD': ('British Pound vs Canadian Dollar', 'forex', 5, 100000, 'GBP', 'CAD', 2000, 30, -4.5, -2.0, 0),
+    'GBPNZD': ('British Pound vs New Zealand Dollar', 'forex', 5, 100000, 'GBP', 'NZD', 2000, 40, -8.0, 0.5, 0),
+    'AUDCAD': ('Australian Dollar vs Canadian Dollar', 'forex', 5, 100000, 'AUD', 'CAD', 2000, 22, -1.5, -3.0, 0),
+    'AUDNZD': ('Australian Dollar vs New Zealand Dollar', 'forex', 5, 100000, 'AUD', 'NZD', 2000, 25, -3.0, -1.0, 0),
+    'AUDCHF': ('Australian Dollar vs Swiss Franc', 'forex', 5, 100000, 'AUD', 'CHF', 2000, 22, 1.0, -5.0, 0),
+    'NZDCAD': ('New Zealand Dollar vs Canadian Dollar', 'forex', 5, 100000, 'NZD', 'CAD', 2000, 28, -1.5, -3.0, 0),
+    'NZDCHF': ('New Zealand Dollar vs Swiss Franc', 'forex', 5, 100000, 'NZD', 'CHF', 2000, 28, 0.5, -4.5, 0),
+    'CADCHF': ('Canadian Dollar vs Swiss Franc',  'forex', 5, 100000, 'CAD', 'CHF', 2000, 25, 1.0, -5.0, 0),
+    'AUDJPY': ('Australian Dollar vs Japanese Yen', 'forex', 3, 100000, 'AUD', 'JPY', 2000, 22, 6.0, -15.0, 0),
+    'CADJPY': ('Canadian Dollar vs Japanese Yen', 'forex', 3, 100000, 'CAD', 'JPY', 2000, 25, 6.0, -15.0, 0),
+    'CHFJPY': ('Swiss Franc vs Japanese Yen',     'forex', 3, 100000, 'CHF', 'JPY', 2000, 30, 2.0, -12.0, 0),
+    'NZDJPY': ('New Zealand Dollar vs Japanese Yen', 'forex', 3, 100000, 'NZD', 'JPY', 2000, 25, 5.0, -14.0, 0),
     # more metals
-    'XPTUSD': ('Platinum vs US Dollar',          'metal', 2, 100,    'XPT', 'USD', 50, 400, -30.0, 5.0, 0),
-    'XPDUSD': ('Palladium vs US Dollar',         'metal', 2, 100,    'XPD', 'USD', 50, 800, -40.0, 5.0, 0),
+    'XPTUSD': ('Platinum vs US Dollar',          'metal', 2, 100,    'XPT', 'USD', 200, 400, -30.0, 5.0, 0),
+    'XPDUSD': ('Palladium vs US Dollar',         'metal', 2, 100,    'XPD', 'USD', 200, 800, -40.0, 5.0, 0),
     # stock indices (CFDs, 1 lot = 1 × the index in its currency)
-    'US30':   ('Wall Street 30 (Dow Jones)',     'index', 1, 1, 'USD', 'USD', 100, 30, -3.0, -1.0, 0),
-    'NAS100': ('US Tech 100 (Nasdaq)',           'index', 1, 1, 'USD', 'USD', 100, 15, -2.0, -0.5, 0),
-    'US500':  ('US 500 (S&P 500)',               'index', 1, 1, 'USD', 'USD', 100, 5,  -0.6, -0.2, 0),
-    'GER40':  ('Germany 40 (DAX)',               'index', 1, 1, 'EUR', 'EUR', 100, 15, -2.0, -0.5, 0),
-    'UK100':  ('UK 100 (FTSE)',                  'index', 1, 1, 'GBP', 'GBP', 100, 15, -1.0, -0.3, 0),
-    'FRA40':  ('France 40 (CAC)',                'index', 1, 1, 'EUR', 'EUR', 100, 15, -1.0, -0.3, 0),
-    'EU50':   ('Euro Stoxx 50',                  'index', 1, 1, 'EUR', 'EUR', 100, 20, -0.7, -0.2, 0),
-    'JP225':  ('Japan 225 (Nikkei)',             'index', 1, 1, 'JPY', 'JPY', 100, 100, -10.0, -3.0, 0),
-    'AUS200': ('Australia 200 (ASX)',            'index', 1, 1, 'AUD', 'AUD', 100, 20, -1.0, -0.3, 0),
+    'US30':   ('Wall Street 30 (Dow Jones)',     'index', 1, 1, 'USD', 'USD', 400, 30, -3.0, -1.0, 0),
+    'NAS100': ('US Tech 100 (Nasdaq)',           'index', 1, 1, 'USD', 'USD', 400, 15, -2.0, -0.5, 0),
+    'US500':  ('US 500 (S&P 500)',               'index', 1, 1, 'USD', 'USD', 400, 5,  -0.6, -0.2, 0),
+    'GER40':  ('Germany 40 (DAX)',               'index', 1, 1, 'EUR', 'EUR', 400, 15, -2.0, -0.5, 0),
+    'UK100':  ('UK 100 (FTSE)',                  'index', 1, 1, 'GBP', 'GBP', 400, 15, -1.0, -0.3, 0),
+    'FRA40':  ('France 40 (CAC)',                'index', 1, 1, 'EUR', 'EUR', 400, 15, -1.0, -0.3, 0),
+    'EU50':   ('Euro Stoxx 50',                  'index', 1, 1, 'EUR', 'EUR', 400, 20, -0.7, -0.2, 0),
+    'JP225':  ('Japan 225 (Nikkei)',             'index', 1, 1, 'JPY', 'JPY', 400, 100, -10.0, -3.0, 0),
+    'AUS200': ('Australia 200 (ASX)',            'index', 1, 1, 'AUD', 'AUD', 400, 20, -1.0, -0.3, 0),
     # more crypto
-    'LTCUSD': ('Litecoin vs US Dollar',          'crypto', 2, 1, 'LTC', 'USD', 20, 15,   -6,    -3, 0),
-    'BCHUSD': ('Bitcoin Cash vs US Dollar',      'crypto', 2, 1, 'BCH', 'USD', 20, 60,   -30,   -15, 0),
-    'AVAXUSD': ('Avalanche vs US Dollar',        'crypto', 3, 1, 'AVAX', 'USD', 20, 30,  -10,   -5, 0),
-    'ATOMUSD': ('Cosmos vs US Dollar',           'crypto', 3, 1, 'ATOM', 'USD', 20, 20,  -6,    -3, 0),
-    'UNIUSD': ('Uniswap vs US Dollar',           'crypto', 3, 1, 'UNI', 'USD', 20, 20,   -6,    -3, 0),
-    'NEARUSD': ('NEAR Protocol vs US Dollar',    'crypto', 3, 1, 'NEAR', 'USD', 20, 15,  -5,    -2, 0),
-    'XLMUSD': ('Stellar vs US Dollar',           'crypto', 5, 1000, 'XLM', 'USD', 20, 30, -6,  -3, 0),    # 1 lot = 1,000 coins
-    'TRXUSD': ('TRON vs US Dollar',              'crypto', 5, 1000, 'TRX', 'USD', 20, 20, -4,  -2, 0),
-    'R_10':   ('Volatility 10 Index',            'synthetic', 3, 1, 'USD', 'USD', 200, 0, 0, 0, 0),
-    'R_25':   ('Volatility 25 Index',            'synthetic', 3, 1, 'USD', 'USD', 200, 0, 0, 0, 0),
-    'R_50':   ('Volatility 50 Index',            'synthetic', 4, 1, 'USD', 'USD', 200, 0, 0, 0, 0),
-    'R_75':   ('Volatility 75 Index',            'synthetic', 4, 1, 'USD', 'USD', 200, 0, 0, 0, 0),
-    'R_100':  ('Volatility 100 Index',           'synthetic', 2, 1, 'USD', 'USD', 200, 0, 0, 0, 0),
-    '1HZ10V': ('Volatility 10 (1s) Index',       'synthetic', 2, 1, 'USD', 'USD', 200, 0, 0, 0, 0),
-    '1HZ25V': ('Volatility 25 (1s) Index',       'synthetic', 2, 1, 'USD', 'USD', 200, 0, 0, 0, 0),
-    '1HZ50V': ('Volatility 50 (1s) Index',       'synthetic', 2, 1, 'USD', 'USD', 200, 0, 0, 0, 0),
-    '1HZ75V': ('Volatility 75 (1s) Index',       'synthetic', 2, 1, 'USD', 'USD', 200, 0, 0, 0, 0),
-    '1HZ100V': ('Volatility 100 (1s) Index',     'synthetic', 2, 1, 'USD', 'USD', 200, 0, 0, 0, 0),
+    'LTCUSD': ('Litecoin vs US Dollar',          'crypto', 2, 1, 'LTC', 'USD', 200, 15,   -6,    -3, 0),
+    'BCHUSD': ('Bitcoin Cash vs US Dollar',      'crypto', 2, 1, 'BCH', 'USD', 200, 60,   -30,   -15, 0),
+    'AVAXUSD': ('Avalanche vs US Dollar',        'crypto', 3, 1, 'AVAX', 'USD', 200, 30,  -10,   -5, 0),
+    'ATOMUSD': ('Cosmos vs US Dollar',           'crypto', 3, 1, 'ATOM', 'USD', 200, 20,  -6,    -3, 0),
+    'UNIUSD': ('Uniswap vs US Dollar',           'crypto', 3, 1, 'UNI', 'USD', 200, 20,   -6,    -3, 0),
+    'NEARUSD': ('NEAR Protocol vs US Dollar',    'crypto', 3, 1, 'NEAR', 'USD', 200, 15,  -5,    -2, 0),
+    'XLMUSD': ('Stellar vs US Dollar',           'crypto', 5, 1000, 'XLM', 'USD', 200, 30, -6,  -3, 0),    # 1 lot = 1,000 coins
+    'TRXUSD': ('TRON vs US Dollar',              'crypto', 5, 1000, 'TRX', 'USD', 200, 20, -4,  -2, 0),
+    'R_10':   ('Volatility 10 Index',            'synthetic', 3, 1, 'USD', 'USD', 1000, 0, 0, 0, 0),
+    'R_25':   ('Volatility 25 Index',            'synthetic', 3, 1, 'USD', 'USD', 1000, 0, 0, 0, 0),
+    'R_50':   ('Volatility 50 Index',            'synthetic', 4, 1, 'USD', 'USD', 1000, 0, 0, 0, 0),
+    'R_75':   ('Volatility 75 Index',            'synthetic', 4, 1, 'USD', 'USD', 1000, 0, 0, 0, 0),
+    'R_100':  ('Volatility 100 Index',           'synthetic', 2, 1, 'USD', 'USD', 1000, 0, 0, 0, 0),
+    '1HZ10V': ('Volatility 10 (1s) Index',       'synthetic', 2, 1, 'USD', 'USD', 1000, 0, 0, 0, 0),
+    '1HZ25V': ('Volatility 25 (1s) Index',       'synthetic', 2, 1, 'USD', 'USD', 1000, 0, 0, 0, 0),
+    '1HZ50V': ('Volatility 50 (1s) Index',       'synthetic', 2, 1, 'USD', 'USD', 1000, 0, 0, 0, 0),
+    '1HZ75V': ('Volatility 75 (1s) Index',       'synthetic', 2, 1, 'USD', 'USD', 1000, 0, 0, 0, 0),
+    '1HZ100V': ('Volatility 100 (1s) Index',     'synthetic', 2, 1, 'USD', 'USD', 1000, 0, 0, 0, 0),
 }
 
 # Symbols shown in the terminal's Market Watch, in order: every market the trade server prices
@@ -220,9 +221,18 @@ def get_spec(symbol):
     return spec
 
 
-def symbol_specs_json(symbols=None):
-    """Spec table for the terminal (single source of truth for digits, spread, contract size …)."""
-    return {s: SPECS[s].as_json() for s in (symbols or SPECS) if s in SPECS}
+def symbol_specs_json(symbols=None, user=None):
+    """Spec table for the terminal (single source of truth for digits, spread, contract size …). With a user, the
+    leverage is that customer's effective leverage on each market (their choice, capped), so margin previews match."""
+    out = {}
+    chosen = user_leverage(user) if user is not None else None
+    for sym in (symbols or SPECS):
+        if sym in SPECS:
+            j = SPECS[sym].as_json()
+            j['max_leverage'] = SPECS[sym].leverage
+            j['leverage'] = effective_leverage(user, sym, chosen=chosen) if user is not None else min(SPECS[sym].leverage, DEFAULT_LEVERAGE)
+            out[sym] = j
+    return out
 
 
 def get_contract_size(symbol):
@@ -230,9 +240,51 @@ def get_contract_size(symbol):
     return spec.contract_size if spec else Decimal('1')
 
 
-def get_leverage_for_symbol(symbol):
+def get_leverage_for_symbol(symbol, user=None, prop=None):
     spec = SPECS.get((symbol or '').upper())
-    return spec.leverage if spec else 100
+    if not spec:
+        return 100
+    return effective_leverage(user, spec.symbol, prop) if user is not None else min(spec.leverage, DEFAULT_LEVERAGE)
+
+
+# ═══════════════════════════════════════════════════════════════
+# ACCOUNT LEVERAGE (the customer chooses, like at Exness / XM / HFM)
+#   effective = min(the customer's choice, the market's maximum, the equity cap)
+#   equity cap: big accounts get less leverage (≥ $5,000 → 1:1000, ≥ $30,000 → 1:500)
+#   funded-challenge accounts: 1:100 like prop firms
+# ═══════════════════════════════════════════════════════════════
+LEVERAGE_CHOICES = [10, 20, 50, 100, 200, 400, 500, 1000, 2000]
+DEFAULT_LEVERAGE = 500
+EQUITY_CAPS = [(Decimal('30000'), 500), (Decimal('5000'), 1000)]
+PROP_LEVERAGE = 100
+
+
+def user_leverage(user):
+    from .models import UserProfile
+    if user is None or not getattr(user, 'pk', None):
+        return DEFAULT_LEVERAGE
+    lev = UserProfile.objects.filter(user=user).values_list('leverage', flat=True).first()
+    return lev if lev in LEVERAGE_CHOICES else DEFAULT_LEVERAGE
+
+
+def equity_cap(balance):
+    for floor, cap in EQUITY_CAPS:
+        if balance >= floor:
+            return cap
+    return max(LEVERAGE_CHOICES)
+
+
+def effective_leverage(user, symbol, prop=None, chosen=None):
+    spec = SPECS.get((symbol or '').upper())
+    top = spec.leverage if spec else 100
+    if prop is not None:
+        return min(top, PROP_LEVERAGE)
+    chosen = chosen or user_leverage(user)
+    try:
+        bal = Decimal(str(_trading_account(user).balance)) if user is not None and getattr(user, 'pk', None) else ZERO
+    except Exception:
+        bal = ZERO
+    return max(1, min(chosen, top, equity_cap(bal)))
 
 
 def ticket_for(trade):
@@ -384,7 +436,7 @@ def calc_profit(symbol, direction, volume, open_price, close_price):
     return to_usd(diff * spec.contract_size * Decimal(str(volume)), spec.quote)
 
 
-def calc_margin(symbol, volume, price=None):
+def calc_margin(symbol, volume, price=None, user=None, prop=None, leverage=None):
     """
     MT5 margin in USD.
       Forex:  lots × contract size / leverage, in the base currency
@@ -394,7 +446,7 @@ def calc_margin(symbol, volume, price=None):
     volume = Decimal(str(volume or 0))
     if spec is None:
         return q2(volume)
-    lev = Decimal(spec.leverage)
+    lev = Decimal(leverage or (effective_leverage(user, spec.symbol, prop) if user is not None else min(spec.leverage, DEFAULT_LEVERAGE)))
     if spec.kind == 'forex':
         return q2(to_usd(spec.contract_size * volume / lev, spec.base))
     if price is None:
@@ -536,7 +588,8 @@ def position_snapshot(trade):
     except TradeError:
         profit = q2(trade.pnl or 0)
     try:
-        margin = calc_margin(symbol, volume, quote.mid if quote else entry) if spec else q2(trade.margin_used or 0)
+        margin = (calc_margin(symbol, volume, quote.mid if quote else entry, user=trade.user, prop=trade.prop)
+                  if spec else q2(trade.margin_used or 0))
     except TradeError:
         margin = q2(trade.margin_used or 0)
     return {
@@ -637,14 +690,14 @@ def _create_position(user, spec, direction, volume, price, sl, tp, account, comm
         defaults={'name': spec.description, 'asset_type': 'crypto' if spec.kind == 'crypto' else
                   'synthetic' if spec.kind == 'synthetic' else 'forex', 'price': price},
     )
-    margin = calc_margin(spec.symbol, volume, price)
+    margin = calc_margin(spec.symbol, volume, price, user=user, prop=prop)
     commission = commission_per_side(spec.symbol, volume)
 
     trade = Trade.objects.create(
         user=user, asset=asset, direction=direction, stake=volume,
         entry_price=price, current_price=price, target_digit=None, status='OPEN',
         payout=ZERO, pnl=ZERO, stop_loss=sl, take_profit=tp,
-        margin_used=margin, leverage=spec.leverage, contract_size=spec.contract_size,
+        margin_used=margin, leverage=effective_leverage(user, spec.symbol, prop), contract_size=spec.contract_size,
         commission=commission, swap=ZERO, swap_charged_at=timezone.now(), prop=prop,
     )
 
@@ -685,7 +738,7 @@ def open_position(user, symbol, direction, volume, sl=None, tp=None, prop=None):
 
     with transaction.atomic():
         account = _trading_account(user, lock=True, prop=prop)
-        margin = calc_margin(spec.symbol, volume, price)
+        margin = calc_margin(spec.symbol, volume, price, user=user, prop=prop)
         commission = commission_per_side(spec.symbol, volume)
         free = get_metrics(user, prop)['free_margin']
         if free < margin - commission:
@@ -962,7 +1015,7 @@ def place_pending(user, symbol, otype, volume, price, stoplimit=None, sl=None, t
 
     if PendingOrder.objects.filter(user=user, status='PENDING', prop=prop).count() >= MAX_PENDING_ORDERS:
         raise TradeError(f"Too many pending orders (max {MAX_PENDING_ORDERS})")
-    margin = calc_margin(spec.symbol, volume, stoplimit or price)
+    margin = calc_margin(spec.symbol, volume, stoplimit or price, user=user, prop=prop)
     free = get_metrics(user, prop)['free_margin']
     if free < margin:
         raise TradeError(f"Not enough money. Required margin {margin:.2f}, free margin {free:.2f}")
@@ -1034,7 +1087,7 @@ def _fill_order(order_id, fill_price):
             o.save(update_fields=['status', 'reason'])
             return None
         account = _trading_account(o.user, lock=True, prop=o.prop_id)
-        margin = calc_margin(spec.symbol, o.volume, fill)
+        margin = calc_margin(spec.symbol, o.volume, fill, user=o.user, prop=o.prop)
         if get_metrics(o.user, o.prop)['free_margin'] < margin:
             o.status = 'REJECTED'
             o.reason = 'Not enough money'

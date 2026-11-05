@@ -1977,12 +1977,12 @@ def trade_view(request):
         'unrealized_pnl': round(total_pnl, 2),
         'equity': round(balance + total_pnl, 2),
         'available_copy_signals': available_count,
-        'trade_specs': _trade_specs(),
+        'trade_specs': _trade_specs(request.user),
     }
     return render(request, 'store/trade.html', context)
 
 
-def _trade_specs():
+def _trade_specs(user=None):
     """Symbol specs of the trade server (digits, contract size, leverage, volume limits…) as plain JSON,
     so the trade page sizes positions and shows margin / pip value the same way the server books them."""
     import dataclasses
@@ -2003,7 +2003,12 @@ def _trade_specs():
                 v = float(v)
             if v is None or isinstance(v, (bool, int, float, str)):
                 clean[k] = v
+        clean['max_leverage'] = clean.get('leverage')
         out[sym] = clean
+    if user is not None and getattr(user, 'is_authenticated', False):
+        chosen = mt5_service.user_leverage(user)
+        for sym in out:
+            out[sym]['leverage'] = mt5_service.effective_leverage(user, sym, chosen=chosen)
     return out
 
 
@@ -3390,8 +3395,8 @@ def execute_trade(request):
                     entry_price = base_prices.get(symbol, Decimal('1000.00'))
 
             contract_size = get_contract_size(symbol)
-            leverage = get_leverage_for_symbol(symbol)
-            margin_required = calc_margin(symbol, volume, entry_price)
+            leverage = get_leverage_for_symbol(symbol, request.user)
+            margin_required = calc_margin(symbol, volume, entry_price, user=request.user)
 
             with transaction.atomic():
                 account, _ = Account.objects.get_or_create(
@@ -5646,12 +5651,66 @@ def trading_accounts_view(request):
 
 
 @login_required
+@login_required
 def account_leverage_view(request):
+    """Choose the account leverage (like Exness / XM / HFM): margin per trade = position ÷ leverage, capped per
+    market and for big accounts. Spreads, pip values and profit per pip don't change with leverage."""
+    from . import mt5_service as m
+    from decimal import Decimal as D
+    prof, _ = UserProfile.objects.get_or_create(user=request.user)
+    current = m.user_leverage(request.user)
     if request.method == 'POST':
-        selected_leverage = request.POST.get('leverage')
-        # Logic to update account leverage in database or broker API
-        return redirect('trading_accounts')
-    return render(request, 'store/account_leverage.html')
+        try:
+            new = int(request.POST.get('leverage'))
+        except (TypeError, ValueError):
+            new = None
+        if new not in m.LEVERAGE_CHOICES:
+            messages.error(request, 'Choose one of the leverage options.')
+            return redirect('account_leverage')
+        if new < current and Trade.objects.filter(user=request.user, status='OPEN', prop__isnull=True).exists():
+            # lower leverage = more margin on the open trades: refuse if it would bring a margin call
+            prev = prof.leverage
+            prof.leverage = new
+            prof.save(update_fields=['leverage'])
+            met = m.get_metrics(request.user)
+            if met['margin_level'] is not None and met['margin_level'] < m.MARGIN_CALL_LEVEL * 2:
+                prof.leverage = prev
+                prof.save(update_fields=['leverage'])
+                messages.error(request, f'1:{new} would put your open trades close to a margin call '
+                                        f'(margin level {met["margin_level"]:.0f}%). Close some trades or add funds first.')
+                return redirect('account_leverage')
+        else:
+            prof.leverage = new
+            prof.save(update_fields=['leverage'])
+        messages.success(request, f'Leverage set to 1:{new}. New and open trades use it right away (capped per market).')
+        return redirect('account_leverage')
+    try:
+        bal = D(str(m._trading_account(request.user).balance))
+    except Exception:
+        bal = D('0')
+    cap = m.equity_cap(bal)
+
+    def margin(sym, vol, lev):
+        spec = m.SPECS[sym]
+        q = m.cached_quote(sym)
+        px = q.mid if q else {'XAUUSD': D('4000'), 'EURUSD': D('1.16')}.get(sym, D('1'))
+        eff = max(1, min(lev, spec.leverage, cap))
+        try:
+            return m.calc_margin(sym, D(str(vol)), px, leverage=eff)
+        except Exception:
+            return None
+    options = [{'lev': lev, 'gold': margin('XAUUSD', '0.01', lev), 'eur': margin('EURUSD', '1', lev),
+                'capped': lev > cap} for lev in m.LEVERAGE_CHOICES]
+    groups = {}
+    for sym, spec in m.SPECS.items():
+        groups.setdefault(spec.kind, set()).add(spec.leverage)
+    caps = [(k.title() if k != 'index' else 'Indices', f"up to 1:{max(v)}" if len(v) == 1 else f"1:{min(v)} – 1:{max(v)}")
+            for k, v in groups.items()]
+    metals = [(s, m.SPECS[s].leverage) for s in ('XAUUSD', 'XAGUSD', 'XPTUSD', 'XPDUSD') if s in m.SPECS]
+    return render(request, 'store/account_leverage.html', {
+        'current': current, 'options': options, 'cap': cap, 'balance': bal, 'caps': caps, 'metals': metals,
+        'equity_caps': m.EQUITY_CAPS, 'gold_spread': m.SPECS['XAUUSD'].spread / 100,
+    })
 
 # ═══════════════════════════════════════════════════════════════
 # ANDROID APP (android/ → store/static/store/downloads/patreoaix.apk)
@@ -10312,7 +10371,7 @@ def api_place_pending_order(request):
         if PendingOrder.objects.filter(user=request.user, status='PENDING').count() >= 50:
             return JsonResponse({"success": False, "error": "Too many pending orders (max 50)"}, status=400)
 
-        margin = calc_margin(symbol, volume, price)
+        margin = calc_margin(symbol, volume, price, user=request.user)
         if get_metrics(request.user)['free_margin'] < margin:
             return JsonResponse({
                 "success": False,

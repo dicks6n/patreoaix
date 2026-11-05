@@ -1,29 +1,80 @@
 {% extends 'base_dashboard.html' %}
-
-{% block title %}Change Account Leverage - PATREOAIX{% endblock %}
-
+{% block title %}Account Leverage · PATREOAIX{% endblock %}
+{% block page_title %}Account leverage{% endblock %}
+{% block extra_head %}
+<style>
+  .lv-wrap { display: flex; flex-direction: column; gap: 16px; max-width: 980px; }
+  .lv-card { background: var(--px-panel); border: 1px solid var(--px-line); border-radius: 18px; padding: 18px; }
+  .lv-h { font-size: 15px; font-weight: 900; color: var(--px-text); display: flex; align-items: center; gap: 8px; }
+  .lv-h i { color: var(--px-accent); }
+  .lv-sub { font-size: 12.5px; color: var(--px-mute); margin-top: 3px; line-height: 1.55; }
+  .lv-num { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+  .lv-hero { display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+             background: radial-gradient(500px 200px at 10% 50%, var(--px-accent-soft), transparent 70%), var(--px-panel); }
+  .lv-big { font: 900 44px/1 'JetBrains Mono', monospace; color: var(--px-accent); text-shadow: 0 0 30px rgba(245,179,1,.3); }
+  .lv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 14px; }
+  .lv-opt input { position: absolute; opacity: 0; pointer-events: none; }
+  .lv-opt label { display: block; cursor: pointer; padding: 14px 12px; border-radius: 14px; background: var(--px-panel-2); border: 1px solid var(--px-line); transition: all .15s; position: relative; }
+  .lv-opt label:hover { border-color: var(--px-accent); transform: translateY(-2px); }
+  .lv-opt input:checked + label { border-color: var(--px-accent); background: var(--px-accent-soft); box-shadow: 0 0 0 1px var(--px-accent) inset; }
+  .lv-opt b { display: block; font: 900 22px 'JetBrains Mono', monospace; color: var(--px-text); }
+  .lv-opt small { display: block; font-size: 11px; color: var(--px-mute); margin-top: 6px; line-height: 1.5; }
+  .lv-opt small span { color: var(--px-text); font-weight: 800; font-family: 'JetBrains Mono', monospace; }
+  .lv-tag { position: absolute; top: 8px; right: 8px; font-size: 9.5px; font-weight: 900; letter-spacing: .05em; padding: 2px 6px; border-radius: 6px; }
+  .lv-tag.now { background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); }
+  .lv-tag.pop { background: var(--px-up-soft); color: var(--px-up); }
+  .lv-tag.cap { background: var(--px-panel); color: var(--px-mute); border: 1px solid var(--px-line); }
+  .lv-btn { margin-top: 16px; width: 100%; height: 48px; border-radius: 12px; font-size: 15px; font-weight: 900; background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); }
+  .lv-tbl { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
+  .lv-tbl td { padding: 10px 6px; border-bottom: 1px solid var(--px-line); color: var(--px-text); }
+  .lv-tbl td:last-child { text-align: right; font-weight: 800; font-family: 'JetBrains Mono', monospace; color: var(--px-accent); }
+  .lv-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 800px) { .lv-two { grid-template-columns: 1fr; } }
+  .lv-li { display: flex; gap: 10px; font-size: 13px; color: var(--px-dim); line-height: 1.55; padding: 7px 0; }
+  .lv-li i { margin-top: 3px; color: var(--px-accent); width: 16px; text-align: center; }
+  .lv-li b { color: var(--px-text); }
+</style>
+{% endblock %}
 {% block content %}
-<div class="max-w-xl mx-auto py-6 px-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
-        <div class="mb-5 pb-4 border-b border-slate-800">
-            <h2 class="text-xl font-bold text-white tracking-wide">Change Account Leverage</h2>
-            <p class="text-xs text-slate-400 mt-0.5">Select your preferred leverage ratio for trade execution</p>
-        </div>
-        <form method="POST" class="space-y-4 text-xs">
-            {% csrf_token %}
-            <div>
-                <label for="leverage" class="block text-slate-400 font-bold uppercase mb-1.5">Select New Leverage</label>
-                <select name="leverage" id="leverage" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white font-mono focus:outline-none focus:border-indigo-500 cursor-pointer" required>
-                    <option value="100">1:100</option>
-                    <option value="200">1:200</option>
-                    <option value="500">1:500</option>
-                    <option value="1000">1:1000</option>
-                </select>
-            </div>
-            <button type="submit" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition shadow-lg cursor-pointer">
-                Update Leverage
-            </button>
-        </form>
+<div class="lv-wrap">
+  <section class="lv-card lv-hero">
+    <div><div class="lv-sub" style="margin:0;font-weight:800;text-transform:uppercase;letter-spacing:.08em">Your leverage</div><div class="lv-big">1:{{ current }}</div></div>
+    <div style="flex:1;min-width:240px"><div class="lv-h">Choose how much margin each trade locks</div>
+      <p class="lv-sub">Higher leverage = less money held as margin, so you can open a trade with a small balance. It does <b style="color:var(--px-text)">not</b> change the spread or how much you make or lose per pip.</p></div>
+  </section>
+
+  <form method="post" class="lv-card">{% csrf_token %}
+    <div class="lv-h"><i class="fa-solid fa-sliders"></i> Pick your leverage</div>
+    <p class="lv-sub">Margin needed for <b style="color:var(--px-text)">0.01 lot of gold</b> (1 oz) and <b style="color:var(--px-text)">1 lot of EUR/USD</b> at today's prices.</p>
+    <div class="lv-grid">
+      {% for o in options %}
+      <div class="lv-opt"><input type="radio" name="leverage" id="lv{{ o.lev }}" value="{{ o.lev }}" {% if o.lev == current %}checked{% endif %}>
+        <label for="lv{{ o.lev }}">{% if o.lev == current %}<span class="lv-tag now">NOW</span>{% elif o.lev == 500 %}<span class="lv-tag pop">POPULAR</span>{% elif o.capped %}<span class="lv-tag cap">CAPPED</span>{% endif %}
+          <b>1:{{ o.lev }}</b>
+          <small>Gold 0.01 lot <span>{% if o.gold is not None %}${{ o.gold|floatformat:2 }}{% else %}—{% endif %}</span><br>EUR/USD 1 lot <span>{% if o.eur is not None %}${{ o.eur|floatformat:0 }}{% else %}—{% endif %}</span></small></label></div>
+      {% endfor %}
     </div>
+    {% if cap < 2000 %}<p class="lv-sub" style="margin-top:12px;color:var(--px-accent)"><i class="fa-solid fa-circle-info"></i> With a balance of ${{ balance|floatformat:2 }} your leverage is capped at 1:{{ cap }} (big accounts get lower maximums, like at every broker).</p>{% endif %}
+    <button class="lv-btn"><i class="fa-solid fa-check"></i> Save leverage</button>
+  </form>
+
+  <div class="lv-two">
+    <section class="lv-card"><div class="lv-h"><i class="fa-solid fa-layer-group"></i> Maximum per market</div>
+      <p class="lv-sub">Your choice applies up to each market's maximum.</p>
+      <table class="lv-tbl">
+        {% for name, txt in caps %}<tr><td>{{ name }}</td><td>{{ txt }}</td></tr>{% endfor %}
+        {% for sym, lev in metals %}<tr><td style="padding-left:18px;color:var(--px-dim)">{{ sym }}</td><td>1:{{ lev }}</td></tr>{% endfor %}
+        <tr><td>Balance $5,000 or more</td><td>max 1:1000</td></tr>
+        <tr><td>Balance $30,000 or more</td><td>max 1:500</td></tr>
+        <tr><td>Funded-challenge accounts</td><td>1:100</td></tr>
+      </table></section>
+    <section class="lv-card"><div class="lv-h"><i class="fa-solid fa-circle-question"></i> What leverage changes</div>
+      <div class="lv-li"><i class="fa-solid fa-check"></i><span><b>Margin:</b> 1:500 holds 5× less than 1:100. That's how a $15 account can open gold.</span></div>
+      <div class="lv-li"><i class="fa-solid fa-equals"></i><span><b>Not the spread:</b> gold costs ${{ gold_spread|floatformat:2 }} per 0.01 lot to open at any leverage.</span></div>
+      <div class="lv-li"><i class="fa-solid fa-equals"></i><span><b>Not the profit per pip:</b> 0.01 lot of gold is $0.01 per cent, $1 per dollar move, at 1:10 or 1:2000.</span></div>
+      <div class="lv-li"><i class="fa-solid fa-triangle-exclamation" style="color:var(--px-down)"></i><span><b>The danger is the lot size:</b> high leverage lets you open bigger trades than your balance can carry. Keep the risk per trade at 1–2% and always use a stop loss.</span></div>
+      <div class="lv-li"><i class="fa-solid fa-rotate"></i><span>Takes effect at once, also on open trades. Lowering it is refused if it would push open trades near a margin call.</span></div>
+    </section>
+  </div>
 </div>
 {% endblock %}

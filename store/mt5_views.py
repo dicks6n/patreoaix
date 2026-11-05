@@ -124,7 +124,7 @@ def mt5_terminal_view(request):
     return render(request, 'store/mt5_terminal.html', {
         'metrics': mt5.get_metrics(request.user),
         'mt5_config': {
-            'specs': mt5.symbol_specs_json(tradable),
+            'specs': mt5.symbol_specs_json(tradable, request.user),
             'market_watch': symbols,
             'margin_call_level': float(mt5.MARGIN_CALL_LEVEL),
             'stop_out_level': float(mt5.STOP_OUT_LEVEL),

@@ -40,13 +40,14 @@ def membership(request):
         r = rank(request.user)
         member = r > 0
         days = trial_days_left(request.user) if active and 'TRIAL' in tier else None
-        avatar = ''
+        avatar, my_leverage = '', 500
         try:
             from .models import UserProfile
-            p = UserProfile.objects.filter(user=request.user).only('avatar').first()
+            p = UserProfile.objects.filter(user=request.user).only('avatar', 'leverage').first()
             avatar = p.avatar.url if p and p.avatar else ''
+            my_leverage = p.leverage if p else 500
         except Exception:
-            pass
+            my_leverage = 500
         my_level = None
         try:
             from .rewards import LEVELS, level_index, points
@@ -60,7 +61,8 @@ def membership(request):
             pass
         return {'is_member': member, 'member_rank': r, 'my_level': my_level,
                 'member_tier': (f'TRIAL · {days}d' if days is not None else PLAN_NAMES.get(r, '').upper()) if member else '',
-                'on_trial': days is not None, 'trial_available': not member and trial_available(request.user), 'my_avatar': avatar}
+                'on_trial': days is not None, 'trial_available': not member and trial_available(request.user), 'my_avatar': avatar,
+                'my_leverage': my_leverage}
     except Exception:
         return {'is_member': False, 'member_tier': ''}
 

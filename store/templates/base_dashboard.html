@@ -552,6 +552,17 @@
         .nav-item:hover i { color: var(--px-dim); }
         .nav-item.nav-active { color: var(--px-text) !important; background: var(--px-accent-soft); font-weight: 600; }
         .nav-item.nav-active i { color: var(--px-accent); }
+
+        /* flash messages (Django messages) */
+        .px-msgs { position: fixed; z-index: 95; top: calc(64px + env(safe-area-inset-top)); right: 16px; width: min(420px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: 8px; transition: opacity .4s ease; }
+        .px-msg { display: flex; align-items: flex-start; gap: 10px; padding: 12px 12px 12px 14px; border-radius: 12px; font-size: 13px; font-weight: 600; line-height: 1.45;
+                  background: var(--px-panel); color: var(--px-text); border: 1px solid var(--px-line); border-left: 4px solid var(--px-accent); box-shadow: 0 14px 40px rgba(0,0,0,.35); animation: pxMsgIn .35s ease; }
+        .px-msg i { margin-top: 2px; color: var(--px-accent); }
+        .px-msg.good { border-left-color: var(--px-up); } .px-msg.good i { color: var(--px-up); }
+        .px-msg.bad { border-left-color: var(--px-down); } .px-msg.bad i { color: var(--px-down); }
+        .px-msg.warn { border-left-color: #f59e0b; } .px-msg.warn i { color: #f59e0b; }
+        .px-msg span { flex: 1; } .px-msg button { color: var(--px-mute); font-size: 12px; padding: 0 2px; }
+        @keyframes pxMsgIn { from { opacity: 0; transform: translateY(-8px); } }
         /* sidebar: collapsible groups of related pages */
         .nav-find { position: relative; margin: 2px 0 8px; }
         .nav-find i { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--px-mute); }
@@ -850,11 +861,12 @@
                 </div></div>
             </div>
             <div class="nav-grp" data-grp="account">
-                <button type="button" class="nav-grp-btn" aria-expanded="false"><i class="fa-solid fa-user-shield"></i><span>Account</span><b class="nav-grp-n">6</b><i class="fa-solid fa-chevron-down nav-grp-chev"></i></button>
+                <button type="button" class="nav-grp-btn" aria-expanded="false"><i class="fa-solid fa-user-shield"></i><span>Account</span><b class="nav-grp-n">7</b><i class="fa-solid fa-chevron-down nav-grp-chev"></i></button>
                 <div class="nav-grp-body"><div class="nav-grp-in">
                         <a href="{% url 'profile' %}" class="nav-item{% if request.resolver_match.url_name == 'profile' %} nav-active{% endif %}"><i class="fa-solid fa-user-shield"></i><span>Profile &amp; Security</span></a>
                         <a href="{% url 'kyc_status' %}" class="nav-item{% if request.resolver_match.url_name == 'kyc_status' %} nav-active{% endif %}"><i class="fa-solid fa-id-card"></i><span>Verification (KYC)</span></a>
                         <a href="{% url 'subscription_billing' %}" class="nav-item{% if request.resolver_match.url_name == 'subscription_billing' %} nav-active{% endif %}"><i class="fa-solid fa-crown"></i><span>Subscription</span><span class="nav-pill">{% if is_member %}{{ member_tier }}{% else %}PRO{% endif %}</span></a>
+                        <a href="{% url 'account_leverage' %}" class="nav-item{% if request.resolver_match.url_name == 'account_leverage' %} nav-active{% endif %}"><i class="fa-solid fa-sliders"></i><span>Leverage</span><span class="nav-pill">1:{{ my_leverage|default:'500' }}</span></a>
                         <a href="{% url 'notification_settings' %}" class="nav-item{% if request.resolver_match.url_name == 'notification_settings' %} nav-active{% endif %}"><i class="fa-solid fa-bell"></i><span>Notifications</span></a>
                         <a href="{% url 'platforms_download' %}" class="nav-item{% if request.resolver_match.url_name == 'platforms_download' %} nav-active{% endif %}"><i class="fa-solid fa-mobile"></i><span>Get the app</span></a>
                         <a href="{% url 'ai_support' %}" class="nav-item{% if request.resolver_match.url_name == 'ai_support' %} nav-active{% endif %}"><i class="fa-solid fa-circle-question"></i><span>Help Center</span></a>
@@ -1055,6 +1067,17 @@
                 <i class="fa-solid fa-bell"></i><span style="flex:1;min-width:0">{{ p2p_attention.text }}</span><span style="white-space:nowrap">Open order →</span>
             </a>
             {% endif %}
+            {% block message_toasts %}{% if messages %}
+            <div class="px-msgs" id="pxMsgs" role="status" aria-live="polite">
+                {% for message in messages %}
+                <div class="px-msg {% if 'error' in message.tags %}bad{% elif 'warning' in message.tags %}warn{% elif 'success' in message.tags %}good{% endif %}">
+                    <i class="fa-solid {% if 'error' in message.tags %}fa-circle-exclamation{% elif 'warning' in message.tags %}fa-triangle-exclamation{% elif 'success' in message.tags %}fa-circle-check{% else %}fa-circle-info{% endif %}"></i>
+                    <span>{{ message }}</span><button type="button" aria-label="Close" onclick="this.parentNode.remove()">✕</button>
+                </div>
+                {% endfor %}
+            </div>
+            <script>setTimeout(function () { var m = document.getElementById('pxMsgs'); if (m) { m.style.opacity = 0; setTimeout(function () { m.remove(); }, 400); } }, 6000);</script>
+            {% endif %}{% endblock %}
             {% block content %}{% endblock %}
         </main>
 
