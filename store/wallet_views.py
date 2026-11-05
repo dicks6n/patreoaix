@@ -39,7 +39,7 @@ def wallet(request):
     return render(request, 'store/wallet.html', {
         'wallet_bal': _bal(u, 'EXCHANGE'), 'trading_bal': _bal(u, 'TRADING'), 'available': transfers.available(u),
         'bonus_locked': transfers._bonus_locked(u), 'p2p_bals': p2p_bals, 'p2p_live': live,
-        'props': PropAccount.objects.filter(user=u, status='ACTIVE').count(),
+        'props': PropAccount.objects.filter(user=u, status='ACTIVE', kind='challenge').count(),
         'p2p_open': P2POrder.objects.filter(Q(buyer=u) | Q(seller=u), status__in=('PENDING', 'PAID', 'APPEAL')).count(),
         'rows': rows, 'sent': transfers.history(u, 8), 'trader_id': _trader_id(u),
     })

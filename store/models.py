@@ -1930,12 +1930,18 @@ class PropTrader(models.Model):
 
 class PropAccount(models.Model):
     """One purchased challenge account and its phases (each phase gets its own login, like MT5)."""
-    TYPES = [('two_step', '2-Step'), ('one_step', '1-Step')]
+    TYPES = [('two_step', '2-Step'), ('one_step', '1-Step'), ('standard', 'Standard')]
     PHASES = [('1', 'Phase 1'), ('2', 'Phase 2'), ('funded', 'Funded')]
+    KINDS = [('challenge', 'Challenge'), ('demo', 'Demo'), ('real', 'Real')]
     STATUSES = [('ACTIVE', 'Active'), ('PASSED', 'Passed'), ('FAILED', 'Breached'), ('CLOSED', 'Closed')]
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='prop_accounts')
     login = models.BigIntegerField(unique=True)
+    # challenge = funded-challenge rules (store/prop_firm.py) · demo = virtual money · real = the customer's own money,
+    # moved in and out from the wallet (store/trading_accounts.py). Same terminal, own balance, positions and history.
+    kind = models.CharField(max_length=10, choices=KINDS, default='challenge', db_index=True)
+    leverage = models.PositiveIntegerField(default=100)
+    nickname = models.CharField(max_length=40, blank=True)
     plan_type = models.CharField(max_length=10, choices=TYPES)
     size = models.PositiveIntegerField()
     phase = models.CharField(max_length=6, choices=PHASES, default='1')

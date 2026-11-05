@@ -250,7 +250,7 @@ def claim(user, level):
                                            details=f'{icon} {name} reward: ${amt} trading bonus')   # credited by the signal
             elif k == 'challenge':
                 from .models import PropAccount
-                if PropAccount.objects.filter(user=user, status='ACTIVE').count() >= prop_firm.MAX_ACTIVE_ACCOUNTS:
+                if PropAccount.objects.filter(user=user, status='ACTIVE', kind='challenge').count() >= prop_firm.MAX_ACTIVE_ACCOUNTS:
                     raise RewardError(f'You already run {prop_firm.MAX_ACTIVE_ACCOUNTS} challenges. Finish one, then claim.')
                 prop_firm.trader_id(user)
                 prop_firm._new_account(user, r[1], r[2], '1', D('0'), f'RWD-{level}-{user.id}')

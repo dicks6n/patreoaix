@@ -143,7 +143,7 @@ def buy(user, plan_type, size, qty=1):
     reward_off = int(prof.challenge_off_pct or 0) if prof else 0
     if reward_off:                                   # reward: % off this order, used once
         q = dict(q, total=(q['total'] * (100 - reward_off) / 100).quantize(D('0.01')))
-    active = PropAccount.objects.filter(user=user, status='ACTIVE')
+    active = PropAccount.objects.filter(user=user, status='ACTIVE', kind='challenge')
     if active.count() + qty > MAX_ACTIVE_ACCOUNTS:
         raise PropError(f'You can run up to {MAX_ACTIVE_ACCOUNTS} accounts at once (you have {active.count()}).')
     allocated = sum(a.size for a in active)
@@ -318,7 +318,7 @@ def check(prop):
 def check_all():
     from .models import PropAccount
     n = 0
-    for p in PropAccount.objects.filter(status='ACTIVE').select_related('user'):
+    for p in PropAccount.objects.filter(status='ACTIVE', kind='challenge').select_related('user'):
         try:
             if check(p) != 'ACTIVE':
                 n += 1
@@ -362,7 +362,7 @@ def payout_status(prop):
 
 def request_payout(user, login):
     from .models import PropAccount, PropPayout, KYCProfile
-    p = PropAccount.objects.filter(user=user, login=login).first()
+    p = PropAccount.objects.filter(user=user, login=login, kind='challenge').first()
     if not p:
         raise PropError('Account not found.')
     kyc = KYCProfile.objects.filter(user=user).first()

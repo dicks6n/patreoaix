@@ -278,7 +278,11 @@ def effective_leverage(user, symbol, prop=None, chosen=None):
     spec = SPECS.get((symbol or '').upper())
     top = spec.leverage if spec else 100
     if prop is not None:
-        return min(top, PROP_LEVERAGE)
+        from .models import PropAccount
+        acct = prop if hasattr(prop, 'kind') else PropAccount.objects.filter(pk=prop).only('kind', 'leverage', 'balance').first()
+        if acct is None or acct.kind == 'challenge':
+            return min(top, PROP_LEVERAGE)                     # challenge / funded accounts: 1:100 like prop firms
+        return max(1, min(acct.leverage or DEFAULT_LEVERAGE, top, equity_cap(Decimal(str(acct.balance)))))
     chosen = chosen or user_leverage(user)
     try:
         bal = Decimal(str(_trading_account(user).balance)) if user is not None and getattr(user, 'pk', None) else ZERO
@@ -1301,11 +1305,12 @@ def process_user_orders(user):
             fn(user)
         except Exception as e:
             logger.warning(f"{fn.__name__} failed for {getattr(user, 'id', '?')}: {e}")
-    for prop in PropAccount.objects.filter(user=user, status='ACTIVE'):   # challenge / funded accounts
+    for prop in PropAccount.objects.filter(user=user, status='ACTIVE'):   # challenge / funded / demo / real accounts
         try:
             check_stop_out(user, prop)
-            from . import prop_firm
-            prop_firm.check(prop)
+            if prop.kind == 'challenge':                     # demo / real accounts have no challenge rules
+                from . import prop_firm
+                prop_firm.check(prop)
         except Exception as e:
             logger.warning(f"prop account {prop.login} check failed: {e}")
 
@@ -1317,7 +1322,8 @@ def _prop_tradable(prop_id):
 
 def _require_prop(user, prop):
     if prop is not None and (prop.user_id != user.id or not _prop_tradable(prop.pk)):
-        raise TradeError("This challenge account is no longer active")
+        raise TradeError("This account is no longer active" if getattr(prop, 'kind', 'challenge') != 'challenge'
+                         else "This challenge account is no longer active")
 
 
 def process_all():

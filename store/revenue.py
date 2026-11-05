@@ -116,8 +116,8 @@ def build(days=30):
         ('Copied trades', CopyTrade.objects.filter(created_at__gte=month, status__in=('OPEN', 'CLOSED')).count(), 'opened on Deriv'),
         ('Push devices', PushSubscription.objects.count(), 'phones / browsers'),
         ('Price alerts active', PriceWatch.objects.filter(active=True).count(), 'waiting to fire'),
-        ('Active challenges', PropAccount.objects.filter(status='ACTIVE').exclude(phase='funded').count(), 'phase 1 / 2 accounts'),
-        ('Funded traders', PropAccount.objects.filter(status='ACTIVE', phase='funded').values('user').distinct().count(), 'with a live funded account'),
+        ('Active challenges', PropAccount.objects.filter(status='ACTIVE', kind='challenge').exclude(phase='funded').count(), 'phase 1 / 2 accounts'),
+        ('Funded traders', PropAccount.objects.filter(status='ACTIVE', phase='funded', kind='challenge').values('user').distinct().count(), 'with a live funded account'),
         ('Payouts waiting', PropPayout.objects.filter(status='PENDING').count(), 'approve in admin'),
     ]
 

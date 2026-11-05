@@ -5642,12 +5642,78 @@ def kyc_submit_view(request):
     })
 
 @login_required
+@login_required
 def trading_accounts_view(request):
-    # Fetch live/demo trading accounts associated with the user
-    context = {
-        'trading_accounts': [],
-    }
-    return render(request, 'store/trading_accounts.html', context)
+    """My accounts, like Exness / Deriv: the main real account, more real accounts, demo accounts (store/trading_accounts.py)."""
+    from . import trading_accounts as ta, mt5_service as m
+    from decimal import Decimal as D
+    tab = request.GET.get('tab') if request.GET.get('tab') in ('real', 'demo', 'archived') else 'real'
+    if request.method == 'POST':
+        act = request.POST.get('action')
+        try:
+            if act == 'create':
+                a = ta.create(request.user, request.POST.get('kind'), request.POST.get('leverage'),
+                              request.POST.get('balance'), request.POST.get('nickname', '').strip())
+                messages.success(request, f'{a.get_kind_display()} account #{a.login} opened with 1:{a.leverage} leverage.'
+                                 + (' Move money in with Transfer.' if a.kind == 'real' else f' Balance ${a.balance:,.0f} (virtual).'))
+                tab = a.kind
+            elif act == 'leverage':
+                if request.POST.get('login') == 'main':
+                    lev = int(request.POST.get('leverage') or 0)
+                    if lev not in m.LEVERAGE_CHOICES:
+                        raise ta.AccountError('Choose a leverage.')
+                    prof, _ = UserProfile.objects.get_or_create(user=request.user)
+                    prof.leverage = lev
+                    prof.save(update_fields=['leverage'])
+                    messages.success(request, f'Main account leverage set to 1:{lev}.')
+                else:
+                    a = ta.set_leverage(request.user, int(request.POST.get('login')), request.POST.get('leverage'))
+                    messages.success(request, f'#{a.login} leverage set to 1:{a.leverage}.')
+                    tab = a.kind
+            elif act == 'demo_balance':
+                a = ta.set_demo_balance(request.user, int(request.POST.get('login')), request.POST.get('balance'))
+                messages.success(request, f'Demo #{a.login} balance reset to ${a.balance:,.0f}.')
+                tab = 'demo'
+            elif act == 'transfer':
+                a = ta.transfer(request.user, request.POST.get('src'), request.POST.get('dst'), request.POST.get('amount'))
+                messages.success(request, f'Transfer done. #{a.login} balance ${a.balance:,.2f}.')
+            elif act == 'archive':
+                a = ta.archive(request.user, int(request.POST.get('login')))
+                messages.info(request, f'#{a.login} archived. Restore it any time from the Archived tab.')
+                tab = a.kind
+            elif act == 'restore':
+                a = ta.restore(request.user, int(request.POST.get('login')))
+                messages.success(request, f'#{a.login} restored.')
+                tab = a.kind
+            elif act == 'rename':
+                a = ta.get(request.user, int(request.POST.get('login')))
+                a.nickname = (request.POST.get('nickname') or '').strip()[:40] or a.nickname
+                a.save(update_fields=['nickname', 'updated_at'])
+                tab = a.kind
+        except (ta.AccountError, ValueError, TypeError) as e:
+            messages.error(request, str(e) or 'Something went wrong.')
+        return redirect(f"{reverse('trading_accounts')}?tab={tab}")
+
+    main_m = m.get_metrics(request.user)
+    main = {'balance': main_m['balance'], 'equity': main_m['equity'], 'free': main_m['free_margin'],
+            'open': main_m['position_count'], 'leverage': m.user_leverage(request.user)}
+    try:
+        from . import prop_firm
+        main['login'] = prop_firm.trader_id(request.user)
+    except Exception:
+        main['login'] = request.user.id
+    real = [ta.summary(a) for a in ta.accounts(request.user) if a.kind == 'real']
+    demo = [ta.summary(a) for a in ta.accounts(request.user) if a.kind == 'demo']
+    archived = ta.accounts(request.user, archived=True)
+    gold = m.SPECS['XAUUSD']
+    q = m.cached_quote('XAUUSD')
+    gpx = q.mid if q else D('4000')
+    levs = [{'lev': l, 'gold': (D('0.01') * gold.contract_size * gpx / min(l, gold.leverage)).quantize(D('0.01'))} for l in m.LEVERAGE_CHOICES]
+    return render(request, 'store/trading_accounts.html', {
+        'tab': tab, 'main': main, 'real': real, 'demo': demo, 'archived': archived, 'levs': levs,
+        'demo_balances': ta.DEMO_BALANCES, 'wallet': ta.wallet(request.user).balance,
+        'limits': ta.MAX_ACCOUNTS,
+    })
 
 
 @login_required
@@ -11639,13 +11705,13 @@ def prop_dashboard(request):
         except (pf.PropError, ValueError) as e:
             messages.error(request, str(e) or 'Something went wrong.')
         return redirect('funded')
-    for p in PropAccount.objects.filter(user=request.user, status='ACTIVE'):
+    for p in PropAccount.objects.filter(user=request.user, status='ACTIVE', kind='challenge'):
         try:
             mt5.check_stop_out(request.user, p)
             pf.check(p)
         except Exception as e:
             logger.warning(f'prop check {p.login}: {e}')
-    accounts = list(PropAccount.objects.filter(user=request.user))
+    accounts = list(PropAccount.objects.filter(user=request.user, kind='challenge'))
     active = []
     for a in accounts:
         a.tier = pf.TIER_NAMES.get(a.size, '')
@@ -11672,9 +11738,11 @@ def prop_dashboard(request):
 def api_prop_accounts(request):
     """Active challenge / funded accounts for the terminal's Settings → Accounts."""
     from .models import PropAccount
-    rows = [{'login': a.login, 'name': f"{a.get_plan_type_display()} ${a.size // 1000}K", 'phase': a.get_phase_display(),
-             'balance': float(a.balance), 'size': a.size, 'funded': a.phase == 'funded'}
-            for a in PropAccount.objects.filter(user=request.user, status='ACTIVE')]
+    rows = [{'login': a.login, 'kind': a.kind, 'leverage': a.leverage,
+             'name': (a.nickname or a.get_kind_display()) if a.kind != 'challenge' else f"{a.get_plan_type_display()} ${a.size // 1000}K",
+             'phase': a.get_kind_display() if a.kind != 'challenge' else a.get_phase_display(),
+             'balance': float(a.balance), 'size': a.size, 'funded': a.kind == 'challenge' and a.phase == 'funded'}
+            for a in PropAccount.objects.filter(user=request.user, status='ACTIVE').order_by('kind', 'created_at')]
     return JsonResponse({'success': True, 'accounts': rows})
 
 

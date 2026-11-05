@@ -535,7 +535,7 @@
             const note = document.createElement('p'); note.className = 'text-[10px] font-bold hidden'; btn.before(note);
             function sync() {
                 const mpesa = method.value === 'mpesa';
-                phone.classList.toggle('hidden', !mpesa);
+                if (phone) phone.classList.toggle('hidden', !mpesa);
                 const short = !mpesa && BALANCE < price;
                 note.classList.toggle('hidden', !short);
                 note.style.color = 'var(--px-down)';

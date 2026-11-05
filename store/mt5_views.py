@@ -106,7 +106,9 @@ def mt5_terminal_view(request):
     # Phone-only page. Staff can preview on a computer with ?preview=1.
     # launched from the home-screen app (manifest start_url / cookie set by the installed app) → allowed on tablets too
     installed_app = request.GET.get('source') == 'pwa' or request.COOKIES.get('px_pwa') == '1'
-    if not is_mobile_phone(request) and not installed_app and not (request.user.is_staff and request.GET.get('preview') == '1'):
+    # Computers get the web terminal too (a phone-width column, like Exness / Deriv web terminals); the old
+    # 'open it on your phone' page stays reachable with ?phone=1.
+    if request.GET.get('phone') == '1' and not is_mobile_phone(request) and not installed_app:
         return render(request, 'store/mt5_mobile_only.html', {
             'terminal_url': request.build_absolute_uri(request.path),
         })
@@ -257,7 +259,7 @@ def execute_trade(request):
         return legacy_execute(request)
 
     prop = _book(request, tradable=True)
-    if prop is None:                       # challenge accounts are simulated capital: KYC comes at payout time
+    if prop is None or prop.kind == 'real':  # own money: KYC first (challenge / demo accounts are simulated capital)
         _require_kyc(request.user)
     trade = mt5.open_position(
         request.user, data.get('symbol'), contract,
@@ -467,7 +469,7 @@ def api_place_pending_order(request):
     """Body: {symbol, order_type, volume, price, stoplimit?, sl?, tp?, expiration: GTC|DAY|SPECIFIED, expires_at?}"""
     data = _json_body(request)
     prop = _book(request, tradable=True)
-    if prop is None:
+    if prop is None or prop.kind == 'real':
         _require_kyc(request.user)
     o = mt5.place_pending(request.user, data.get('symbol'), data.get('order_type'), data.get('volume'),
                           prop=prop, **_pending_args(data))

@@ -1,0 +1,13 @@
+<div class="ta-card {{ kind }}">
+  <div><div class="ta-chips"><span class="ta-chip k">{{ kind|upper }}</span><span class="ta-chip">STANDARD</span><span class="ta-chip">MT5</span></div>
+    <div class="ta-name">{{ r.acct.nickname }}</div><div class="ta-login">#{{ r.acct.login }}</div></div>
+  <div><div class="ta-bal">{{ r.balance|floatformat:2 }} <small>USD</small></div>
+    <div class="ta-stats"><div>Equity<b class="{% if r.floating > 0 %}text-emerald-400{% elif r.floating < 0 %}text-rose-400{% endif %}">{{ r.equity|floatformat:2 }}</b></div><div>Free margin<b>{{ r.free|floatformat:2 }}</b></div><div>Leverage<b>1:{{ r.acct.leverage }}</b></div><div>Open<b>{{ r.open }}</b></div></div></div>
+  <div class="ta-acts">
+    <a class="ta-btn go sm" href="/terminal/?book={{ r.acct.login }}"><i class="fa-solid fa-chart-line"></i> Trade</a>
+    {% if kind == 'real' %}<button class="ta-btn sm" onclick="taTransfer('{{ r.acct.login }}')"><i class="fa-solid fa-arrow-right-arrow-left"></i> Transfer</button>
+    {% else %}<button class="ta-btn sm" onclick="taDemo('{{ r.acct.login }}')"><i class="fa-solid fa-rotate"></i> Set balance</button>{% endif %}
+    <button class="ta-btn sm" onclick="taLev('{{ r.acct.login }}', {{ r.acct.leverage }}, '{{ r.acct.nickname|escapejs }}')"><i class="fa-solid fa-sliders"></i> 1:{{ r.acct.leverage }}</button>
+    <form method="post" onsubmit="return confirm('Archive #{{ r.acct.login }}? You can restore it later.')">{% csrf_token %}<input type="hidden" name="action" value="archive"><input type="hidden" name="login" value="{{ r.acct.login }}"><button class="ta-btn sm" title="Archive"><i class="fa-solid fa-box-archive"></i></button></form>
+  </div>
+</div>

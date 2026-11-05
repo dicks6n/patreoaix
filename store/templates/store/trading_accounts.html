@@ -1,183 +1,167 @@
 {% extends 'base_dashboard.html' %}
-
-{% block title %}Trading & Exchange Accounts - PATREOAIX{% endblock %}
-
-{% block content %}
-<div class="max-w-6xl mx-auto py-6 px-4 space-y-6 pb-24 md:pb-6">
-
-    <!-- Header & Combined Total Balance (Synchronized Live with Dashboard WebSocket) -->
-    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-slate-800">
-        <div>
-            <h2 class="text-xl font-bold text-white tracking-wide">Trading & Exchange Accounts</h2>
-            <p class="text-xs text-slate-400 mt-0.5">Manage your main exchange wallet, broker trading accounts, and internal transfers</p>
-        </div>
-        <div class="bg-slate-900 border border-slate-800 px-5 py-3 rounded-2xl flex items-center gap-4 shadow-xl">
-            <div>
-                <span class="block text-[10px] uppercase font-bold tracking-wider text-slate-500 font-mono">Total Net Balance</span>
-                <span id="total-balance-display" class="text-xl font-black text-emerald-400 font-mono">${{ total_balance|default:"0.00" }}</span>
-            </div>
-            <a href="{% url 'account_leverage' %}" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow flex items-center gap-1.5 cursor-pointer">
-                <i class="fa-solid fa-sliders text-[11px]"></i> Leverage
-            </a>
-        </div>
-    </div>
-
-    <!-- Split Account Breakdown Cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 font-mono">
-        <!-- Exchange Balance Card (Main) -->
-        <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex items-center justify-between shadow-xl">
-            <div>
-                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">Exchange Account (Main)</span>
-                <span id="exchange-balance-display" class="text-2xl font-black text-white">${{ exchange_balance|default:"0.00" }}</span>
-            </div>
-            <div class="w-10 h-10 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex items-center justify-center text-indigo-400 font-bold text-xs">EX</div>
-        </div>
-
-        <!-- Trading Balance Card -->
-        <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex items-center justify-between shadow-xl">
-            <div>
-                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">Trading Account Aggregate</span>
-                <span id="trading-balance-display" class="text-2xl font-black text-emerald-400">${{ trading_balance|default:"0.00" }}</span>
-            </div>
-            <div class="w-10 h-10 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-center text-emerald-400 font-bold text-xs">TR</div>
-        </div>
-    </div>
-
-    <!-- Grid Layout: Active Trading Accounts & Internal Transfer Form -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        <!-- Left 2 Columns: Active Trading Accounts Table -->
-        <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-            <div class="flex items-center justify-between pb-3 border-b border-slate-800">
-                <h3 class="text-sm font-bold text-white uppercase tracking-wider font-mono">Broker Trading Accounts</h3>
-                <span class="text-xs text-slate-400 font-mono">Active Terminals</span>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-xs font-mono">
-                    <thead class="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800 font-semibold">
-                        <tr>
-                            <th class="py-3 px-3">Account ID</th>
-                            <th class="py-3 px-3">Type</th>
-                            <th class="py-3 px-3">Balance</th>
-                            <th class="py-3 px-3">Leverage</th>
-                            <th class="py-3 px-3 text-right">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-800/80">
-                        {% for account in trading_accounts %}
-                        <tr class="hover:bg-slate-800/40 transition-colors">
-                            <td class="py-3.5 px-3 font-bold text-white">{{ account.id }}</td>
-                            <td class="py-3.5 px-3 text-slate-300">{{ account.type }}</td>
-                            <td class="py-3.5 px-3 text-emerald-400 font-bold">${{ account.balance }}</td>
-                            <td class="py-3.5 px-3 text-slate-300">1:{{ account.leverage }}</td>
-                            <td class="py-3.5 px-3 text-right font-sans">
-                                <a href="{% url 'crypto_deposit' %}" class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] transition shadow cursor-pointer">
-                                    Deposit
-                                </a>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="5" class="text-center py-6 text-slate-500 font-sans">No trading accounts found.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Right Column: Internal Transfer Between Exchange & Trading -->
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-            <div class="pb-3 border-b border-slate-800">
-                <h3 class="text-sm font-bold text-white uppercase tracking-wider font-mono">Internal Transfer</h3>
-                <p class="text-[11px] text-slate-400 mt-0.5">Move funds instantly between Exchange and Trading</p>
-            </div>
-            <form method="POST" action="{% url 'transfer_between_accounts' %}" class="space-y-4 text-xs font-mono">
-                {% csrf_token %}
-                <div>
-                    <label class="block text-slate-400 font-bold uppercase mb-1.5">From Account</label>
-                    <select name="source_type" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:outline-none focus:border-indigo-500 cursor-pointer" required>
-                        <option id="source-exchange-option" value="EXCHANGE">Exchange Account (${{ exchange_balance|default:"0.00" }})</option>
-                        <option id="source-trading-option" value="TRADING">Trading Account (${{ trading_balance|default:"0.00" }})</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-slate-400 font-bold uppercase mb-1.5">To Account</label>
-                    <select name="target_type" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:outline-none focus:border-indigo-500 cursor-pointer" required>
-                        <option id="target-trading-option" value="TRADING">Trading Account (${{ trading_balance|default:"0.00" }})</option>
-                        <option id="target-exchange-option" value="EXCHANGE">Exchange Account (${{ exchange_balance|default:"0.00" }})</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-slate-400 font-bold uppercase mb-1.5">Amount (USD)</label>
-                    <input type="number" step="0.01" name="amount" placeholder="0.00" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:outline-none focus:border-indigo-500" required>
-                </div>
-                <button type="submit" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition shadow-lg cursor-pointer">
-                    Transfer Funds
-                </button>
-            </form>
-        </div>
-
-    </div>
-</div>
+{% block title %}My Trading Accounts · PATREOAIX{% endblock %}
+{% block page_title %}My accounts{% endblock %}
+{% block extra_head %}
+<style>
+  .ta-wrap { display: flex; flex-direction: column; gap: 16px; max-width: 1100px; }
+  .ta-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .ta-top h1 { font-size: 24px; font-weight: 900; color: var(--px-text); }
+  .ta-top p { font-size: 13px; color: var(--px-mute); margin-top: 2px; }
+  .ta-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 42px; padding: 0 16px; border-radius: 11px; font-size: 13.5px; font-weight: 900; border: 1px solid var(--px-line); background: var(--px-panel-2); color: var(--px-text); cursor: pointer; white-space: nowrap; }
+  .ta-btn:hover { border-color: var(--px-accent); }
+  .ta-btn.go { background: var(--px-accent); border-color: var(--px-accent); color: var(--px-accent-ink, #0b0e14); }
+  .ta-btn.sm { height: 36px; padding: 0 12px; font-size: 12.5px; }
+  .ta-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--px-line); }
+  .ta-tabs a { padding: 12px 16px; font-size: 14px; font-weight: 800; color: var(--px-mute); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .ta-tabs a.on { color: var(--px-text); border-color: var(--px-accent); }
+  .ta-tabs a small { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--px-panel-2); margin-left: 4px; }
+  .ta-list { display: flex; flex-direction: column; gap: 12px; }
+  .ta-card { position: relative; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.6fr) auto; gap: 18px; align-items: center; padding: 18px 18px 18px 22px;
+             border-radius: 16px; background: var(--px-panel); border: 1px solid var(--px-line); overflow: hidden; }
+  .ta-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--ta-c); }
+  .ta-card.real { --ta-c: var(--px-accent); } .ta-card.demo { --ta-c: #38bdf8; } .ta-card.arch { --ta-c: var(--px-mute); opacity: .8; }
+  @media (max-width: 860px) { .ta-card { grid-template-columns: 1fr; gap: 12px; } }
+  .ta-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ta-chip { font-size: 10.5px; font-weight: 900; letter-spacing: .05em; padding: 3px 8px; border-radius: 6px; background: var(--px-panel-2); color: var(--px-dim); border: 1px solid var(--px-line); }
+  .ta-chip.k { background: color-mix(in srgb, var(--ta-c) 16%, transparent); color: var(--ta-c); border-color: color-mix(in srgb, var(--ta-c) 40%, transparent); }
+  .ta-name { font-size: 15px; font-weight: 900; color: var(--px-text); margin-top: 8px; }
+  .ta-login { font: 700 12.5px 'JetBrains Mono', monospace; color: var(--px-mute); }
+  .ta-bal { font: 900 26px 'JetBrains Mono', monospace; color: var(--px-text); }
+  .ta-bal small { font-size: 13px; color: var(--px-mute); font-weight: 700; }
+  .ta-stats { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 6px; }
+  .ta-stats div { font-size: 11px; color: var(--px-mute); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+  .ta-stats b { display: block; font: 800 13.5px 'JetBrains Mono', monospace; color: var(--px-text); text-transform: none; letter-spacing: 0; margin-top: 2px; }
+  .ta-acts { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  @media (max-width: 860px) { .ta-acts { justify-content: flex-start; } }
+  .ta-empty { text-align: center; padding: 40px 16px; border-radius: 16px; border: 1px dashed var(--px-line); color: var(--px-mute); }
+  .ta-empty b { display: block; font-size: 16px; color: var(--px-text); margin: 8px 0 4px; }
+  /* modal */
+  .ta-modal { position: fixed; inset: 0; z-index: 120; display: none; align-items: center; justify-content: center; padding: 16px; background: rgba(0,0,0,.6); backdrop-filter: blur(4px); }
+  .ta-modal.on { display: flex; }
+  .ta-box { width: min(620px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; border-radius: 20px; background: var(--px-panel); border: 1px solid var(--px-line); padding: 22px; animation: taIn .25s ease; }
+  @keyframes taIn { from { opacity: 0; transform: translateY(10px) scale(.98); } }
+  .ta-box h2 { font-size: 19px; font-weight: 900; color: var(--px-text); display: flex; justify-content: space-between; align-items: center; }
+  .ta-box h2 button { font-size: 18px; color: var(--px-mute); }
+  .ta-step { font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: var(--px-accent); margin: 18px 0 8px; }
+  .ta-kinds { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 520px) { .ta-kinds { grid-template-columns: 1fr; } }
+  .ta-pick input { position: absolute; opacity: 0; pointer-events: none; }
+  .ta-pick label { display: block; height: 100%; padding: 14px; border-radius: 14px; background: var(--px-panel-2); border: 1px solid var(--px-line); cursor: pointer; transition: all .15s; }
+  .ta-pick label:hover { border-color: var(--px-accent); }
+  .ta-pick input:checked + label { border-color: var(--px-accent); background: var(--px-accent-soft); box-shadow: 0 0 0 1px var(--px-accent) inset; }
+  .ta-pick b { display: block; font-size: 15px; color: var(--px-text); } .ta-pick small { display: block; font-size: 12px; color: var(--px-mute); margin-top: 4px; line-height: 1.5; }
+  .ta-pick .ic { font-size: 20px; margin-bottom: 8px; color: var(--ta-c, var(--px-accent)); }
+  .ta-levs { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+  .ta-levs .ta-pick label { padding: 10px; text-align: center; }
+  .ta-levs b { font: 900 16px 'JetBrains Mono', monospace; } .ta-levs small { font-size: 10.5px; }
+  .ta-in { width: 100%; height: 44px; border-radius: 11px; padding: 0 12px; background: var(--px-panel-2); border: 1px solid var(--px-line); color: var(--px-text); font-size: 14px; font-weight: 700; }
+  .ta-in:focus { outline: none; border-color: var(--px-accent); }
+  .ta-note { font-size: 12px; color: var(--px-mute); line-height: 1.55; margin-top: 10px; }
+</style>
 {% endblock %}
+{% block content %}
+<div class="ta-wrap">
+  <div class="ta-top">
+    <div><h1>My accounts</h1><p>Real accounts trade your own money; demo accounts trade virtual money to practise. Each has its own leverage, balance and trades.</p></div>
+    <button class="ta-btn go" onclick="taOpen('newAcc')"><i class="fa-solid fa-plus"></i> Open account</button>
+  </div>
 
+  <nav class="ta-tabs">
+    <a href="?tab=real" class="{% if tab == 'real' %}on{% endif %}">Real <small>{{ real|length|add:1 }}</small></a>
+    <a href="?tab=demo" class="{% if tab == 'demo' %}on{% endif %}">Demo <small>{{ demo|length }}</small></a>
+    <a href="?tab=archived" class="{% if tab == 'archived' %}on{% endif %}">Archived <small>{{ archived|length }}</small></a>
+  </nav>
+
+  <div class="ta-list">
+  {% if tab == 'real' %}
+    <div class="ta-card real">
+      <div><div class="ta-chips"><span class="ta-chip k">REAL</span><span class="ta-chip">MAIN</span><span class="ta-chip">STANDARD</span><span class="ta-chip">MT5</span></div>
+        <div class="ta-name">Main account</div><div class="ta-login">#{{ main.login }}</div></div>
+      <div><div class="ta-bal">{{ main.balance|floatformat:2 }} <small>USD</small></div>
+        <div class="ta-stats"><div>Equity<b>{{ main.equity|floatformat:2 }}</b></div><div>Free margin<b>{{ main.free|floatformat:2 }}</b></div><div>Leverage<b>1:{{ main.leverage }}</b></div><div>Open<b>{{ main.open }}</b></div></div></div>
+      <div class="ta-acts"><a class="ta-btn go sm" href="/terminal/?book="><i class="fa-solid fa-chart-line"></i> Trade</a>
+        <a class="ta-btn sm" href="{% url 'funding_deposit' %}"><i class="fa-solid fa-arrow-down"></i> Deposit</a>
+        <button class="ta-btn sm" onclick="taLev('main', {{ main.leverage }})"><i class="fa-solid fa-sliders"></i> Leverage</button></div>
+    </div>
+    {% for r in real %}{% include 'store/partials/ta_card.html' with r=r kind='real' %}{% endfor %}
+    {% if not real %}<div class="ta-empty"><i class="fa-solid fa-wallet" style="font-size:26px;color:var(--px-accent)"></i><b>Open another real account</b>Keep strategies apart: one account per style, each with its own leverage.<div style="margin-top:12px"><button class="ta-btn go sm" onclick="taOpen('newAcc','real')">Open real account</button></div></div>{% endif %}
+  {% elif tab == 'demo' %}
+    {% for r in demo %}{% include 'store/partials/ta_card.html' with r=r kind='demo' %}{% endfor %}
+    {% if not demo %}<div class="ta-empty"><i class="fa-solid fa-flask" style="font-size:26px;color:#38bdf8"></i><b>Practise with virtual money</b>Open a demo account with up to $100,000 of virtual money: real prices, no risk.<div style="margin-top:12px"><button class="ta-btn go sm" onclick="taOpen('newAcc','demo')">Open demo account</button></div></div>{% endif %}
+  {% else %}
+    {% for a in archived %}
+    <div class="ta-card arch"><div><div class="ta-chips"><span class="ta-chip k">{{ a.get_kind_display|upper }}</span><span class="ta-chip">ARCHIVED</span></div><div class="ta-name">{{ a.nickname }}</div><div class="ta-login">#{{ a.login }}</div></div>
+      <div><div class="ta-bal">{{ a.balance|floatformat:2 }} <small>USD</small></div><div class="ta-stats"><div>Leverage<b>1:{{ a.leverage }}</b></div><div>Archived<b>{{ a.ended_at|date:"d M Y" }}</b></div></div></div>
+      <div class="ta-acts"><form method="post">{% csrf_token %}<input type="hidden" name="action" value="restore"><input type="hidden" name="login" value="{{ a.login }}"><button class="ta-btn sm"><i class="fa-solid fa-rotate-left"></i> Restore</button></form></div></div>
+    {% empty %}<div class="ta-empty"><b>No archived accounts</b>Accounts you archive appear here and can be restored.</div>{% endfor %}
+  {% endif %}
+  </div>
+</div>
+
+<!-- open account -->
+<div class="ta-modal" id="newAcc" onclick="if(event.target===this)taClose(this)"><form class="ta-box" method="post">{% csrf_token %}<input type="hidden" name="action" value="create">
+  <h2>Open an account <button type="button" onclick="taClose(this.closest('.ta-modal'))">✕</button></h2>
+  <div class="ta-step">1 · Account</div>
+  <div class="ta-kinds">
+    <div class="ta-pick"><input type="radio" name="kind" value="real" id="kReal"><label for="kReal" style="--ta-c:var(--px-accent)"><div class="ic"><i class="fa-solid fa-sack-dollar"></i></div><b>Real</b><small>Trade your own money. Move funds in from your wallet. Profits can be withdrawn.</small></label></div>
+    <div class="ta-pick"><input type="radio" name="kind" value="demo" id="kDemo" checked><label for="kDemo" style="--ta-c:#38bdf8"><div class="ic"><i class="fa-solid fa-flask"></i></div><b>Demo</b><small>Virtual money, real prices. Practise strategies with zero risk.</small></label></div>
+  </div>
+  <div class="ta-step">2 · Leverage</div>
+  <div class="ta-levs">{% for l in levs %}<div class="ta-pick"><input type="radio" name="leverage" value="{{ l.lev }}" id="nl{{ l.lev }}" {% if l.lev == 500 %}checked{% endif %}><label for="nl{{ l.lev }}"><b>1:{{ l.lev }}</b><small>gold 0.01 lot<br>${{ l.gold }}</small></label></div>{% endfor %}</div>
+  <p class="ta-note">Margin each trade locks. Leverage doesn't change spreads or profit per pip; it's capped per market (crypto 1:200, indices 1:400) and lower for balances over $5,000.</p>
+  <div id="demoBal"><div class="ta-step">3 · Virtual balance</div>
+    <div class="ta-levs">{% for b in demo_balances %}<div class="ta-pick"><input type="radio" name="balance" value="{{ b }}" id="db{{ b }}" {% if b == 10000 %}checked{% endif %}><label for="db{{ b }}"><b style="font-size:14px">${{ b|floatformat:0 }}</b></label></div>{% endfor %}</div></div>
+  <div class="ta-step" id="nameStep">3 · Name</div>
+  <input class="ta-in" name="nickname" maxlength="40" placeholder="e.g. Gold scalping (optional)">
+  <p class="ta-note">Account type: <b style="color:var(--px-text)">Standard</b> · MT5 · USD · no commission. You can change the leverage later.</p>
+  <button class="ta-btn go" style="width:100%;margin-top:14px;height:48px"><i class="fa-solid fa-check"></i> <span id="createTxt">Open demo account</span></button>
+</form></div>
+
+<!-- leverage -->
+<div class="ta-modal" id="levBox" onclick="if(event.target===this)taClose(this)"><form class="ta-box" method="post">{% csrf_token %}<input type="hidden" name="action" value="leverage"><input type="hidden" name="login" id="levLogin">
+  <h2>Change leverage <button type="button" onclick="taClose(this.closest('.ta-modal'))">✕</button></h2>
+  <p class="ta-note" id="levFor"></p>
+  <div class="ta-levs" style="margin-top:10px">{% for l in levs %}<div class="ta-pick"><input type="radio" name="leverage" value="{{ l.lev }}" id="cl{{ l.lev }}"><label for="cl{{ l.lev }}"><b>1:{{ l.lev }}</b><small>gold 0.01 lot<br>${{ l.gold }}</small></label></div>{% endfor %}</div>
+  <button class="ta-btn go" style="width:100%;margin-top:16px;height:46px">Save leverage</button>
+</form></div>
+
+<!-- transfer -->
+<div class="ta-modal" id="trBox" onclick="if(event.target===this)taClose(this)"><form class="ta-box" method="post">{% csrf_token %}<input type="hidden" name="action" value="transfer">
+  <h2>Transfer <button type="button" onclick="taClose(this.closest('.ta-modal'))">✕</button></h2>
+  <div class="ta-step">From</div><select class="ta-in" name="src" id="trSrc"><option value="wallet">Wallet · ${{ wallet|floatformat:2 }}</option>{% for r in real %}<option value="{{ r.acct.login }}">#{{ r.acct.login }} {{ r.acct.nickname }} · ${{ r.balance|floatformat:2 }}</option>{% endfor %}</select>
+  <div class="ta-step">To</div><select class="ta-in" name="dst" id="trDst"><option value="wallet">Wallet</option>{% for r in real %}<option value="{{ r.acct.login }}">#{{ r.acct.login }} {{ r.acct.nickname }}</option>{% endfor %}</select>
+  <div class="ta-step">Amount (USD)</div><input class="ta-in" name="amount" type="number" step="0.01" min="0.01" placeholder="0.00" required>
+  <p class="ta-note">Instant and free. Money in open trades stays as margin until they close.</p>
+  <button class="ta-btn go" style="width:100%;margin-top:14px;height:46px"><i class="fa-solid fa-arrow-right-arrow-left"></i> Transfer</button>
+</form></div>
+
+<!-- demo balance -->
+<div class="ta-modal" id="dbBox" onclick="if(event.target===this)taClose(this)"><form class="ta-box" method="post">{% csrf_token %}<input type="hidden" name="action" value="demo_balance"><input type="hidden" name="login" id="dbLogin">
+  <h2>Set demo balance <button type="button" onclick="taClose(this.closest('.ta-modal'))">✕</button></h2>
+  <div class="ta-levs" style="margin-top:12px">{% for b in demo_balances %}<div class="ta-pick"><input type="radio" name="balance" value="{{ b }}" id="sb{{ b }}" {% if b == 10000 %}checked{% endif %}><label for="sb{{ b }}"><b style="font-size:14px">${{ b|floatformat:0 }}</b></label></div>{% endfor %}</div>
+  <p class="ta-note">Starts the demo fresh with this virtual balance (open trades must be closed first).</p>
+  <button class="ta-btn go" style="width:100%;margin-top:14px;height:46px">Set balance</button>
+</form></div>
+{% endblock %}
 {% block extra_js %}
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const socketUrl = `${wsProtocol}//${window.location.host}/ws/trading/`;
-
-        function connectTradingSocket() {
-            const tradingSocket = new WebSocket(socketUrl);
-
-            tradingSocket.onopen = function () {
-                tradingSocket.send(JSON.stringify({ 'action': 'get_account_balance' }));
-            };
-
-            tradingSocket.onmessage = function (e) {
-                try {
-                    const data = JSON.parse(e.data);
-                    if (data.type === 'account_info' && data.data) {
-                        updateAccountBalances(data.data);
-                    }
-                } catch (err) { console.error("Parse error:", err); }
-            };
-
-            tradingSocket.onclose = function () {
-                setTimeout(connectTradingSocket, 3000);
-            };
-        }
-
-        function updateAccountBalances(accountData) {
-            const rawBalance = parseFloat(accountData.balance !== undefined ? accountData.balance : 0.00);
-            const exchangeBal = parseFloat(accountData.exchange_balance !== undefined ? accountData.exchange_balance : rawBalance);
-            const tradingBal = parseFloat(accountData.trading_balance !== undefined ? accountData.trading_balance : 0.00);
-            const totalBal = exchangeBal + tradingBal;
-
-            const format = (val) => `$${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-            const totalEl = document.getElementById("total-balance-display");
-            const exchangeEl = document.getElementById("exchange-balance-display");
-            const tradingEl = document.getElementById("trading-balance-display");
-            
-            const sourceEx = document.getElementById("source-exchange-option");
-            const sourceTr = document.getElementById("source-trading-option");
-            const targetTr = document.getElementById("target-trading-option");
-            const targetEx = document.getElementById("target-exchange-option");
-
-            if (totalEl) totalEl.innerText = format(totalBal);
-            if (exchangeEl) exchangeEl.innerText = format(exchangeBal);
-            if (tradingEl) tradingEl.innerText = format(tradingBal);
-
-            if (sourceEx) sourceEx.innerText = `Exchange Account (${format(exchangeBal)})`;
-            if (sourceTr) sourceTr.innerText = `Trading Account (${format(tradingBal)})`;
-            if (targetTr) targetTr.innerText = `Trading Account (${format(tradingBal)})`;
-            if (targetEx) targetEx.innerText = `Exchange Account (${format(exchangeBal)})`;
-        }
-
-        connectTradingSocket();
-    });
+function taOpen(id, kind) { var m = document.getElementById(id); m.classList.add('on'); if (kind) { var r = document.getElementById(kind === 'real' ? 'kReal' : 'kDemo'); r.checked = true; taKind(); } }
+function taClose(m) { m.classList.remove('on'); }
+function taKind() {
+  var demo = document.getElementById('kDemo').checked;
+  document.getElementById('demoBal').style.display = demo ? '' : 'none';
+  document.getElementById('nameStep').textContent = (demo ? '4' : '3') + ' · Name';
+  document.getElementById('createTxt').textContent = demo ? 'Open demo account' : 'Open real account';
+}
+document.querySelectorAll('input[name=kind]').forEach(function (r) { r.addEventListener('change', taKind); }); taKind();
+function taLev(login, cur, label) {
+  document.getElementById('levLogin').value = login;
+  document.getElementById('levFor').textContent = (login === 'main' ? 'Main account' : 'Account #' + login + (label ? ' · ' + label : '')) + ' · now 1:' + cur;
+  var r = document.getElementById('cl' + cur); if (r) r.checked = true;
+  taOpen('levBox');
+}
+function taTransfer(login) { document.getElementById('trSrc').value = 'wallet'; document.getElementById('trDst').value = login; taOpen('trBox'); }
+function taDemo(login) { document.getElementById('dbLogin').value = login; taOpen('dbBox'); }
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') document.querySelectorAll('.ta-modal.on').forEach(taClose); });
 </script>
-{% include 'partials/transfer_swap_js.html' %}
 {% endblock %}

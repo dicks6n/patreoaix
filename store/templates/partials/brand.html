@@ -1,0 +1,45 @@
+{% comment %} PATREOAIX brand layer, included on every page (dashboard layout, sign-in / sign-up, landing).
+   One palette everywhere:  gold = brand & main actions · green = buy / profit / done · red = sell / loss / danger
+   · sky blue = information & demo.  Older templates still carry Tailwind indigo / purple / violet classes from an
+   earlier palette: they are mapped onto the brand gold here, so every page matches without rewriting each one. {% endcomment %}
+<style>
+  :root { --brand: #F5B301; --brand-hi: #FFC62E; --brand-lo: #D99A00; --brand-ink: #0B0E14; --brand-soft: rgba(245, 179, 1, .12);
+          --buy: #16C784; --sell: #EA3943; --info: #38BDF8; }
+  /* solid fills (buttons, active tabs) */
+  .bg-indigo-400, .bg-indigo-500, .bg-indigo-600, .bg-indigo-700, .bg-purple-500, .bg-purple-600, .bg-violet-500, .bg-violet-600 { background-color: var(--brand) !important; color: var(--brand-ink) !important; }
+  .bg-indigo-400 .text-white, .bg-indigo-500 .text-white, .bg-indigo-600 .text-white, .bg-indigo-700 .text-white, .bg-purple-600 .text-white, .bg-violet-600 .text-white,
+  .bg-indigo-500.text-white, .bg-indigo-600.text-white, .bg-indigo-700.text-white, .bg-purple-600.text-white, .bg-violet-600.text-white { color: var(--brand-ink) !important; }
+  .hover\:bg-indigo-400:hover, .hover\:bg-indigo-500:hover, .hover\:bg-indigo-600:hover, .hover\:bg-indigo-700:hover, .hover\:bg-purple-500:hover, .hover\:bg-purple-600:hover { background-color: var(--brand-hi) !important; color: var(--brand-ink) !important; }
+  /* tints */
+  .bg-indigo-500\/5, .bg-indigo-500\/10, .bg-indigo-600\/10, .bg-purple-500\/10, .bg-violet-500\/10 { background-color: rgba(245, 179, 1, .10) !important; }
+  .bg-indigo-500\/20, .bg-indigo-600\/20, .bg-purple-500\/20, .bg-indigo-900\/30, .bg-indigo-950\/40 { background-color: rgba(245, 179, 1, .16) !important; }
+  .hover\:bg-indigo-500\/10:hover, .hover\:bg-indigo-500\/20:hover { background-color: rgba(245, 179, 1, .18) !important; }
+  /* text */
+  .text-indigo-400, .text-indigo-500, .text-indigo-600, .text-purple-400, .text-purple-500, .text-violet-400, .text-violet-500 { color: var(--brand) !important; }
+  .text-indigo-200, .text-indigo-300, .text-purple-300, .text-violet-300 { color: #FFD666 !important; }
+  .hover\:text-indigo-300:hover, .hover\:text-indigo-400:hover, .hover\:text-purple-300:hover { color: #FFD666 !important; }
+  /* borders, rings, shadows */
+  .border-indigo-400, .border-indigo-500, .border-indigo-600, .border-purple-500, .border-violet-500, .focus\:border-indigo-500:focus, .hover\:border-indigo-500:hover { border-color: var(--brand) !important; }
+  .border-indigo-500\/20, .border-purple-500\/20, .border-violet-500\/20 { border-color: rgba(245, 179, 1, .22) !important; }
+  .border-indigo-500\/30, .border-indigo-500\/40, .border-purple-500\/30, .border-indigo-500\/50, .hover\:border-indigo-500\/40:hover { border-color: rgba(245, 179, 1, .38) !important; }
+  .ring-indigo-500, .focus\:ring-indigo-500:focus, .ring-purple-500 { --tw-ring-color: rgba(245, 179, 1, .6) !important; }
+  .shadow-indigo-500\/20, .shadow-indigo-600\/20, .shadow-indigo-600\/30, .shadow-purple-600\/20, .shadow-indigo-500\/30 { --tw-shadow-color: rgba(245, 179, 1, .25) !important; }
+  /* gradients */
+  .from-indigo-500, .from-indigo-600, .from-purple-500, .from-purple-600, .from-violet-500, .from-violet-600 {
+    --tw-gradient-from: var(--brand) var(--tw-gradient-from-position) !important; --tw-gradient-to: rgba(245, 179, 1, 0) var(--tw-gradient-to-position) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+  .via-indigo-500, .via-indigo-600, .via-purple-500, .via-purple-600 { --tw-gradient-stops: var(--tw-gradient-from), var(--brand-hi) var(--tw-gradient-via-position), var(--tw-gradient-to) !important; }
+  .to-indigo-500, .to-indigo-600, .to-indigo-700, .to-purple-500, .to-purple-600, .to-violet-600 { --tw-gradient-to: var(--brand-lo) var(--tw-gradient-to-position) !important; }
+  /* form controls, selection */
+  input[type=checkbox], input[type=radio], input[type=range], progress { accent-color: var(--brand); }
+  input, textarea { caret-color: var(--brand); }
+  ::selection { background: rgba(245, 179, 1, .35); }
+  /* colour code per section (sidebar group icons) */
+  .nav-grp[data-grp="wallet"] { --sec: #F5B301; } .nav-grp[data-grp="trade"] { --sec: #16C784; } .nav-grp[data-grp="auto"] { --sec: #38BDF8; }
+  .nav-grp[data-grp="news"] { --sec: #FB923C; } .nav-grp[data-grp="ai"] { --sec: #C084FC; } .nav-grp[data-grp="learn"] { --sec: #22D3EE; }
+  .nav-grp[data-grp="funded"] { --sec: #FACC15; } .nav-grp[data-grp="portfolio"] { --sec: #34D399; } .nav-grp[data-grp="rewards"] { --sec: #F472B6; }
+  .nav-grp[data-grp="account"] { --sec: #94A3B8; } .nav-grp[data-grp="admin"] { --sec: #EF4444; }
+  .nav-grp > .nav-grp-btn > i:first-child { color: var(--sec, var(--brand)) !important; }
+  .nav-grp-in { border-left-color: color-mix(in srgb, var(--sec, var(--brand)) 35%, transparent) !important; }
+  .nav-grp.has-active:not(.open) > .nav-grp-btn { background: color-mix(in srgb, var(--sec, var(--brand)) 14%, transparent) !important; }
+</style>

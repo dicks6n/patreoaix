@@ -5125,7 +5125,8 @@ async function mt5LoadAccounts() {
 }
 function mt5AcctRow(key, title, sub, ribbonColor, ok) {
     const on = mt5CurKey() === key;
-    const icon = key === 'site' ? 'fa-p' : key === 'real' ? 'fa-sack-dollar' : key.startsWith('prop:') ? 'fa-trophy' : 'fa-flask';
+    const pa = key.startsWith('prop:') ? mt5PropAccts.find(a => 'prop:' + a.login === key) : null;
+    const icon = key === 'site' ? 'fa-p' : key === 'real' ? 'fa-sack-dollar' : pa && pa.kind === 'demo' ? 'fa-flask' : pa && pa.kind === 'real' ? 'fa-sack-dollar' : key.startsWith('prop:') ? 'fa-trophy' : 'fa-flask';
     return `<button type="button" class="mt5-set-row" ${ok ? `onclick="mt5SetAccount('${key}')"` : 'disabled style="opacity:.55"'}>
         <div class="mt5-set-icon" style="background:${ribbonColor};"><i class="fa-solid ${icon}"></i></div>
         <div class="mt5-set-row-text"><div class="mt5-set-row-label">${title}</div><div class="mt5-set-row-sub">${sub}</div></div>
@@ -5141,9 +5142,15 @@ function mt5RenderAccounts() {
     if (d && d.connected) html += mt5AcctRow('demo', `Deriv Demo · ${mt5Escape(d.loginid || '')}`, d.success ? `Balance ${money(d)} · Multipliers` : mt5Escape(d.error || 'unavailable'), 'linear-gradient(135deg,#34c759,#28a745)', !!d.success);
     if (r && r.real_allowed && r.connected) html += mt5AcctRow('real', `Deriv Real · ${mt5Escape(r.loginid || '')}`, !r.real_enabled ? 'Tap to turn on real-money trading' : r.success ? `REAL MONEY · balance ${money(r)}` : mt5Escape(r.error || 'unavailable'), 'linear-gradient(135deg,#f2524a,#c9302c)', true);
     mt5PropAccts.forEach(a => {
+        if (a.kind === 'demo' || a.kind === 'real') {
+            html += mt5AcctRow('prop:' + a.login, `${mt5Escape(a.name)} · ${a.login}`, `${a.kind === 'demo' ? 'DEMO' : 'REAL'} · 1:${a.leverage} · balance ${Number(a.balance).toFixed(2)} USD`,
+                a.kind === 'demo' ? 'linear-gradient(135deg,#38bdf8,#0284c7)' : 'linear-gradient(135deg,#f0b90b,#d99a00)', true);
+            return;
+        }
         html += mt5AcctRow('prop:' + a.login, `${mt5Escape(a.name)} · ${a.login}`, `${a.funded ? 'FUNDED' : mt5Escape(a.phase)} · balance ${Number(a.balance).toFixed(2)} USD`,
             a.funded ? 'linear-gradient(135deg,#34c759,#1e8e3e)' : 'linear-gradient(135deg,#5e5ce6,#3a38b8)', true);
     });
+    html += `<a href="/accounts/" class="mt5-set-row"><div class="mt5-set-icon" style="background:linear-gradient(135deg,#38bdf8,#0284c7);"><i class="fa-solid fa-plus"></i></div><div class="mt5-set-row-text"><div class="mt5-set-row-label">Open a new account</div><div class="mt5-set-row-sub">Real or demo, pick the leverage</div></div><div class="mt5-set-chevron"></div></a>`;
     html += `<a href="/funded/" class="mt5-set-row"><div class="mt5-set-icon" style="background:linear-gradient(135deg,#f0b90b,#d99a00);"><i class="fa-solid fa-trophy"></i></div><div class="mt5-set-row-text"><div class="mt5-set-row-label">${mt5PropAccts.length ? 'Buy another challenge' : 'Get funded'}</div><div class="mt5-set-row-sub">Challenge accounts from $5K to $200K</div></div><div class="mt5-set-chevron"></div></a>`;
     if (!(d && d.connected)) html += `<a href="/connect-deriv/" class="mt5-set-row"><div class="mt5-set-icon" style="background:linear-gradient(135deg,#ff444f,#d0353f);"><i class="fa-solid fa-link"></i></div><div class="mt5-set-row-text"><div class="mt5-set-row-label">Connect Deriv</div><div class="mt5-set-row-sub">Log in with Deriv to trade your own demo / real account here</div></div><div class="mt5-set-chevron"></div></a>`;
     box.innerHTML = html;
@@ -5182,6 +5189,14 @@ function mt5RenderAccountHeader() {
     const ribbon = document.getElementById('mt5-set-ribbon');
     const acc = mt5DerivAccts[mt5Acct] || {};
     const prop = mt5Book && mt5CurProp();
+    if (prop && (prop.kind === 'demo' || prop.kind === 'real')) {
+        const demo = prop.kind === 'demo';
+        set('mt5-set-broker', 'PATREOAIX Ltd.');
+        set('mt5-set-login', `${prop.login} - PATREOAIX-${demo ? 'Demo' : 'Real'}`);
+        set('mt5-set-server', `${prop.name} · 1:${prop.leverage}`);
+        if (ribbon) { ribbon.textContent = demo ? 'Demo' : 'Real'; ribbon.style.background = demo ? '#0ea5e9' : ''; }
+        return;
+    }
     if (prop) {
         set('mt5-set-broker', 'PATREOAIX Funded');
         set('mt5-set-login', `${prop.login} - PATREOAIX-${prop.funded ? 'Funded' : 'Challenge'}`);

@@ -742,6 +742,7 @@
         html.light .nav-item.nav-active { background: var(--px-accent-soft); border: 0; }
     </style>
 
+    {% include 'partials/brand.html' %}
     {% block extra_head %}{% endblock %}
 </head>
 <body class="min-h-screen flex antialiased selection:bg-amber-400 selection:text-black">
@@ -795,8 +796,9 @@
                 </div></div>
             </div>
             <div class="nav-grp" data-grp="trade">
-                <button type="button" class="nav-grp-btn" aria-expanded="false"><i class="fa-solid fa-chart-column"></i><span>Trading</span><b class="nav-grp-n">5</b><i class="fa-solid fa-chevron-down nav-grp-chev"></i></button>
+                <button type="button" class="nav-grp-btn" aria-expanded="false"><i class="fa-solid fa-chart-column"></i><span>Trading</span><b class="nav-grp-n">6</b><i class="fa-solid fa-chevron-down nav-grp-chev"></i></button>
                 <div class="nav-grp-body"><div class="nav-grp-in">
+                        <a href="{% url 'trading_accounts' %}" class="nav-item{% if request.resolver_match.url_name == 'trading_accounts' %} nav-active{% endif %}"><i class="fa-solid fa-id-card-clip"></i><span>My Accounts</span><span class="nav-pill">NEW</span></a>
                         <a href="{% url 'trade' %}" class="nav-item{% if request.resolver_match.url_name == 'trade' %} nav-active{% endif %}"><i class="fa-solid fa-chart-column"></i><span>Live Trading</span></a>
                         <a href="{% url 'mt5_terminal' %}" class="nav-item{% if request.resolver_match.url_name == 'mt5_terminal' %} nav-active{% endif %}"><i class="fa-solid fa-mobile-screen"></i><span>MT5 Terminal</span></a>
                         <a href="{% url 'market_overview' %}" class="nav-item{% if request.resolver_match.url_name == 'market_overview' %} nav-active{% endif %}"><i class="fa-solid fa-earth-americas"></i><span>AI Signals &amp; Market Overview</span></a>
