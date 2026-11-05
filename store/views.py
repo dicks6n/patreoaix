@@ -8028,10 +8028,19 @@ MARKET_GROUPS = {
 
 
 def _market_group(symbol):
-    """Classify a symbol into one of the market groups."""
+    """Classify a symbol into one of the market groups: by the trade server's own symbol type first, so every
+    market it lists (SOLUSD, UKOIL, US30, EURAUD …) gets the right hours instead of 'unknown → closed'."""
     if not symbol:
         return 'UNKNOWN'
     s = symbol.upper()
+    try:
+        from . import mt5_service
+        spec = mt5_service.SPECS.get(s)
+        if spec is not None:
+            return {'crypto': 'CRYPTO', 'synthetic': 'SYNTHETIC', 'forex': 'FOREX', 'metal': 'METALS',
+                    'energy': 'ENERGY_INDICES', 'index': 'ENERGY_INDICES'}.get(spec.kind, 'UNKNOWN')
+    except Exception:
+        pass
     for group, symbols in MARKET_GROUPS.items():
         for sym in symbols:
             if s == sym.upper() or s.endswith(sym.upper()):
@@ -9302,6 +9311,12 @@ YAHOO_SYMBOLS = {
     'GBPJPY': 'GBPJPY=X',
     'EURCHF': 'EURCHF=X',
     'GBPCHF': 'GBPCHF=X',
+    # crosses, platinum / palladium, stock indices
+    **{k: f'{k}=X' for k in ('EURAUD', 'EURCAD', 'EURNZD', 'GBPAUD', 'GBPCAD', 'GBPNZD', 'AUDCAD', 'AUDNZD', 'AUDCHF',
+                             'NZDCAD', 'NZDCHF', 'CADCHF', 'AUDJPY', 'CADJPY', 'CHFJPY', 'NZDJPY')},
+    'XPTUSD': 'PL=F', 'XPDUSD': 'PA=F',
+    'US30': '^DJI', 'NAS100': '^NDX', 'US500': '^GSPC', 'GER40': '^GDAXI', 'UK100': '^FTSE', 'FRA40': '^FCHI',
+    'EU50': '^STOXX50E', 'JP225': '^N225', 'AUS200': '^AXJO',
 }
 
 # Yahoo interval/range per timeframe

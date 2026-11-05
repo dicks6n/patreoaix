@@ -2052,7 +2052,7 @@ const MT5_SPECS          = MT5_CFG.specs;
 const MT5_ALL_SYMBOLS    = Object.keys(MT5_SPECS);
 const MT5_SYMBOL_NAMES   = Object.fromEntries(MT5_ALL_SYMBOLS.map(s => [s, MT5_SPECS[s].description]));
 const MT5_TICKET_OFFSET  = MT5_CFG.ticket_offset;
-const MT5_KIND_LABELS    = { forex: 'Forex', metal: 'Metals', energy: 'Energies', crypto: 'Crypto', synthetic: 'Synthetic Indices' };
+const MT5_KIND_LABELS    = { forex: 'Forex', metal: 'Metals', energy: 'Energies', index: 'Indices', crypto: 'Crypto', synthetic: 'Synthetic Indices' };
 
 let mt5CurrentTab = 'trade';
 let mt5PriceCache = {};

@@ -3492,6 +3492,7 @@ function fallbackSpec(sym) {
     let kind = 'other', contract = 1, base = 'USD', quote = 'USD';
     if (/^X(AU|AG|PT|PD)/.test(sym)) { kind = 'metal'; contract = sym.startsWith('XAU') ? 100 : 5000; base = sym.slice(0, 3); quote = sym.slice(3) || 'USD'; }
     else if (/OIL$/.test(sym)) { kind = 'energy'; contract = 1000; }
+    else if (/^(US30|NAS100|US500|GER40|UK100|FRA40|EU50|JP225|AUS200)$/.test(sym)) { kind = 'index'; }
     else if (/^(BTC|ETH|SOL|BNB|XRP|ADA|DOGE|DOT|LINK|LTC)/.test(sym)) { kind = 'crypto'; base = sym.replace(/USDT?$/, ''); }
     else if (/^[A-Z]{6}$/.test(sym)) { kind = 'forex'; contract = 100000; base = sym.slice(0, 3); quote = sym.slice(3); }
     return { symbol: sym, kind, digits: d, point: Math.pow(10, -d), contract_size: contract, base, quote, leverage: 100,
@@ -3508,6 +3509,7 @@ function pipSize(sym) {
     if (s.kind === 'forex') return (s.digits === 3 || s.digits === 5) ? s.point * 10 : s.point;
     if (s.kind === 'crypto') return s.point * 100;
     if (s.kind === 'energy') return s.point;
+    if (s.kind === 'index') return 1;                      // indices: 1 index point
     return s.point * 10;
 }
 function roundPx(sym, v) { const d = getDecimals(sym); return Math.round(v * Math.pow(10, d)) / Math.pow(10, d); }

@@ -127,6 +127,45 @@ _SPECS = {
     'DOGEUSD': ('Dogecoin vs US Dollar',         'crypto', 5, 1, 'DOGE', 'USD', 20, 20,  -4,    -2, 0),
     'DOTUSD': ('Polkadot vs US Dollar',          'crypto', 3, 1, 'DOT', 'USD', 20, 10,   -4,    -2, 0),
     'LINKUSD': ('Chainlink vs US Dollar',        'crypto', 3, 1, 'LINK', 'USD', 20, 15,  -6,    -3, 0),
+    # more forex crosses
+    'EURAUD': ('Euro vs Australian Dollar',      'forex', 5, 100000, 'EUR', 'AUD', 500, 25, -8.0,  2.0, 0),
+    'EURCAD': ('Euro vs Canadian Dollar',        'forex', 5, 100000, 'EUR', 'CAD', 500, 25, -7.0,  1.5, 0),
+    'EURNZD': ('Euro vs New Zealand Dollar',     'forex', 5, 100000, 'EUR', 'NZD', 500, 35, -10.0, 2.5, 0),
+    'GBPAUD': ('British Pound vs Australian Dollar', 'forex', 5, 100000, 'GBP', 'AUD', 500, 30, -6.0, -1.0, 0),
+    'GBPCAD': ('British Pound vs Canadian Dollar', 'forex', 5, 100000, 'GBP', 'CAD', 500, 30, -4.5, -2.0, 0),
+    'GBPNZD': ('British Pound vs New Zealand Dollar', 'forex', 5, 100000, 'GBP', 'NZD', 500, 40, -8.0, 0.5, 0),
+    'AUDCAD': ('Australian Dollar vs Canadian Dollar', 'forex', 5, 100000, 'AUD', 'CAD', 500, 22, -1.5, -3.0, 0),
+    'AUDNZD': ('Australian Dollar vs New Zealand Dollar', 'forex', 5, 100000, 'AUD', 'NZD', 500, 25, -3.0, -1.0, 0),
+    'AUDCHF': ('Australian Dollar vs Swiss Franc', 'forex', 5, 100000, 'AUD', 'CHF', 500, 22, 1.0, -5.0, 0),
+    'NZDCAD': ('New Zealand Dollar vs Canadian Dollar', 'forex', 5, 100000, 'NZD', 'CAD', 500, 28, -1.5, -3.0, 0),
+    'NZDCHF': ('New Zealand Dollar vs Swiss Franc', 'forex', 5, 100000, 'NZD', 'CHF', 500, 28, 0.5, -4.5, 0),
+    'CADCHF': ('Canadian Dollar vs Swiss Franc',  'forex', 5, 100000, 'CAD', 'CHF', 500, 25, 1.0, -5.0, 0),
+    'AUDJPY': ('Australian Dollar vs Japanese Yen', 'forex', 3, 100000, 'AUD', 'JPY', 500, 22, 6.0, -15.0, 0),
+    'CADJPY': ('Canadian Dollar vs Japanese Yen', 'forex', 3, 100000, 'CAD', 'JPY', 500, 25, 6.0, -15.0, 0),
+    'CHFJPY': ('Swiss Franc vs Japanese Yen',     'forex', 3, 100000, 'CHF', 'JPY', 500, 30, 2.0, -12.0, 0),
+    'NZDJPY': ('New Zealand Dollar vs Japanese Yen', 'forex', 3, 100000, 'NZD', 'JPY', 500, 25, 5.0, -14.0, 0),
+    # more metals
+    'XPTUSD': ('Platinum vs US Dollar',          'metal', 2, 100,    'XPT', 'USD', 50, 400, -30.0, 5.0, 0),
+    'XPDUSD': ('Palladium vs US Dollar',         'metal', 2, 100,    'XPD', 'USD', 50, 800, -40.0, 5.0, 0),
+    # stock indices (CFDs, 1 lot = 1 × the index in its currency)
+    'US30':   ('Wall Street 30 (Dow Jones)',     'index', 1, 1, 'USD', 'USD', 100, 30, -3.0, -1.0, 0),
+    'NAS100': ('US Tech 100 (Nasdaq)',           'index', 1, 1, 'USD', 'USD', 100, 15, -2.0, -0.5, 0),
+    'US500':  ('US 500 (S&P 500)',               'index', 1, 1, 'USD', 'USD', 100, 5,  -0.6, -0.2, 0),
+    'GER40':  ('Germany 40 (DAX)',               'index', 1, 1, 'EUR', 'EUR', 100, 15, -2.0, -0.5, 0),
+    'UK100':  ('UK 100 (FTSE)',                  'index', 1, 1, 'GBP', 'GBP', 100, 15, -1.0, -0.3, 0),
+    'FRA40':  ('France 40 (CAC)',                'index', 1, 1, 'EUR', 'EUR', 100, 15, -1.0, -0.3, 0),
+    'EU50':   ('Euro Stoxx 50',                  'index', 1, 1, 'EUR', 'EUR', 100, 20, -0.7, -0.2, 0),
+    'JP225':  ('Japan 225 (Nikkei)',             'index', 1, 1, 'JPY', 'JPY', 100, 100, -10.0, -3.0, 0),
+    'AUS200': ('Australia 200 (ASX)',            'index', 1, 1, 'AUD', 'AUD', 100, 20, -1.0, -0.3, 0),
+    # more crypto
+    'LTCUSD': ('Litecoin vs US Dollar',          'crypto', 2, 1, 'LTC', 'USD', 20, 15,   -6,    -3, 0),
+    'BCHUSD': ('Bitcoin Cash vs US Dollar',      'crypto', 2, 1, 'BCH', 'USD', 20, 60,   -30,   -15, 0),
+    'AVAXUSD': ('Avalanche vs US Dollar',        'crypto', 3, 1, 'AVAX', 'USD', 20, 30,  -10,   -5, 0),
+    'ATOMUSD': ('Cosmos vs US Dollar',           'crypto', 3, 1, 'ATOM', 'USD', 20, 20,  -6,    -3, 0),
+    'UNIUSD': ('Uniswap vs US Dollar',           'crypto', 3, 1, 'UNI', 'USD', 20, 20,   -6,    -3, 0),
+    'NEARUSD': ('NEAR Protocol vs US Dollar',    'crypto', 3, 1, 'NEAR', 'USD', 20, 15,  -5,    -2, 0),
+    'XLMUSD': ('Stellar vs US Dollar',           'crypto', 5, 1000, 'XLM', 'USD', 20, 30, -6,  -3, 0),    # 1 lot = 1,000 coins
+    'TRXUSD': ('TRON vs US Dollar',              'crypto', 5, 1000, 'TRX', 'USD', 20, 20, -4,  -2, 0),
     'R_10':   ('Volatility 10 Index',            'synthetic', 3, 1, 'USD', 'USD', 200, 0, 0, 0, 0),
     'R_25':   ('Volatility 25 Index',            'synthetic', 3, 1, 'USD', 'USD', 200, 0, 0, 0, 0),
     'R_50':   ('Volatility 50 Index',            'synthetic', 4, 1, 'USD', 'USD', 200, 0, 0, 0, 0),
@@ -139,12 +178,16 @@ _SPECS = {
     '1HZ100V': ('Volatility 100 (1s) Index',     'synthetic', 2, 1, 'USD', 'USD', 200, 0, 0, 0, 0),
 }
 
-# Symbols shown in the terminal's Market Watch, in order.
+# Symbols shown in the terminal's Market Watch, in order: every market the trade server prices
+# (synthetic indices have their own page: they need the Deriv stream the terminal doesn't keep open).
 MARKET_WATCH = [
-    'XAUUSD', 'XAGUSD', 'USOIL',
+    'XAUUSD', 'XAGUSD', 'XPTUSD', 'XPDUSD', 'USOIL', 'UKOIL',
     'EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'USDCAD', 'NZDUSD', 'USDCHF',
-    'EURGBP', 'EURJPY', 'GBPJPY', 'EURCHF', 'GBPCHF',
-    'BTCUSD', 'ETHUSD',
+    'EURGBP', 'EURJPY', 'GBPJPY', 'EURCHF', 'GBPCHF', 'EURAUD', 'EURCAD', 'EURNZD', 'GBPAUD', 'GBPCAD', 'GBPNZD',
+    'AUDJPY', 'CADJPY', 'CHFJPY', 'NZDJPY', 'AUDCAD', 'AUDNZD', 'AUDCHF', 'NZDCAD', 'NZDCHF', 'CADCHF',
+    'US30', 'NAS100', 'US500', 'GER40', 'UK100', 'FRA40', 'EU50', 'JP225', 'AUS200',
+    'BTCUSD', 'ETHUSD', 'SOLUSD', 'BNBUSD', 'XRPUSD', 'ADAUSD', 'DOGEUSD', 'DOTUSD', 'LINKUSD',
+    'LTCUSD', 'BCHUSD', 'AVAXUSD', 'ATOMUSD', 'UNIUSD', 'NEARUSD', 'XLMUSD', 'TRXUSD',
 ]
 
 
@@ -307,6 +350,7 @@ def quotes_payload(symbols):
 _USD_PAIRS = {   # currency -> (pair, True if the pair quotes USD per unit of the currency)
     'EUR': ('EURUSD', True), 'GBP': ('GBPUSD', True), 'AUD': ('AUDUSD', True),
     'NZD': ('NZDUSD', True), 'XAU': ('XAUUSD', True), 'XAG': ('XAGUSD', True),
+    'XPT': ('XPTUSD', True), 'XPD': ('XPDUSD', True),
     'BTC': ('BTCUSD', True), 'ETH': ('ETHUSD', True),
     'JPY': ('USDJPY', False), 'CHF': ('USDCHF', False), 'CAD': ('USDCAD', False),
 }

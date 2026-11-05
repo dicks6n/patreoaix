@@ -74,6 +74,8 @@ BINANCE_MAP = {
     'BTCUSD': 'BTCUSDT', 'ETHUSD': 'ETHUSDT', 'SOLUSD': 'SOLUSDT',
     'BNBUSD': 'BNBUSDT', 'XRPUSD': 'XRPUSDT', 'ADAUSD': 'ADAUSDT',
     'DOGEUSD': 'DOGEUSDT', 'DOTUSD': 'DOTUSDT', 'LINKUSD': 'LINKUSDT',
+    'LTCUSD': 'LTCUSDT', 'BCHUSD': 'BCHUSDT', 'AVAXUSD': 'AVAXUSDT', 'ATOMUSD': 'ATOMUSDT',
+    'UNIUSD': 'UNIUSDT', 'NEARUSD': 'NEARUSDT', 'XLMUSD': 'XLMUSDT', 'TRXUSD': 'TRXUSDT',
 }
 
 TWELVEDATA_MAP = {
@@ -96,6 +98,12 @@ TWELVEDATA_MAP = {
 }
 
 OANDA_MAP = {
+    'EURAUD': 'EUR_AUD', 'EURCAD': 'EUR_CAD', 'EURNZD': 'EUR_NZD', 'GBPAUD': 'GBP_AUD', 'GBPCAD': 'GBP_CAD',
+    'GBPNZD': 'GBP_NZD', 'AUDCAD': 'AUD_CAD', 'AUDNZD': 'AUD_NZD', 'AUDCHF': 'AUD_CHF', 'NZDCAD': 'NZD_CAD',
+    'NZDCHF': 'NZD_CHF', 'CADCHF': 'CAD_CHF', 'AUDJPY': 'AUD_JPY', 'CADJPY': 'CAD_JPY', 'CHFJPY': 'CHF_JPY',
+    'NZDJPY': 'NZD_JPY', 'XPTUSD': 'XPT_USD', 'XPDUSD': 'XPD_USD',
+    'US30': 'US30_USD', 'NAS100': 'NAS100_USD', 'US500': 'SPX500_USD', 'GER40': 'DE30_EUR', 'UK100': 'UK100_GBP',
+    'FRA40': 'FR40_EUR', 'EU50': 'EU50_EUR', 'JP225': 'JP225_USD', 'AUS200': 'AU200_AUD',
     'XAUUSD': 'XAU_USD',
     'XAGUSD': 'XAG_USD',
     'USOIL':  'WTICO_USD',
@@ -115,6 +123,12 @@ OANDA_MAP = {
 }
 
 YAHOO_MAP = {
+    'EURAUD': 'EURAUD=X', 'EURCAD': 'EURCAD=X', 'EURNZD': 'EURNZD=X', 'GBPAUD': 'GBPAUD=X', 'GBPCAD': 'GBPCAD=X',
+    'GBPNZD': 'GBPNZD=X', 'AUDCAD': 'AUDCAD=X', 'AUDNZD': 'AUDNZD=X', 'AUDCHF': 'AUDCHF=X', 'NZDCAD': 'NZDCAD=X',
+    'NZDCHF': 'NZDCHF=X', 'CADCHF': 'CADCHF=X', 'AUDJPY': 'AUDJPY=X', 'CADJPY': 'CADJPY=X', 'CHFJPY': 'CHFJPY=X',
+    'NZDJPY': 'NZDJPY=X', 'XPTUSD': 'PL=F', 'XPDUSD': 'PA=F',
+    'US30': '^DJI', 'NAS100': '^NDX', 'US500': '^GSPC', 'GER40': '^GDAXI', 'UK100': '^FTSE', 'FRA40': '^FCHI',
+    'EU50': '^STOXX50E', 'JP225': '^N225', 'AUS200': '^AXJO',
     'XAUUSD': 'XAUUSD=X', 'XAGUSD': 'XAGUSD=X',
     'USOIL':  'CL=F',     'UKOIL':  'BZ=F',
     'EURUSD': 'EURUSD=X', 'GBPUSD': 'GBPUSD=X',
@@ -179,7 +193,19 @@ DERIV_FX_MAP = {
     'USDCHF': 'frxUSDCHF', 'EURGBP': 'frxEURGBP',
     'EURJPY': 'frxEURJPY', 'GBPJPY': 'frxGBPJPY',
     'EURCHF': 'frxEURCHF', 'GBPCHF': 'frxGBPCHF',
+    # crosses, platinum / palladium and stock indices (Deriv's OTC index feeds)
+    'EURAUD': 'frxEURAUD', 'EURCAD': 'frxEURCAD', 'EURNZD': 'frxEURNZD', 'GBPAUD': 'frxGBPAUD', 'GBPCAD': 'frxGBPCAD',
+    'GBPNZD': 'frxGBPNZD', 'AUDCAD': 'frxAUDCAD', 'AUDNZD': 'frxAUDNZD', 'AUDCHF': 'frxAUDCHF', 'NZDCAD': 'frxNZDCAD',
+    'NZDCHF': 'frxNZDCHF', 'CADCHF': 'frxCADCHF', 'AUDJPY': 'frxAUDJPY', 'CADJPY': 'frxCADJPY', 'CHFJPY': 'frxCHFJPY',
+    'NZDJPY': 'frxNZDJPY', 'XPTUSD': 'frxXPTUSD', 'XPDUSD': 'frxXPDUSD',
+    'US30': 'OTC_DJI', 'NAS100': 'OTC_NDX', 'US500': 'OTC_SPC', 'GER40': 'OTC_GDAXI', 'UK100': 'OTC_FTSE',
+    'FRA40': 'OTC_FCHI', 'EU50': 'OTC_SX5E', 'JP225': 'OTC_N225', 'AUS200': 'OTC_AS51',
 }
+# Markets added after TwelveData's batch list: priced Deriv → OANDA → Yahoo (kept out of the TwelveData batch so
+# its free per-minute limit still covers the original markets).
+EXTRA_QUOTES = ['EURAUD', 'EURCAD', 'EURNZD', 'GBPAUD', 'GBPCAD', 'GBPNZD', 'AUDCAD', 'AUDNZD', 'AUDCHF', 'NZDCAD',
+                'NZDCHF', 'CADCHF', 'AUDJPY', 'CADJPY', 'CHFJPY', 'NZDJPY', 'XPTUSD', 'XPDUSD',
+                'US30', 'NAS100', 'US500', 'GER40', 'UK100', 'FRA40', 'EU50', 'JP225', 'AUS200']
 
 
 class _MiniWS:
@@ -949,9 +975,13 @@ DERIV_CANDLE_MAP = dict(DERIV_FX_MAP, **{
 })
 DERIV_SYNTHETIC = ('R_', '1HZ', 'BOOM', 'CRASH', 'JD', 'STPRNG', 'RDBEAR', 'RDBULL')
 KRAKEN_MAP = {'BTCUSD': 'XBTUSD', 'ETHUSD': 'ETHUSD', 'SOLUSD': 'SOLUSD', 'XRPUSD': 'XRPUSD', 'ADAUSD': 'ADAUSD',
-              'DOGEUSD': 'XDGUSD', 'DOTUSD': 'DOTUSD', 'LINKUSD': 'LINKUSD', 'BNBUSD': 'BNBUSD'}
+              'DOGEUSD': 'XDGUSD', 'DOTUSD': 'DOTUSD', 'LINKUSD': 'LINKUSD', 'BNBUSD': 'BNBUSD',
+              'LTCUSD': 'LTCUSD', 'BCHUSD': 'BCHUSD', 'AVAXUSD': 'AVAXUSD', 'ATOMUSD': 'ATOMUSD', 'UNIUSD': 'UNIUSD',
+              'NEARUSD': 'NEARUSD', 'XLMUSD': 'XLMUSD', 'TRXUSD': 'TRXUSD'}
 COINBASE_MAP = {'BTCUSD': 'BTC-USD', 'ETHUSD': 'ETH-USD', 'SOLUSD': 'SOL-USD', 'XRPUSD': 'XRP-USD', 'ADAUSD': 'ADA-USD',
-                'DOGEUSD': 'DOGE-USD', 'DOTUSD': 'DOT-USD', 'LINKUSD': 'LINK-USD'}
+                'DOGEUSD': 'DOGE-USD', 'DOTUSD': 'DOT-USD', 'LINKUSD': 'LINK-USD',
+                'LTCUSD': 'LTC-USD', 'BCHUSD': 'BCH-USD', 'AVAXUSD': 'AVAX-USD', 'ATOMUSD': 'ATOM-USD',
+                'UNIUSD': 'UNI-USD', 'NEARUSD': 'NEAR-USD', 'XLMUSD': 'XLM-USD'}
 
 
 def fetch_deriv_candles(internal_symbol, timeframe='1h', bars=500, timeout=8.0):
@@ -1257,6 +1287,34 @@ def get_single_price_preferred(symbol):
             _cache_put(symbol, p)
         return p or (_cache_get(symbol) or {}).get('price')
 
+    # Markets added later (crosses, platinum / palladium, indices): Deriv → OANDA → Yahoo, 2-second cache
+    if symbol in EXTRA_QUOTES:
+        should, cached = _should_fetch(f"x::{symbol}", ttl=2.0, min_interval=2.0)
+        if not should:
+            return cached if cached else (_cache_get(symbol) or {}).get('price')
+        d = _fetch_deriv_batch([symbol])
+        if d.get(symbol):
+            p, ts = d[symbol]
+            _cache_put(f"x::{symbol}", p, now=ts)
+            _cache_put(symbol, p, now=ts)
+            _note_source(symbol, 'DERIV')
+            return p
+        if OANDA_API_KEY:
+            o = _fetch_oanda_batch([symbol])
+            if o.get(symbol, 0) > 0:
+                _cache_put(f"x::{symbol}", o[symbol])
+                _cache_put(symbol, o[symbol])
+                _note_source(symbol, 'OANDA')
+                return o[symbol]
+        if symbol in YAHOO_MAP:
+            y = _fetch_yahoo(YAHOO_MAP[symbol])
+            if y and y > 0:
+                _cache_put(f"x::{symbol}", y, now=_yahoo_ts(symbol))
+                _cache_put(symbol, y, now=_yahoo_ts(symbol))
+                _note_source(symbol, 'YAHOO')
+                return y
+        return (_cache_get(symbol) or {}).get('price')
+
     # Forex/Metals/Energy
     if symbol in TWELVEDATA_MAP:
         # 2-second cache so parallel WS clients share one upstream fetch
@@ -1387,6 +1445,18 @@ def refresh_all_async():
 
             # Missing → keyless real-time quotes (Swissquote / gold-api.com)
             _fill_public([s for s in fx_symbols if s not in prices], prices, stamps)
+
+            # Markets added later: one Deriv round trip for all of them, then OANDA for any gap
+            for internal, got in _fetch_deriv_batch(EXTRA_QUOTES).items():
+                if got:
+                    prices[internal], stamps[internal] = got
+                    _note_source(internal, 'DERIV')
+            gap = [s for s in EXTRA_QUOTES if s not in prices]
+            if gap and OANDA_API_KEY:
+                for s_, p_ in _fetch_oanda_batch(gap).items():
+                    if p_ and p_ > 0:
+                        prices[s_] = p_
+                        _note_source(s_, 'OANDA')
 
             # Still missing → Yahoo
             still_missing = [s for s in fx_symbols if s not in prices]
