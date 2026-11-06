@@ -141,6 +141,7 @@ urlpatterns = [
     path('platforms/download/', views.platforms_download_view, name='platforms_download'),
     path('app/', RedirectView.as_view(url='/platforms/download/'), name='get_app'),
     path('app/download/', views.app_download, name='app_download'),
+    path('app/terminal/download/', views.terminal_app_download, name='terminal_app_download'),
     path('.well-known/assetlinks.json', views.assetlinks, name='assetlinks'),
     path('trading-accounts/', views.trading_accounts_view, name='trading_accounts'),
 

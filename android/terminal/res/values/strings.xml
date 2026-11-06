@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PX Terminal</string>
+    <string name="channel_name">Trade alerts</string>
+    <string name="channel_desc">Orders filled, stop loss and take profit hits, margin warnings</string>
+</resources>

@@ -111,6 +111,24 @@
         </div>
     </section>
 
+    <section id="terminal">
+        <h2>PX Terminal: the trading terminal on its own</h2>
+        <p class="sub">A separate app that opens straight into the terminal: quotes, charts, trade and history, with no other pages in the way. You can install it next to the main app.</p>
+        <div class="card" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+            <img src="{% static 'store/icons/terminal-192.png' %}" alt="PX Terminal icon" width="72" height="72" style="border-radius:18px;flex-shrink:0">
+            <div style="flex:1;min-width:200px"><h3 style="margin:0">PX Terminal</h3>
+                <p style="margin:4px 0 0">Version {{ term.version }} · Android {{ term.min_android }}+ · same account and same trades as the website. Trade alerts arrive as phone notifications.</p></div>
+            {% if in_term %}
+            <span class="dl" style="background:var(--up);color:#fff;box-shadow:none"><i class="fa-solid fa-circle-check"></i><span>You're using PX Terminal</span></span>
+            {% elif term_apk %}
+            <a class="dl" href="{% url 'terminal_app_download' %}"><i class="fa-solid fa-chart-column"></i><span>Download PX Terminal<small>APK · {{ term_apk.size_kb }} KB</small></span></a>
+            {% else %}
+            <span class="dl" style="opacity:.6">Coming soon</span>
+            {% endif %}
+        </div>
+        {% if term_apk %}<p class="sub" style="margin-top:10px;font-size:11.5px;word-break:break-all">SHA-256: {{ term_apk.sha256 }}</p>{% endif %}
+    </section>
+
     <section id="install">
         <h2>How to install</h2>
         <p class="sub">Choose your device.</p>

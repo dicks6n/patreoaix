@@ -5786,18 +5786,20 @@ ANDROID_APP = {
     # SHA-256 of the signing certificate (public; the keystore itself is never in the repository)
     'cert_sha256': '4D:EC:3D:F1:26:47:3F:67:6E:8B:0C:B7:1E:E5:F6:68:B5:E6:B1:6B:E2:48:0D:A3:83:29:CA:34:CD:3B:14:84',
 }
+# The trading terminal on its own (VARIANT=terminal android/build.sh): opens /terminal/, same signing key
+TERMINAL_APP = {'package': 'com.patreoaix.terminal', 'version': '1.0.0', 'min_android': '7.0', 'file': 'px-terminal.apk'}
 
 
-def _apk_info():
-    """Path, size and SHA-256 of the APK (cached per file change)."""
+def _apk_info(name='patreoaix.apk'):
+    """Path, size and SHA-256 of an APK in store/downloads (cached per file change)."""
     import hashlib, os
     from django.contrib.staticfiles import finders
     from django.core.cache import cache
-    path = finders.find('store/downloads/patreoaix.apk') or os.path.join(settings.STATIC_ROOT, 'store', 'downloads', 'patreoaix.apk')
+    path = finders.find(f'store/downloads/{name}') or os.path.join(settings.STATIC_ROOT, 'store', 'downloads', name)
     if not path or not os.path.exists(path):
         return None
     st = os.stat(path)
-    key = f'apk:{int(st.st_mtime)}:{st.st_size}'
+    key = f'apk:{name}:{int(st.st_mtime)}:{st.st_size}'
     info = cache.get(key)
     if not info:
         h = hashlib.sha256()
@@ -5813,7 +5815,8 @@ def platforms_download_view(request):
     """Public 'Get the app' page: Android APK, iPhone / iPad (Home Screen), computer."""
     ua = request.META.get('HTTP_USER_AGENT', '')
     return render(request, 'store/platforms_download.html', {
-        'app': ANDROID_APP, 'apk': _apk_info(), 'in_app': 'PatreoaixApp' in ua,
+        'app': ANDROID_APP, 'apk': _apk_info(), 'in_app': 'PatreoaixApp' in ua and 'PxTerminal/' not in ua,
+        'term': TERMINAL_APP, 'term_apk': _apk_info(TERMINAL_APP['file']), 'in_term': 'PxTerminal/' in ua,
         'is_android': 'android' in ua.lower(), 'is_ios': any(k in ua for k in ('iPhone', 'iPad', 'iPod')),
     })
 
@@ -5826,6 +5829,18 @@ def app_download(request):
         raise Http404
     resp = FileResponse(open(info['path'], 'rb'), content_type='application/vnd.android.package-archive',
                         as_attachment=True, filename=f"PATREOAIX-{ANDROID_APP['version']}.apk")
+    resp['Cache-Control'] = 'no-cache'
+    return resp
+
+
+def terminal_app_download(request):
+    """The PX Terminal APK (the trading terminal as its own app)."""
+    from django.http import FileResponse
+    info = _apk_info(TERMINAL_APP['file'])
+    if not info:
+        raise Http404
+    resp = FileResponse(open(info['path'], 'rb'), content_type='application/vnd.android.package-archive',
+                        as_attachment=True, filename=f"PX-Terminal-{TERMINAL_APP['version']}.apk")
     resp['Cache-Control'] = 'no-cache'
     return resp
 

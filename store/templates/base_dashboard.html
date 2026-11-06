@@ -1031,6 +1031,7 @@
         </div>
 
         <main id="px-main" class="p-4 sm:p-5 lg:p-6 flex-1 w-full max-w-[1600px] mx-auto">
+            {% block site_banners %}
             {% if user.is_authenticated and kyc_status and kyc_status != 'APPROVED' %}
             <div id="kyc-banner"
                  class="kyc-banner mb-5 {% if kyc_status == 'PENDING' %}kyc-pending{% elif kyc_status == 'REJECTED' %}kyc-rejected{% else %}kyc-required{% endif %} p-4 flex items-center gap-4"
@@ -1069,6 +1070,7 @@
                 <i class="fa-solid fa-bell"></i><span style="flex:1;min-width:0">{{ p2p_attention.text }}</span><span style="white-space:nowrap">Open order →</span>
             </a>
             {% endif %}
+            {% endblock site_banners %}
             {% block message_toasts %}{% if messages %}
             <div class="px-msgs" id="pxMsgs" role="status" aria-live="polite">
                 {% for message in messages %}
