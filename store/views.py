@@ -11148,6 +11148,7 @@ def signal_posters(request):
             account = f'connected (could not read the account: {e})'
     return render(request, 'store/posters.html', {
         'posters': poster.recent(60), 'tiktok_configured': tiktok.configured(), 'tiktok_account': account,
+        'tiktok_inbox': account and tiktok.inbox_mode(), 'tiktok_can_upload': tiktok.connected() and tiktok.has_scope('video.upload'),
         'tiktok_redirect': tiktok.redirect_uri(request), 'tiktok_prefix': tiktok.poster_url('posters/'),
     })
 
@@ -11201,8 +11202,12 @@ def tiktok_post_poster(request):
     if os.path.exists(txt):
         caption = open(txt, encoding='utf-8').read()
     try:
-        pid = tiktok.post_photo(tiktok.poster_url(rel), caption.split('\n', 1)[0] or 'PATREOAIX AI signal', caption)
-        messages.success(request, f'Sent to TikTok (publish id {pid}). It appears on your account in a minute or two.')
+        res = tiktok.post_photo(tiktok.poster_url(rel), caption.split('\n', 1)[0] or 'PATREOAIX AI signal', caption)
+        if res['mode'] == 'inbox':
+            messages.success(request, 'Sent to your TikTok inbox. In a minute TikTok shows a notification: open it, '
+                                      'check the caption and tap Post.')
+        else:
+            messages.success(request, f"Posted to TikTok (publish id {res['id']}). It appears on your account in a minute or two.")
     except Exception as e:
         messages.error(request, f'TikTok refused the post: {e}')
     return redirect('signal_posters')

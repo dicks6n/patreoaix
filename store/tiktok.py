@@ -4,7 +4,7 @@ Posts the signal posters (store/poster.py) to TikTok as photo posts, through Tik
 
 Setup (once):
   1. developers.tiktok.com → Manage apps → Create app. Add the products "Login Kit" and "Content Posting API"
-     (turn on "Direct Post"). Scopes: user.info.basic, video.publish.
+     (turn on "Direct Post"). Scopes: user.info.basic, video.publish, video.upload.
   2. Login Kit → Redirect URI:  https://patreoaix.com/tiktok/callback/
   3. Content Posting API → "Verify domain / URL prefix":  https://patreoaix.com/media/posters/
      (TikTok downloads each poster from that address, so posting works from the hosted site, not localhost)
@@ -12,8 +12,12 @@ Setup (once):
   5. On the site, as staff: Signal Posters → "Connect TikTok" → log in → Allow.
   6. python manage.py tiktok_test   → shows the connected account; --post posts the newest poster.
 
-Until TikTok approves (audits) the app, TikTok only allows private posts (SELF_ONLY): they appear on the
-account but only you can see them. Submit the app for review in the developer portal to post publicly.
+Until TikTok approves (audits) the app, Direct Post only works on PRIVATE TikTok accounts
+(error unaudited_client_can_only_post_to_private_accounts). For a public account the poster is then sent to
+the account's TikTok inbox instead (post_mode MEDIA_UPLOAD, scope video.upload): TikTok shows a notification,
+you open it, check the caption and tap Post. TikTok allows about 5 waiting drafts per 24 h, so the automatic
+posts are capped at 5 a day in this mode. Submit the app for audit in the developer portal to post directly.
+TIKTOK_POST_MODE=auto (default) | direct | inbox
 
 The login is saved in .tiktok.json next to manage.py (never uploaded: it is in .gitignore). The access token
 lasts 24 h and is renewed automatically with the refresh token (valid one year).
@@ -32,7 +36,9 @@ logger = logging.getLogger(__name__)
 
 AUTH_URL = 'https://www.tiktok.com/v2/auth/authorize/'
 API = 'https://open.tiktokapis.com/v2/'
-SCOPES = 'user.info.basic,video.publish'
+SCOPES = 'user.info.basic,video.publish,video.upload'
+INBOX_DAILY = 5                       # TikTok refuses more waiting drafts (spam_risk_too_many_pending_share)
+UNAUDITED_KEY = 'tt:unaudited'
 GRADE_RANK = {'B': 1, 'A': 2, 'A+': 3}
 
 
@@ -171,8 +177,51 @@ def _privacy(info):
     return wanted if wanted in options else ('PUBLIC_TO_EVERYONE' if 'PUBLIC_TO_EVERYONE' in options else options[0])
 
 
+def has_scope(name):
+    """Scopes granted at login (older logins did not save them: assume only the ones asked for back then)."""
+    granted = _load().get('scope')
+    return name in (granted.replace(' ', '').split(',') if granted else ['user.info.basic', 'video.publish'])
+
+
+def inbox_mode():
+    """True when posts go to the TikTok inbox as drafts (unaudited app + public account, or forced)."""
+    mode = _cfg('TIKTOK_POST_MODE', 'auto')
+    return mode == 'inbox' or (mode == 'auto' and bool(cache.get(UNAUDITED_KEY)))
+
+
+NEED_UPLOAD = ('TikTok only lets apps it has not audited yet post directly to PRIVATE accounts. To post to your '
+               'public account, let the site send posters to your TikTok inbox: in developers.tiktok.com open your '
+               'app, add the scope video.upload (Content Posting API → Upload), save, then here press Disconnect '
+               'and Connect TikTok again. Or submit the app for audit to post directly.')
+
+
 def post_photo(image_url, title, description):
-    """Direct-post one photo. Returns TikTok's publish_id."""
+    """Post one photo. Returns {'id': publish_id, 'mode': 'direct' | 'inbox'}.
+    Direct Post first; an unaudited app on a public account falls back to the inbox (draft) and remembers it."""
+    if not inbox_mode():
+        try:
+            return {'id': _direct(image_url, title, description), 'mode': 'direct'}
+        except RuntimeError as e:
+            if 'unaudited_client' not in str(e) or _cfg('TIKTOK_POST_MODE', 'auto') == 'direct':
+                raise
+            cache.set(UNAUDITED_KEY, 1, 7 * 86400)          # retry direct once a week (after an audit it works)
+    if not has_scope('video.upload'):
+        raise RuntimeError(NEED_UPLOAD)
+    return {'id': _inbox(image_url, title, description), 'mode': 'inbox'}
+
+
+def _inbox(image_url, title, description):
+    """Send the photo to the creator's TikTok inbox; they finish and publish it in the TikTok app."""
+    data = api('post/publish/content/init/', {
+        'post_info': {'title': title[:90], 'description': description[:4000]},
+        'source_info': {'source': 'PULL_FROM_URL', 'photo_cover_index': 0, 'photo_images': [image_url]},
+        'post_mode': 'MEDIA_UPLOAD',
+        'media_type': 'PHOTO',
+    })
+    return data.get('publish_id')
+
+
+def _direct(image_url, title, description):
     info = creator_info()
     data = api('post/publish/content/init/', {
         'post_info': {
@@ -213,14 +262,17 @@ def post_poster(sig, rel, result=False):
         return None
     day = f"tt:day:{time.strftime('%Y%m%d')}"
     cache.add(day, 0, 2 * 86400)
-    if (cache.get(day) or 0) >= int(_cfg('TIKTOK_DAILY_LIMIT', '10')):
+    limit = int(_cfg('TIKTOK_DAILY_LIMIT', '10'))
+    if inbox_mode():
+        limit = min(limit, INBOX_DAILY)
+    if (cache.get(day) or 0) >= limit:
         logger.info(f'TikTok daily limit reached; poster for signal {sig.id} not posted')
         return None
     from . import poster
     text = poster.caption(sig, result)
     title = text.split('\n', 1)[0]
     try:
-        pid = post_photo(poster_url(rel), title, text)
+        pid = post_photo(poster_url(rel), title, text)['id']
     except Exception:
         cache.delete(key)                          # try again with the next poster
         raise

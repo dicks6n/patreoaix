@@ -41,5 +41,10 @@ class Command(BaseCommand):
         rel = p['url'][len(tt.settings.MEDIA_URL):]
         url = tt.poster_url(rel)
         self.stdout.write(f'Posting {url}')
-        pid = tt.post_photo(url, p['caption'].split('\n', 1)[0] or 'PATREOAIX AI signal', p['caption'])
-        self.stdout.write(self.style.SUCCESS(f'Sent (publish id {pid}). Check your TikTok in a minute or two.'))
+        try:
+            res = tt.post_photo(url, p['caption'].split('\n', 1)[0] or 'PATREOAIX AI signal', p['caption'])
+        except Exception as e:
+            self.stderr.write(self.style.ERROR(f'TikTok refused: {e}'))
+            return
+        where = 'your TikTok inbox (open the notification and tap Post)' if res['mode'] == 'inbox' else 'your TikTok profile'
+        self.stdout.write(self.style.SUCCESS(f"Sent to {where} (publish id {res['id']}). Check TikTok in a minute or two."))

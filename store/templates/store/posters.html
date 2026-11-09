@@ -52,11 +52,23 @@
       {% endif %}
     </div>
     {% if tiktok_account %}
-      <div class="pst-tt-text">TikTok lets an app post publicly only after TikTok audits it; until then automatic posts are private (only you see them).
-        The quickest public route: on your phone tap <b>Share to TikTok</b> under a poster (the caption is copied), pick TikTok, paste, post.</div>
+      {% if not tiktok_can_upload %}
+      <div class="pst-tt-text" style="border:1px solid var(--px-accent);border-radius:12px;padding:12px;color:var(--px-text)">
+        <b>One step left for your public account.</b> TikTok only lets apps it has not audited yet post straight to <b>private</b> accounts.
+        So the site sends each poster to your <b>TikTok inbox</b> instead, and you tap Post in the TikTok app. To allow that:
+        <ol style="margin:8px 0 0 18px;list-style:decimal">
+          <li>developers.tiktok.com → your app → Content Posting API: turn on <b>Upload</b> and add the scope <b>video.upload</b>. Save.</li>
+          <li>Here: press <b>Disconnect</b>, then <b>Connect TikTok</b> and allow the new permission.</li>
+        </ol></div>
+      {% elif tiktok_inbox %}
+      <div class="pst-tt-text">Your app is not audited by TikTok yet, so posters go to your <b>TikTok inbox</b> (up to 5 a day): open the TikTok notification, check the caption and tap <b>Post</b>.
+        Once TikTok audits the app (developer portal → submit for review), posters are published automatically.</div>
+      {% else %}
+      <div class="pst-tt-text">Posters are published to your TikTok automatically. If TikTok has not audited the app yet, they go to your TikTok inbox instead and you tap Post there.</div>
+      {% endif %}
     {% else %}
       <ol class="pst-tt-text">
-        <li>developers.tiktok.com → create an app → add <b>Login Kit</b> and <b>Content Posting API</b> (Direct Post on). Scopes: user.info.basic, video.publish.</li>
+        <li>developers.tiktok.com → create an app → add <b>Login Kit</b> and <b>Content Posting API</b> (Direct Post on). Scopes: user.info.basic, video.publish, video.upload.</li>
         <li>Login Kit redirect URI: <code>{{ tiktok_redirect }}</code></li>
         <li>Content Posting API → verify URL prefix: <code>{{ tiktok_prefix }}</code></li>
         <li>.env: <code>TIKTOK_CLIENT_KEY=…</code> and <code>TIKTOK_CLIENT_SECRET=…</code>, reload the site{% if not tiktok_configured %} (not set yet){% endif %}.</li>
