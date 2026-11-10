@@ -158,7 +158,7 @@ def api_mt5_metrics(request):
         return JsonResponse({'success': False, 'error': str(e)}, status=400)
     m = mt5.get_metrics(request.user, prop)
     extra = {}
-    if prop is not None:
+    if prop is not None and prop.kind == 'challenge':        # demo / real accounts have no challenge objectives
         from . import prop_firm
         prop.refresh_from_db()
         o = prop_firm.objectives(prop, m)
