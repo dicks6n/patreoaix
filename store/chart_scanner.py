@@ -56,7 +56,7 @@ WEIGHTS = {'trend': 18, 'ema200': 8, 'macd': 12, 'rsi': 9, 'structure': 14, 'sto
 SIGNAL_THRESHOLD = 20      # |blended score| needed for BUY / SELL
 # Bump when the result format changes: it is part of every cache key, so results cached by an older
 # version of this file are never served after an upgrade, and pages can tell which engine answered.
-ENGINE_VERSION = 'coach-3'
+ENGINE_VERSION = 'coach-4'
 
 
 def result_key(symbol, style, detail=False):
@@ -648,25 +648,56 @@ def analyse_tf(symbol, tf, train=False):
     return out
 
 
+def _spread(symbol):
+    """Current spread in price units (ask - bid), else the spec spread."""
+    try:
+        q = mt5.cached_quote(symbol)
+        if q and q.ask and q.bid and q.ask > q.bid:
+            return float(q.ask) - float(q.bid)
+        sp = mt5.SPECS.get(symbol)
+        return float(sp.spread) * float(sp.point) if sp else 0.0
+    except Exception:
+        return 0.0
+
+
+# Stop placement: beyond the swing that protects the trade, never inside it.
+SL_BUFFER_ATR = 0.35        # past the swing: wicks / stop hunts usually sweep 0.1–0.3 ATR beyond it
+SL_MIN_ATR = 1.2            # closer than this sits in normal candle noise
+SL_MAX_ATR = 3.0            # further than this the swing is too far: the setup is skipped (not a tighter stop)
+
+
 def trade_plan(symbol, direction, main, price):
+    """price = bid. A buy fills at the ask, so the entry and the risk are measured from the ask.
+    Stop beyond the nearest protecting swing + buffer + spread. stop_ok is False when the only stop that fits
+    is inside the structure (those plans are shown but never published as A / A+ signals)."""
     s, i = main['series'], main['last']
     atr = s.atr[i]
     lv = main['levels']['levels']
+    spread = _spread(symbol)
+    buf = SL_BUFFER_ATR * atr + 2 * spread
     ph, pl = s.pivots_until(s.n - 1, 60)
+    stop_ok = True
     if direction == 'BUY':
-        swing = [s.l[p] for p in pl if s.l[p] < price]
-        sl = (max(swing) - 0.2 * atr) if swing else price - 1.5 * atr
-        if not (1.0 * atr <= price - sl <= 2.5 * atr):
-            sl = price - 1.5 * atr
+        price = price + spread                          # buy at the ask
+        swing = [s.l[p] for p in pl if s.l[p] < price - 0.3 * atr]
+        sl = (max(swing) - buf) if swing else None
+        if sl is not None and price - sl < SL_MIN_ATR * atr:
+            deeper = [x for x in swing if price - (x - buf) >= SL_MIN_ATR * atr]
+            sl = (max(deeper) - buf) if deeper else price - SL_MIN_ATR * atr
+        if sl is None or price - sl > SL_MAX_ATR * atr + buf:
+            sl, stop_ok = price - 1.5 * atr, False
         risk = price - sl
         targets = sorted(z['price'] for z in lv if z['price'] > price + 1.2 * risk)
         tp1 = targets[0] if targets and targets[0] <= price + 4 * risk else price + 1.5 * risk
         tp2 = max(tp1 + risk, price + 3 * risk)
     else:
-        swing = [s.h[p] for p in ph if s.h[p] > price]
-        sl = (min(swing) + 0.2 * atr) if swing else price + 1.5 * atr
-        if not (1.0 * atr <= sl - price <= 2.5 * atr):
-            sl = price + 1.5 * atr
+        swing = [s.h[p] for p in ph if s.h[p] > price + 0.3 * atr]
+        sl = (min(swing) + buf) if swing else None
+        if sl is not None and sl - price < SL_MIN_ATR * atr:
+            deeper = [x for x in swing if (x + buf) - price >= SL_MIN_ATR * atr]
+            sl = (min(deeper) + buf) if deeper else price + SL_MIN_ATR * atr
+        if sl is None or sl - price > SL_MAX_ATR * atr + buf:
+            sl, stop_ok = price + 1.5 * atr, False
         risk = sl - price
         targets = sorted((z['price'] for z in lv if z['price'] < price - 1.2 * risk), reverse=True)
         tp1 = targets[0] if targets and targets[0] >= price - 4 * risk else price - 1.5 * risk
@@ -687,6 +718,7 @@ def trade_plan(symbol, direction, main, price):
         'entry': _r(symbol, price), 'sl': _r(symbol, sl), 'tp1': _r(symbol, tp1), 'tp2': _r(symbol, tp2),
         'rr': round(abs(tp1 - price) / risk, 2) if risk else None,
         'risk_atr': round(risk / atr, 2), 'atr': _r(symbol, atr),
+        'stop_ok': stop_ok, 'spread': _r(symbol, spread),
         'pullback_entry': pullback, 'risk_per_lot_usd': round(risk_per_lot, 2) if risk_per_lot else None,
         'margin_per_lot_usd': round(margin_per_lot, 2) if margin_per_lot else None,
         'volume_min': float(mt5.SPECS[symbol].volume_min) if symbol in mt5.SPECS and hasattr(mt5.SPECS[symbol], 'volume_min') else 0.01,

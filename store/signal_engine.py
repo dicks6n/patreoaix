@@ -348,6 +348,12 @@ def scan_model(base):
 # ═══════════════════════════════════════════════════════════════
 # CONFLUENCE
 # ═══════════════════════════════════════════════════════════════
+# Entry Coach states where the direction may be right but entering now is not:
+# EXTENDED (chasing the impulse), WAIT_PULLBACK (no pullback yet), IN_ZONE (no confirmation yet),
+# MISSED (price already left), INVALID (the swing broke)
+ENTRY_WAIT_STATES = ('EXTENDED', 'WAIT_PULLBACK', 'IN_ZONE', 'MISSED', 'INVALID')
+
+
 def grade_setup(base, scanners):
     from .ai_learning import multipliers                 # learned daily from the closed signals
     learned = multipliers()
@@ -370,15 +376,34 @@ def grade_setup(base, scanners):
     model_ok = model_v is None or model_v * sign > 0
     base_ok = base.get('signal') == direction
     plan = base.get('plan') if base_ok else (base.get('watch') if base.get('lean') == direction else None)
+    # ── entry timing (the Entry Coach on the same candles) ──
+    # A good direction with a bad entry is still a losing trade: buying the top of an impulse puts the stop
+    # inside the normal pullback. A / A+ go out only when the entry is right now.
+    coach = base.get('coach') or {}
+    c_state, c_side = coach.get('state'), coach.get('side')
+    entry_ok, entry_note = True, None
+    if c_side and c_side != direction:
+        entry_ok, entry_note = False, f"Against the {coach.get('tf', '').upper()} swing structure ({c_side.lower()} trend)"
+    elif c_side and c_state in ENTRY_WAIT_STATES:
+        entry_ok, entry_note = False, coach.get('headline') or c_state
+    elif c_side and c_state == 'READY' and coach.get('plan'):
+        cp = coach['plan']                       # confirmed pullback: the stop goes beyond the pullback extreme
+        if plan and cp.get('sl') and cp.get('rr', 0) >= 1.5:
+            wider = (cp['sl'] < plan['sl']) if direction == 'BUY' else (cp['sl'] > plan['sl'])
+            if wider:
+                plan = {**plan, 'sl': cp['sl'], 'tp1': cp['tp1'], 'tp2': cp['tp2'], 'rr': cp['rr'],
+                        'risk_atr': cp.get('risk_atr'), 'stop_ok': True, 'from_coach': True}
+    stop_ok = bool(plan) and plan.get('stop_ok', True)
     rr_ok = bool(plan and (plan.get('rr') or 0) >= 1.5)
 
     grade = None
     opposed = base.get('signal') in ('BUY', 'SELL') and not base_ok     # the chart scanner calls the other way
     if gate > 0 and not opposed:
         share = len(agree) / len(voting) if voting else 0
-        if base_ok and rr_ok and quality >= 45 and len(agree) >= 8 and share >= 0.7 and len(oppose) <= 1 and mtf_ok and model_ok:
+        timing_ok = entry_ok and stop_ok
+        if timing_ok and base_ok and rr_ok and quality >= 45 and len(agree) >= 8 and share >= 0.7 and len(oppose) <= 1 and mtf_ok and model_ok:
             grade = 'A+'
-        elif base_ok and rr_ok and quality >= 35 and len(agree) >= 7 and share >= 0.6 and len(oppose) <= 1 and mtf_ok and model_ok:
+        elif timing_ok and base_ok and rr_ok and quality >= 35 and len(agree) >= 7 and share >= 0.6 and len(oppose) <= 1 and mtf_ok and model_ok:
             grade = 'A'
         elif quality >= 22 and len(agree) >= 5 and len(oppose) <= 3:
             grade = 'B'
@@ -386,6 +411,8 @@ def grade_setup(base, scanners):
         'direction': direction, 'confluence': round(conf, 1), 'quality': round(quality, 1), 'gate': round(gate, 2),
         'agree': agree, 'oppose': oppose, 'voting': len(voting), 'grade': grade,
         'strong': grade in STRONG_GRADES, 'plan': plan, 'conflict': opposed,
+        'entry_ok': entry_ok, 'stop_ok': stop_ok, 'entry_note': entry_note or (None if stop_ok else 'Nearest swing is too far for a safe stop'),
+        'coach_state': c_state,
     }
 
 

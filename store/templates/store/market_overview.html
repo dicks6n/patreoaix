@@ -1437,6 +1437,7 @@
         const bits = [];
         if (r.strong && r.recorded) bits.push(`Strong ${r.grade} setup — recorded by the background scanner and sent to everyone with alerts on.`);
         else if (r.strong) bits.push(`Strong ${r.grade} setup — alerts go out when the background scanner records it on its next pass.`);
+        else if (!r.conflict && (r.entry_ok === false || r.stop_ok === false) && r.quality >= 35) bits.push(`Strong agreement for ${r.direction}, but not the entry yet: ${r.entry_note || 'waiting for a better entry'}. No alert until the price gives a safe entry (a stop beyond the swing, not inside it).`);
         else if (r.conflict) bits.push(`The scanners lean ${r.direction}, but the chart scanner's main signal is ${r.base_signal} — conflicting, so no grade and no alert.`);
         else if (r.grade === 'B') bits.push('Grade B: a decent lean, but not enough agreement to alert on.');
         else bits.push('Not enough agreement between the scanners for a graded setup.');
