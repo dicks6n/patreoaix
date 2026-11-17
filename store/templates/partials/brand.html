@@ -34,12 +34,22 @@
   input[type=checkbox], input[type=radio], input[type=range], progress { accent-color: var(--brand); }
   input, textarea { caret-color: var(--brand); }
   ::selection { background: rgba(245, 179, 1, .35); }
-  /* colour code per section (sidebar group icons) */
-  .nav-grp[data-grp="wallet"] { --sec: #F5B301; } .nav-grp[data-grp="trade"] { --sec: #16C784; } .nav-grp[data-grp="auto"] { --sec: #38BDF8; }
-  .nav-grp[data-grp="news"] { --sec: #FB923C; } .nav-grp[data-grp="ai"] { --sec: #C084FC; } .nav-grp[data-grp="learn"] { --sec: #22D3EE; }
-  .nav-grp[data-grp="funded"] { --sec: #FACC15; } .nav-grp[data-grp="portfolio"] { --sec: #34D399; } .nav-grp[data-grp="rewards"] { --sec: #F472B6; }
-  .nav-grp[data-grp="account"] { --sec: #94A3B8; } .nav-grp[data-grp="admin"] { --sec: #EF4444; }
-  .nav-grp > .nav-grp-btn > i:first-child { color: var(--sec, var(--brand)) !important; }
-  .nav-grp-in { border-left-color: color-mix(in srgb, var(--sec, var(--brand)) 35%, transparent) !important; }
-  .nav-grp.has-active:not(.open) > .nav-grp-btn { background: color-mix(in srgb, var(--sec, var(--brand)) 14%, transparent) !important; }
+  /* sidebar icons: one calm style (grey icons in bordered tiles, gold = where you are), like pro trading platforms */
+  #sideNav .nav-grp-btn > i:first-child, #sideNav .nav-top > i, .nav-grp-btn > i:first-child, .nav-top > i {
+    width: 28px !important; height: 28px; flex-shrink: 0; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12.5px !important; background: var(--px-panel-2); border: 1px solid var(--px-line); color: var(--px-dim) !important;
+    transition: background-color .15s, border-color .15s, color .15s; }
+  .nav-grp-btn, .nav-top { padding-top: 6px !important; padding-bottom: 6px !important; }
+  #sideNav .nav-grp-btn:hover > i:first-child, #sideNav .nav-top:hover > i, .nav-grp-btn:hover > i:first-child, .nav-top:hover > i { color: var(--px-text) !important; border-color: color-mix(in srgb, var(--px-text) 22%, transparent); }
+  #sideNav .nav-grp.open > .nav-grp-btn > i:first-child, #sideNav .nav-grp.has-active > .nav-grp-btn > i:first-child, #sideNav .nav-top.nav-active > i,
+  .nav-grp.open > .nav-grp-btn > i:first-child, .nav-grp.has-active > .nav-grp-btn > i:first-child, .nav-top.nav-active > i {
+    background: color-mix(in srgb, var(--brand) 14%, transparent); border-color: color-mix(in srgb, var(--brand) 45%, transparent); color: var(--brand) !important; }
+  .nav-grp.has-active:not(.open) > .nav-grp-btn { background: transparent !important; }
+  .nav-grp-in { margin-left: 25px !important; border-left-color: var(--px-line) !important; }
+  .nav-grp-in .nav-item i { width: 16px; font-size: 12.5px; color: var(--px-mute); }
+  .nav-grp-in .nav-item.nav-active i { color: var(--brand); }
+  .nav-top.nav-active::before { display: none; }
+  .nav-grp-new { width: 6px !important; height: 6px !important; box-shadow: none !important; }
+  .nav-grp-n { display: none !important; }                      /* page counts: clutter */
+  .nav-grp-btn { gap: 10px !important; }
 </style>

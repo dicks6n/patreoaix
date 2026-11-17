@@ -627,8 +627,8 @@ def dashboard_view(request):
 
     focus = goal_focus(request.user)
     if focus['goal'] == 'learn':                       # the dashboard is the Trading side: trading shortcuts only
-        focus.update(tiles=[('⚡', "Today's AI signals", '/market-overview/'), ('🧪', 'Demo account', '/trading-accounts/?tab=demo'),
-                            ('📈', 'Open the terminal', '/terminal/'), ('🔔', 'Price alerts', '/price-alerts/')],
+        focus.update(tiles=[('fa-bolt', "Today's AI signals", '/market-overview/'), ('fa-flask', 'Demo account', '/trading-accounts/?tab=demo'),
+                            ('fa-chart-line', 'Open the terminal', '/terminal/'), ('fa-bell', 'Price alerts', '/price-alerts/')],
                      plan='trader', goal_name='Your trading tools')
     focus['plan_rank'] = {'academy': 1, 'trader': 2, 'pro': 3}.get(focus['plan'] or '', 0)
     return render(request, 'store/dashboard.html', {
@@ -11924,10 +11924,10 @@ def rewards_hub(request):
 
 
 GOALS = [
-    ('learn', '🎓', 'Student', 'I want to learn trading from the start', 'Academy courses, lessons and the AI chart coach first.'),
-    ('part', '💼', 'Working & trading part-time', 'I have a job and trade on the side', 'AI signals, alerts and quick trades that fit your day.'),
-    ('pro', '📈', 'Professional trader', 'I trade seriously or full-time', 'Terminal, signals, bots and copy trading front and centre.'),
-    ('funded', '🏆', 'Funded trader', "I want to trade the firm's capital", 'Funded challenges, rules and your progress first.'),
+    ('learn', 'fa-graduation-cap', 'Student', 'I want to learn trading from the start', 'Academy courses, lessons and the AI chart coach first.'),
+    ('part', 'fa-briefcase', 'Working & trading part-time', 'I have a job and trade on the side', 'AI signals, alerts and quick trades that fit your day.'),
+    ('pro', 'fa-chart-line', 'Professional trader', 'I trade seriously or full-time', 'Terminal, signals, bots and copy trading front and centre.'),
+    ('funded', 'fa-trophy', 'Funded trader', "I want to trade the firm's capital", 'Funded challenges, rules and your progress first.'),
 ]
 GOAL_PLAN = {'learn': 'academy', 'part': 'trader', 'pro': 'pro', 'funded': 'pro'}
 
@@ -11970,14 +11970,14 @@ def goal_focus(user):
     from .models import UserProfile
     goal = UserProfile.objects.filter(user=user).values_list('goal', flat=True).first() or ''
     tiles = {
-        'learn': [('🎓', 'Continue the Academy', '/academy/'), ('📷', 'Read my chart (AI)', '/academy/chart-ai/'),
-                  ('🧾', 'Cheat sheets', '/academy/cheatsheet/'), ('🎁', 'Rewards', '/rewards/')],
-        'part': [('⚡', 'Today\'s AI signals', '/market-overview/'), ('🔔', 'Price alerts', '/price-alerts/'),
-                 ('📈', 'Open the terminal', '/terminal/'), ('🎁', 'Rewards', '/rewards/')],
-        'pro': [('📈', 'Terminal', '/terminal/'), ('🤖', 'Bots & auto-trading', '/bot-center/'),
-                ('🔁', 'Copy trading', '/copy-trading/'), ('🧮', 'Risk analyzer', '/risk-analyzer/')],
-        'funded': [('🏆', 'Funded challenges', '/funded/'), ('📏', 'Challenge rules', '/funded/#rules'),
-                   ('📈', 'Trade your challenge', '/terminal/'), ('🎁', 'Win a free challenge', '/rewards/')],
+        'learn': [('fa-graduation-cap', 'Continue the Academy', '/academy/'), ('fa-camera', 'Read my chart (AI)', '/academy/chart-ai/'),
+                  ('fa-file-lines', 'Cheat sheets', '/academy/cheatsheet/'), ('fa-gift', 'Rewards', '/rewards/')],
+        'part': [('fa-bolt', 'Today\'s AI signals', '/market-overview/'), ('fa-bell', 'Price alerts', '/price-alerts/'),
+                 ('fa-chart-line', 'Open the terminal', '/terminal/'), ('fa-gift', 'Rewards', '/rewards/')],
+        'pro': [('fa-chart-line', 'Terminal', '/terminal/'), ('fa-robot', 'Bots & auto-trading', '/bot-center/'),
+                ('fa-clone', 'Copy trading', '/copy-trading/'), ('fa-calculator', 'Risk analyzer', '/risk-analyzer/')],
+        'funded': [('fa-trophy', 'Funded challenges', '/funded/'), ('fa-list-check', 'Challenge rules', '/funded/#rules'),
+                   ('fa-chart-line', 'Trade your challenge', '/terminal/'), ('fa-gift', 'Win a free challenge', '/rewards/')],
     }
     names = {g[0]: g[2] for g in GOALS}
     return {'goal': goal, 'goal_name': names.get(goal, ''), 'tiles': tiles.get(goal, []), 'plan': GOAL_PLAN.get(goal)}

@@ -31,7 +31,7 @@
     .ac-lesson.done .ac-go { color: var(--px-up); }
     .ac-btn { display: inline-flex; align-items: center; gap: 6px; padding: 11px 16px; border-radius: 10px; font-size: 13px; font-weight: 800; background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); margin-top: 14px; }
     .ac-grad { text-align: center; }
-    .ac-grad .big { font-size: 44px; }
+    .ac-grad .big { width: 72px; height: 72px; margin: 0 auto 10px; border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 30px; color: var(--px-accent); background: color-mix(in srgb, var(--px-accent) 12%, transparent); border: 1px solid color-mix(in srgb, var(--px-accent) 35%, transparent); }
     .ac-grad h2 { font-size: 18px; font-weight: 900; color: var(--px-text); margin-top: 6px; }
     .ac-grad p { font-size: 13px; color: var(--px-dim); margin-top: 4px; }
 </style>
@@ -95,7 +95,7 @@
 
     {% if graduated %}
     <div class="ac-card ac-grad">
-        <div class="big">🎓</div>
+        <div class="big"><i class="fa-solid fa-graduation-cap"></i></div>
         <h2>You are an academy graduate</h2>
         <p>Your rewards are unlocked. Next: practise on a demo account with <a href="{% url 'copy_trading' %}" class="underline font-bold">AI Copy Trading</a> or the <a href="/market-overview/" class="underline font-bold">AI signals</a>.</p>
     </div>
