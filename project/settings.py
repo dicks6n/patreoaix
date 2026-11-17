@@ -211,6 +211,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',  #
     'allauth.account.middleware.AccountMiddleware',  #
     'store.rewards.DailyVisitMiddleware',          # rewards: first visit of the day (points + streak)
+    'store.seo.CanonicalMiddleware',               # search engines: one canonical address per page (store/seo.py)
     'django.contrib.messages.middleware.MessageMiddleware',  #
     'django.middleware.clickjacking.XFrameOptionsMiddleware',  #
 ]

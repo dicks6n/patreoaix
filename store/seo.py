@@ -87,3 +87,39 @@ def context(request):
     return {'seo_google': getattr(settings, 'GOOGLE_SITE_VERIFICATION', ''), 'seo_bing': getattr(settings, 'BING_SITE_VERIFICATION', ''),
             'seo_site': base, 'seo_image': f'{base}/static/store/social-card.png', 'seo_logo': f'{base}/static/store/icons/icon-512.png',
             'seo_telegram': getattr(settings, 'TELEGRAM_INVITE_URL', '')}
+
+
+# ═══════════════════════════════════════════════════════════════
+# CANONICAL LINK ON EVERY PAGE
+# ═══════════════════════════════════════════════════════════════
+# Google reported "Duplicate without user-selected canonical": the same page is reachable with ?ref=, ?space=,
+# ?tab=, ?source=app, ?next= … and many pages had no canonical link. Pages that set their own keep it; every
+# other HTML page gets one pointing at https://www.patreoaix.com/<path> with only the query keys that really
+# change the content (KEEP_QUERY).
+KEEP_QUERY = ('show', 'style', 'page', 'q')
+
+
+def canonical_url(request):
+    from urllib.parse import urlencode
+    keep = [(k, request.GET[k]) for k in KEEP_QUERY if request.GET.get(k)]
+    return f"{site()}{request.path}" + (f"?{urlencode(keep)}" if keep else '')
+
+
+class CanonicalMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        try:
+            if (request.method == 'GET' and response.status_code == 200 and not getattr(response, 'streaming', False)
+                    and 'text/html' in response.get('Content-Type', '') and b'</head>' in response.content
+                    and b'rel="canonical"' not in response.content):
+                from django.utils.html import escape
+                tag = f'<link rel="canonical" href="{escape(canonical_url(request))}">\n</head>'.encode()
+                response.content = response.content.replace(b'</head>', tag, 1)
+                if response.has_header('Content-Length'):
+                    response['Content-Length'] = str(len(response.content))
+        except Exception:
+            pass
+        return response
