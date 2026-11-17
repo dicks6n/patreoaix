@@ -626,6 +626,10 @@ def dashboard_view(request):
     site_settings = SiteSettings.load()
 
     focus = goal_focus(request.user)
+    if focus['goal'] == 'learn':                       # the dashboard is the Trading side: trading shortcuts only
+        focus.update(tiles=[('⚡', "Today's AI signals", '/market-overview/'), ('🧪', 'Demo account', '/trading-accounts/?tab=demo'),
+                            ('📈', 'Open the terminal', '/terminal/'), ('🔔', 'Price alerts', '/price-alerts/')],
+                     plan='trader', goal_name='Your trading tools')
     focus['plan_rank'] = {'academy': 1, 'trader': 2, 'pro': 3}.get(focus['plan'] or '', 0)
     return render(request, 'store/dashboard.html', {
         'focus': focus,
