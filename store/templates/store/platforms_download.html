@@ -145,7 +145,13 @@
                 <div class="step"><div><b>Install and open</b><span>Tap Install, then Open. Sign in with your PATREOAIX account.</span></div></div>
                 <div class="step"><div><b>Allow notifications</b><span>Tap Allow when the app asks, so deposits, trades and P2P orders pop up on your phone.</span></div></div>
             </div>
-            <div class="note"><b>"Unknown app" warning?</b> Android shows it for every app that is not from the Play Store. The app is signed by PATREOAIX: only download it from <b>patreoaix.com</b>, and check the fingerprint below if you want to be sure.</div>
+            <div class="note"><b>"Harmful file" or "Unsafe app blocked" warning?</b> Android and Chrome show these for every app that is not installed from the Play Store, especially new ones. It does not mean the app is unsafe. To install:
+                <ol style="margin:8px 0 0 18px;list-style:decimal;line-height:1.7">
+                    <li>Chrome says <i>"This type of file can harm your device"</i>: tap <b>Download anyway</b>.</li>
+                    <li>Play Protect says <i>"Unsafe app blocked"</i> or <i>"Harmful app"</i>: tap <b>More details</b>, then <b>Install anyway</b>.</li>
+                    <li>If it asks to scan the app, you can tap <b>Scan app</b>; it finishes in a few seconds.</li>
+                </ol>
+                The app is signed by PATREOAIX: only download it from <b>patreoaix.com</b>, and check the fingerprint below if you want to be sure. We are getting the app onto Google Play so this warning disappears.</div>
             {% if apk %}<p style="text-align:center;margin-top:16px"><a class="dl" href="{% url 'app_download' %}"><i class="fa-solid fa-download"></i><span>Download APK<small>{{ apk.size_kb }} KB</small></span></a></p>{% endif %}
         </div>
         <div class="pane" data-pane="ios">

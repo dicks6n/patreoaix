@@ -105,7 +105,7 @@
 {% block content %}
 <div class="lb-wrap">
   <section class="lb-card lb-hero">
-    <h1>Strategy <span>Lab</span> 🧪</h1>
+    <h1>Strategy <span>Lab</span></h1>
     <p class="lb-sub" style="font-size:13.5px;max-width:760px">Build a strategy from real indicator rules, test it on real candles, let the optimizer find better exits, stress-test it with 500 Monte Carlo runs, then let your AI bot trade it.</p>
     <div class="lb-ask">
       <textarea id="ask" placeholder="Describe it in your own words, e.g.  Buy gold when RSI crosses above 30 and price is above EMA 200 on the 1h chart, stop 1.5 ATR, target 2R, move stop to breakeven"></textarea>
@@ -150,7 +150,7 @@
     </aside>
 
     <div class="lb-res" id="res">
-      <section class="lb-card lb-empty" id="empty"><div class="big">📈</div><b style="color:var(--px-text);font-size:16px">Pick a template or describe your idea</b><p class="lb-sub">Then press Backtest: trades on the chart, the equity curve, monthly returns, Monte Carlo and more appear here.</p></section>
+      <section class="lb-card lb-empty" id="empty"><div class="big"><i class="fa-solid fa-chart-line" style="color:var(--px-accent)"></i></div><b style="color:var(--px-text);font-size:16px">Pick a template or describe your idea</b><p class="lb-sub">Then press Backtest: trades on the chart, the equity curve, monthly returns, Monte Carlo and more appear here.</p></section>
     </div>
   </div>
 </div>
@@ -360,7 +360,7 @@
         j.grid.map(function (row) { return '<tr><th>' + row[0].sl + ' ATR</th>' + row.map(function (c) { var b = c.sl === j.best.sl && c.tp === j.best.tp; return '<td class="' + (b ? 'best' : '') + '" style="background:' + col(c.pf) + '" title="' + c.trades + ' trades, ' + c.net + '%">' + (c.trades ? pf(c.pf) : '–') + '</td>'; }).join('') + '</tr>'; }).join('') + '</table></div>' +
         '<div class="lb-two" style="margin-top:12px"><div class="lb-stat"><small>Best: stop ' + j.best.sl + ' ATR · target ' + j.best.tp + 'R · seen history</small><b class="lb-num">PF ' + j.in_sample.profit_factor + ' · ' + (j.in_sample.net_pct > 0 ? '+' : '') + j.in_sample.net_pct + '%</b></div>' +
         '<div class="lb-stat" style="border-color:' + (j.holds ? '#16C784' : '#EA3943') + '"><small>Unseen 30% (out of sample)</small><b class="lb-num ' + (j.holds ? 'pos' : 'neg') + '">PF ' + pf(j.out_sample.profit_factor) + ' · ' + (j.out_sample.net_pct > 0 ? '+' : '') + j.out_sample.net_pct + '% · ' + j.out_sample.trades + ' trades</b></div></div>' +
-        '<p class="lb-sub" style="margin-top:10px;font-weight:700;color:' + (j.holds ? 'var(--px-up)' : 'var(--px-down)') + '">' + (j.holds ? '✅ ' : '⚠️ ') + esc(j.verdict) + '</p>' +
+        '<p class="lb-sub" style="margin-top:10px;font-weight:700;color:' + (j.holds ? 'var(--px-up)' : 'var(--px-down)') + '">' + (j.holds ? '<i class="fa-solid fa-circle-check"></i> ' : '<i class="fa-solid fa-triangle-exclamation"></i> ') + esc(j.verdict) + '</p>' +
         '<button class="lb-btn go" id="useBest" style="margin-top:10px"><i class="fa-solid fa-check"></i> Use stop ' + j.best.sl + ' ATR · target ' + j.best.tp + 'R</button>';
       $('useBest').onclick = function () { spec.exits.sl = { type: 'atr', v: j.best.sl }; spec.exits.tp = { type: 'r', v: j.best.tp }; draw(); run(); };
       box.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -387,7 +387,7 @@
       if (!j.ok) return toast(j.error || 'Not saved', true);
       savedId = j.id; var f = MINE.find(function (m) { return m.id === j.id; });
       if (f) { f.name = spec.name; f.spec = clone(spec); } else MINE.unshift({ id: j.id, name: spec.name, deployed: false, spec: clone(spec) });
-      mine(); if (then) then(); else toast('💾 ' + esc(j.message));
+      mine(); if (then) then(); else toast('<i class="fa-solid fa-floppy-disk"></i> ' + esc(j.message));
     });
   }
   $('saveBtn').onclick = function () { save(); };
@@ -399,7 +399,7 @@
     api('deploy', { id: id, on: on }).then(function (j) {
       if (!j.ok) return toast(esc(j.error) + (j.upgrade ? ' <a href="' + j.upgrade + '" style="color:var(--px-accent)">Upgrade →</a>' : ''), true);
       var f = MINE.find(function (m) { return m.id === id; }); if (f) f.deployed = on; mine();
-      toast((on ? '🚀 ' : '⏸ ') + esc(j.message) + (on && !j.bot_on ? ' <a href="/bot/" style="color:var(--px-accent)">Open bot →</a>' : ''));
+      toast((on ? '<i class="fa-solid fa-rocket"></i> ' : '<i class="fa-solid fa-pause"></i> ') + esc(j.message) + (on && !j.bot_on ? ' <a href="/bot/" style="color:var(--px-accent)">Open bot →</a>' : ''));
     });
   }
   function mine() {

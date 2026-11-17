@@ -69,7 +69,7 @@
                     {% if signal == 'BUY' %}bg-emerald-500/20 text-emerald-400 border border-emerald-500/30
                     {% elif signal == 'SELL' %}bg-red-500/20 text-red-400 border border-red-500/30
                     {% else %}bg-yellow-500/20 text-yellow-400 border border-yellow-500/30{% endif %}">
-                    {% if signal == 'BUY' %}🏆 BUY Signal{% elif signal == 'SELL' %}📉 SELL Signal{% else %}⏸️ HOLD{% endif %}
+                    {% if signal == 'BUY' %}<i class="fa-solid fa-arrow-trend-up"></i> BUY Signal{% elif signal == 'SELL' %}<i class="fa-solid fa-arrow-trend-down"></i> SELL Signal{% else %}<i class="fa-solid fa-pause"></i> HOLD{% endif %}
                 </span>
                 <span class="px-3 py-1 rounded-full text-xs font-bold 
                     {% if is_bullish %}bg-emerald-500/20 text-emerald-400 border border-emerald-500/30
@@ -152,7 +152,7 @@
             <!-- AI Trade Analysis -->
             <div class="bg-gradient-to-br from-indigo-950/50 via-slate-900 to-purple-950/50 rounded-xl p-6 border border-indigo-800/30">
                 <div class="flex items-center gap-2 mb-4">
-                    <span class="text-xl">🤖</span>
+                    <span class="text-lg" style="color:var(--px-accent)"><i class="fa-solid fa-robot"></i></span>
                     <h3 class="text-sm font-bold text-indigo-300">AI Trade Analysis</h3>
                 </div>
                 <div class="space-y-2">
@@ -199,10 +199,10 @@
             <!-- Action Buttons -->
             <div class="grid grid-cols-2 gap-4">
                 <a href="{% url 'trade' %}" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-center transition text-sm shadow-lg shadow-emerald-600/20">
-                    {% if signal == 'BUY' %}🟢 Execute BUY Trade{% elif signal == 'SELL' %}🔴 Execute SELL Trade{% else %}⏳ Set Alert{% endif %}
+                    {% if signal == 'BUY' %}<i class="fa-solid fa-arrow-up"></i> Execute BUY Trade{% elif signal == 'SELL' %}<i class="fa-solid fa-arrow-down"></i> Execute SELL Trade{% else %}<i class="fa-solid fa-bell"></i> Set Alert{% endif %}
                 </a>
                 <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition text-sm">
-                    📄 Save Analysis
+                    <i class="fa-solid fa-file-arrow-down"></i> Save Analysis
                 </button>
             </div>
 
@@ -211,7 +211,7 @@
 
     <!-- Similar Signals / Related -->
     <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-        <h3 class="text-sm font-bold text-white mb-4">📊 Market Overview</h3>
+        <h3 class="text-sm font-bold text-white mb-4"><i class="fa-solid fa-chart-simple" style="color:var(--px-accent)"></i> Market Overview</h3>
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <div class="bg-slate-950 rounded-xl p-3 text-center border border-slate-800">
                 <div class="text-[10px] text-slate-400">EUR/USD</div>

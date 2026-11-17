@@ -81,9 +81,9 @@
             <div class="pts">{{ rw.points|floatformat:"0g" }} <span style="font-size:14px;color:var(--px-mute)">points</span></div>
             <p style="font-size:13px;color:var(--px-mute);margin-top:4px">{% if rw.next %}<b style="color:var(--px-text)">{{ rw.to_next|floatformat:"0g" }}</b> points to {{ rw.next_icon }} {{ rw.next }}{% else %}You reached the top level. Legend. 👑{% endif %}</p>
             <div class="rw-chips">
-                {% if rw.ready %}<span class="rw-chip hot">🎁 {{ rw.ready }} reward{{ rw.ready|pluralize }} ready to claim</span>{% endif %}
-                <span class="rw-chip">🔥 {{ rw.streak }}-day streak</span>
-                {% if not rw.kyc %}<a class="rw-chip" href="{% url 'kyc_submit' %}">🛡️ Verify to unlock cash & challenges</a>{% endif %}
+                {% if rw.ready %}<span class="rw-chip hot"><i class="fa-solid fa-gift"></i> {{ rw.ready }} reward{{ rw.ready|pluralize }} ready to claim</span>{% endif %}
+                <span class="rw-chip"><i class="fa-solid fa-fire" style="color:#fb923c"></i> {{ rw.streak }}-day streak</span>
+                {% if not rw.kyc %}<a class="rw-chip" href="{% url 'kyc_submit' %}"><i class="fa-solid fa-shield-halved"></i> Verify to unlock cash & challenges</a>{% endif %}
             </div>
         </div>
     </div>
@@ -101,7 +101,7 @@
                     <button class="rw-btn go" type="submit">Claim rewards</button></form>
                 {% if l.kyc %}<span class="rw-note">Verify your identity first: cash and challenges need it.</span>{% endif %}
                 {% elif l.state == 'claimed' %}<button class="rw-btn" disabled>✓ Claimed</button>
-                {% else %}<button class="rw-btn" disabled>🔒 {{ l.pct }}% there</button>{% endif %}
+                {% else %}<button class="rw-btn" disabled><i class="fa-solid fa-lock"></i> {{ l.pct }}% there</button>{% endif %}
             </div>
             {% endfor %}
         </div>
@@ -109,24 +109,24 @@
 
     <div class="rw-two">
         <div class="rw-card">
-            <div class="rw-h"><h2>🎯 This week's missions</h2><p>New every Monday</p></div>
+            <div class="rw-h"><h2><i class="fa-solid fa-bullseye" style="color:var(--px-accent)"></i> This week's missions</h2><p>New every Monday</p></div>
             {% for m in rw.missions %}
             <div class="rw-mission">
-                <b>{% if m.done %}✅ {% endif %}{{ m.title }}</b><span>+{{ m.points }}</span>
+                <b>{% if m.done %}<i class="fa-solid fa-circle-check" style="color:var(--px-up)"></i> {% endif %}{{ m.title }}</b><span>+{{ m.points }}</span>
                 <div class="rw-bar"><span style="width:{{ m.pct }}%"></span></div>
                 <small>{{ m.progress }} / {{ m.target }}{% if m.done %} · bonus earned{% endif %}</small>
             </div>
             {% endfor %}
         </div>
         <div class="rw-card">
-            <div class="rw-h"><h2>🏅 Badges</h2><p>{{ rw.badges|length }} to collect</p></div>
+            <div class="rw-h"><h2><i class="fa-solid fa-medal" style="color:var(--px-accent)"></i> Badges</h2><p>{{ rw.badges|length }} to collect</p></div>
             <div class="rw-badges">{% for b in rw.badges %}<div class="rw-badge {% if not b.got %}off{% endif %}" title="{{ b.name }}"><span class="e">{{ b.icon }}</span><small>{{ b.name }}</small></div>{% endfor %}</div>
         </div>
     </div>
 
     {% if rw.cash %}
     <div class="rw-card">
-        <div class="rw-h"><h2>💵 Reward cash</h2><p>In your wallet now. Trade it to make it withdrawable.</p></div>
+        <div class="rw-h"><h2><i class="fa-solid fa-money-bill-wave" style="color:var(--px-accent)"></i> Reward cash</h2><p>In your wallet now. Trade it to make it withdrawable.</p></div>
         {% for c in rw.cash %}
         <div class="rw-mission"><b>{{ c.level }} reward · ${{ c.cash }}</b><span>{% if c.released %}Withdrawable ✓{% else %}${{ c.done|floatformat:0 }} / ${{ c.required|floatformat:0 }} traded{% endif %}</span>
             <div class="rw-bar"><span style="width:{{ c.pct }}%"></span></div></div>

@@ -2262,7 +2262,7 @@ async function autoCloseTrade(row, tradeId, symbol, type, volume, entry, current
 
     row.classList.add('row-auto-close');
 
-    const label = reason === 'SL' ? '🛑 Stop Loss Hit' : reason === 'SO' ? '⚠️ Stop-Out (equity reached $0)' : '🎯 Take Profit Hit';
+    const label = reason === 'SL' ? 'Stop Loss Hit' : reason === 'SO' ? 'Stop-Out (equity reached $0)' : 'Take Profit Hit';
     const toastType = pnl >= 0 ? 'success' : 'error';
     showToast(`${label} · ${symbol} ${type} closed @ ${currentPrice.toFixed(getDecimals(symbol))} | P&L: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`, toastType);
 
@@ -2546,7 +2546,7 @@ async function executeBrokerOrder(orderType, fromMobile = false) {
 
     if (volume <= 0) {
         feedbackBox.className = "p-3 bg-slate-950 border border-rose-800 rounded-xl text-center text-[11px] text-rose-400 font-mono";
-        feedbackBox.textContent = "❌ Volume must be greater than 0";
+        feedbackBox.textContent = "Volume must be greater than 0";
         return;
     }
 
@@ -2664,11 +2664,11 @@ async function executeBrokerOrder(orderType, fromMobile = false) {
             setTimeout(() => checkSLTPForAllPositions(), 200);
         } else {
             feedbackBox.className = "p-3 bg-slate-950 border border-rose-800 rounded-xl text-center text-[11px] text-rose-400 font-mono";
-            feedbackBox.textContent = `❌ ${data.error || 'Execution failed'}`;
+            feedbackBox.textContent = `${data.error || 'Execution failed'}`;
         }
     } catch (err) {
         feedbackBox.className = "p-3 bg-slate-950 border border-rose-800 rounded-xl text-center text-[11px] text-rose-400 font-mono";
-        feedbackBox.textContent = `❌ Network Error`;
+        feedbackBox.textContent = `Network error: check your connection`;
     }
 }
 
@@ -3855,7 +3855,7 @@ async function placeOrder(side, opts = {}) {
     if (err) {
         const fb = $t('trade-execution-feedback');
         fb.className = 'p-3 bg-slate-950 border border-rose-800 rounded-xl text-center text-[11px] text-rose-400 font-mono';
-        fb.textContent = '❌ ' + err;
+        fb.textContent = err;
         showToast(err, 'error');
         return;
     }
@@ -3895,14 +3895,14 @@ async function sendPending(side, type, o) {
         if (!d.success) throw new Error(d.error || 'Order rejected');
         const msg = `${o.label} ${o.vol.toFixed(2)} ${sym} at ${Number(o.price).toFixed(getDecimals(sym))} placed${d.order && d.order.ticket ? ' · ' + d.order.ticket : ''}`;
         fb.className = 'p-3 bg-emerald-950/40 border border-emerald-700/60 rounded-xl text-center text-[11px] text-emerald-300 font-mono';
-        fb.textContent = '✅ ' + msg;
+        fb.textContent = msg;
         showToast(msg, 'success');
         beep();
         loadPendingOrders();
         fetchMetrics();
     } catch (e) {
         fb.className = 'p-3 bg-slate-950 border border-rose-800 rounded-xl text-center text-[11px] text-rose-400 font-mono';
-        fb.textContent = '❌ ' + e.message;
+        fb.textContent = e.message;
         showToast(e.message, 'error');
     }
 }
@@ -4617,7 +4617,7 @@ async function placeDemoOrder(side) {
             const d = await dmPost('/api/deriv/demo/open/', derivBody({ symbol: sym, side, stake, multiplier: mult, stop_loss: sl, take_profit: tp }));
             if (!d.success) return fail(d.error || `${where} order failed`);
             fb.className = 'p-3 bg-slate-950 border border-emerald-800 rounded-xl text-center text-[11px] text-emerald-400 font-mono';
-            fb.textContent = `✅ ${side} ${sym} ×${mult} · stake ${fmtMoney(d.buy_price)} · ${where} #${d.contract_id}`;
+            fb.textContent = `${side} ${sym} ×${mult} · stake ${fmtMoney(d.buy_price)} · ${where} #${d.contract_id}`;
             showToast(`${where} ${side} ${sym} opened (#${d.contract_id})`, 'success');
             const accObj = real ? realAcc : demoAcc, infoId = real ? 'acct-real-info' : 'acct-demo-info';
             if (d.new_balance != null && accObj) { accObj.balance = d.new_balance; $t(infoId).textContent = `${d.loginid} · ${fmtMoney(d.new_balance)}`; }

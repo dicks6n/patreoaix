@@ -277,7 +277,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10">
             <div class="min-w-0">
                 <h1 class="text-lg sm:text-xl font-black tracking-tight text-white flex items-center gap-2">
-                    <span class="text-xl">🪙</span>
+                    <span class="text-lg" style="color:#f5b301"><i class="fa-solid fa-coins"></i></span>
                     PatreoAiX Synthetic Engine
                 </h1>
                 <p class="text-[11px] text-amber-200/70 mt-1 leading-relaxed">
@@ -312,8 +312,8 @@
                         <option value="1HZ100V">Volatility 100 (1s)</option>
                     </optgroup>
                     <optgroup label="Commodities">
-                        <option value="frxXAUUSD">🥇 Gold Spot (XAU/USD)</option>
-                        <option value="frxXAGUSD">🥈 Silver Spot (XAG/USD)</option>
+                        <option value="frxXAUUSD">Gold Spot (XAU/USD)</option>
+                        <option value="frxXAGUSD">Silver Spot (XAG/USD)</option>
                     </optgroup>
                     <optgroup label="Forex">
                         <option value="frxEURUSD">EUR/USD</option>
@@ -386,7 +386,7 @@
             <div class="digits-card-amber p-4 sm:p-5 relative">
                 <div class="flex items-center justify-between gap-3 mb-4 relative z-10">
                     <div class="flex items-center gap-2.5 min-w-0">
-                        <span class="text-xl sm:text-2xl">🪙</span>
+                        <span class="text-lg sm:text-xl" style="color:#f5b301"><i class="fa-solid fa-coins"></i></span>
                         <div class="min-w-0">
                             <h3 class="text-xs font-bold uppercase tracking-wider text-amber-300">AI Gold Auto-Trader</h3>
                             <p class="text-[10px] text-slate-400 truncate">Funded Account · 88% Profit Retention</p>
@@ -500,7 +500,7 @@
             <div class="digits-card-amber p-4 sm:p-5 space-y-4 relative">
                 <div class="flex items-center justify-between gap-3 mb-1 relative z-10">
                     <div class="flex items-center gap-2.5 min-w-0">
-                        <span class="text-xl">⚡</span>
+                        <span class="text-lg" style="color:#f5b301"><i class="fa-solid fa-bolt"></i></span>
                         <div class="min-w-0">
                             <h3 class="text-xs font-bold uppercase tracking-wider text-amber-300">Manual Trade</h3>
                             <p class="text-[10px] text-slate-400 truncate">Synthetic Digit Contracts · Instant Settlement</p>
@@ -1661,23 +1661,23 @@
         if (checkbox.checked) {
             if (FUNDED_BALANCE <= 0) {
                 checkbox.checked = false;
-                log.innerHTML = '<div class="text-rose-400 text-center py-2 text-[11px]">❌ Funded balance is $0.</div>';
+                log.innerHTML = '<div class="text-rose-400 text-center py-2 text-[11px]"><i class="fa-solid fa-circle-xmark"></i> Funded balance is $0.</div>';
                 return;
             }
             if (!IS_ACTIVE_SUBSCRIPTION) {
                 checkbox.checked = false;
-                log.innerHTML = '<div class="text-rose-400 text-center py-2 text-[11px]">❌ Active subscription required.</div>';
+                log.innerHTML = '<div class="text-rose-400 text-center py-2 text-[11px]"><i class="fa-solid fa-lock"></i> Active subscription required.</div>';
                 return;
             }
             if (dailyTradesCount >= MAX_DAILY_TRADES) {
                 checkbox.checked = false;
-                log.innerHTML = `<div class="text-rose-400 text-center py-2 text-[11px]">⛔ Daily limit (${MAX_DAILY_TRADES}) reached. Resets tomorrow.</div>`;
+                log.innerHTML = `<div class="text-rose-400 text-center py-2 text-[11px]"><i class="fa-solid fa-ban"></i> Daily limit (${MAX_DAILY_TRADES}) reached. Resets tomorrow.</div>`;
                 return;
             }
 
             badge.textContent = '● Starting...';
             badge.className = 'text-xs font-bold text-amber-400 animate-pulse';
-            log.innerHTML = '<div class="text-amber-400 text-center py-2 text-[11px]">🔄 Initializing AI Gold...</div>';
+            log.innerHTML = '<div class="text-amber-400 text-center py-2 text-[11px]"><i class="fa-solid fa-spinner fa-spin"></i> Initializing AI Gold...</div>';
 
             try {
                 const response = await fetch('{% url "execute_funded_ai_gold" %}', {
@@ -1740,7 +1740,7 @@
                     checkbox.checked = false;
                     badge.textContent = '● Inactive';
                     badge.className = 'text-xs font-bold text-amber-400';
-                    log.innerHTML = `<div class="text-rose-400 text-center py-2 text-[11px]">❌ ${data.error || 'Failed'}</div>`;
+                    log.innerHTML = `<div class="text-rose-400 text-center py-2 text-[11px]"><i class="fa-solid fa-circle-xmark"></i> ${data.error || 'Failed'}</div>`;
 
                     if (data.daily_trades_count !== undefined) {
                         dailyTradesCount = data.daily_trades_count;
@@ -1751,7 +1751,7 @@
                 checkbox.checked = false;
                 badge.textContent = '● Inactive';
                 badge.className = 'text-xs font-bold text-amber-400';
-                log.innerHTML = `<div class="text-rose-400 text-center py-2 text-[11px]">❌ Network Error</div>`;
+                log.innerHTML = `<div class="text-rose-400 text-center py-2 text-[11px]"><i class="fa-solid fa-wifi"></i> Network Error</div>`;
             }
         } else {
             isAIGoldActive = false;
@@ -1827,7 +1827,7 @@
                     const profitColor = trade.profit >= 0 ? 'text-emerald-400' : 'text-rose-400';
                     log.innerHTML += `
                         <div class="trade-log-entry flex justify-between items-center py-1 border-b border-slate-800/30 text-[10px]">
-                            <span class="text-slate-400">${trade.direction === 'BUY' ? '📈' : '📉'}</span>
+                            <span class="text-slate-400">${trade.direction === 'BUY' ? '<i class="fa-solid fa-arrow-trend-up" style="color:#16c784"></i>' : '<i class="fa-solid fa-arrow-trend-down" style="color:#ea3943"></i>'}</span>
                             <span class="font-bold ${trade.direction === 'BUY' ? 'text-emerald-400' : 'text-red-400'}">${trade.direction}</span>
                             <span class="font-mono text-slate-400">${trade.entry} → ${trade.exit}</span>
                             <span class="font-bold ${profitColor}">${trade.profit >= 0 ? '+' : ''}$${trade.profit.toFixed(2)}</span>
@@ -1927,7 +1927,7 @@
             bar.className = 'h-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all duration-300';
             const remaining = MAX_DAILY_TRADES - dailyTradesCount;
             hint.className = 'text-[9px] text-amber-400 font-mono text-center font-bold';
-            hint.textContent = `⚠️ Only ${remaining} trade${remaining > 1 ? 's' : ''} left today`;
+            hint.textContent = `Only ${remaining} trade${remaining > 1 ? 's' : ''} left today`;
 
             const toggle = document.getElementById('aiGoldToggle');
             if (toggle) toggle.disabled = false;
@@ -2515,7 +2515,7 @@
         const profitColor = trade.profit >= 0 ? 'text-emerald-400' : 'text-rose-400';
         const why = { SL: 'stop', TP: 'target', TIME: 'time' }[trade.reason] || '';
         return `<div class="trade-log-entry flex justify-between items-center py-1 border-b border-slate-800/30 text-[10px]">
-            <span class="text-slate-400">${label || (trade.direction === 'BUY' ? '📈' : '📉')}</span>
+            <span class="text-slate-400">${label || (trade.direction === 'BUY' ? '<i class="fa-solid fa-arrow-trend-up" style="color:#16c784"></i>' : '<i class="fa-solid fa-arrow-trend-down" style="color:#ea3943"></i>')}</span>
             <span class="font-bold ${trade.direction === 'BUY' ? 'text-emerald-400' : 'text-red-400'}">${trade.direction}</span>
             <span class="font-mono text-slate-400">${trade.entry} → ${trade.exit}</span>
             <span class="font-bold ${profitColor}">${trade.profit >= 0 ? '+' : ''}$${trade.profit.toFixed(2)}</span>
@@ -2527,7 +2527,7 @@
         // On page load: show the last real results instead of an empty log
         if (opts.fromStatus && log && Array.isArray(data.recent) && data.recent.length && /Toggle the switch above/.test(log.textContent)) {
             log.innerHTML = '<div class="text-[9px] text-slate-500 text-center py-1 uppercase tracking-wider">Recent AI Gold trades</div>' +
-                data.recent.slice().reverse().map(t => aiGoldTradeRow(t, '🕘')).join('');
+                data.recent.slice().reverse().map(t => aiGoldTradeRow(t, '<i class="fa-regular fa-clock"></i>')).join('');
         }
         // Trades the market closed between auto-runs (the auto-run / toggle handlers log their own)
         if (opts.fromStatus && Array.isArray(data.trades) && data.trades.length) {
