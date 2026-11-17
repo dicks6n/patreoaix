@@ -346,16 +346,22 @@ def login_view(request):
             except Exception as e:
                 logger.warning(f"Session tracking failed: {e}")
 
-            # go back to the page that sent them here (?next=), else the dashboard
+            # go back to the page that sent them here (?next=), else the home of the side they picked (learn / trade)
+            from . import spaces
+            space = spaces.clean(request.POST.get('space'))
             next_url = request.POST.get("next") or request.GET.get("next")
             from django.utils.http import url_has_allowed_host_and_scheme
             if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
-                return redirect(next_url)
-            return redirect("dashboard")
+                resp = redirect(next_url)
+            else:
+                resp = redirect(spaces.HOME.get(space or spaces.of(request), '/'))
+            spaces.save(request, user, space, resp)
+            return resp
         else:
             messages.error(request, "Invalid credentials. Please check your username/email and password.")
 
-    return render(request, "account/login.html")
+    from .spaces import clean as _clean_space, COOKIE as _SPACE_COOKIE
+    return render(request, "account/login.html", {'space': _clean_space(request.GET.get('space')) or _clean_space(request.COOKIES.get(_SPACE_COOKIE)) or 'trade'})
 
 def signup_view(request):
     """
@@ -386,7 +392,8 @@ def signup_view(request):
         # Re-show the form with what was typed (no redirect, so nothing is lost)
         def fail(msg):
             return render(request, "account/signup.html",
-                          {'ref_code': ref_code or '', 'error': msg, 'form_username': username, 'form_email': email})
+                          {'ref_code': ref_code or '', 'error': msg, 'form_username': username, 'form_email': email,
+                           'space': 'learn' if request.POST.get('space') == 'learn' else 'trade'})
 
         if not username:
             return fail("Choose a username.")
@@ -470,9 +477,19 @@ def signup_view(request):
                          + (f" Your free {trial_days}-day Pro {'invite gift' if invited else 'trial'} has started: every AI signal is unlocked." if trial else '')
                          + (" 🎁 Deposit now and get a 100% bonus on your first deposit." if _bonus_on() else ''))
         after = request.session.pop('after_signup', None)
-        return redirect(reverse('welcome') + (f'?next={after}' if after else ''))     # the four start cards first
+        from . import spaces
+        space = spaces.clean(request.POST.get('space')) or 'trade'
+        if space == 'learn' and not after:                # a learner goes straight to the Academy
+            UserProfile.objects.filter(user=auth_user).update(goal='learn')
+            resp = redirect('/academy/')
+        else:                                             # traders pick how they trade (part-time / pro / funded)
+            resp = redirect(reverse('welcome') + (f'?next={after}' if after else ''))
+        spaces.save(request, auth_user, space, resp)
+        return resp
 
-    return render(request, "account/signup.html", {'ref_code': ref_code or ''})
+    from .spaces import clean as _clean_space, COOKIE as _SPACE_COOKIE
+    return render(request, "account/signup.html", {'ref_code': ref_code or '',
+                  'space': _clean_space(request.GET.get('space')) or _clean_space(request.COOKIES.get(_SPACE_COOKIE)) or 'trade'})
 
 
 def logout_view(request):
@@ -11909,6 +11926,20 @@ GOALS = [
     ('funded', '🏆', 'Funded trader', "I want to trade the firm's capital", 'Funded challenges, rules and your progress first.'),
 ]
 GOAL_PLAN = {'learn': 'academy', 'part': 'trader', 'pro': 'pro', 'funded': 'pro'}
+
+
+def switch_space(request, space):
+    """Header switch Learn | Trade: remember the side and open its home (or ?next)."""
+    from . import spaces
+    space = spaces.clean(space)
+    if not space:
+        raise Http404
+    nxt = request.GET.get('next') or ''
+    if not nxt.startswith('/') or nxt.startswith('//'):
+        nxt = spaces.HOME[space]
+    resp = redirect(nxt)
+    spaces.save(request, request.user, space, resp)
+    return resp
 
 
 @login_required

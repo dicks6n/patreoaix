@@ -331,6 +331,7 @@ urlpatterns = [
     path('rewards/', views.rewards_hub, name='rewards'),
     path('rewards/surveys/', views.survey_rewards_view, name='survey_rewards'),
     path('welcome/', views.welcome, name='welcome'),
+    path('space/<str:space>/', views.switch_space, name='switch_space'),
     path('rewards/claim/<int:reward_id>/', views.claim_survey_reward, name='claim_survey_reward'),
     path('subscription/', views.subscription_billing, name='subscription_billing'),
     path('subscription/trial/', views.start_trial_view, name='start_trial'),

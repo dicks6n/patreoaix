@@ -1,0 +1,38 @@
+{% comment %}Learn / Trade chooser on the login and signup forms (store/spaces.py). Inside the <form>: posts "space".{% endcomment %}
+<style>
+  .sp-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 4px; }
+  .sp-pick input { position: absolute; opacity: 0; pointer-events: none; }
+  .sp-pick label { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 14px 12px; border-radius: 14px; cursor: pointer;
+                   background: #090d16; border: 1.5px solid #1e293b; transition: border-color .15s, background .15s, transform .15s; text-align: left; }
+  .sp-pick label:hover { transform: translateY(-1px); border-color: #334155; }
+  .sp-pick .ic { width: 34px; height: 34px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; }
+  .sp-pick b { font-size: 14px; color: #fff; font-weight: 800; }
+  .sp-pick small { font-size: 11px; color: #94a3b8; line-height: 1.4; }
+  .sp-pick .tick { position: absolute; top: 10px; right: 10px; width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid #334155; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; color: transparent; }
+  .sp-pick .learn .ic { background: rgba(56,189,248,.14); color: #38bdf8; }
+  .sp-pick .trade .ic { background: rgba(245,179,1,.14); color: #f5b301; }
+  .sp-pick input:checked + label.learn { border-color: #38bdf8; background: rgba(56,189,248,.08); }
+  .sp-pick input:checked + label.trade { border-color: #f5b301; background: rgba(245,179,1,.08); }
+  .sp-pick input:checked + label.learn .tick { background: #38bdf8; border-color: #38bdf8; color: #0b0e14; }
+  .sp-pick input:checked + label.trade .tick { background: #f5b301; border-color: #f5b301; color: #0b0e14; }
+  .sp-q { display: block; font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+  html.light .sp-pick label { background: #fff; border-color: #e2e8f0; } html.light .sp-pick b { color: #0f172a; }
+</style>
+<div>
+  <span class="sp-q">{% if signup %}What do you want to do first?{% else %}Where do you want to go?{% endif %}</span>
+  <div class="sp-pick" role="radiogroup">
+    <div>
+      <input type="radio" name="space" id="sp-learn" value="learn" {% if space == 'learn' %}checked{% endif %}>
+      <label for="sp-learn" class="learn"><span class="tick"><i class="fa-solid fa-check"></i></span>
+        <span class="ic"><i class="fa-solid fa-graduation-cap"></i></span><b>Learn trading</b>
+        <small>Academy, practice games, chart coach</small></label>
+    </div>
+    <div>
+      <input type="radio" name="space" id="sp-trade" value="trade" {% if space != 'learn' %}checked{% endif %}>
+      <label for="sp-trade" class="trade"><span class="tick"><i class="fa-solid fa-check"></i></span>
+        <span class="ic"><i class="fa-solid fa-chart-line"></i></span><b>Trade</b>
+        <small>Terminal, AI signals, wallet, bots</small></label>
+    </div>
+  </div>
+  {% if signup %}<p style="font-size:11px;color:#64748b;margin-top:8px">Your free 7-day Pro trial starts either way. You can switch sides any time from the top bar.</p>{% endif %}
+</div>

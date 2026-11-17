@@ -689,6 +689,20 @@
             transition: transform .45s cubic-bezier(.3, 1.35, .45, 1), opacity .2s ease; opacity: 0;
         }
         .px-dock-bubble.on { opacity: 1; }
+        /* ── Learn / Trade: two sides of one site (store/spaces.py) ── */
+        .sp-sw { display: inline-flex; padding: 3px; border-radius: 12px; background: var(--px-panel-2); border: 1px solid var(--px-line); gap: 2px; }
+        .sp-sw a { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 9px; font-size: 12.5px; font-weight: 800; color: var(--px-mute); white-space: nowrap; }
+        .sp-sw a:hover { color: var(--px-text); }
+        .sp-sw a.on.learn { background: #38bdf8; color: #06202c; }
+        .sp-sw a.on.trade { background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); }
+        .sp-side { display: flex; margin: 0 0 10px; } .sp-side .sp-sw { width: 100%; } .sp-side .sp-sw a { flex: 1; justify-content: center; }
+        body.space-learn .nav-grp[data-grp="wallet"], body.space-learn .nav-grp[data-grp="trade"], body.space-learn .nav-grp[data-grp="auto"],
+        body.space-learn .nav-grp[data-grp="funded"], body.space-learn .nav-grp[data-grp="portfolio"], body.space-learn .nav-grp[data-grp="learn"],
+        body.space-learn .nav-top { display: none; }
+        body.space-trade .nav-grp[data-grp="learnspace"] { display: none; }
+        body:not(.space-learn) .px-dock-learn { display: none; }
+        body.space-learn .px-dock-trade { display: none; }
+        body.space-learn .sub-cta { border-color: #38bdf8; }
         .px-tab {
             position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; min-width: 0; height: 100%;
             color: var(--px-mute); text-decoration: none; -webkit-tap-highlight-color: transparent; border-radius: 999px; transition: color .2s ease;
@@ -745,7 +759,7 @@
     {% include 'partials/brand.html' %}
     {% block extra_head %}{% endblock %}
 </head>
-<body class="min-h-screen flex antialiased selection:bg-amber-400 selection:text-black">
+<body class="min-h-screen flex antialiased selection:bg-amber-400 selection:text-black{% if user.is_authenticated %} space-{{ px_space|default:"trade" }}{% endif %}">
 
     <!-- MOBILE SIDEBAR BACKDROP -->
     <div id="sidebarBackdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-black/60 z-40 lg:hidden hidden backdrop-blur-sm"></div>
@@ -784,8 +798,24 @@
                 <i class="fa-solid fa-chevron-right sub-cta-go"></i>
             </a>
             {% endif %}
+            {% if user.is_authenticated %}<div class="sp-side"><div class="sp-sw" role="tablist" aria-label="Side of the site">
+                <a href="{% url 'switch_space' 'learn' %}" class="learn{% if px_space == 'learn' %} on{% endif %}"><i class="fa-solid fa-graduation-cap"></i> Learn</a>
+                <a href="{% url 'switch_space' 'trade' %}" class="trade{% if px_space != 'learn' %} on{% endif %}"><i class="fa-solid fa-chart-line"></i> Trade</a>
+            </div></div>{% endif %}
             <div class="nav-find"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="navFind" placeholder="Find a page…" autocomplete="off" aria-label="Find a page"></div>
             <a href="/" class="nav-item nav-top{% if request.resolver_match.url_name == 'dashboard' %} nav-active{% endif %}"><i class="fa-solid fa-table-columns"></i><span>Dashboard</span></a>
+            <div class="nav-grp" data-grp="learnspace">
+                <button type="button" class="nav-grp-btn" aria-expanded="true"><i class="fa-solid fa-graduation-cap"></i><span>Learning</span><b class="nav-grp-n">7</b><i class="fa-solid fa-chevron-down nav-grp-chev"></i></button>
+                <div class="nav-grp-body"><div class="nav-grp-in">
+                        <a href="{% url 'academy' %}" class="nav-item{% if request.resolver_match.url_name == 'academy' or request.resolver_match.url_name == 'academy_course' or request.resolver_match.url_name == 'academy_topic' or request.resolver_match.url_name == 'academy_lesson' %} nav-active{% endif %}"><i class="fa-solid fa-book-open"></i><span>Academy &amp; Courses</span></a>
+                        <a href="{% url 'academy_practice' %}" class="nav-item{% if request.resolver_match.url_name == 'academy_practice' %} nav-active{% endif %}"><i class="fa-solid fa-gamepad"></i><span>Practice Simulator</span></a>
+                        <a href="{% url 'chart_ai' %}" class="nav-item{% if request.resolver_match.url_name == 'chart_ai' %} nav-active{% endif %}"><i class="fa-solid fa-camera"></i><span>Read My Chart (AI coach)</span></a>
+                        <a href="{% url 'academy_cheatsheet' %}" class="nav-item{% if request.resolver_match.url_name == 'academy_cheatsheet' %} nav-active{% endif %}"><i class="fa-solid fa-file-lines"></i><span>Cheat Sheets</span></a>
+                        <a href="{% url 'free_signals' %}" class="nav-item{% if request.resolver_match.url_name == 'free_signals' %} nav-active{% endif %}"><i class="fa-solid fa-eye"></i><span>Watch the AI Signals</span></a>
+                        <a href="{% url 'trading_accounts' %}?tab=demo" class="nav-item"><i class="fa-solid fa-flask"></i><span>Practise on a Demo Account</span></a>
+                        <a href="{% url 'public_results' %}" class="nav-item"><i class="fa-solid fa-trophy"></i><span>Signal Track Record</span></a>
+                </div></div>
+            </div>
             <div class="nav-grp" data-grp="wallet">
                 <button type="button" class="nav-grp-btn" aria-expanded="false"><i class="fa-solid fa-wallet"></i><span>Wallet &amp; P2P</span><em class="nav-grp-new" title="Something new inside"></em><b class="nav-grp-n">4</b><i class="fa-solid fa-chevron-down nav-grp-chev"></i></button>
                 <div class="nav-grp-body"><div class="nav-grp-in">
@@ -931,6 +961,10 @@
                 <h1 class="text-[15px] font-semibold truncate" style="color:var(--px-text)">{% block page_title %}{% endblock %}</h1>
             </div>
 
+            {% if user.is_authenticated %}<div class="hidden md:flex ml-3"><div class="sp-sw" aria-label="Side of the site">
+                <a href="{% url 'switch_space' 'learn' %}" class="learn{% if px_space == 'learn' %} on{% endif %}" title="Academy, practice and the chart coach"><i class="fa-solid fa-graduation-cap"></i> Learn</a>
+                <a href="{% url 'switch_space' 'trade' %}" class="trade{% if px_space != 'learn' %} on{% endif %}" title="Terminal, signals, wallet and bots"><i class="fa-solid fa-chart-line"></i> Trade</a>
+            </div></div>{% endif %}
             <div class="ml-auto flex items-center gap-2">
                 <div class="hidden xl:block">
                     <div class="px-pill font-mono" title="Coordinated Universal Time">
@@ -1152,7 +1186,13 @@
     <nav class="px-dock lg:hidden" aria-label="Main">
         <div class="px-dock-row">
             <span class="px-dock-bubble" id="px-dock-bubble" aria-hidden="true"></span>
-        {% if user.is_authenticated %}
+        {% if user.is_authenticated and px_space == 'learn' %}
+            <a href="{% url 'academy' %}" class="px-tab {% if u == 'academy' or u == 'academy_course' or u == 'academy_topic' or u == 'academy_lesson' %}active{% endif %}"><i class="fa-solid fa-graduation-cap"></i><span class="sr">Academy</span><span class="px-dot"></span></a>
+            <a href="{% url 'chart_ai' %}" class="px-tab {% if u == 'chart_ai' %}active{% endif %}"><i class="fa-solid fa-camera"></i><span class="sr">Chart coach</span><span class="px-dot"></span></a>
+            <a href="{% url 'academy_practice' %}" class="px-tab px-tab-main {% if u == 'academy_practice' %}active{% endif %}" aria-label="Practice"><span class="px-tab-ic" style="background:#38bdf8"><i class="fa-solid fa-gamepad"></i></span><span class="sr">Practice</span></a>
+            <a href="{% url 'academy_cheatsheet' %}" class="px-tab {% if u == 'academy_cheatsheet' %}active{% endif %}"><i class="fa-solid fa-file-lines"></i><span class="sr">Cheat sheets</span><span class="px-dot"></span></a>
+            <a href="{% url 'switch_space' 'trade' %}" class="px-tab" title="Switch to Trade"><i class="fa-solid fa-chart-line"></i><span class="sr">Switch to Trade</span><span class="px-dot"></span></a>
+        {% elif user.is_authenticated %}
             <a href="{% url 'dashboard' %}" class="px-tab {% if u == 'dashboard' %}active{% endif %}"><i class="fa-solid fa-house"></i><span class="sr">Home</span><span class="px-dot"></span></a>
             <a href="{% url 'market_overview' %}" class="px-tab {% if u == 'market_overview' %}active{% endif %}"><i class="fa-solid fa-chart-line"></i><span class="sr">Markets</span><span class="px-dot"></span></a>
             <a href="{% url 'trade' %}" class="px-tab px-tab-main {% if u == 'trade' %}active{% endif %}" aria-label="Trade"><span class="px-tab-ic"><i class="fa-solid fa-arrow-right-arrow-left"></i></span><span class="sr">Trade</span></a>

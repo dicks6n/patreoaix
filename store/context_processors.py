@@ -62,7 +62,7 @@ def membership(request):
         return {'is_member': member, 'member_rank': r, 'my_level': my_level,
                 'member_tier': (f'TRIAL · {days}d' if days is not None else PLAN_NAMES.get(r, '').upper()) if member else '',
                 'on_trial': days is not None, 'trial_available': not member and trial_available(request.user), 'my_avatar': avatar,
-                'my_leverage': my_leverage}
+                'my_leverage': my_leverage, 'px_space': _space(request)}
     except Exception:
         return {'is_member': False, 'member_tier': ''}
 
@@ -117,6 +117,14 @@ def promos(request):
 def _ref_days():
     from .referral_rewards import days
     return days()
+
+
+def _space(request):
+    try:
+        from .spaces import of
+        return of(request)
+    except Exception:
+        return 'trade'
 
 
 def p2p_attention(request):

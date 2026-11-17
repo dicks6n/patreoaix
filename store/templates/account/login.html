@@ -87,6 +87,8 @@
                     <!-- Login Form -->
                     <form method="POST" action="{% url 'account_login' %}" class="space-y-4">
                         {% csrf_token %}
+                        {% include 'partials/space_pick.html' %}
+                        {% if request.GET.next %}<input type="hidden" name="next" value="{{ request.GET.next }}">{% endif %}
 
                         <!-- Email / Username Input Group -->
                         <div id="group-email" class="space-y-4">

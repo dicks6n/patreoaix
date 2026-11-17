@@ -270,6 +270,57 @@
             {% if bonus_on %}<span class="lp-chip"><i class="fa-solid fa-gift" style="color:#f0b90b"></i> {{ bonus_pct }}% bonus on your first deposit</span>{% endif %}
         </div>
 
+        <!-- Two sides of one site: Learn / Trade (store/spaces.py) -->
+        <style>
+            .sp-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 880px; margin: 40px auto 0; text-align: left; }
+            @media (max-width: 680px) { .sp-two { grid-template-columns: 1fr; } }
+            .sp-card { position: relative; border-radius: 22px; padding: 22px; background: #0d1322; border: 1.5px solid #1e293b; display: flex; flex-direction: column; gap: 12px; overflow: hidden; transition: transform .2s, border-color .2s; }
+            .sp-card:hover { transform: translateY(-3px); }
+            .sp-card.learn { border-color: rgba(56,189,248,.45); background: radial-gradient(420px 200px at 100% 0%, rgba(56,189,248,.14), transparent 70%), #0d1322; }
+            .sp-card.trade { border-color: rgba(245,179,1,.5); background: radial-gradient(420px 200px at 100% 0%, rgba(245,179,1,.14), transparent 70%), #0d1322; }
+            .sp-card .ic { width: 46px; height: 46px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; font-size: 20px; }
+            .sp-card.learn .ic { background: rgba(56,189,248,.16); color: #38bdf8; } .sp-card.trade .ic { background: rgba(245,179,1,.16); color: #f5b301; }
+            .sp-card h3 { font-size: 21px; font-weight: 900; color: #fff; margin: 0; }
+            .sp-card p { font-size: 13px; color: #94a3b8; margin: 0; line-height: 1.55; }
+            .sp-card ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 7px; font-size: 13px; color: #cbd5e1; }
+            .sp-card li i { width: 18px; }
+            .sp-card.learn li i { color: #38bdf8; } .sp-card.trade li i { color: #f5b301; }
+            .sp-go { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 46px; border-radius: 13px; font-weight: 900; font-size: 14px; margin-top: auto; }
+            .sp-card.learn .sp-go { background: #38bdf8; color: #06202c; } .sp-card.trade .sp-go { background: linear-gradient(135deg,#ffd34d,#f0a500); color: #0b0e14; }
+            .sp-card small { font-size: 11.5px; color: #64748b; text-align: center; }
+            .sp-card small a { color: #cbd5e1; text-decoration: underline; }
+            .sp-or { text-align: center; font-size: 12px; font-weight: 800; letter-spacing: .14em; color: #64748b; margin-top: 34px; text-transform: uppercase; }
+        </style>
+        <div class="sp-or">Choose how you want to start</div>
+        <div class="sp-two">
+            <div class="sp-card learn">
+                <span class="ic"><i class="fa-solid fa-graduation-cap"></i></span>
+                <h3>📚 I want to learn trading</h3>
+                <p>Start from zero, at your own pace. The Learning side keeps everything for students in one place.</p>
+                <ul>
+                    <li><i class="fa-solid fa-book-open"></i> Courses: candlesticks, patterns, risk</li>
+                    <li><i class="fa-solid fa-gamepad"></i> Practice games with real charts</li>
+                    <li><i class="fa-solid fa-camera"></i> AI coach that reads your chart screenshot</li>
+                    <li><i class="fa-solid fa-flask"></i> $10,000 demo account to practise</li>
+                </ul>
+                <a href="{% url 'signup' %}?space=learn" class="sp-go"><i class="fa-solid fa-graduation-cap"></i> Start learning</a>
+                <small>{{ trial_days }}-day Pro trial free, then the <a href="#pricing">Academy plan</a> or Pro. Have an account? <a href="{% url 'account_login' %}?space=learn">Log in</a></small>
+            </div>
+            <div class="sp-card trade">
+                <span class="ic"><i class="fa-solid fa-chart-line"></i></span>
+                <h3>📈 I want to trade</h3>
+                <p>For traders who want the tools: signals, the terminal and automation, all on the Trading side.</p>
+                <ul>
+                    <li><i class="fa-solid fa-bolt"></i> AI signals with entry, stop loss &amp; target</li>
+                    <li><i class="fa-solid fa-mobile-screen"></i> MT5-style terminal, real &amp; demo accounts</li>
+                    <li><i class="fa-solid fa-robot"></i> Bots, copy trading &amp; funded challenges</li>
+                    <li><i class="fa-solid fa-wallet"></i> Deposit with M-Pesa, MoMo or USDT</li>
+                </ul>
+                <a href="{% url 'signup' %}?space=trade" class="sp-go"><i class="fa-solid fa-chart-line"></i> Start trading</a>
+                <small>{{ trial_days }}-day Pro trial free, then <a href="#pricing">subscribe</a> to keep every signal. Have an account? <a href="{% url 'account_login' %}?space=trade">Log in</a></small>
+            </div>
+        </div>
+
         <!-- Real numbers: the scanner's own track record and the platform -->
         <div class="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
             {% if track.signals %}<div class="lp-stat"><b>{{ track.signals }}</b><span>AI signals · 30 days</span></div>{% endif %}

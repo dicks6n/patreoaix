@@ -30,6 +30,7 @@ class UserProfile(models.Model):
     payout_accounts = models.JSONField(default=dict, blank=True)   # saved withdrawal accounts (store/payouts.py)
     p2p_unlocked_at = models.DateTimeField(null=True, blank=True)    # staff lifted a P2P buying pause: older cancels no longer count
     goal = models.CharField(max_length=10, blank=True)               # start card: learn | part | pro | funded | skip
+    space = models.CharField(max_length=6, blank=True, default='')       # learn | trade: which side of the site (store/spaces.py)
     pass_tier = models.CharField(max_length=12, blank=True)          # reward pass: days of a plan won in Rewards
     pass_until = models.DateTimeField(null=True, blank=True)
     p2p_fee_off_pct = models.PositiveSmallIntegerField(default=0)    # reward: P2P fee discount …

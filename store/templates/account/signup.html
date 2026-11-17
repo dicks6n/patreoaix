@@ -116,6 +116,7 @@
                     <form method="POST" class="space-y-4">
                         {% csrf_token %}
                         {% if ref_code %}<input type="hidden" name="ref" value="{{ ref_code }}">{% endif %}
+                        {% include 'partials/space_pick.html' with signup=True %}
 
                         <!-- Username Field -->
                         <div>
