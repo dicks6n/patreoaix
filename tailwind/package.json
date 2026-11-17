@@ -1,0 +1,1 @@
+{ "name": "patreoaix-css", "private": true, "scripts": { "build": "node build.js" }, "devDependencies": { "tailwindcss": "3.4.17" } }

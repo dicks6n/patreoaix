@@ -27,3 +27,4 @@ android/build/
 *.keystore
 keystore-password.txt
 sample.sqlite3
+node_modules

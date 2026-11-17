@@ -23,20 +23,8 @@
        "email":"{{ support_email|default:'patreoaix@gmail.com' }}"{% if seo_telegram %},"sameAs":["{{ seo_telegram }}"]{% endif %}},
       {"@type":"WebSite","@id":"{{ seo_site }}/#site","name":"PATREOAIX","url":"{{ seo_site }}/","publisher":{"@id":"{{ seo_site }}/#org"}}
     ]}</script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{% static 'store/css/tw-landing.css' %}?v={{ tw_v }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        darkBg: '#090d16',
-                        cardBg: '#0d1322',
-                    }
-                }
-            }
-        }
-    </script>
     {% include 'partials/auth_skin.html' %}
     <style>
         body.bg-darkBg { background: var(--px-bg) !important; }

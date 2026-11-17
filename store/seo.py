@@ -81,12 +81,20 @@ def favicon(request):
     return FileResponse(open(f, 'rb'), content_type='image/x-icon')
 
 
+def _tw_version():
+    """Cache-buster for the built CSS (store/static/store/css/tw-*.css): changes when the file is rebuilt."""
+    try:
+        return int((STATIC / 'css' / 'tw-app.css').stat().st_mtime)
+    except Exception:
+        return 1
+
+
 def context(request):
     """Template context: verification codes and absolute URLs for the share image and the logo."""
     base = site()
     return {'seo_google': getattr(settings, 'GOOGLE_SITE_VERIFICATION', ''), 'seo_bing': getattr(settings, 'BING_SITE_VERIFICATION', ''),
             'seo_site': base, 'seo_image': f'{base}/static/store/social-card.png', 'seo_logo': f'{base}/static/store/icons/icon-512.png',
-            'seo_telegram': getattr(settings, 'TELEGRAM_INVITE_URL', '')}
+            'seo_telegram': getattr(settings, 'TELEGRAM_INVITE_URL', ''), 'tw_v': _tw_version()}
 
 
 # ═══════════════════════════════════════════════════════════════
