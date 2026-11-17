@@ -416,7 +416,7 @@ def signup_view(request):
             emails.send(user, 'Welcome to PATREOAIX', 'Welcome to PATREOAIX',
                         intro='Your account is ready. Here is how to get the most out of it:',
                         rows=[('1. Verify your identity', 'unlocks withdrawals and P2P'), ('2. Fund your wallet', 'M-Pesa, crypto or P2P'),
-                              ('3. Try Pro free', '3 days of AI signals and bots'), ('4. Learn', '8 courses in the Academy')],
+                              ('3. Try Pro free', '7 days of AI signals and bots'), ('4. Learn', '8 courses in the Academy')],
                         button=('Open my dashboard', '/dashboard/'), tone='good')
         except Exception as e:
             logger.warning(f'welcome email for {username} failed: {e}')
@@ -11139,7 +11139,7 @@ def api_deriv_demo_close(request):
 @staff_member_required
 def signal_posters(request):
     """TikTok-size posters of the AI signals, with captions to copy (store/poster.py)."""
-    from . import poster, tiktok
+    from . import poster, tiktok, facebook
     account = None
     if tiktok.connected():
         try:
@@ -11149,6 +11149,8 @@ def signal_posters(request):
     return render(request, 'store/posters.html', {
         'posters': poster.recent(60), 'tiktok_configured': tiktok.configured(), 'tiktok_account': account,
         'tiktok_inbox': account and tiktok.inbox_mode(), 'tiktok_can_upload': tiktok.connected() and tiktok.has_scope('video.upload'),
+        'fb_configured': facebook.configured(), 'fb_page': facebook.page(), 'fb_pages': facebook.pages(),
+        'fb_redirect': facebook.redirect_uri(request),
         'tiktok_redirect': tiktok.redirect_uri(request), 'tiktok_prefix': tiktok.poster_url('posters/'),
     })
 
@@ -11210,6 +11212,76 @@ def tiktok_post_poster(request):
             messages.success(request, f"Posted to TikTok (publish id {res['id']}). It appears on your account in a minute or two.")
     except Exception as e:
         messages.error(request, f'TikTok refused the post: {e}')
+    return redirect('signal_posters')
+
+
+@staff_member_required
+def facebook_connect(request):
+    from . import facebook
+    if not facebook.configured():
+        messages.error(request, 'Set FACEBOOK_APP_ID and FACEBOOK_APP_SECRET in .env first, then reload the site.')
+        return redirect('signal_posters')
+    return redirect(facebook.auth_url(request))
+
+
+@staff_member_required
+def facebook_callback(request):
+    from . import facebook
+    if request.GET.get('error'):
+        messages.error(request, f"Facebook: {request.GET.get('error_description') or request.GET['error']}")
+        return redirect('signal_posters')
+    try:
+        pages = facebook.finish_login(request, request.GET.get('code', ''), request.GET.get('state', ''))
+        p = facebook.page()
+        messages.success(request, f"Facebook connected: posters go to the Page \"{p['name']}\"." if p else
+                         f'Facebook connected: {len(pages)} Pages found. Pick the one to post to.')
+    except Exception as e:
+        messages.error(request, f'Facebook login failed: {e}')
+    return redirect('signal_posters')
+
+
+@staff_member_required
+@require_POST
+def facebook_page(request):
+    from . import facebook
+    try:
+        facebook.choose_page(request.POST.get('page_id', ''))
+        messages.success(request, f"Posters now go to \"{facebook.page()['name']}\".")
+    except Exception as e:
+        messages.error(request, str(e))
+    return redirect('signal_posters')
+
+
+@staff_member_required
+@require_POST
+def facebook_disconnect(request):
+    from . import facebook
+    facebook.disconnect()
+    messages.success(request, 'Facebook disconnected.')
+    return redirect('signal_posters')
+
+
+@staff_member_required
+@require_POST
+def facebook_post_poster(request):
+    """The 'Post to Facebook' button under a poster."""
+    import os
+    from . import facebook
+    url = request.POST.get('url', '')
+    prefix = f"{settings.MEDIA_URL}posters/"
+    rel = url[len(settings.MEDIA_URL):] if url.startswith(prefix) and '..' not in url else ''
+    if not rel or not os.path.exists(os.path.join(settings.MEDIA_ROOT, rel)):
+        messages.error(request, 'Poster not found.')
+        return redirect('signal_posters')
+    caption = ''
+    txt = os.path.join(settings.MEDIA_ROOT, rel[:-4] + '.txt')
+    if os.path.exists(txt):
+        caption = open(txt, encoding='utf-8').read()
+    try:
+        pid = facebook.post_photo(facebook.poster_url(rel), caption or 'PATREOAIX AI signal')
+        messages.success(request, f'Posted to your Facebook Page (post {pid}).')
+    except Exception as e:
+        messages.error(request, f'Facebook refused the post: {e}')
     return redirect('signal_posters')
 
 
@@ -11302,6 +11374,15 @@ def news_impact(request):
 def _bonus_on():
     from . import bonus
     return bonus.enabled()
+
+
+@login_required
+def free_signals_view(request):
+    """Every A / A+ signal of the week: Pro sees them at once, free members FREE_DELAY_MIN minutes later."""
+    from . import free_signals as fs
+    from .membership import trial_available, TRIAL_DAYS
+    data = fs.page(request.user)
+    return render(request, 'store/free_signals.html', dict(data, trial_available=trial_available(request.user), trial_days=TRIAL_DAYS))
 
 
 @login_required

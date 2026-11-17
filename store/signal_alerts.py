@@ -128,8 +128,10 @@ def record_signals(results, style):
         bot_engine.safe(bot_engine.on_new_signal, sig)
         from . import telegram_bot                     # post to the Telegram channel (never breaks the scan)
         telegram_bot.safe(telegram_bot.post_signal, sig, r)
-        from . import poster, tiktok                    # 1080×1920 poster (media/posters/), posted to TikTok
-        tiktok.safe_post(sig, poster.safe_save(sig))
+        from . import poster, tiktok, facebook          # 1080×1920 poster (media/posters/), posted to TikTok + Facebook Page
+        rel = poster.safe_save(sig)
+        tiktok.safe_post(sig, rel)
+        facebook.safe_post(sig, rel)
     return created
 
 
@@ -172,8 +174,10 @@ def update_outcomes(notify_users=True):
         closed.append(sig)
         from . import telegram_bot                     # reply in the channel with the result
         telegram_bot.safe(telegram_bot.post_outcome, sig)
-        from . import poster, tiktok
-        tiktok.safe_post(sig, poster.safe_save(sig, result=True), True)
+        from . import poster, tiktok, facebook
+        rel = poster.safe_save(sig, result=True)
+        tiktok.safe_post(sig, rel, True)
+        facebook.safe_post(sig, rel, True)
         if notify_users and sig.notified:
             word = {'TP': 'hit its target', 'SL': 'hit its stop', 'EXPIRED': 'expired'}[sig.outcome]
             for user in subscribers(sig.style, sig.grade, sig.symbol):

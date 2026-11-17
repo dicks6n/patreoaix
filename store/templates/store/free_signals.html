@@ -1,0 +1,100 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}Free AI Signals · PATREOAIX{% endblock %}
+{% block page_title %}AI signals{% endblock %}
+{% block extra_head %}
+<style>
+  .fs-wrap { max-width: 980px; display: flex; flex-direction: column; gap: 16px; }
+  .fs-card { background: var(--px-panel); border: 1px solid var(--px-line); border-radius: 18px; padding: 18px; }
+  .fs-hero { display: flex; gap: 18px; align-items: center; flex-wrap: wrap;
+             background: radial-gradient(520px 220px at 0% 50%, var(--px-accent-soft), transparent 70%), var(--px-panel); }
+  .fs-hero h1 { font-size: 22px; font-weight: 900; color: var(--px-text); margin: 0; }
+  .fs-hero p { font-size: 13.5px; color: var(--px-dim); margin: 6px 0 0; line-height: 1.55; }
+  .fs-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 900; letter-spacing: .06em; padding: 4px 10px; border-radius: 999px; }
+  .fs-badge.free { background: var(--px-panel-2); color: var(--px-dim); border: 1px solid var(--px-line); }
+  .fs-badge.pro { background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); }
+  .fs-go { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 46px; padding: 0 20px; border-radius: 12px; font-weight: 900; font-size: 14.5px; background: var(--px-accent); color: var(--px-accent-ink, #0b0e14); border: 0; cursor: pointer; white-space: nowrap; }
+  .fs-go.ghost { background: transparent; color: var(--px-text); border: 1px solid var(--px-line); }
+  .fs-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+  .fs-stat { background: var(--px-panel-2); border: 1px solid var(--px-line); border-radius: 14px; padding: 12px 14px; }
+  .fs-stat span { display: block; font-size: 11px; font-weight: 800; color: var(--px-mute); text-transform: uppercase; letter-spacing: .06em; }
+  .fs-stat b { font: 900 22px 'JetBrains Mono', monospace; color: var(--px-text); }
+  .fs-list { display: flex; flex-direction: column; gap: 10px; }
+  .fs-sig { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; padding: 14px; border-radius: 14px; background: var(--px-panel-2); border: 1px solid var(--px-line); }
+  .fs-sig.locked { border-style: dashed; }
+  .fs-sym { font: 900 17px 'JetBrains Mono', monospace; color: var(--px-text); }
+  .fs-meta { font-size: 12px; color: var(--px-mute); margin-top: 2px; }
+  .fs-lv { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--px-dim); margin-top: 6px; }
+  .fs-lv b { font-family: 'JetBrains Mono', monospace; color: var(--px-text); }
+  .fs-side { font-weight: 900; font-size: 12px; padding: 5px 9px; border-radius: 8px; }
+  .fs-side.BUY { background: var(--px-up-soft); color: var(--px-up); } .fs-side.SELL { background: var(--px-down-soft, rgba(234,57,67,.14)); color: var(--px-down); }
+  .fs-side.LOCK { background: var(--px-panel); color: var(--px-mute); border: 1px solid var(--px-line); }
+  .fs-out { text-align: right; font-weight: 900; font-family: 'JetBrains Mono', monospace; font-size: 14px; }
+  .fs-out small { display: block; font: 700 11px Inter, sans-serif; color: var(--px-mute); }
+  .fs-out.TP { color: var(--px-up); } .fs-out.SL { color: var(--px-down); } .fs-out.OPEN { color: var(--px-accent); } .fs-out.EXPIRED { color: var(--px-mute); }
+  .fs-blur { filter: blur(5px); user-select: none; }
+  @media (max-width: 560px) { .fs-sig { grid-template-columns: 1fr auto; } .fs-sig > .fs-side { display: none; } }
+</style>
+{% endblock %}
+{% block content %}
+<div class="fs-wrap">
+  <section class="fs-card fs-hero">
+    <div style="flex:1;min-width:240px">
+      {% if pro %}<span class="fs-badge pro"><i class="fa-solid fa-crown"></i> PRO · REAL TIME</span>{% else %}<span class="fs-badge free"><i class="fa-regular fa-clock"></i> FREE · {{ delay }} MIN DELAY</span>{% endif %}
+      <h1 style="margin-top:10px">{% if pro %}Every A / A+ signal, the moment it appears{% else %}AI signals, {{ delay }} minutes after Pro members{% endif %}</h1>
+      <p>{% if pro %}You see each signal as soon as the scanner records it. Free members see the same list {{ delay }} minutes later.{% else %}Free members see every A and A+ signal with its entry, stop and target {{ delay }} minutes after Pro members, plus one free signal a day as a notification. Pro gets them instantly, with alerts on your phone.{% endif %}</p>
+    </div>
+    {% if not pro %}
+    <div style="display:flex;flex-direction:column;gap:8px">
+      {% if trial_available %}
+      <form method="post" action="{% url 'start_trial' %}">{% csrf_token %}<button class="fs-go" type="submit"><i class="fa-solid fa-bolt"></i> Start free {{ trial_days }}-day Pro trial</button></form>
+      <small style="color:var(--px-mute);font-size:11.5px;text-align:center">No card needed · ends by itself</small>
+      {% else %}
+      <a class="fs-go" href="{% url 'subscription_billing' %}"><i class="fa-solid fa-crown"></i> Upgrade to Pro</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </section>
+
+  <div class="fs-stats">
+    <div class="fs-stat"><span>Signals · {{ days }} days</span><b>{{ rows|length }}</b></div>
+    <div class="fs-stat"><span>Win rate (TP vs SL)</span><b>{% if win_rate is not None %}{{ win_rate }}%{% else %}—{% endif %}</b></div>
+    <div class="fs-stat"><span>Decided</span><b>{{ decided }}</b></div>
+    {% if not pro %}<div class="fs-stat"><span>Locked right now</span><b style="color:var(--px-accent)">{{ locked_n }}</b></div>{% endif %}
+  </div>
+
+  <section class="fs-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+      <div style="font-weight:900;font-size:15px;color:var(--px-text)"><i class="fa-solid fa-bolt" style="color:var(--px-accent)"></i> Latest A / A+ signals</div>
+      <a href="{% url 'public_results' %}" style="font-size:13px;font-weight:800;color:var(--px-accent)">Full track record, losses included →</a>
+    </div>
+    <div class="fs-list">
+      {% for r in rows %}{% with s=r.s %}
+      {% if r.locked %}
+      <div class="fs-sig locked">
+        <span class="fs-side LOCK"><i class="fa-solid fa-lock"></i></span>
+        <div>
+          <div class="fs-sym">{{ s.symbol }} <span style="font-size:12px;color:var(--px-accent)">{{ s.grade }}</span></div>
+          <div class="fs-meta">{{ s.timeframe|upper }} · Pro members got it at {{ s.created_at|time:"H:i" }} UTC</div>
+          <div class="fs-lv fs-blur" aria-hidden="true"><span>Entry <b>0000.00</b></span><span>Stop <b>0000.00</b></span><span>Target <b>0000.00</b></span></div>
+        </div>
+        <div class="fs-out OPEN"><i class="fa-regular fa-clock"></i> {{ r.mins_left }} min<small>until it unlocks</small></div>
+      </div>
+      {% else %}
+      <div class="fs-sig">
+        <span class="fs-side {{ s.direction }}">{{ s.direction }}</span>
+        <div>
+          <div class="fs-sym">{{ s.symbol }} <span style="font-size:12px;color:var(--px-accent)">{{ s.grade }}</span></div>
+          <div class="fs-meta">{{ s.timeframe|upper }} · {{ s.created_at|date:"d M" }} · Pro at {{ s.created_at|time:"H:i" }}{% if not pro %} · free at {{ r.free_at|time:"H:i" }}{% endif %} UTC</div>
+          <div class="fs-lv"><span>Entry <b>{{ s.entry|floatformat:-5 }}</b></span><span>Stop <b>{{ s.stop_loss|floatformat:-5 }}</b></span><span>Target <b>{{ s.take_profit|floatformat:-5 }}</b></span>{% if s.rr %}<span>R:R <b>{{ s.rr|floatformat:2 }}</b></span>{% endif %}</div>
+        </div>
+        <div class="fs-out {{ s.outcome }}">{% if s.outcome == 'OPEN' %}OPEN<small>running</small>{% else %}{{ s.result_r|floatformat:2 }}R<small>{% if s.outcome == 'TP' %}target hit{% elif s.outcome == 'SL' %}stop hit{% else %}expired{% endif %}</small>{% endif %}</div>
+      </div>
+      {% endif %}
+      {% endwith %}{% empty %}
+      <div style="padding:26px;text-align:center;color:var(--px-mute)">No A / A+ signals in the last {{ days }} days yet. The scanner only sends a signal when the entry is right; check back soon.</div>
+      {% endfor %}
+    </div>
+    <p style="font-size:11.5px;color:var(--px-mute);margin-top:12px">Signals are analysis, not financial advice. By the time a signal unlocks the price may have moved: check it before entering. Trading involves risk of loss.</p>
+  </section>
+</div>
+{% endblock %}

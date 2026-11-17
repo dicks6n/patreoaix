@@ -36,7 +36,7 @@ class UserProfile(models.Model):
     p2p_fee_off_until = models.DateTimeField(null=True, blank=True)  # … until
     challenge_off_pct = models.PositiveSmallIntegerField(default=0)  # reward: % off the next funded challenge (used once)
     is_active_subscription = models.BooleanField(default=False)
-    trial_used = models.BooleanField(default=False)          # the free 3-day Pro trial (store/membership.py)
+    trial_used = models.BooleanField(default=False)          # the free 7-day Pro trial (store/membership.py)
     is_kyc_verified = models.BooleanField(default=False)
     kyc_submitted_at = models.DateTimeField(null=True, blank=True)
 

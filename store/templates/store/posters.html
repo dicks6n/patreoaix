@@ -77,6 +77,40 @@
     {% endif %}
   </div>
 
+  <div class="pst-tt">
+    <div class="pst-tt-head">
+      <i class="fa-brands fa-facebook" style="color:#1877f2"></i>
+      <b>Facebook Page</b>
+      {% if fb_page %}<span class="pst-pill pst-on">Posting to: {{ fb_page.name }}</span>
+      {% elif fb_pages %}<span class="pst-pill">Pick a Page</span>
+      {% else %}<span class="pst-pill">Not connected</span>{% endif %}
+      <span style="flex:1"></span>
+      {% if fb_pages %}
+        <form method="post" action="{% url 'facebook_disconnect' %}">{% csrf_token %}<button class="pst-cp" type="submit">Disconnect</button></form>
+      {% elif fb_configured %}
+        <a class="pst-dl" href="{% url 'facebook_connect' %}" style="background:#1877f2;color:#fff">Connect Facebook</a>
+      {% endif %}
+    </div>
+    {% if fb_pages|length > 1 %}
+      <form method="post" action="{% url 'facebook_page' %}" class="pst-btns" style="margin-top:8px">{% csrf_token %}
+        <select name="page_id" style="flex:1;height:38px;border-radius:10px;background:var(--px-panel-2);color:var(--px-text);border:1px solid var(--px-line);padding:0 10px">
+          {% for p in fb_pages %}<option value="{{ p.id }}" {% if fb_page and fb_page.id == p.id %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+        </select>
+        <button class="pst-cp" type="submit">Use this Page</button>
+      </form>
+    {% endif %}
+    {% if fb_page %}
+      <div class="pst-tt-text">New A / A+ signal posters and their results are published on the Page automatically (up to 8 a day), with the caption. Use <b>Post to Facebook</b> under a poster to post one now.</div>
+    {% elif not fb_pages %}
+      <ol class="pst-tt-text">
+        <li>Create a Facebook <b>Page</b> for PATREOAIX (apps can post to Pages, not to personal profiles).</li>
+        <li>developers.facebook.com → My Apps → Create app (type <b>Business</b>) → add <b>Facebook Login</b>. Valid OAuth redirect URI: <code>{{ fb_redirect }}</code></li>
+        <li>.env: <code>FACEBOOK_APP_ID=…</code> and <code>FACEBOOK_APP_SECRET=…</code> (App settings → Basic), reload the site{% if not fb_configured %} (not set yet){% endif %}.</li>
+        <li>Press <b>Connect Facebook</b> here, tick your Page and allow posting.</li>
+      </ol>
+    {% endif %}
+  </div>
+
   <div class="text-sm" style="color:var(--px-muted)">
     Every new A / A+ signal gets a TikTok-size poster (1080×1920), and a result poster when it closes.
     On your phone: <b>Download</b>, then <b>Copy caption</b>, then post it as a TikTok photo.
@@ -100,6 +134,12 @@
         <form method="post" action="{% url 'tiktok_post_poster' %}" class="pst-btns">{% csrf_token %}
           <input type="hidden" name="url" value="{{ p.url }}">
           <button class="pst-cp" type="submit"><i class="fa-brands fa-tiktok"></i> Post to TikTok now</button>
+        </form>
+        {% endif %}
+        {% if fb_page %}
+        <form method="post" action="{% url 'facebook_post_poster' %}" class="pst-btns">{% csrf_token %}
+          <input type="hidden" name="url" value="{{ p.url }}">
+          <button class="pst-cp" type="submit" style="color:#1877f2"><i class="fa-brands fa-facebook"></i> Post to Facebook</button>
         </form>
         {% endif %}
       </div>

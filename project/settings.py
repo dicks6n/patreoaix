@@ -444,6 +444,14 @@ TIKTOK_ENABLED = os.getenv('TIKTOK_ENABLED', 'True')
 TIKTOK_MIN_GRADE = os.getenv('TIKTOK_MIN_GRADE', 'A')            # A or A+
 TIKTOK_DAILY_LIMIT = os.getenv('TIKTOK_DAILY_LIMIT', '10')       # posts per day (TikTok limits posting too)
 TIKTOK_POST_RESULTS = os.getenv('TIKTOK_POST_RESULTS', 'True')   # also post the TARGET HIT / STOPPED OUT poster
+# Facebook Page posting (store/facebook.py): app from developers.facebook.com, then Signal Posters → Connect Facebook
+FACEBOOK_APP_ID = os.getenv('FACEBOOK_APP_ID', '')
+FACEBOOK_APP_SECRET = os.getenv('FACEBOOK_APP_SECRET', '')
+FACEBOOK_ENABLED = os.getenv('FACEBOOK_ENABLED', 'True')
+FACEBOOK_MIN_GRADE = os.getenv('FACEBOOK_MIN_GRADE', 'A')
+FACEBOOK_DAILY_LIMIT = os.getenv('FACEBOOK_DAILY_LIMIT', '8')
+FACEBOOK_POST_RESULTS = os.getenv('FACEBOOK_POST_RESULTS', 'True')
+FACEBOOK_GRAPH_VERSION = os.getenv('FACEBOOK_GRAPH_VERSION', 'v23.0')
 
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'

@@ -98,7 +98,7 @@ def email_for_notification(n):
     """Email a Notification when it matters: money in/out, verification, security, and P2P payment/release/appeal."""
     from . import notif_prefs as NP
     meta = n.metadata if isinstance(n.metadata, dict) else {}
-    if meta.get('out') or meta.get('chat') or not deliverable(getattr(n.user, 'email', '')):
+    if meta.get('out') or meta.get('chat') or meta.get('no_email') or not deliverable(getattr(n.user, 'email', '')):
         return False
     key = NP.of_notification(n)
     p2p_step = key == 'p2p' and (meta.get('sticky') or any(w in (n.title or '').lower() for w in ('released', 'completed', 'cancel')))

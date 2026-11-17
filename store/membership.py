@@ -31,7 +31,7 @@ AUTO_TRADING_MSG = 'Automated trading is for Pro and VIP members. Upgrade to unl
 
 
 TRIAL_TIER = 'pro_trial'          # the free trial: Pro features, ends by itself
-TRIAL_DAYS = 3
+TRIAL_DAYS = 7
 
 
 def tier_of(user):

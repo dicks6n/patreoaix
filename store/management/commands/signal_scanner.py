@@ -60,8 +60,13 @@ class Command(BaseCommand):
             for s in new:
                 self.stdout.write(self.style.SUCCESS(f'   ➜ {s.grade} {s.direction} {s.symbol} {s.timeframe} @ {s.entry} '
                                                      f'SL {s.stop_loss} TP {s.take_profit} — notified {s.notified}'))
-        for s in sa.update_outcomes():
+        closed = sa.update_outcomes()
+        for s in closed:
             self.stdout.write(f'   ✓ {s.symbol} {s.direction} {s.outcome} {s.result_r:+.2f}R')
+        from store import free_signals                     # free members: delayed signal of the day, "Pro got it at"
+        n = free_signals.safe_tick(closed)
+        if n:
+            self.stdout.write(f'   🔓 free-member notices sent: {n}')
         from store import bot_engine                       # bots: report closed trades, daily loss limit
         bot_engine.safe(bot_engine.tick)
         n = bot_engine.safe(bot_engine.strategy_tick)       # customers' own deployed strategies (Strategy Lab)
